@@ -26,7 +26,7 @@ class TicketType(BaseModel):
     name = models.CharField(max_length=100)
     description = models.TextField(max_length=2000, blank=True)
     color = models.CharField(max_length=6, default='6633ff')
-    emoji=models.CharField(max_length=1, default='🖕')
+    emoji=models.CharField(max_length=20, default='🖕')
     ticket_count=models.IntegerField()
     # class Meta:
     #     constraints = [

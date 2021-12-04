@@ -1,0 +1,10 @@
+.emoji {
+  font-size: 2rem; }
+
+.list-group .list-group-item {
+  padding: 2rem; }
+  .list-group .list-group-item p {
+    margin: 0; }
+  .list-group .list-group-item .emoji {
+    margin-top: -1.5rem;
+    margin-right: -1rem; }
