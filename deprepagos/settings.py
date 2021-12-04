@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.admin',
     'pipeline',
+    'bootstrap5',
     'tickets.apps.TicketsConfig',
 ]
 

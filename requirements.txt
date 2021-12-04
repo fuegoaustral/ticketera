@@ -5,3 +5,4 @@ sqlparse==0.4.2
 psycopg2
 django-pipeline
 libsasscompiler
+django-bootstrap-v5
