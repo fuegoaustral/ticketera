@@ -20,6 +20,7 @@
         {% bootstrap_form order_form form_group_class='form-group' %}
 
         <h4>Participantes</h4>
+        {{ tickets_formset.management_form }}
         {% for form in tickets_formset %}
             <div class="ticket-form">
                 <h5>Participante {{ forloop.counter }}</h5>
