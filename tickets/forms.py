@@ -1,6 +1,5 @@
 from django import forms
 from .models import Order, Ticket
-from django.forms.widgets import TextInput
 
 
 class TicketForm(forms.ModelForm):

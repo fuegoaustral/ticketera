@@ -1,0 +1,92 @@
+{% extends 'tickets/base.html' %}
+{% load bootstrap5 %}
+{% load pipeline %}
+
+{% block extrahead %}
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    {% stylesheet 'main' %}
+{% endblock %}
+
+{% block content %}
+
+    <h2 class="mb-5">Ponete contento. Estás comprando tus bonos para Fuego Austral.</h2>
+
+    <h3>{{ ticket_type.name }}</h3>
+
+    <p>{{ ticket_type.description }}</p>
+
+    <form action="." method="post" novalidate class="mb-5">
+        {% csrf_token %}
+        {% bootstrap_form order_form form_group_class='form-group' %}
+
+        <h4>Participantes</h4>
+        {{ tickets_formset.management_form }}
+        {% for form in tickets_formset %}
+            <div class="ticket-form dynamic-form">
+                <div class="d-flex justify-content-between">
+                    <h5>Participante {{ forloop.counter }}</h5>
+                    <button class="btn btn-danger delete-row">Eliminar</button>
+                </div>
+                {% bootstrap_form form form_group_class='form-group' %}
+            </div>
+        {% endfor %}
+
+        <button type="button" class="btn btn-success add-row">Agregar participante</button>
+
+        <div class="form-group">
+            <input type="submit" value="Pagar" class="btn btn-primary btn-lg w-100">
+        </div>
+    </form>
+
+    <script type='text/javascript'>
+
+        function updateElementIndex(el, prefix, ndx) {
+            var id_regex = new RegExp('(' + prefix + '-\\d+)');
+            var replacement = prefix + '-' + ndx;
+            if ($(el).attr("for")) $(el).attr("for", $(el).attr("for").replace(id_regex, replacement));
+            if (el.id) el.id = el.id.replace(id_regex, replacement);
+            if (el.name) el.name = el.name.replace(id_regex, replacement);
+        }
+
+        function addForm(btn, prefix) {
+            var formCount = parseInt($('#id_' + prefix + '-TOTAL_FORMS').val());
+            var row = $('.dynamic-form:first').clone(true).get(0);
+            $(row).removeAttr('id').insertAfter($('.dynamic-form:last')).children('.hidden').removeClass('hidden');
+            $(row).children().not(':last').children().each(function() {
+                updateElementIndex(this, prefix, formCount);
+                $(this).val('');
+            });
+            $(row).find('.delete-row').click(function() {
+                deleteForm(this, prefix);
+            });
+            $('#id_' + prefix + '-TOTAL_FORMS').val(formCount + 1);
+            return false;
+        }
+
+        function deleteForm(btn, prefix) {
+            $(btn).parents('.dynamic-form').remove();
+            var forms = $('.dynamic-form');
+            $('#id_' + prefix + '-TOTAL_FORMS').val(forms.length);
+            for (var i=0, formCount=forms.length; i<formCount; i++) {
+                $(forms.get(i)).children().not(':last').children().each(function() {
+                    updateElementIndex(this, prefix, i);
+                });
+            }
+            return false;
+        }
+
+        $(function () {
+            $('.add-row').click(function() {
+                return addForm(this, 'form');
+            });
+            $('.delete-row').click(function() {
+                return deleteForm(this, 'form');
+            });
+        });
+
+    });
+
+    </script>
+
+{% endblock %}

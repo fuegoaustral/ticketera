@@ -1,4 +1,8 @@
+import uuid
+
 from django.db import models
+from django.conf import settings
+from django.urls import reverse
 
 
 class BaseModel(models.Model):
@@ -12,6 +16,7 @@ class BaseModel(models.Model):
 class Coupon(BaseModel):
     token = models.CharField(max_length=20)
     max_tickets = models.IntegerField()
+    ticket_type = models.ForeignKey('TicketType', on_delete=models.CASCADE)
 
     def __str__(self):
         return self.token
@@ -22,12 +27,12 @@ class TicketType(BaseModel):
     price_with_coupon = models.DecimalField(decimal_places=2, max_digits=10, null=True, blank=True)
     date_from = models.DateTimeField(null=True, blank=True)
     date_to = models.DateTimeField(null=True, blank=True)
-    coupon = models.ForeignKey('Coupon', null=True, blank=True, on_delete=models.RESTRICT)
     name = models.CharField(max_length=100)
     description = models.TextField(max_length=2000, blank=True)
     color = models.CharField(max_length=6, default='6633ff')
     emoji=models.CharField(max_length=20, default='🖕')
     ticket_count=models.IntegerField()
+
     # class Meta:
     #     constraints = [
     #         models.CheckConstraint(
@@ -40,28 +45,77 @@ class TicketType(BaseModel):
     #         )
     #     ]
 
+    def __str__(self):
+        return self.name
+
 
 class Order(BaseModel):
+    key = models.UUIDField(default=uuid.uuid4, editable=False)
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
     email = models.CharField(max_length=320)
     phone = models.CharField(max_length=50)
     dni = models.CharField(max_length=10)
-    donations = models.JSONField()
+    donations = models.JSONField(null=True, blank=True)
     amount = models.DecimalField(decimal_places=2, max_digits=10)
 
     coupon = models.ForeignKey('Coupon', null=True, blank=True, on_delete=models.RESTRICT)
     ticket_type = models.ForeignKey('TicketType', on_delete=models.RESTRICT)
 
+    response = models.JSONField(null=True, blank=True)
+
+
     class OrderStatus(models.TextChoices):
         PENDING = 'PENDING', 'Pendiente'
-        PAID = 'PAID', 'Pagada'
+        CONFIRMED = 'CONFIRMED', 'Confirmada'
         ERROR = 'ERROR', 'Error'
     status = models.CharField(
         max_length=20,
         choices=OrderStatus.choices,
         default=OrderStatus.PENDING
     )
+
+    def get_payment_preference(self):
+
+        import mercadopago
+        sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
+
+        preference_data = {
+            "items": [{
+                    "title": self.ticket_type.name,
+                    "quantity": 1,
+                    "unit_price": ticket.price,
+                } for ticket in self.ticket_set.all()],
+            "payer": {
+                "name": self.first_name,
+                "surname": self.last_name,
+                "email": self.email,
+                "identification": { "type": "DNI", "number": self.dni },
+            },
+            "back_urls": {
+                "success": settings.APP_URL + reverse("payment_success_callback", kwargs={'order_key': self.key}),
+                "failure": settings.APP_URL + reverse("payment_failure_callback", kwargs={'order_key': self.key}),
+                "pending": settings.APP_URL + reverse("payment_pending_callback", kwargs={'order_key': self.key})
+            },
+            "auto_return": "approved",
+            # IPN makes the thing go faulty. Is it worthy to investigate?
+            # "notification_url": settings.APP_URL + reverse("payment_notification"),
+            "statement_descriptor": "Fuego Austral 2022",
+            "external_reference": self.id,
+        }
+
+        print(preference_data)
+
+        response = sdk.preference().create(preference_data)['response']
+
+        print('RESPONSE', response)
+
+        return response
+
+
+
+    def __str__(self):
+        return f'#{self.pk} {self.last_name}'
 
 
 class Ticket(BaseModel):
@@ -70,3 +124,5 @@ class Ticket(BaseModel):
     email = models.CharField(max_length=320)
     phone = models.CharField(max_length=50)
     dni = models.CharField(max_length=10)
+    price = models.IntegerField(default=0)
+    order = models.ForeignKey('Order', on_delete=models.CASCADE)
