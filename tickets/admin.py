@@ -14,7 +14,7 @@ class TicketTypeAdmin(admin.ModelAdmin):
 
 
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ('id', 'first_name', 'last_name', 'ticket_type_link', 'ticket_count', 'amount')
+    list_display = ('id', 'status', 'first_name', 'last_name', 'ticket_type_link', 'ticket_count', 'amount')
 
     def ticket_count(self, order):
         return order.ticket_set.count()

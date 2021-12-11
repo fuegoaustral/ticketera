@@ -1,8 +1,15 @@
 import uuid
+import qrcode
+from io import BytesIO
+from PIL import Image
 
 from django.db import models
 from django.conf import settings
 from django.urls import reverse
+
+from deprepagos.email import send_mail
+from templated_email import InlineImage
+
 
 
 class BaseModel(models.Model):
@@ -64,7 +71,6 @@ class Order(BaseModel):
 
     response = models.JSONField(null=True, blank=True)
 
-
     class OrderStatus(models.TextChoices):
         PENDING = 'PENDING', 'Pendiente'
         CONFIRMED = 'CONFIRMED', 'Confirmada'
@@ -112,13 +118,12 @@ class Order(BaseModel):
 
         return response
 
-
-
     def __str__(self):
         return f'#{self.pk} {self.last_name}'
 
 
 class Ticket(BaseModel):
+    key = models.UUIDField(default=uuid.uuid4, editable=False)
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
     email = models.CharField(max_length=320)
@@ -126,3 +131,33 @@ class Ticket(BaseModel):
     dni = models.CharField(max_length=10)
     price = models.IntegerField(default=0)
     order = models.ForeignKey('Order', on_delete=models.CASCADE)
+
+    def send_email(self):
+
+        url = reverse('ticket_detail', kwargs={'ticket_key': self.key})
+
+        print(f'{settings.APP_URL}{url}')
+
+        img = qrcode.make(f'{settings.APP_URL}{url}')
+
+        # logo = Image.open('tickets/static/img/logo.png')
+        # img.paste(logo)
+
+        stream = BytesIO()
+        img.save(stream, format="png")
+        stream.seek(0)
+        imgObj = stream.read()
+
+        inline_img = InlineImage(content=imgObj, filename='qr.png', subtype='png')
+
+        return send_mail(
+            template_name='ticket',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[settings.DEFAULT_FROM_EMAIL, self.email],
+            context={
+                'ticket': self,
+                'qr': inline_img
+            }
+        )
+
+

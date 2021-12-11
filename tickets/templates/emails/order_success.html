@@ -1,0 +1,10 @@
+{% extends 'emails/base.html' %}
+{% block subject %}Fuego Austral 2022: Orden Confirmada!{% endblock %}
+{% block title %}
+        Orden Confirmada!
+{% endblock %}
+{% block content %}
+
+    {% include 'emails/snippets/btn.html' with label='Ver confirmación' href=url base_url=base_url %}
+
+{% endblock %}

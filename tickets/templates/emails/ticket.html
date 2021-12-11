@@ -1,0 +1,16 @@
+{% extends 'emails/base.html' %}
+{% block subject %}Fuego Austral 2022: Tu bono{% endblock %}
+{% block title %}
+        Tu bono para Fuego Austral 2022
+{% endblock %}
+{% block content %}
+
+    {% url 'admin:auth_user_change' user.id as url %}
+
+    <center>
+        <img src="{{ qr }}">
+    </center>
+
+    {% include 'emails/snippets/btn.html' with label='Ver confirmación' href=url domain=domain %}
+
+{% endblock %}

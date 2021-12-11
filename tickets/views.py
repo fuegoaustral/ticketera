@@ -4,9 +4,9 @@ from django.template import loader
 from django.forms import modelformset_factory, BaseModelFormSet
 from django.urls import reverse
 
+from deprepagos.email import send_mail
 from .models import Coupon, Order, TicketType, Ticket
 from .forms import OrderForm, TicketForm
-
 
 def home(request):
 
@@ -83,12 +83,40 @@ def order_detail(request, order_key):
     return HttpResponse(template.render(context, request))
 
 
+def ticket_detail(request, ticket_key):
+
+    ticket = Ticket.objects.get(key=ticket_key)
+
+    template = loader.get_template('tickets/ticket_detail.html')
+    context = {
+        'ticket': ticket,
+    }
+
+    return HttpResponse(template.render(context, request))
+
+
 def payment_success(request, order_key):
     order = Order.objects.get(key=order_key)
     order.status = Order.OrderStatus.CONFIRMED
     order.response = request.GET
     order.save()
-    return HttpResponseRedirect(reverse('order_detail', kwargs={'order_key': order.key}))
+
+    order_url = reverse('order_detail', kwargs={'order_key': order.key})
+
+    send_mail(
+        template_name='order_success',
+        recipient_list=[settings.DEFAULT_FROM_EMAIL, order.email],
+        context={
+            'order': order,
+            'url': order_url
+        }
+    )
+
+    for ticket in order.ticket_set.all():
+        ticket.send_email()
+
+    return HttpResponse('test')
+    # return HttpResponseRedirect(order_url)
 
 
 def payment_failure(request):

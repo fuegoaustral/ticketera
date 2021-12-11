@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'pipeline',
     'bootstrap5',
     'tickets.apps.TicketsConfig',
+    'django_inlinecss',
 ]
 
 MIDDLEWARE = [
@@ -169,6 +170,14 @@ MERCADOPAGO = {
     'ACCESS_TOKEN': 'TEST-6630578586763408-121117-afe84675e0d0a70b7c67a1ade5909b2c-1037325933',
 }
 
+EMAIL_HOST = 'smtp.mailtrap.io'
+EMAIL_HOST_USER = '1e47278bc26919'
+EMAIL_HOST_PASSWORD = '1e355fb5adb1fd'
+EMAIL_PORT = '2525'
+
+DEFAULT_FROM_EMAIL = 'pagos@fuegoaustral.org'
+TEMPLATED_EMAIL_TEMPLATE_DIR = 'emails/'
+TEMPLATED_EMAIL_FILE_EXTENSION = 'html'
 
 # user comprador {"id":1037327132,"nickname":"TETE9670391","password":"qatest8330","site_status":"active","email":"test_user_43578812@testuser.com"}%
 # user comprador {"id":1037346624,"nickname":"TETE9234065","password":"qatest9033","site_status":"active","email":"test_user_72163657@testuser.com"}%
