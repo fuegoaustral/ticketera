@@ -33,9 +33,13 @@ def order(request, ticket_type_id):
     except TicketType.DoesNotExist as e:
         return HttpResponse('No seas gato')
 
+    if coupon is not None:
+        max_tickets = coupon.max_tickets
+    else:
+        max_tickets = 5
 
     order_form = OrderForm(request.POST or None)
-    TicketsFormSet = modelformset_factory(Ticket, formset=BaseTicketFormset, extra=1,
+    TicketsFormSet = modelformset_factory(Ticket, formset=BaseTicketFormset, extra=1, max_num=max_tickets,
                                           fields=('first_name', 'last_name', 'email', 'phone', 'dni'))
     tickets_formset = TicketsFormSet(request.POST or None)
 
@@ -59,6 +63,7 @@ def order(request, ticket_type_id):
 
     template = loader.get_template('tickets/order_new.html')
     context = {
+        'max_tickets': max_tickets,
         'ticket_type': ticket_type,
         'order_form': order_form,
         'tickets_formset': tickets_formset,

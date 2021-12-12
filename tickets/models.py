@@ -1,7 +1,6 @@
 import uuid
 import qrcode
 from io import BytesIO
-from PIL import Image
 
 from django.db import models
 from django.conf import settings
@@ -9,7 +8,6 @@ from django.urls import reverse
 
 from deprepagos.email import send_mail
 from templated_email import InlineImage
-
 
 
 class BaseModel(models.Model):

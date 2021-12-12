@@ -16,6 +16,7 @@
 
     <p>{{ ticket_type.description }}</p>
 
+    <p>Podés comprar hasta <strong>{{ max_tickets }}</strong> bonos.</p>
     <form action="." method="post" novalidate class="mb-5">
         {% csrf_token %}
         {% bootstrap_form order_form form_group_class='form-group' %}
@@ -25,7 +26,7 @@
         {% for form in tickets_formset %}
             <div class="ticket-form dynamic-form">
                 <div class="d-flex justify-content-between">
-                    <h5>Participante {{ forloop.counter }}</h5>
+                    <h5>Participante <span class="counter">1</span></h5>
                     <button class="btn btn-danger delete-row">Eliminar</button>
                 </div>
                 {% bootstrap_form form form_group_class='form-group' %}
@@ -40,6 +41,27 @@
     </form>
 
     <script type='text/javascript'>
+
+        let maxTickets = {{max_tickets}};
+
+        function update() {
+            let forms = $('.dynamic-form');
+            forms.each(function(idx) {
+                $(this).find('.counter').html(idx + 1)
+            });
+            if (forms.length == 1) {
+                $('.delete-row').hide()
+            } else {
+                $('.delete-row').show()
+            }
+            if (forms.length >= maxTickets) {
+                $('.add-row').hide();
+                return false;
+            } else if (forms.length < maxTickets) {
+                $('.add-row').show();
+                return false;
+            }
+        }
 
         function updateElementIndex(el, prefix, ndx) {
             var id_regex = new RegExp('(' + prefix + '-\\d+)');
@@ -61,6 +83,7 @@
                 deleteForm(this, prefix);
             });
             $('#id_' + prefix + '-TOTAL_FORMS').val(formCount + 1);
+            update()
             return false;
         }
 
@@ -73,10 +96,12 @@
                     updateElementIndex(this, prefix, i);
                 });
             }
+            update();
             return false;
         }
 
         $(function () {
+            update();
             $('.add-row').click(function() {
                 return addForm(this, 'form');
             });
@@ -84,8 +109,6 @@
                 return deleteForm(this, 'form');
             });
         });
-
-    });
 
     </script>
 
