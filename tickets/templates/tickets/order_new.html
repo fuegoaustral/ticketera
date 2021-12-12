@@ -17,7 +17,7 @@
     <p>{{ ticket_type.description }}</p>
 
     <p>Podés comprar hasta <strong>{{ max_tickets }}</strong> bonos.</p>
-    <form action="." method="post" novalidate class="mb-5">
+    <form action="." method="post" novalidate class="mb-5 buyer-form">
         {% csrf_token %}
         {% bootstrap_form order_form form_group_class='form-group' %}
 
@@ -29,6 +29,7 @@
                     <h5>Participante <span class="counter">1</span></h5>
                     <button class="btn btn-danger delete-row">Eliminar</button>
                 </div>
+                <button type="button" class="btn btn-primary copy-buyer-details">Copiar datos del comprador</button>
                 {% bootstrap_form form form_group_class='form-group' %}
             </div>
         {% endfor %}
@@ -36,7 +37,7 @@
         <button type="button" class="btn btn-success add-row">Agregar participante</button>
 
         <div class="form-group">
-            <input type="submit" value="Pagar" class="btn btn-primary btn-lg w-100">
+            <input type="submit" value="Continuar" class="btn btn-primary btn-lg w-100">
         </div>
     </form>
 
@@ -75,6 +76,7 @@
             var formCount = parseInt($('#id_' + prefix + '-TOTAL_FORMS').val());
             var row = $('.dynamic-form:first').clone(true).get(0);
             $(row).removeAttr('id').insertAfter($('.dynamic-form:last')).children('.hidden').removeClass('hidden');
+            $(row).find('.copy-buyer-details').remove();
             $(row).children().not(':last').children().each(function() {
                 updateElementIndex(this, prefix, formCount);
                 $(this).val('');
@@ -107,6 +109,18 @@
             });
             $('.delete-row').click(function() {
                 return deleteForm(this, 'form');
+            });
+            $('.copy-buyer-details').click(function() {
+                $('.buyer-form')
+                    .find('.form-control')
+                    .each(function() {
+                        let prefix = $(this).attr('id').substring(3, 7);
+                        if (prefix == 'form') {
+                            return;
+                        }
+                        let fieldName = $(this).attr('id').substring(3);
+                        $(`#id_form-0-${fieldName}`).val( $(this).val() );
+                    });
             });
         });
 
