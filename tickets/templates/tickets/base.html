@@ -1,4 +1,5 @@
 <!doctype html>
+{% load static %}
 {% load pipeline %}
 <html lang="es-AR" prefix="og: http://ogp.me/ns# fb: http://ogp.me/ns/fb#">
 <head>
@@ -6,10 +7,10 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 	<link rel="profile" href="https://gmpg.org/xfn/11">
 	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
-    <link rel='stylesheet' id='fuegoaustral-style-css'  href='http://fuegoaustral.org/wp-content/themes/FuegoAustral/style.css?ver=5.8.2' type='text/css' media='all' />
 	<link href="https://fonts.googleapis.com/css?family=Amatic+SC|Open+Sans:300,400,600&display=swap" rel="stylesheet">
-	<link rel="icon" href="http://fuegoaustral.org/wp-content/themes/FuegoAustral/img/favicon4.png" type="image/png">
+	<link rel="icon" href="{% static 'img/favicon.png' %}" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
     {% stylesheet 'main' %}
 
 	<title>Fuego Austral &#8211; La experiencia será lo que hagamos de ella</title>
@@ -25,8 +26,8 @@
 		<div class="container">
 			<div class="row">
 				<div class="col-md-3 site-branding">
-					<a href="http://fuegoaustral.org/">
-						<img src="http://fuegoaustral.org/wp-content/themes/FuegoAustral/img/logo.svg" alt="Fuego Austral" width="140">
+					<a href="https://fuegoaustral.org/">
+						<img src="{% static 'img/logo.svg' %}" alt="Fuego Austral" width="140">
 					</a>
 				</div>
 
@@ -65,13 +66,13 @@
                 <div class="col-md footer-logo"></div>
                 <div class="col-md social">
                     <a href="https://www.facebook.com/FuegoAustral/">
-                        <img src="http://fuegoaustral.org/wp-content/themes/FuegoAustral/img/facebook.png" alt="Facebook" width="34" height="34">
+                        <img src="{% static 'img/facebook.png' %}" alt="Facebook" width="34" height="34">
                     </a>
                     <a href="https://twitter.com/fuegoaustral" class="ml-2">
-                        <img src="http://fuegoaustral.org/wp-content/themes/FuegoAustral/img/twitter.png" alt="Twitter" width="34" height="34">
+                        <img src="{% static 'img/twitter.png' %}" alt="Twitter" width="34" height="34">
                     </a>
                     <a href="https://www.instagram.com/fuegoaustral/" class="ml-2">
-                        <img src="http://fuegoaustral.org/wp-content/themes/FuegoAustral/img/instagram.png" alt="Instagram" width="34" height="34">
+                        <img src="{% static 'img/instagram.png' %}" alt="Instagram" width="34" height="34">
                     </a>
                 </div>
             </div>
