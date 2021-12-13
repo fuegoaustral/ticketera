@@ -1,12 +1,14 @@
 from django.conf import settings
 from django.http import HttpResponse, HttpResponseRedirect
 from django.template import loader
+from django import forms
 from django.forms import modelformset_factory, BaseModelFormSet
 from django.urls import reverse
 
 from deprepagos.email import send_mail
 from .models import Coupon, Order, TicketType, Ticket
 from .forms import OrderForm, TicketForm
+
 
 def home(request):
 
@@ -26,7 +28,6 @@ class BaseTicketFormset(BaseModelFormSet):
 
 
 def order(request, ticket_type_id):
-
     coupon = Coupon.objects.filter(token=request.GET.get('coupon')).first()
     try:
         ticket_type = TicketType.objects.get(id=ticket_type_id, coupon=coupon)
@@ -39,8 +40,8 @@ def order(request, ticket_type_id):
         max_tickets = 5
 
     order_form = OrderForm(request.POST or None)
-    TicketsFormSet = modelformset_factory(Ticket, formset=BaseTicketFormset, extra=1, max_num=max_tickets,
-                                          fields=('first_name', 'last_name', 'email', 'phone', 'dni'))
+    TicketsFormSet = modelformset_factory(Ticket, formset=BaseTicketFormset, form=TicketForm, extra=1,
+                                          max_num=max_tickets, validate_max=True, min_num=1, validate_min=True)
     tickets_formset = TicketsFormSet(request.POST or None)
 
     if request.method == 'POST':
@@ -120,8 +121,7 @@ def payment_success(request, order_key):
     for ticket in order.ticket_set.all():
         ticket.send_email()
 
-    return HttpResponse('test')
-    # return HttpResponseRedirect(order_url)
+    return HttpResponseRedirect(order_url)
 
 
 def payment_failure(request):

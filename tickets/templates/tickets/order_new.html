@@ -24,20 +24,28 @@
         <h4>Participantes</h4>
         {{ tickets_formset.management_form }}
         {% for form in tickets_formset %}
-            <div class="ticket-form dynamic-form">
-                <div class="d-flex justify-content-between">
-                    <h5>Participante <span class="counter">1</span></h5>
-                    <button class="btn btn-danger delete-row">Eliminar</button>
+            <div class="ticket-form dynamic-form card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <h5 class="card-title">Participante <span class="counter">1</span></h5>
+                        <button class="btn btn-link delete-row"><i class="fas fa-trash"></i></button>
+                    </div>
+                    <button type="button" class="btn btn-default copy-buyer-details">
+                        <i class="fas fa-copy"></i>
+                        Copiar datos del comprador
+                    </button>
+                    {% bootstrap_form form form_group_class='form-group' %}
                 </div>
-                <button type="button" class="btn btn-primary copy-buyer-details">Copiar datos del comprador</button>
-                {% bootstrap_form form form_group_class='form-group' %}
             </div>
         {% endfor %}
 
-        <button type="button" class="btn btn-success add-row">Agregar participante</button>
+        <button type="button" class="btn btn-default add-row mb-3">
+            <i class="fas fa-add"></i>
+            Agregar participante
+        </button>
 
         <div class="form-group">
-            <input type="submit" value="Continuar" class="btn btn-primary btn-lg w-100">
+            <input type="submit" value="Continuar" class="btn btn-primary btn-lg w-100 btn-submit">
         </div>
     </form>
 

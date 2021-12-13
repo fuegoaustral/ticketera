@@ -1,37 +1,82 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+{% load pipeline %}
+<html lang="es-AR" prefix="og: http://ogp.me/ns# fb: http://ogp.me/ns/fb#">
 <head>
-    <meta charset="UTF-8">
-    <title>Fuego Austral 2022</title>
-    {% block extrahead %}
-    {% endblock %}
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	<link rel="profile" href="https://gmpg.org/xfn/11">
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link rel='stylesheet' id='fuegoaustral-style-css'  href='http://fuegoaustral.org/wp-content/themes/FuegoAustral/style.css?ver=5.8.2' type='text/css' media='all' />
+	<link href="https://fonts.googleapis.com/css?family=Amatic+SC|Open+Sans:300,400,600&display=swap" rel="stylesheet">
+	<link rel="icon" href="http://fuegoaustral.org/wp-content/themes/FuegoAustral/img/favicon4.png" type="image/png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    {% stylesheet 'main' %}
+
+	<title>Fuego Austral &#8211; La experiencia será lo que hagamos de ella</title>
+
+    {% block extrahead %}{% endblock %}
+
 </head>
-<body>
 
-    <nav class="navbar navbar-expand-lg navbar-light bg-light mb-5">
-        <div class="container">
-            <a class="navbar-brand" href="{% url 'home' %}">Fuego Austral</a>
-            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                <ul class="navbar-nav mr-auto">
-                  <li class="nav-item active">
-                    <a class="nav-link" href="{% url 'home' %}">Inicio</a>
-                  </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
+<body class="home blog hfeed">
+<div class="content">
 
-    <div class="container">
-        <div class="row">
-            <div class="col-md-6 offset-md-3">
-                {% block content %}{% endblock %}
-            </div>
-        </div>
+	<header id="masthead" class="site-header">
+		<div class="container">
+			<div class="row">
+				<div class="col-md-3 site-branding">
+					<a href="http://fuegoaustral.org/">
+						<img src="http://fuegoaustral.org/wp-content/themes/FuegoAustral/img/logo.svg" alt="Fuego Austral" width="140">
+					</a>
+				</div>
+
+				<div class="col-md main-navigation-wrap">
+					<nav id="site-navigation" class="main-navigation">
+						<button class="menu-toggle btn" aria-controls="primary-menu" aria-expanded="false" aria-label="Toggle navigation">
+							<span class="navbar-toggler-icon"></span>
+						</button>
+						<div class="menu-primary-container">
+                            <ul id="primary-menu" class="menu"><li id="menu-item-18" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-18"><a href="http://fuegoaustral.org/el-evento/">El Evento</a></li>
+                                <li id="menu-item-54" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-54"><a href="http://fuegoaustral.org/participar/">Participar</a></li>
+                                <li id="menu-item-22" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-22"><a href="http://fuegoaustral.org/prepararse/">Prepararse</a></li>
+                                <li id="menu-item-20" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-20"><a href="http://fuegoaustral.org/historia/">Historia</a></li>
+                                <li id="menu-item-2395" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-2395"><a href="http://fuegoaustral.org/la-sede/">La Sede</a></li>
+                                <li id="menu-item-19" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-19"><a href="http://fuegoaustral.org/faq/">FAQ</a></li>
+                            </ul>
+                        </div>
+                    </nav>
+				</div>
+			</div>
+		</div>
+	</header><!-- #masthead -->
+
+    <div class="site-main container">
+        {% block content %}{% endblock %}
     </div>
 
+    <footer class="site-footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-md info">
+                    Fuego Austral Asociación Civil
+                    <br>
+                    <a href="mailto:contacto@fuegoaustral.org">contacto@fuegoaustral.org</a>
+                </div>
+                <div class="col-md footer-logo"></div>
+                <div class="col-md social">
+                    <a href="https://www.facebook.com/FuegoAustral/">
+                        <img src="http://fuegoaustral.org/wp-content/themes/FuegoAustral/img/facebook.png" alt="Facebook" width="34" height="34">
+                    </a>
+                    <a href="https://twitter.com/fuegoaustral" class="ml-2">
+                        <img src="http://fuegoaustral.org/wp-content/themes/FuegoAustral/img/twitter.png" alt="Twitter" width="34" height="34">
+                    </a>
+                    <a href="https://www.instagram.com/fuegoaustral/" class="ml-2">
+                        <img src="http://fuegoaustral.org/wp-content/themes/FuegoAustral/img/instagram.png" alt="Instagram" width="34" height="34">
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
 
 </body>
 </html>

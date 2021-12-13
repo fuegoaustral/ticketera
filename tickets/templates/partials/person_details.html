@@ -1,10 +1,16 @@
-<dl class="row">
-  <dt class="col-sm-3">Nombre</dt>
-  <dd class="col-sm-9">{{ person.first_name }} {{ person.last_name }}</dd>
-  <dt class="col-sm-3">Teléfono</dt>
-  <dd class="col-sm-9">{{ person.phone }}</dd>
-  <dt class="col-sm-3">Email</dt>
-  <dd class="col-sm-9"><a href="mailto:{{ person.email }}">{{ person.email }}</a></dd>
-  <dt class="col-sm-3">DNI</dt>
-  <dd class="col-sm-9">{{ person.dni }}</dd>
+<dl>
+  <dt>Nombre</dt>
+  <dd>{{ person.first_name }} {{ person.last_name }}</dd>
+</dl>
+<dl>
+  <dt>Teléfono</dt>
+  <dd>{{ person.phone }}</dd>
+</dl>
+<dl>
+  <dt>Email</dt>
+  <dd><a href="mailto:{{ person.email }}">{{ person.email }}</a></dd>
+</dl>
+<dl>
+  <dt>DNI</dt>
+  <dd>{{ person.dni }}</dd>
 </dl>

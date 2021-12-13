@@ -1,25 +1,19 @@
 {% extends 'tickets/base.html' %}
 
-{% load pipeline %}
 
-{% block extrahead %}
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
-    {% stylesheet 'main' %}
-{% endblock %}
 
 {% block content %}
 
-    <h2 class="mb-5">Hola! Comprá tu bono acá.</h2>
+    <h1 class="entry-title">Hola! Comprá tu bono acá.</h1>
 
     <div class="list-group">
         {% for ticket_type in ticket_types %}
-        <a href="{% url 'order' ticket_type_id=ticket_type.id %}" class="list-group-item list-group-item-action">
-            <div class="d-flex w-100 justify-content-between">
-                <h3>{{ ticket_type.name }}</h3>
-                <span class="emoji">{{ ticket_type.emoji }}</span>
+        <a href="{% url 'order' ticket_type_id=ticket_type.id %}" class="card">
+            <div class="card-body p-lg-5">
+                <h3 class="card-title">{{ ticket_type.name }}</h3>
+                <p class="card-text">{{ ticket_type.description }}</p>
+                <button class="btn btn-primary mt-3">Comprar</button>
             </div>
-            <p>{{ ticket_type.description }}</p>
-            <button class="btn btn-primary mt-3">Comprar</button>
         </a>
         {% endfor %}
     </div>
