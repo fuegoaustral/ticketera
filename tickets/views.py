@@ -15,6 +15,7 @@ def home(request):
     coupon = Coupon.objects.filter(token=request.GET.get('coupon')).first()
     template = loader.get_template('tickets/home.html')
     context = {
+        'coupon': coupon,
         'ticket_types': TicketType.objects.filter(coupon=coupon),
     }
 
@@ -40,7 +41,7 @@ def order(request, ticket_type_id):
         max_tickets = 5
 
     order_form = OrderForm(request.POST or None)
-    TicketsFormSet = modelformset_factory(Ticket, formset=BaseTicketFormset, form=TicketForm, extra=1,
+    TicketsFormSet = modelformset_factory(Ticket, formset=BaseTicketFormset, form=TicketForm,
                                           max_num=max_tickets, validate_max=True, min_num=1, validate_min=True)
     tickets_formset = TicketsFormSet(request.POST or None)
 

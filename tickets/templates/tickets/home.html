@@ -8,7 +8,7 @@
 
     <div class="list-group">
         {% for ticket_type in ticket_types %}
-        <a href="{% url 'order' ticket_type_id=ticket_type.id %}" class="card">
+        <a href="{% url 'order' ticket_type_id=ticket_type.id %}?coupon={{ coupon.token }}" class="card">
             <div class="card-body p-lg-5">
                 <h3 class="card-title">{{ ticket_type.name }}</h3>
                 <p class="card-text">{{ ticket_type.description }}</p>
