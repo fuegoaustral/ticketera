@@ -9,7 +9,7 @@ idna==3.3
 libsass==0.21.0
 libsasscompiler==0.1.9
 mercadopago==2.0.8
-psycopg2==2.9.2
+psycopg2-binary
 pytz==2021.3
 requests==2.26.0
 six==1.16.0
@@ -21,4 +21,4 @@ django-templated-email<3.1
 pillow
 qrcode
 css-html-js-minify
-libsasscompiler
+django-storages

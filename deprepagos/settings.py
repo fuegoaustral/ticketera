@@ -26,7 +26,10 @@ SECRET_KEY = 'django-insecure-s$(*=)6^h$p=d6e4tpv#-s7_hg&cl!vc@yzas371ubj=+ks&cc
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhost',
+    'xjhdvvmqc4.execute-api.us-west-2.amazonaws.com'
+]
 
 APP_URL = os.environ.get('APP_URL', 'http://localhost:8000')
 
@@ -43,6 +46,7 @@ INSTALLED_APPS = [
     'bootstrap5',
     'tickets.apps.TicketsConfig',
     'django_inlinecss',
+    'django_s3_storage',
 ]
 
 MIDDLEWARE = [
@@ -82,10 +86,10 @@ WSGI_APPLICATION = 'deprepagos.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'deprepagos',
-        'USER': 'mauro',
-        'PASSWORD': '',
-        'HOST': '127.0.0.1',
+        'NAME': os.environ.get('DB_DATABASE', 'deprepagos'),
+        'USER': os.environ.get('DB_USER', 'mauro'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+        'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
         'PORT': '5432',
     }
 }
@@ -136,7 +140,7 @@ STATIC_ROOT = os.path.join(PROJECT_ROOT, 'static')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-STATICFILES_STORAGE = 'pipeline.storage.PipelineManifestStorage'
+STATICFILES_STORAGE = 'deprepagos.storages.S3PipelineManifestStorage'
 STATICFILES_FINDERS = (
     'django.contrib.staticfiles.finders.FileSystemFinder',
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
@@ -151,6 +155,7 @@ PIPELINE = {
     'STYLESHEETS': {
         'main': {
             'source_filenames': (
+                'scss/fuego.scss',
                 'scss/global.scss',
             ),
             'output_filename': 'css/main.css',
@@ -178,6 +183,13 @@ EMAIL_PORT = '2525'
 DEFAULT_FROM_EMAIL = 'pagos@fuegoaustral.org'
 TEMPLATED_EMAIL_TEMPLATE_DIR = 'emails/'
 TEMPLATED_EMAIL_FILE_EXTENSION = 'html'
+
+STATICFILES_LOCATION = 'deprepagos-zappa-static'
+
+AWS_STORAGE_BUCKET_NAME = 'deprepagos-zappa-static'
+
+AWS_QUERYSTRING_AUTH = False
+
 
 # user comprador {"id":1037327132,"nickname":"TETE9670391","password":"qatest8330","site_status":"active","email":"test_user_43578812@testuser.com"}%
 # user comprador {"id":1037346624,"nickname":"TETE9234065","password":"qatest9033","site_status":"active","email":"test_user_72163657@testuser.com"}%

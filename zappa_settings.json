@@ -1,0 +1,14 @@
+{
+    "dev": {
+        "aws_region": "us-west-2",
+        "django_settings": "deprepagos.settings",
+        "profile_name": "default",
+        "project_name": "deprepagos",
+        "runtime": "python3.8",
+        "s3_bucket": "deprepagos-zappa",
+        "vpc_config" : {
+            "SubnetIds": [ "subnet-042b99be9ab7e9631", "subnet-075626e0e2467cce2", "subnet-007456bcfab8684e3", ],
+            "SecurityGroupIds": [ "sg-03c4968f4db7615ae" ]
+        }
+    }
+}
