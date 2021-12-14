@@ -1,7 +1,6 @@
 from datetime import datetime
 
 from django.conf import settings
-from django.db.models import Q
 from django.http import HttpResponse, HttpResponseRedirect
 from django.template import loader
 from django.forms import modelformset_factory, BaseModelFormSet
@@ -10,21 +9,21 @@ from django.urls import reverse
 from deprepagos.email import send_mail
 from .models import Coupon, Order, TicketType, Ticket
 from .forms import OrderForm, TicketForm
+from django.db.models import Count, Q, F
 
 
 def home(request):
 
     coupon = Coupon.objects.filter(token=request.GET.get('coupon')).first()
 
-    print('coupon:', coupon)
-
     ticket_type = TicketType.objects\
-            .filter(coupon=coupon)\
-            .filter(Q(date_from__lte=datetime.now()) | Q(date_from__isnull=True))\
-            .filter(Q(date_to__gte=datetime.now()) | Q(date_to__isnull=True))\
+        .annotate(confirmed_tickets=Count('order__ticket', filter=Q(order__status=Order.OrderStatus.CONFIRMED)))\
+        .annotate(available_tickets=F('ticket_count') - F('confirmed_tickets'))\
+        .filter(coupon=coupon)\
+        .filter(Q(date_from__lte=datetime.now()) | Q(date_from__isnull=True))\
+        .filter(Q(date_to__gte=datetime.now()) | Q(date_to__isnull=True))\
         .order_by('price' if coupon is None else '-price_with_coupon')\
         .first()
-
 
     template = loader.get_template('tickets/home.html')
 
@@ -44,26 +43,17 @@ class BaseTicketFormset(BaseModelFormSet):
 
 def order(request, ticket_type_id):
     coupon = Coupon.objects.filter(token=request.GET.get('coupon')).first()
+
     try:
-
-        # ticket_count = Ticket.objects\
-        #     .filter(ticket_type_id=ticket_type_id)\
-        #     .count()
-
         ticket_type = TicketType.objects\
             .filter(id=ticket_type_id, coupon=coupon)\
             .filter(Q(date_from__lte=datetime.now()) | Q(date_from__isnull=True))\
             .filter(Q(date_to__gte=datetime.now()) | Q(date_to__isnull=True))\
             .get()
-            # .filter(max_tickets__gte=ticket_count) \
-
     except TicketType.DoesNotExist as e:
-        return HttpResponse('No seas gato')
+        return HttpResponse('Lo sentimos, este link es inválido.', status=404)
 
-    if coupon is not None:
-        max_tickets = coupon.max_tickets
-    else:
-        max_tickets = 5
+    max_tickets = coupon.max_tickets if coupon is not None else 5
 
     order_form = OrderForm(request.POST or None)
     TicketsFormSet = modelformset_factory(Ticket, formset=BaseTicketFormset, form=TicketForm,

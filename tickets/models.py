@@ -50,6 +50,16 @@ class TicketType(BaseModel):
     #         )
     #     ]
 
+    def get_corresponding_ticket_type(coupon: Coupon):
+        return TicketType.objects \
+            .annotate(confirmed_tickets=Count('order__ticket', filter=Q(order__status=Order.OrderStatus.CONFIRMED))) \
+            .annotate(available_tickets=F('ticket_count') - F('confirmed_tickets')) \
+            .filter(coupon=coupon) \
+            .filter(Q(date_from__lte=datetime.now()) | Q(date_from__isnull=True)) \
+            .filter(Q(date_to__gte=datetime.now()) | Q(date_to__isnull=True)) \
+            .order_by('price' if coupon is None else '-price_with_coupon') \
+            .first()
+
     def __str__(self):
         return self.name
 
@@ -108,12 +118,9 @@ class Order(BaseModel):
             "external_reference": self.id,
         }
 
-        print(preference_data)
-
+        print('PREFERENCE', preference_data)
         response = sdk.preference().create(preference_data)['response']
-
         print('RESPONSE', response)
-
         return response
 
     def __str__(self):
