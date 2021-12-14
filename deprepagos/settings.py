@@ -185,10 +185,7 @@ DEFAULT_FROM_EMAIL = 'pagos@fuegoaustral.org'
 TEMPLATED_EMAIL_TEMPLATE_DIR = 'emails/'
 TEMPLATED_EMAIL_FILE_EXTENSION = 'html'
 
-STATICFILES_LOCATION = 'deprepagos-zappa-static'
-
 AWS_STORAGE_BUCKET_NAME = 'deprepagos-zappa-static'
-
 AWS_QUERYSTRING_AUTH = False
 
 
