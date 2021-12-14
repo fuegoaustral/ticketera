@@ -67,6 +67,7 @@ def order(request, ticket_type_id):
             if coupon:
                 order.coupon = coupon
             order.ticket_type = ticket_type
+            order.coupon = coupon
             tickets = tickets_formset.save(commit=False)
             price = ticket_type.price_with_coupon if order.coupon else ticket_type.price
             order.amount = len(tickets) * price # + donations
