@@ -134,8 +134,20 @@ class Ticket(BaseModel):
     email = models.CharField(max_length=320)
     phone = models.CharField(max_length=50)
     dni = models.CharField(max_length=10)
+
     price = models.IntegerField(default=0)
     order = models.ForeignKey('Order', on_delete=models.CASCADE)
+
+    # volunteer
+    VOLUNTEER_CHOICES = (
+        ('yes', 'Quiero ser parte del voluntariado'),
+        ('ask', 'No sé aún'),
+        ('no', 'No me interesa'),
+    )
+    volunteer = models.CharField(choices=VOLUNTEER_CHOICES, max_length=10)
+    volunteer_ranger = models.BooleanField()
+    volunteer_transmutator = models.BooleanField()
+    volunteer_umpalumpa = models.BooleanField()
 
     def send_email(self):
 

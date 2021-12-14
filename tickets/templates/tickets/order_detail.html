@@ -52,7 +52,9 @@
 <h3>Participantes</h3>
 
 {% for ticket in order.ticket_set.all %}
+<div class="mb-5">
     {% include 'partials/person_details.html' with person=ticket %}
+</div>
 {% endfor %}
 
 {% if order.status == 'PENDING' %}

@@ -54,9 +54,16 @@
         let maxTickets = {{max_tickets}};
 
         function update() {
+            $('.input-volunteer').change();  // show/hide volunteer type
+
             let forms = $('.dynamic-form');
             forms.each(function(idx) {
                 $(this).find('.counter').html(idx + 1)
+                if ( $(this).find('input[type=radio]:checked').length === 0) {
+                    let checks = $(this).find('.form-check-input');;
+                    checks.prop('checked', false);
+                    checks.parents('.form-group').hide();
+                }
             });
             if (forms.length == 1) {
                 $('.delete-row').hide()
@@ -83,17 +90,24 @@
         function addForm(btn, prefix) {
             var formCount = parseInt($('#id_' + prefix + '-TOTAL_FORMS').val());
             var row = $('.dynamic-form:first').clone(true).get(0);
-            $(row).removeAttr('id').insertAfter($('.dynamic-form:last')).children('.hidden').removeClass('hidden');
             $(row).find('.copy-buyer-details').remove();
-            $(row).children().not(':last').children().each(function() {
+            $(row).find('input, label').each(function() {
                 updateElementIndex(this, prefix, formCount);
-                $(this).val('');
+                let type = $(this).prop('type');
+                if (type !== 'checkbox' && type !== 'radio') {
+                    $(this).val('');
+                } else {
+                    $(this).prop('checked', false);
+                }
             });
+            $(row).find('.invalid-feedback').remove();
             $(row).find('.delete-row').click(function() {
                 deleteForm(this, prefix);
             });
+            $(row).removeAttr('id').insertAfter($('.dynamic-form:last'));
             $('#id_' + prefix + '-TOTAL_FORMS').val(formCount + 1);
             update()
+
             return false;
         }
 
@@ -111,6 +125,20 @@
         }
 
         $(function () {
+            $('input.input-volunteer').on('change', function() {
+                // only run for checked radios
+                if ( !$(this).prop('checked') )
+                    return;
+                let checks = $(this).parents('.card-body').find('.form-check-input');;
+                let val = $(this).val()
+                if (val !== "")
+                    if (val === 'yes') {
+                        checks.parents('.form-group').show();
+                    } else {
+                        checks.prop('checked', false);
+                        checks.parents('.form-group').hide();
+                    }
+            });
             update();
             $('.add-row').click(function() {
                 return addForm(this, 'form');

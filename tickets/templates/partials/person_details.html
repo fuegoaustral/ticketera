@@ -14,3 +14,14 @@
   <dt>DNI</dt>
   <dd>{{ person.dni }}</dd>
 </dl>
+{% if person.volunteer %}
+<dl>
+  <dt>Voluntario</dt>
+  <dd>
+      {{ person.get_volunteer_display }}
+      {% if person.volunteer_ranger %} <br />Ranger{% endif %}
+      {% if person.volunteer_transmutator %} <br />Transmutador{% endif %}
+      {% if person.volunteer_umpalumpa %} <br />Umpa Lumpa{% endif %}
+  </dd>
+</dl>
+{% endif %}

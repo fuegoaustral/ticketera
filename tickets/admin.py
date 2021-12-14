@@ -7,6 +7,7 @@ from .models import Ticket, TicketType, Order, Coupon
 
 class TicketAdmin(admin.ModelAdmin):
     list_display = ('order', 'last_name', 'first_name', 'email', 'phone', 'dni', 'price')
+    list_filter = ('volunteer_ranger', 'volunteer_umpalumpa', 'volunteer_transmutator', )
 
 
 class TicketTypeAdmin(admin.ModelAdmin):
