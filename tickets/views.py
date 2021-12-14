@@ -57,7 +57,8 @@ def order(request, ticket_type_id):
 
     order_form = OrderForm(request.POST or None)
     TicketsFormSet = modelformset_factory(Ticket, formset=BaseTicketFormset, form=TicketForm,
-                                          max_num=max_tickets, validate_max=True, min_num=1, validate_min=True)
+                                          max_num=max_tickets, validate_max=True, min_num=1, validate_min=True,
+                                          extra=0)
     tickets_formset = TicketsFormSet(request.POST or None)
 
     if request.method == 'POST':
