@@ -53,6 +53,9 @@ class TicketTypeManager(models.Manager):
         # add coupon filter
         if coupon:
             ticket_type = ticket_type.filter(coupon=coupon)
+        else:
+            # filter the ones only for coupons
+            ticket_type = ticket_type.filter(price__isnull=False, price__gt=0)
 
         ticket_type = (ticket_type
             .order_by('-price_with_coupon' if coupon else '-price')
