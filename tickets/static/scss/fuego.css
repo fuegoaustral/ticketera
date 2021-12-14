@@ -796,7 +796,7 @@ a:hover, a:active {
     max-width: 960px; } }
 
 .site-header {
-  background: black url("./img/hero.jpg") no-repeat top center;
+  background: black url("/img/hero.jpg") no-repeat top center;
   background-size: 1680px;
   height: 140px; }
 
@@ -879,7 +879,6 @@ a:hover, a:active {
 ## Current edition
 --------------------------------------------------------------*/
 .current-edition {
-  background: #190606 url("./img/bkg1.jpg") no-repeat top center;
   background-size: 1680px;
   padding: 80px 0 0; }
 
@@ -1031,7 +1030,7 @@ a:hover, a:active {
   border-top: 1px solid rgba(255, 255, 255, 0.15); }
 
 .site-footer .footer-logo {
-  background: url("./img/logo.svg") no-repeat top center;
+  background: url("/img/logo.svg") no-repeat top center;
   opacity: 0.4;
   background-size: 136px 88px;
   height: 88px; }

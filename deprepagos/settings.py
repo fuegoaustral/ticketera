@@ -24,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-s$(*=)6^h$p=d6e4tpv#-s7_hg&cl!vc@yzas371ubj=+ks&cc'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = [
     'localhost',
@@ -148,6 +148,7 @@ STATICFILES_FINDERS = (
 )
 
 PIPELINE = {
+    'ENABLE_PIPELINE': True,
     'COMPILERS': (
         'libsasscompiler.LibSassCompiler',
     ),
