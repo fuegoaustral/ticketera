@@ -2,7 +2,12 @@ from deprepagos.settings import *
 
 STATICFILES_STORAGE = 'deprepagos.storages.S3PipelineManifestStorage'
 
+EMAIL_HOST = os.environ.get('EMAIL_HOST')
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+EMAIL_PORT = os.environ.get('EMAIL_PORT')
+
 MERCADOPAGO = {
-    'PUBLIC_KEY': 'APP_USR-3c0fb6b2-ce7d-48cc-b8be-d7242144a25c',
-    'ACCESS_TOKEN': 'APP_USR-8395362091404017-102216-3563fee7c4d127a7f4c1a80982f56596-663579293',
+    'PUBLIC_KEY': os.environ.get('MERCADOPAGO_PUBLIC_KEY'),
+    'ACCESS_TOKEN': os.environ.get('MERCADOPAGO_ACCESS_TOKEN'),
 }
