@@ -7,7 +7,7 @@
     <h1 class="entry-title">Hola! Comprá tu bono acá.</h1>
 
     <div class="list-group">
-        {% for ticket_type in ticket_types %}
+        {% if ticket_type %}
         <a href="{% url 'order' ticket_type_id=ticket_type.id %}?coupon={{ coupon.token }}" class="card">
             <div class="card-body p-lg-5">
                 <h3 class="card-title">{{ ticket_type.name }}</h3>
@@ -15,7 +15,9 @@
                 <button class="btn btn-primary mt-3">Comprar</button>
             </div>
         </a>
-        {% endfor %}
+        {% else %}
+        Lo sentimos. No hay bonos disponibles por el momento.
+        {% endif %}
     </div>
 
 {% endblock %}

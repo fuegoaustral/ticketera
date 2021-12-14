@@ -1,7 +1,9 @@
+from datetime import datetime
+
 from django.conf import settings
+from django.db.models import Q
 from django.http import HttpResponse, HttpResponseRedirect
 from django.template import loader
-from django import forms
 from django.forms import modelformset_factory, BaseModelFormSet
 from django.urls import reverse
 
@@ -13,10 +15,22 @@ from .forms import OrderForm, TicketForm
 def home(request):
 
     coupon = Coupon.objects.filter(token=request.GET.get('coupon')).first()
+
+    print('coupon:', coupon)
+
+    ticket_type = TicketType.objects\
+            .filter(coupon=coupon)\
+            .filter(Q(date_from__lte=datetime.now()) | Q(date_from__isnull=True))\
+            .filter(Q(date_to__gte=datetime.now()) | Q(date_to__isnull=True))\
+        .order_by('price' if coupon is None else '-price_with_coupon')\
+        .first()
+
+
     template = loader.get_template('tickets/home.html')
+
     context = {
         'coupon': coupon,
-        'ticket_types': TicketType.objects.filter(coupon=coupon),
+        'ticket_type': ticket_type
     }
 
     return HttpResponse(template.render(context, request))
@@ -31,7 +45,18 @@ class BaseTicketFormset(BaseModelFormSet):
 def order(request, ticket_type_id):
     coupon = Coupon.objects.filter(token=request.GET.get('coupon')).first()
     try:
-        ticket_type = TicketType.objects.get(id=ticket_type_id, coupon=coupon)
+
+        # ticket_count = Ticket.objects\
+        #     .filter(ticket_type_id=ticket_type_id)\
+        #     .count()
+
+        ticket_type = TicketType.objects\
+            .filter(id=ticket_type_id, coupon=coupon)\
+            .filter(Q(date_from__lte=datetime.now()) | Q(date_from__isnull=True))\
+            .filter(Q(date_to__gte=datetime.now()) | Q(date_to__isnull=True))\
+            .get()
+            # .filter(max_tickets__gte=ticket_count) \
+
     except TicketType.DoesNotExist as e:
         return HttpResponse('No seas gato')
 
