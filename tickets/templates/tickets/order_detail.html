@@ -57,6 +57,7 @@
 </div>
 {% endfor %}
 
+{% if order.donation_art or order.donation_venue or order.donation_grant %}
 <h3>Donaciones</h3>
 {% if order.donation_art %}
 <dl>
@@ -75,6 +76,7 @@
     <dt>Bono No Tengo Un Mango</dt>
     <dd>${{ order.donation_grant }}</dd>
 </dl>
+{% endif %}
 {% endif %}
 
 {% if order.status == 'PENDING' %}

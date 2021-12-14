@@ -1,8 +1,10 @@
+from datetime import datetime
 import uuid
 import qrcode
 from io import BytesIO
 
 from django.db import models
+from django.db.models import Count, Sum, Q, F
 from django.conf import settings
 from django.urls import reverse
 
@@ -26,6 +28,43 @@ class Coupon(BaseModel):
     def __str__(self):
         return self.token
 
+    def tickets_remaining(self):
+        return max(0, self.max_tickets - (Order.objects
+            .filter(coupon=self)
+            .filter(status=Order.OrderStatus.CONFIRMED)
+            .annotate(num_tickets=Count('ticket'))
+            .aggregate(tickets_sold=Sum('num_tickets')
+        ))['tickets_sold'])
+
+
+class TicketTypeManager(models.Manager):
+    def get_cheapeast_available(self, coupon):
+        ticket_type = (TicketType.objects
+            # filter by date
+            .filter(Q(date_from__lte=datetime.now()) | Q(date_from__isnull=True))
+            .filter(Q(date_to__gte=datetime.now()) | Q(date_to__isnull=True))
+
+            # filter by sold out tickets
+            .annotate(confirmed_tickets=Count('order__ticket', filter=Q(order__status=Order.OrderStatus.CONFIRMED)))
+            .annotate(available_tickets=F('ticket_count') - F('confirmed_tickets'))
+            .filter(available_tickets__gt=0)
+        )
+
+        # add coupon filter
+        if coupon:
+            ticket_type = ticket_type.filter(coupon=coupon)
+
+        ticket_type = (ticket_type
+            .order_by('-price_with_coupon' if coupon else '-price')
+            .first()
+        )
+
+        # block purchase if the allowed tickets for a coupon have been sold
+        if coupon and coupon.tickets_remaining() <= 0:
+            ticket_type = None
+
+        return ticket_type
+
 
 class TicketType(BaseModel):
     price = models.DecimalField(decimal_places=2, max_digits=10, null=True, blank=True)
@@ -37,6 +76,8 @@ class TicketType(BaseModel):
     color = models.CharField(max_length=6, default='6633ff')
     emoji=models.CharField(max_length=20, default='🖕')
     ticket_count=models.IntegerField()
+
+    objects = TicketTypeManager()
 
     # class Meta:
     #     constraints = [
@@ -100,7 +141,7 @@ class Order(BaseModel):
             "items": [{
                     "title": self.ticket_type.name,
                     "quantity": 1,
-                    "unit_price": ticket.price,
+                    "unit_price": ticket.price or 0,
                 } for ticket in self.ticket_set.all()],
             "payer": {
                 "name": self.first_name,
@@ -142,14 +183,14 @@ class Ticket(BaseModel):
 
     # volunteer
     VOLUNTEER_CHOICES = (
-        ('yes', 'Quiero ser parte del voluntariado'),
         ('ask', 'No sé aún'),
         ('no', 'No me interesa'),
+        ('yes', 'Quiero ser parte del voluntariado'),
     )
     volunteer = models.CharField(choices=VOLUNTEER_CHOICES, max_length=10)
-    volunteer_ranger = models.BooleanField()
-    volunteer_transmutator = models.BooleanField()
-    volunteer_umpalumpa = models.BooleanField()
+    volunteer_ranger = models.BooleanField('Rangers')
+    volunteer_transmutator = models.BooleanField('Transmutadores')
+    volunteer_umpalumpa = models.BooleanField('Umpa Lumpas (Armado y Desarme de la Ciudad)')
 
     def send_email(self):
 

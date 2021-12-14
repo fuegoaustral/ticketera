@@ -9,21 +9,14 @@ from django.urls import reverse
 from deprepagos.email import send_mail
 from .models import Coupon, Order, TicketType, Ticket
 from .forms import OrderForm, TicketForm
-from django.db.models import Count, Q, F
+from django.db.models import Q
 
 
 def home(request):
 
     coupon = Coupon.objects.filter(token=request.GET.get('coupon')).first()
 
-    ticket_type = TicketType.objects\
-        .annotate(confirmed_tickets=Count('order__ticket', filter=Q(order__status=Order.OrderStatus.CONFIRMED)))\
-        .annotate(available_tickets=F('ticket_count') - F('confirmed_tickets'))\
-        .filter(coupon=coupon)\
-        .filter(Q(date_from__lte=datetime.now()) | Q(date_from__isnull=True))\
-        .filter(Q(date_to__gte=datetime.now()) | Q(date_to__isnull=True))\
-        .order_by('price' if coupon is None else '-price_with_coupon')\
-        .first()
+    ticket_type = TicketType.objects.get_cheapeast_available(coupon)
 
     template = loader.get_template('tickets/home.html')
 
@@ -44,16 +37,13 @@ class BaseTicketFormset(BaseModelFormSet):
 def order(request, ticket_type_id):
     coupon = Coupon.objects.filter(token=request.GET.get('coupon')).first()
 
-    try:
-        ticket_type = TicketType.objects\
-            .filter(id=ticket_type_id, coupon=coupon)\
-            .filter(Q(date_from__lte=datetime.now()) | Q(date_from__isnull=True))\
-            .filter(Q(date_to__gte=datetime.now()) | Q(date_to__isnull=True))\
-            .get()
-    except TicketType.DoesNotExist as e:
+    ticket_type = TicketType.objects.get_cheapeast_available(coupon)
+
+    if not ticket_type:
         return HttpResponse('Lo sentimos, este link es inválido.', status=404)
 
-    max_tickets = coupon.max_tickets if coupon is not None else 5
+    # get available tickets from coupon/type
+    max_tickets = min(ticket_type.available_tickets, coupon.tickets_remaining() if coupon else 5)
 
     order_form = OrderForm(request.POST or None)
     TicketsFormSet = modelformset_factory(Ticket, formset=BaseTicketFormset, form=TicketForm,
@@ -98,15 +88,33 @@ def order(request, ticket_type_id):
     return HttpResponse(template.render(context, request))
 
 
+def is_order_valid(order):
+    num_tickets = order.ticket_set.count()
+
+    ticket_type = TicketType.objects.get_cheapeast_available(order.coupon)
+
+    if not ticket_type:
+        return False
+
+    if ticket_type.available_tickets < num_tickets:
+        return False
+
+    if order.coupon and order.coupon.tickets_remaining() < num_tickets:
+        return False
+    return True
+
 def order_detail(request, order_key):
 
     order = Order.objects.get(key=order_key)
+
+    if not is_order_valid(order):
+        return HttpResponse('Lo sentimos, este link es inválido.', status=404)
 
     context = {
         'order': order,
     }
 
-    if order.amount < 0:
+    if order.amount > 0:
 
         payment_preference_id = order.get_payment_preference()['id'] if order.status == Order.OrderStatus.PENDING else None
 
@@ -132,7 +140,7 @@ def ticket_detail(request, ticket_key):
     return HttpResponse(template.render(context, request))
 
 
-def complete_order(order):
+def _complete_order(order):
     order.status = Order.OrderStatus.CONFIRMED
     order.save()
 
@@ -155,10 +163,14 @@ def complete_order(order):
 
 def free_order_confirmation(request, order_key):
     order = Order.objects.get(key=order_key)
+
+    if not is_order_valid(order):
+        return HttpResponse('Lo sentimos, este link es inválido.', status=404)
+
     if order.amount > 0:
         raise HttpResponseBadRequest('This order cannot be confirmed without payment')
 
-    return complete_order(order)
+    return _complete_order(order)
 
 
 def payment_success(request, order_key):
@@ -166,7 +178,7 @@ def payment_success(request, order_key):
     order = Order.objects.get(key=order_key)
     order.response = request.GET
 
-    return complete_order(order)
+    return _complete_order(order)
 
 
 def payment_failure(request):
