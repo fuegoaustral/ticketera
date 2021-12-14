@@ -64,13 +64,16 @@ def order(request, ticket_type_id):
     if request.method == 'POST':
         if order_form.is_valid() and tickets_formset.is_valid():
             order = order_form.save(commit=False)
+            if coupon:
+                order.coupon = coupon
             order.ticket_type = ticket_type
             tickets = tickets_formset.save(commit=False)
-            order.amount = len(tickets) * ticket_type.price # + donations
+            price = ticket_type.price_with_coupon if order.coupon else ticket_type.price
+            order.amount = len(tickets) * price # + donations
             order.save()
             for ticket in tickets:
                 ticket.order = order
-                ticket.price = ticket_type.price_with_coupon if coupon else ticket_type.price
+                ticket.price = price
                 ticket.save()
 
             return HttpResponseRedirect(redirect_to=reverse('order_detail', kwargs={'order_key': order.key}))
@@ -84,6 +87,7 @@ def order(request, ticket_type_id):
         'max_tickets': max_tickets,
         'ticket_type': ticket_type,
         'order_form': order_form,
+        'coupon': coupon,
         'tickets_formset': tickets_formset,
     }
 
@@ -94,14 +98,20 @@ def order_detail(request, order_key):
 
     order = Order.objects.get(key=order_key)
 
-    payment_preference_id = order.get_payment_preference()['id'] if order.status == Order.OrderStatus.PENDING else None
-
-    template = loader.get_template('tickets/order_detail.html')
     context = {
         'order': order,
-        'preference_id': payment_preference_id,
-        'MERCADOPAGO_PUBLIC_KEY': settings.MERCADOPAGO['PUBLIC_KEY']
     }
+
+    if order.amount < 0:
+
+        payment_preference_id = order.get_payment_preference()['id'] if order.status == Order.OrderStatus.PENDING else None
+
+        context = {
+            'preference_id': payment_preference_id,
+            'MERCADOPAGO_PUBLIC_KEY': settings.MERCADOPAGO['PUBLIC_KEY']
+        }
+
+    template = loader.get_template('tickets/order_detail.html')
 
     return HttpResponse(template.render(context, request))
 
@@ -118,10 +128,8 @@ def ticket_detail(request, ticket_key):
     return HttpResponse(template.render(context, request))
 
 
-def payment_success(request, order_key):
-    order = Order.objects.get(key=order_key)
+def complete_order(order):
     order.status = Order.OrderStatus.CONFIRMED
-    order.response = request.GET
     order.save()
 
     order_url = reverse('order_detail', kwargs={'order_key': order.key})
@@ -139,6 +147,22 @@ def payment_success(request, order_key):
         ticket.send_email()
 
     return HttpResponseRedirect(order_url)
+
+
+def free_order_confirmation(request, order_key):
+    order = Order.objects.get(key=order_key)
+    if order.amount > 0:
+        raise HttpResponseBadRequest('This order cannot be confirmed without payment')
+
+    return complete_order(order)
+
+
+def payment_success(request, order_key):
+    # TODO: add some kind of security
+    order = Order.objects.get(key=order_key)
+    order.response = request.GET
+
+    return complete_order(order)
 
 
 def payment_failure(request):

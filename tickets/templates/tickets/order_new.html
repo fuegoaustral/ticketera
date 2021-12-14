@@ -17,7 +17,7 @@
     <p>{{ ticket_type.description }}</p>
 
     <p>Podés comprar hasta <strong>{{ max_tickets }}</strong> bonos.</p>
-    <form action="." method="post" novalidate class="mb-5 buyer-form">
+    <form method="post" novalidate class="mb-5 buyer-form">
         {% csrf_token %}
         {% bootstrap_form order_form form_group_class='form-group' %}
 
