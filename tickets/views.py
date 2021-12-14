@@ -118,10 +118,10 @@ def order_detail(request, order_key):
 
         payment_preference_id = order.get_payment_preference()['id'] if order.status == Order.OrderStatus.PENDING else None
 
-        context = {
+        context.update({
             'preference_id': payment_preference_id,
             'MERCADOPAGO_PUBLIC_KEY': settings.MERCADOPAGO['PUBLIC_KEY']
-        }
+        })
 
     template = loader.get_template('tickets/order_detail.html')
 

@@ -137,12 +137,36 @@ class Order(BaseModel):
         import mercadopago
         sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
 
-        preference_data = {
-            "items": [{
+        items = []
+        items.extend([{
                     "title": self.ticket_type.name,
                     "quantity": 1,
-                    "unit_price": ticket.price or 0,
-                } for ticket in self.ticket_set.all()],
+                    "unit_price": ticket.price,
+                } for ticket in self.ticket_set.all() if ticket.price >0])
+
+        if self.donation_art:
+            items.append({
+                "title": 'Donación para Arte',
+                "quantity": 1,
+                "unit_price": float(self.donation_art),
+            })
+
+        if self.donation_venue:
+            items.append({
+                "title": 'Donación para La Sede',
+                "quantity": 1,
+                "unit_price": float(self.donation_venue),
+            })
+
+        if self.donation_grant:
+            items.append({
+                "title": 'Donación para Bono No Tengo Un Mango',
+                "quantity": 1,
+                "unit_price": float(self.donation_grant),
+            })
+
+        preference_data = {
+            "items": items,
             "payer": {
                 "name": self.first_name,
                 "surname": self.last_name,
