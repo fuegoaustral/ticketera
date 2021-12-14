@@ -13,8 +13,7 @@ h1, h2 {
     color: #503C3A;
 }
 
-.emoji {
-    font-size: 2rem;
+.emoji { font-size: 2rem;
 }
 
 .list-group {
@@ -82,4 +81,8 @@ dl {
     cursor: pointer;
     border: 0;
     width: 100%;
+}
+
+.empty-form {
+    display: hidden;
 }

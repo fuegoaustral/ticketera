@@ -19,7 +19,7 @@
     <p>Podés comprar hasta <strong>{{ max_tickets }}</strong> bonos.</p>
     <form method="post" novalidate class="mb-5 buyer-form">
         {% csrf_token %}
-        {% bootstrap_form order_form form_group_class='form-group' %}
+        {% bootstrap_form order_form form_group_class='form-group' exclude='donation_art,donation_venue,donation_grant' %}
 
         <h4>Participantes</h4>
         {{ tickets_formset.management_form }}
@@ -43,6 +43,11 @@
             <i class="fas fa-add"></i>
             Agregar participante
         </button>
+
+        <div>
+            <h3>Donaciones</h3>
+            {% bootstrap_form order_form form_group_class='form-group' exclude='first_name,last_name,email,phone,dni' %}
+        </div>
 
         <div class="form-group">
             <input type="submit" value="Continuar" class="btn btn-primary btn-lg w-100 btn-submit">

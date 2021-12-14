@@ -49,7 +49,7 @@
 <h3>Datos del Comprador</h3>
 {% include 'partials/person_details.html' with person=order %}
 
-<h3>Participantes</h3>
+<h3 class="mt-5">Participantes</h3>
 
 {% for ticket in order.ticket_set.all %}
 <div class="mb-5">
@@ -57,10 +57,30 @@
 </div>
 {% endfor %}
 
+<h3>Donaciones</h3>
+{% if order.donation_art %}
+<dl>
+    <dt>Arte</dt>
+    <dd>${{ order.donation_art }}</dd>
+</dl>
+{% endif %}
+{% if order.donation_venue %}
+<dl>
+    <dt>La Sede</dt>
+    <dd>${{ order.donation_venue }}</dd>
+</dl>
+{% endif %}
+{% if order.donation_grant %}
+<dl>
+    <dt>Bono No Tengo Un Mango</dt>
+    <dd>${{ order.donation_grant }}</dd>
+</dl>
+{% endif %}
+
 {% if order.status == 'PENDING' %}
     <div class="cho-container my-5 w-100">
         {% if order.amount == 0 %}
-        <button onclick="window.location.href='{% url "free_order_confirmation" order_key=order.key %}'">Confirmar</button>
+        <button class="mercadopago-button" onclick="window.location.href='{% url "free_order_confirmation" order_key=order.key %}'">Confirmar</button>
         {% endif %}
     </div>
 {% endif %}
