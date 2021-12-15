@@ -33,7 +33,11 @@
         "route53_enabled": false,
         "extra_permissions": [{
             "Effect": "Allow",
-            "Action": ["s3:*"],
+            "Action": [
+                "s3:PutObject",
+                "s3:GetObjectAcl",
+                "s3:GetObject"
+            ],
             "Resource": "arn:aws:s3:::deprepagos-zappa-static/*"
         }],
         "certificate_arn": "arn:aws:acm:us-east-1:153920312805:certificate/2b72abd7-7867-4dc9-b5b9-c9bf001510bc"
