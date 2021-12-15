@@ -1,5 +1,7 @@
 from deprepagos.settings import *
 
+CSRF_TRUSTED_ORIGINS = ['bonos.fuegoaustral.org']
+
 STATICFILES_STORAGE = 'deprepagos.storages.S3PipelineManifestStorage'
 
 EMAIL_HOST = os.environ.get('EMAIL_HOST')

@@ -29,7 +29,8 @@ DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 ALLOWED_HOSTS = [
     '127.0.0.1',
     'localhost',
-    'bonos.fuegoaustral.org'
+    'bonos.fuegoaustral.org',
+    'xjhdvvmqc4.execute-api.us-west-2.amazonaws.com'
 ]
 
 APP_URL = os.environ.get('APP_URL', 'http://localhost:8000')
