@@ -161,11 +161,9 @@ def free_order_confirmation(request, order_key):
 
 
 def payment_success(request, order_key):
-    # TODO: add some kind of security
     order = Order.objects.get(key=order_key)
     order.response = request.GET
-
-    return _complete_order(order)
+    return HttpResponseRedirect(order.get_resource_url())
 
 
 def payment_failure(request):

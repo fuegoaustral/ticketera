@@ -6,11 +6,32 @@ body {
     margin-right: auto !important;
 }
 
+.site-header {
+  background: black url("/static/img/hero.jpg") no-repeat top center;
+//  background-size: 1680px;
+  height: 140px;
+  &.hero {
+    height: 500px;
+  }
+}
+
+@media screen and (max-width: 767px) {
+  .site-header.hero {
+    background-size: 767px;
+    height: 240px; }
+  .whatis p {
+    font-size: 20px;
+    line-height: 1.8em; }
+  .site-branding {
+    float: left;
+    width: initial; }
+  .main-navigation-wrap {
+    top: -100px; } }
+
 h1, h2 {
     text-align: center;
     font-family: 'Amatic SC', 'Open Sans', Arial, Helvetica, sans-serif;
     font-size: 60px;
-    color: #503C3A;
 }
 
 .emoji { font-size: 2rem;
