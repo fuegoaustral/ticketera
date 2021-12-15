@@ -142,9 +142,13 @@ class Order(BaseModel):
     def get_resource_url(self):
         return reverse('order_detail', kwargs={'order_key': self.key})
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._old_status = self.status
+
     def save(self):
         super(Order, self).save()
-        if self.status == Order.OrderStatus.CONFIRMED:
+        if self._old_status != Order.OrderStatus.CONFIRMED and self.status == Order.OrderStatus.CONFIRMED:
             self.send_confirmation_email()
             for ticket in self.ticket_set.all():
                 ticket.send_email()
