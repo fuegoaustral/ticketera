@@ -192,6 +192,7 @@ def payment_pending(request):
 
 
 def payment_notification(request):
-    print('PAYMENT NOTIFICATION', request.POST)
+    print('PAYMENT NOTIFICATION GET', request.GET)
+    print('PAYMENT NOTIFICATION POST', request.POST)
     return HttpResponse('PAYMENT NOTIFICATION')
 

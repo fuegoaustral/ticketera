@@ -29,6 +29,7 @@ DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 ALLOWED_HOSTS = [
     '127.0.0.1',
     'localhost',
+    'bonos.fa2022.org',
     'bonos.fuegoaustral.org',
     'xjhdvvmqc4.execute-api.us-west-2.amazonaws.com'
 ]
