@@ -223,6 +223,10 @@ class Ticket(BaseModel):
     volunteer_transmutator = models.BooleanField('Transmutadores')
     volunteer_umpalumpa = models.BooleanField('Umpa Lumpas (Armado y Desarme de la Ciudad)')
 
+    def __str__(self):
+        return f'({self.order.status}) {self.first_name} {self.last_name}'
+
+
     def send_email(self):
 
         url = reverse('ticket_detail', kwargs={'ticket_key': self.key})
