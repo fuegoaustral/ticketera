@@ -31,12 +31,14 @@ class Coupon(BaseModel):
         return self.token
 
     def tickets_remaining(self):
-        return max(0, self.max_tickets - (Order.objects
+        tickets_sold = (Order.objects
             .filter(coupon=self)
             .filter(status=Order.OrderStatus.CONFIRMED)
             .annotate(num_tickets=Count('ticket'))
             .aggregate(tickets_sold=Sum('num_tickets')
-        ))['tickets_sold'])
+        ))['tickets_sold'] or 0
+
+        return max(0, self.max_tickets - (tickets_sold or 0))
 
 
 class TicketTypeManager(models.Manager):
