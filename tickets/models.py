@@ -151,21 +151,21 @@ class Order(BaseModel):
 
         if self.donation_art:
             items.append({
-                "title": 'Becas de Arte',
+                "title": 'Contribución Becas de Arte',
                 "quantity": 1,
                 "unit_price": float(self.donation_art),
             })
 
         if self.donation_venue:
             items.append({
-                "title": 'Donaciones a La Sede',
+                "title": 'Contribución a La Sede',
                 "quantity": 1,
                 "unit_price": float(self.donation_venue),
             })
 
         if self.donation_grant:
             items.append({
-                "title": 'Becas No Tengo Un Mango (NTUM)',
+                "title": 'Contribución a Becas No Tengo Un Mango',
                 "quantity": 1,
                 "unit_price": float(self.donation_grant),
             })
