@@ -7,6 +7,9 @@ from django.utils.safestring import mark_safe
 from .models import Ticket, TicketType, Order, Coupon
 
 
+admin.site.site_header = 'Bonos de Fuego Austral 2022 eOs'
+
+
 class TicketAdmin(admin.ModelAdmin):
     list_display = ('order_id', 'get_status', 'first_name', 'last_name', 'email', 'phone', 'dni', 'price')
     list_filter = ('order__status', 'volunteer_ranger', 'volunteer_umpalumpa', 'volunteer_transmutator', )
