@@ -211,7 +211,7 @@ def payment_notification(request):
         paid_amount = 0
         for payment in merchant_order['payments']:
             if payment['status'] == 'approved':
-                paid_amount += payment['transaction_amount']
+                paid_amount += payment['total_paid_amount']
 
         if paid_amount >= merchant_order['total_amount']:
             _complete_order(order)
