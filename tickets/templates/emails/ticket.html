@@ -1,16 +1,47 @@
 {% extends 'emails/base.html' %}
-{% block subject %}Fuego Austral 2022: Tu bono{% endblock %}
+{% block subject %}¡Ya tenés tu bono para Fuego Austral 2022 eOs!{% endblock %}
 {% block title %}
-        Tu bono para Fuego Austral 2022
+¡TODO LISTO!<br />
+Ya tenés tu bono contribución de ingreso para:<br />
+<b>Fuego Austral 2022 eOs</b><br />
 {% endblock %}
 {% block content %}
 
-    {% url 'admin:auth_user_change' user.id as url %}
 
-    <center>
-        <img src="{{ qr }}">
-    </center>
+<p>
+Tu Bono es el <b>#{{ ticket.key }}</b><br />
+de la Orden de Compra <b>#{{ ticket.order.id }}</b>
+</p>
 
-    {% include 'emails/partials/btn.html' with label='Ver confirmación' href=url domain=domain %}
+<p>
+Este bono es transferible hasta el 11 de febrero del 2022. 
+LA REVENTA CON SOBREPRECIOS IMPLICARÁ LA CANCELACIÓN DEL BONO CONTRIBUCIÓN
+</p>
+
+
+<p>
+Lo locación exacta del evento se te informará por esta vía 15 días antes del inicio. Recordá chequear spam y promociones.
+</p>
+
+<p>
+Cualquier problema que tengas con tu bono, podés escribirnos a <a href="mailto:bonos@fuegoaustral.org">bonos@fuegoaustral.org</a>
+</p>
+
+<p>
+    Te acercamos, una vez más, la
+    <a href="http://fuegoaustral.org/prepararse/" target="_blank">guía de supervivencia</a>
+    de Fuego Austral y el cronograma para 
+    <a href="http://fuegoaustral.org/el-evento/">participar del evento</a>
+    con otras propuestas, además de los 
+    <a href="http://fuegoaustral.org/wp-content/uploads/2021/FA2022_Terminos_y_Condiciones.pdf" target="_blank">términos y condiciones
+    .
+</p>
+
+
+<p>
+“La experiencia será lo que hagamos de ella”
+</p>
+
+    {% include 'emails/partials/btn.html' with label='Ver Bono' href=ticket.get_absolute_url domain=domain %}
 
 {% endblock %}

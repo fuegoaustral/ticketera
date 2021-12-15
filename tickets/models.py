@@ -250,29 +250,30 @@ class Ticket(BaseModel):
     def __str__(self):
         return f'({self.order.status}) {self.first_name} {self.last_name}'
 
+    def get_absolute_url(self):
+        return reverse('ticket_detail', args=(self.key,))
+
 
     def send_email(self):
 
-        url = reverse('ticket_detail', kwargs={'ticket_key': self.key})
-
-        img = qrcode.make(f'{settings.APP_URL}{url}')
+        # img = qrcode.make(f'{settings.APP_URL}{url}')
 
         # logo = Image.open('tickets/static/img/logo.png')
         # img.paste(logo)
 
-        stream = BytesIO()
-        img.save(stream, format="png")
-        stream.seek(0)
-        imgObj = stream.read()
+        # stream = BytesIO()
+        # img.save(stream, format="png")
+        # stream.seek(0)
+        # imgObj = stream.read()
 
-        inline_img = InlineImage(content=imgObj, filename='qr.png', subtype='png')
+        # inline_img = InlineImage(content=imgObj, filename='qr.png', subtype='png')
 
         return send_mail(
             template_name='ticket',
             recipient_list=[self.email],
             context={
                 'ticket': self,
-                'qr': inline_img
+                # 'qr': inline_img
             }
         )
 
