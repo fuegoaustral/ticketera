@@ -3,16 +3,14 @@ from datetime import datetime
 import mercadopago
 
 from django.conf import settings
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest
 from django.template import loader
 from django.forms import modelformset_factory, BaseModelFormSet
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 
-from deprepagos.email import send_mail
 from .models import Coupon, Order, TicketType, Ticket
 from .forms import OrderForm, TicketForm
-
 
 
 def home(request):
@@ -106,6 +104,7 @@ def is_order_valid(order):
         return False
     return True
 
+
 def order_detail(request, order_key):
 
     order = Order.objects.get(key=order_key)
@@ -146,22 +145,7 @@ def ticket_detail(request, ticket_key):
 def _complete_order(order):
     order.status = Order.OrderStatus.CONFIRMED
     order.save()
-
-    order_url = reverse('order_detail', kwargs={'order_key': order.key})
-
-    send_mail(
-        template_name='order_success',
-        recipient_list=[order.email],
-        context={
-            'order': order,
-            'url': order_url
-        }
-    )
-
-    for ticket in order.ticket_set.all():
-        ticket.send_email()
-
-    return HttpResponseRedirect(order_url)
+    return HttpResponseRedirect(order.get_resource_url())
 
 
 def free_order_confirmation(request, order_key):

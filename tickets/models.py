@@ -139,6 +139,26 @@ class Order(BaseModel):
         default=OrderStatus.PENDING
     )
 
+    def get_resource_url(self):
+        return reverse('order_detail', kwargs={'order_key': self.key})
+
+    def save(self):
+        super(Order, self).save()
+        if self.status == Order.OrderStatus.CONFIRMED:
+            self.send_confirmation_email()
+            for ticket in self.ticket_set.all():
+                ticket.send_email()
+
+    def send_confirmation_email(self):
+        send_mail(
+            template_name='order_success',
+            recipient_list=[self.email],
+            context={
+                'order': self,
+                'url': self.get_resource_url()
+            }
+        )
+
     def get_payment_preference(self):
 
         import mercadopago
