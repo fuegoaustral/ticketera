@@ -1,5 +1,7 @@
 from datetime import datetime
 
+import mercadopago
+
 from django.conf import settings
 from django.http import HttpResponse, HttpResponseRedirect
 from django.template import loader
@@ -9,7 +11,7 @@ from django.urls import reverse
 from deprepagos.email import send_mail
 from .models import Coupon, Order, TicketType, Ticket
 from .forms import OrderForm, TicketForm
-from django.db.models import Q
+
 
 
 def home(request):
@@ -194,5 +196,30 @@ def payment_pending(request):
 def payment_notification(request):
     print('PAYMENT NOTIFICATION GET', request.GET)
     print('PAYMENT NOTIFICATION POST', request.POST)
-    return HttpResponse('PAYMENT NOTIFICATION')
+
+    print(request.GET.get('id'))
+
+    if request.GET['topic'] == 'payment':
+        sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
+        payment = sdk.payment().get(request.GET.get('id'))['response']
+        merchant_order = sdk.merchant_order().get(payment['order']['id'])['response']
+
+        print(payment)
+        print(merchant_order)
+
+        paid_amount = 0;
+        for payment in merchant_order['payments']:
+            if payment['status'] == 'approved':
+                paid_amount += payment['transaction_amount']
+
+        order = Order.objects.get(id=int(merchant_order['external_reference']))
+
+        if paid_amount >= merchant_order['total_amount']:
+            _complete_order(order)
+        # else:
+        #
+        #     order.status = Order.OrderStatus.ERROR
+        #     order.save()
+
+    return HttpResponse('Notified!')
 
