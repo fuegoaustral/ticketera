@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'tickets.apps.TicketsConfig',
     'django_inlinecss',
     'django_s3_storage',
+    'auditlog',
 ]
 
 MIDDLEWARE = [
@@ -58,6 +59,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'auditlog.middleware.AuditlogMiddleware',
 ]
 
 ROOT_URLCONF = 'deprepagos.urls'

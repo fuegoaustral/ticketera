@@ -22,3 +22,4 @@ pillow
 qrcode
 css-html-js-minify
 django-storages
+auditlog3

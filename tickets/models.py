@@ -8,6 +8,8 @@ from django.db.models import Count, Sum, Q, F
 from django.conf import settings
 from django.urls import reverse
 
+from auditlog.registry import auditlog
+
 from deprepagos.email import send_mail
 from templated_email import InlineImage
 
@@ -245,3 +247,8 @@ class Ticket(BaseModel):
         )
 
 
+
+auditlog.register(Coupon)
+auditlog.register(TicketType)
+auditlog.register(Order)
+auditlog.register(Ticket)
