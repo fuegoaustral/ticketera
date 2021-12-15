@@ -38,7 +38,10 @@ class Coupon(BaseModel):
             .aggregate(tickets_sold=Sum('num_tickets')
         ))['tickets_sold'] or 0
 
-        return max(0, self.max_tickets - (tickets_sold or 0))
+        try:
+            return max(0, self.max_tickets - (tickets_sold or 0))
+        except TypeError:
+            return None
 
 
 class TicketTypeManager(models.Manager):
