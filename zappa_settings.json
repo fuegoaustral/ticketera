@@ -9,6 +9,15 @@
         "vpc_config" : {
             "SubnetIds": [ "subnet-042b99be9ab7e9631", "subnet-075626e0e2467cce2", "subnet-007456bcfab8684e3", ],
             "SecurityGroupIds": [ "sg-03c4968f4db7615ae" ]
-        }
+        },
+        "domain": "bonos.fuegoaustral.org",
+        "route53_enabled": false,
+        "extra_permissions": [{
+            "Effect": "Allow",
+            "Action": ["s3:*"],
+            "Resource": "arn:aws:s3:::deprepagos-zappa-static/*"
+        }],
+        "certificate_arn": "arn:aws:acm:us-east-1:153920312805:certificate/2b72abd7-7867-4dc9-b5b9-c9bf001510bc",
+        "base_path": "."
     }
 }
