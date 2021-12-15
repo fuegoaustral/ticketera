@@ -7,6 +7,7 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.template import loader
 from django.forms import modelformset_factory, BaseModelFormSet
 from django.urls import reverse
+from django.views.decorators.csrf import csrf_exempt
 
 from deprepagos.email import send_mail
 from .models import Coupon, Order, TicketType, Ticket
@@ -192,34 +193,28 @@ def payment_pending(request):
     print('PAYMENT PENDING')
     return HttpResponse('PAYMENT PENDING')
 
-
+@csrf_exempt
 def payment_notification(request):
-    print('PAYMENT NOTIFICATION GET', request.GET)
-    print('PAYMENT NOTIFICATION POST', request.POST)
-
-    print(request.GET.get('id'))
+    print('[IPN] GET', request.GET)
 
     if request.GET['topic'] == 'payment':
         sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
         payment = sdk.payment().get(request.GET.get('id'))['response']
         merchant_order = sdk.merchant_order().get(payment['order']['id'])['response']
 
-        print(payment)
-        print(merchant_order)
+        print('[IPN] Payment', payment)
+        print('[IPN] Merchant Order', merchant_order)
 
-        paid_amount = 0;
+        order = Order.objects.get(id=int(merchant_order['external_reference']))
+        print('[IPN] Referenced Order', order)
+
+        paid_amount = 0
         for payment in merchant_order['payments']:
             if payment['status'] == 'approved':
                 paid_amount += payment['transaction_amount']
 
-        order = Order.objects.get(id=int(merchant_order['external_reference']))
-
         if paid_amount >= merchant_order['total_amount']:
             _complete_order(order)
-        # else:
-        #
-        #     order.status = Order.OrderStatus.ERROR
-        #     order.save()
 
     return HttpResponse('Notified!')
 
