@@ -7,7 +7,7 @@ class PersonForm(forms.ModelForm):
     last_name = forms.CharField(label='', widget=forms.TextInput(attrs={'class': 'input-last_name', 'placeholder': 'Apellido'}))
     email = forms.EmailField(label='', widget=forms.EmailInput(attrs={'class': 'input-email', 'placeholder': 'Email'}))
     phone = forms.CharField(label='', widget=forms.TextInput(attrs={'class': 'input-phone', 'placeholder': 'Teléfono'}))
-    dni = forms.CharField(label='', widget=forms.TextInput(attrs={'class': 'input-dni', 'placeholder': 'DNI'}))
+    dni = forms.CharField(label='', widget=forms.TextInput(attrs={'class': 'input-dni', 'placeholder': 'DNI o Pasaporte'}))
 
 
 class TicketForm(PersonForm):

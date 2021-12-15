@@ -10,13 +10,21 @@
 
 {% block content %}
 
-    <h2 class="mb-5">Ponete contento. Estás comprando tus bonos para Fuego Austral.</h2>
+    <h2 class="mb-5">Completá tus datos</h2>
+    <p>
+    IMPORTANTE: Antes de adquirir tu bono leé las <a href="http://fuegoaustral.org/wp-content/uploads/2021/FA2022_Terminos_y_Condiciones.pdf">condiciones del evento</a> y <a href="http://fuegoaustral.org/prepararse/">la guía de supervivencia</a> para participar de Fuego Austral 2022 eOs.
+    </p>
+    <p>
+    Si tenés algún problema durante o luego de la compra del bono, escribinos a <a href="mailto:bonos@fuegoaustral.org">bonos@fuegoaustral.org</a>.
+    </p>
+
 
     <h3>{{ ticket_type.name }}</h3>
 
     <p>{{ ticket_type.description }}</p>
 
     <p>Podés comprar hasta <strong>{{ max_tickets }}</strong> bonos.</p>
+
     <form method="post" novalidate class="mb-5 buyer-form">
         {% csrf_token %}
         {% bootstrap_form order_form form_group_class='form-group' exclude='donation_art,donation_venue,donation_grant' %}
@@ -46,6 +54,12 @@
 
         <div>
             <h3>Donaciones</h3>
+            <p>
+                Toda creación de la comunidad en Fuego Austral o en La Sede requiere de mucho trabajo, procesos y materiales.
+            </p>
+            <p>
+                Por eso, además de adquirir tu bono contribución de ingreso, podes colaborar con algunas de las siguientes propuestas:
+            </p>
             {% bootstrap_form order_form form_group_class='form-group' exclude='first_name,last_name,email,phone,dni' %}
         </div>
 

@@ -149,6 +149,8 @@ STATICFILES_FINDERS = (
 )
 
 PIPELINE = {
+   # 'PIPELINE_ENABLED': True,
+    'SHOW_ERRORS_INLINE': True,
     'COMPILERS': (
         'libsasscompiler.LibSassCompiler',
     ),

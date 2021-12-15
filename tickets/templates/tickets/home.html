@@ -4,8 +4,20 @@
 
 {% block content %}
 
-    <h1 class="entry-title">Hola! Comprá tu bono acá.</h1>
+    <h1 class="entry-title">
+        Fuego Austral 2022 eOs<br/>
+        del 25 de Febrero al 2 de Marzo
+    </h1>
 
+    <p class="event-description">
+Desde hace mucho tiempo, alrededor de las auroras se frecuentan rituales musicales con tambores y fogones, y hasta el día de hoy siguen siendo encuentros especiales donde su luz nos reúne y convoca a conectarnos de forma especial.
+La diosa griega Eos gira en torno a la luz, los reflejos y la iridiscencia, y propone que la comunidad vuelva a celebrar y compartir junto a la luz del fogón, crear bajo el sol y bailar con el reflejo de la luna.
+Así, luego de una pausa, pero con más energía que antes, nace Fuego Austral eOs 2022 con la luz como protagonista y algún amanecer que vuelva a encontrarnos en comunidad.
+    </p>
+
+    <p class="event-description">
+Antes de adquirir tu bono leé las condiciones del evento y la guía de supervivencia para participar.
+    </p>
     <div class="list-group">
         {% if ticket_type %}
         <a href="{% url 'order' ticket_type_id=ticket_type.id %}?coupon={{ coupon.token }}" class="card">

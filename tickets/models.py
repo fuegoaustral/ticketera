@@ -115,9 +115,9 @@ class Order(BaseModel):
     email = models.CharField(max_length=320)
     phone = models.CharField(max_length=50)
     dni = models.CharField(max_length=10)
-    donation_art = models.DecimalField(decimal_places=2, max_digits=10, blank=True, null=True)
-    donation_venue = models.DecimalField(decimal_places=2, max_digits=10, blank=True, null=True)
-    donation_grant = models.DecimalField(decimal_places=2, max_digits=10, blank=True, null=True)
+    donation_art = models.DecimalField('Becas de Arte', decimal_places=2, max_digits=10, blank=True, null=True, help_text='Para empujar la creatividad en nuestra ciudad temporal.')
+    donation_venue = models.DecimalField('Becas No Tengo Un Mango (NTUM)', decimal_places=2, max_digits=10, blank=True, null=True, help_text='Para ayudar a quienes necesitan una mano con su bono contribución.')
+    donation_grant = models.DecimalField('Donaciones a La Sede', decimal_places=2, max_digits=10, blank=True, null=True, help_text='Para mejorar el espacio donde nos encontramos todo el año.')
     amount = models.DecimalField(decimal_places=2, max_digits=10)
 
     coupon = models.ForeignKey('Coupon', null=True, blank=True, on_delete=models.RESTRICT)
@@ -149,21 +149,21 @@ class Order(BaseModel):
 
         if self.donation_art:
             items.append({
-                "title": 'Donación para Arte',
+                "title": 'Becas de Arte',
                 "quantity": 1,
                 "unit_price": float(self.donation_art),
             })
 
         if self.donation_venue:
             items.append({
-                "title": 'Donación para La Sede',
+                "title": 'Donaciones a La Sede',
                 "quantity": 1,
                 "unit_price": float(self.donation_venue),
             })
 
         if self.donation_grant:
             items.append({
-                "title": 'Donación para Bono No Tengo Un Mango',
+                "title": 'Becas No Tengo Un Mango (NTUM)',
                 "quantity": 1,
                 "unit_price": float(self.donation_grant),
             })
