@@ -148,7 +148,7 @@ def _complete_order(order):
 
     send_mail(
         template_name='order_success',
-        recipient_list=[settings.DEFAULT_FROM_EMAIL, order.email],
+        recipient_list=[order.email],
         context={
             'order': order,
             'url': order_url

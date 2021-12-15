@@ -223,8 +223,6 @@ class Ticket(BaseModel):
 
         url = reverse('ticket_detail', kwargs={'ticket_key': self.key})
 
-        print(f'{settings.APP_URL}{url}')
-
         img = qrcode.make(f'{settings.APP_URL}{url}')
 
         # logo = Image.open('tickets/static/img/logo.png')
@@ -239,8 +237,7 @@ class Ticket(BaseModel):
 
         return send_mail(
             template_name='ticket',
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[settings.DEFAULT_FROM_EMAIL, self.email],
+            recipient_list=[self.email],
             context={
                 'ticket': self,
                 'qr': inline_img
