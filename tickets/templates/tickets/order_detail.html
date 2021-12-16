@@ -25,7 +25,7 @@
 {% block content %}
 
 <h2>Confirmá los Datos</h2>
-<p>Confirmá los datos cargados y realizá el pago. Te llegará un correo con la confirmación de tu bono, recordá chequear spam y promociones.</p>
+<p>{% if order.status == 'PENDING' %}Confirmá los datos cargados y realizá el pago. {% endif %}Te llegará un correo con la confirmación de tu bono, recordá chequear spam y promociones.</p>
 
 <dl>
     <dt>Estado</dt>
