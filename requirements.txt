@@ -23,3 +23,5 @@ qrcode
 css-html-js-minify
 django-storages
 auditlog3
+jsonfield
+django_s3_storage
