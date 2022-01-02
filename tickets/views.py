@@ -109,11 +109,9 @@ def order_detail(request, order_key):
 
     order = Order.objects.get(key=order_key)
 
-    if not is_order_valid(order):
-        return HttpResponse('Lo sentimos, este link es inválido.', status=404)
-
     context = {
         'order': order,
+        'is_order_valid': (order.status == 'CONFIRMED') or is_order_valid(order),
     }
 
     if order.amount > 0:
@@ -122,7 +120,7 @@ def order_detail(request, order_key):
 
         context.update({
             'preference_id': payment_preference_id,
-            'MERCADOPAGO_PUBLIC_KEY': settings.MERCADOPAGO['PUBLIC_KEY']
+            'MERCADOPAGO_PUBLIC_KEY': settings.MERCADOPAGO['PUBLIC_KEY'],
         })
 
     template = loader.get_template('tickets/order_detail.html')

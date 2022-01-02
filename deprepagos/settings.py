@@ -199,3 +199,11 @@ AWS_QUERYSTRING_AUTH = False
 
 # user comprador {"id":1037327132,"nickname":"TETE9670391","password":"qatest8330","site_status":"active","email":"test_user_43578812@testuser.com"}%
 # user comprador {"id":1037346624,"nickname":"TETE9234065","password":"qatest9033","site_status":"active","email":"test_user_72163657@testuser.com"}%
+
+try:
+    from deprepagos.local_settings import *
+    INSTALLED_APPS.extend(EXTRA_INSTALLED_APPS)
+except ImportError:
+    # using print and not log here as logging is yet not configured
+    print('local settings not found')
+    pass

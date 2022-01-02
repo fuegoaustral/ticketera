@@ -25,24 +25,34 @@
 {% block content %}
 
 <h2>Confirmá los Datos</h2>
-<p>{% if order.status == 'PENDING' %}Confirmá los datos cargados y realizá el pago. {% endif %}Te llegará un correo con la confirmación de tu bono, recordá chequear spam y promociones.</p>
+{% if is_order_valid %}
+    <p>{% if order.status == 'PENDING' %}Confirmá los datos cargados y realizá el pago. {% endif %}Te llegará un correo con la confirmación de tu bono, recordá chequear spam y promociones.</p>
+{% else %}
+    <p>La orden no es válida, si tenés algún problema, escribinos a <a href="mailto:bonos@fuegoaustral.org">bonos@fuegoaustral.org</a>.</p>
+{% endif %}
 
 <dl>
     <dt>Estado</dt>
     <dd>
-        {% if order.status == 'PENDING' %}
-        <div>
-            <div class="fas fa-warning"></div>
-            Pago pendiente
-        </div>
-        {% elif order.status == 'CONFIRMED' %}
-        <div class="text-success">
-            Confirmada
-        </div>
-        {% elif order.status == 'ERROR' %}
-        <div class="text-danger">
-            Error
-        </div>
+        {% if is_order_valid %}
+            {% if order.status == 'PENDING' %}
+            <div>
+                <div class="fas fa-warning"></div>
+                Pago pendiente
+            </div>
+            {% elif order.status == 'CONFIRMED' %}
+            <div class="text-success">
+                Confirmada
+            </div>
+            {% elif order.status == 'ERROR' %}
+            <div class="text-danger">
+                Error
+            </div>
+            {% endif %}
+        {% else %}
+            <div class="text-danger">
+                Inválida
+            </div>
         {% endif %}
     </dd>
 </dl>
