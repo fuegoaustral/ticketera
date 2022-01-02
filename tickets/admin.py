@@ -1,6 +1,9 @@
+import csv
+
 from django.conf import settings
 from django.contrib import admin
 from django.db.models import Count, Q
+from django.http import HttpResponse
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 
@@ -14,6 +17,37 @@ class TicketAdmin(admin.ModelAdmin):
     list_display = ('order_id', 'get_status', 'first_name', 'last_name', 'email', 'phone', 'dni', 'price')
     list_filter = ('order__status', 'volunteer_ranger', 'volunteer_umpalumpa', 'volunteer_transmutator', )
     search_fields = ('first_name', 'last_name', )
+    actions = ['export']
+
+    @admin.action(description='Exportar tickets seleccionados')
+    def export(self, request, queryset):
+        response = HttpResponse(
+            content_type='text/csv',
+            headers={'Content-Disposition': 'attachment; filename="tickets.csv"'},
+        )
+
+        writer = csv.writer(response)
+        writer.writerow(['Nombre', 'Apellido', 'Email', 'Teléfono', 'DNI',
+            'Precio', 'Orden #', 'Voluntario', 'Ranger', 'Transmutador',
+            'Umpalumpa', 'Ticket #', ])
+
+        for ticket in queryset:
+            writer.writerow([
+                ticket.first_name,
+                ticket.last_name,
+                ticket.email,
+                ticket.phone,
+                ticket.dni,
+                ticket.price,
+                ticket.order_id,
+                ticket.get_volunteer_display(),
+                'Sí' if ticket.volunteer_ranger else 'No',
+                'Sí' if ticket.volunteer_transmutator else 'No',
+                'Sí' if ticket.volunteer_umpalumpa else 'No',
+                ticket.key, 
+            ])
+
+        return response
 
     @admin.display(ordering='order__status', description='status')
     def get_status(self, obj):
@@ -43,6 +77,39 @@ class OrderAdmin(admin.ModelAdmin):
     list_filter = ('status', 'ticket_type', )
     search_fields = ('first_name', 'last_name', 'ticket__first_name', 'ticket__last_name', )
     inlines = [TicketInline, ]
+    actions = ['export']
+
+    @admin.action(description='Exportar órdenes seleccionadas')
+    def export(self, request, queryset):
+        response = HttpResponse(
+            content_type='text/csv',
+            headers={'Content-Disposition': 'attachment; filename="órdenes.csv"'},
+        )
+
+        writer = csv.writer(response)
+        writer.writerow(['#', 'Estado', 'Nombre', 'Apellido', 'Email', 'Teléfono', 'DNI',
+            'Becas de Arte', 'Becas NTUM', 'Donaciones a La Sede', 'Valor Total', 'Cupón',
+            'Tipo de Ticket', '# Tickets', ])
+
+        for order in queryset:
+            writer.writerow([
+                order.id,
+                order.status,
+                order.first_name,
+                order.last_name,
+                order.email,
+                order.phone,
+                order.dni,
+                order.donation_art,
+                order.donation_grant,
+                order.donation_venue,
+                order.amount,
+                order.coupon,
+                order.ticket_type, 
+                order.ticket_set.count(), 
+            ])
+
+        return response
 
     def ticket_count(self, order):
         return order.ticket_set.count()
