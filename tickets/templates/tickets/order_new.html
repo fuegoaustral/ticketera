@@ -118,6 +118,10 @@
                 } else {
                     $(this).prop('checked', false);
                 }
+                // hack to disable volunteers
+                if (type === 'radio' && $(this).prop('value') === 'no') {
+                    this.checked = true;
+                }
             });
             $(row).find('.invalid-feedback').remove();
             $(row).find('.delete-row').click(function() {
@@ -178,6 +182,7 @@
                     });
             });
         });
+        $('input[type=radio]').parents('.form-group').css({visibility: 'hidden', position: 'absolute'});
 
     </script>
 
