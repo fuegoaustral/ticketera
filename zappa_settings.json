@@ -24,6 +24,7 @@
         "profile_name": "default",
         "project_name": "deprepagos",
         "runtime": "python3.8",
+        "timeout_seconds": 300,
         "s3_bucket": "deprepagos-zappa-prod",
         "vpc_config" : {
             "SubnetIds": [ "subnet-042b99be9ab7e9631", "subnet-075626e0e2467cce2", "subnet-007456bcfab8684e3", ],
