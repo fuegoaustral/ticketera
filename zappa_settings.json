@@ -1,46 +1,66 @@
 {
     "dev": {
-        "aws_region": "us-west-2",
-        "django_settings": "deprepagos.settings",
+        "aws_region": "us-east-1",
+        "django_settings": "deprepagos.settings_dev",
         "profile_name": "default",
         "project_name": "deprepagos",
         "runtime": "python3.8",
-        "s3_bucket": "deprepagos-zappa-dev",
+        "timeout_seconds": 30,
+        "s3_bucket": "faticketera-zappa-dev",
         "vpc_config" : {
-            "SubnetIds": [ "subnet-042b99be9ab7e9631", "subnet-075626e0e2467cce2", "subnet-007456bcfab8684e3", ],
-            "SecurityGroupIds": [ "sg-03c4968f4db7615ae" ]
+            "SubnetIds": [ 
+                "subnet-0d7a6e86d022b6ce5", 
+                "subnet-0be4af32a014a1734", 
+                "subnet-0a902c2f8d32f26f5", 
+                "subnet-0d3504ba22b734981", 
+                "subnet-01b326364992b2f57", 
+                "subnet-0a10faa62f52d05a8"
+            ],
+            "SecurityGroupIds": [ "sg-05430820583c3e497" ]
         },
         "extra_permissions": [{
             "Effect": "Allow",
             "Action": ["s3:*"],
-            "Resource": "arn:aws:s3:::deprepagos-zappa-static/*"
-        }],
-        "domain": "bonos.fa2022.org",
-        "certificate_arn": "arn:aws:acm:us-east-1:153920312805:certificate/7c83858c-a0e9-4396-b1d2-b596e15dac52"
-    },
-    "prod": {
-        "aws_region": "us-west-2",
-        "django_settings": "deprepagos.settings",
-        "profile_name": "default",
-        "project_name": "deprepagos",
-        "runtime": "python3.8",
-        "timeout_seconds": 300,
-        "s3_bucket": "deprepagos-zappa-prod",
-        "vpc_config" : {
-            "SubnetIds": [ "subnet-042b99be9ab7e9631", "subnet-075626e0e2467cce2", "subnet-007456bcfab8684e3", ],
-            "SecurityGroupIds": [ "sg-03c4968f4db7615ae" ]
-        },
-        "domain": "bonos.fuegoaustral.org",
-        "route53_enabled": false,
-        "extra_permissions": [{
-            "Effect": "Allow",
-            "Action": [
-                "s3:PutObject",
-                "s3:GetObjectAcl",
-                "s3:GetObject"
-            ],
-            "Resource": "arn:aws:s3:::deprepagos-zappa-static/*"
-        }],
-        "certificate_arn": "arn:aws:acm:us-east-1:153920312805:certificate/2b72abd7-7867-4dc9-b5b9-c9bf001510bc"
+            "Resource": [
+                "arn:aws:s3:::faticketera-zappa-dev",
+                "arn:aws:s3:::faticketera-zappa-dev/*"
+            ]
+        }]
+        // "exclude": ["local_settings.py"],
+        // "exclude_glob": ["venv/*"]
+        // "domain": "bonos.fa2022.org",
+        // "certificate_arn": "arn:aws:acm:us-east-1:153920312805:certificate/7c83858c-a0e9-4396-b1d2-b596e15dac52"
     }
+    // "prod": {
+    //     "aws_region": "us-east-1",
+    //     "django_settings": "deprepagos.settings",
+    //     "profile_name": "default",
+    //     "project_name": "deprepagos",
+    //     "runtime": "python3.8",
+    //     "timeout_seconds": 300,
+    //     "s3_bucket": "faticketera-zappa-prod",
+    //     "vpc_config" : {
+    //         "SubnetIds": [ 
+        // "subnet-0d7a6e86d022b6ce5", 
+        // "subnet-0be4af32a014a1734", 
+        // "subnet-0a902c2f8d32f26f5", 
+        // "subnet-0d3504ba22b734981", 
+        // "subnet-01b326364992b2f57", 
+        // "subnet-0a10faa62f52d05a8"
+    //         ],
+    //         "SecurityGroupIds": [ "sg-05430820583c3e497" ]
+    //     },
+    //     "domain": "bonos.fuegoaustral.org",
+    //     "route53_enabled": false,
+    //     "extra_permissions": [{
+    //         "Effect": "Allow",
+    //         "Action": [
+    //             "s3:PutObject",
+    //             "s3:GetObjectAcl",
+    //             "s3:GetObject"
+    //         ],
+    //         "Resource": "arn:aws:s3:::deprepagos-zappa-static/*"
+    //     }],
+    //     "certificate_arn": "arn:aws:acm:us-east-1:153920312805:certificate/2b72abd7-7867-4dc9-b5b9-c9bf001510bc"
+    // }
 }

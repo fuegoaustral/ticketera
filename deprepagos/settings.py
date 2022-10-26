@@ -26,12 +26,13 @@ SECRET_KEY = 'django-insecure-s$(*=)6^h$p=d6e4tpv#-s7_hg&cl!vc@yzas371ubj=+ks&cc
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
+
 ALLOWED_HOSTS = [
     '127.0.0.1',
     'localhost',
     'bonos.fa2022.org',
     'bonos.fuegoaustral.org',
-    'xjhdvvmqc4.execute-api.us-west-2.amazonaws.com'
+    os.environ.get('EXTRA_HOST')
 ]
 
 APP_URL = os.environ.get('APP_URL', 'http://localhost:8000')
