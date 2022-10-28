@@ -17,7 +17,7 @@ def home(request):
 
     coupon = Coupon.objects.filter(token=request.GET.get('coupon')).first()
 
-    ticket_type = TicketType.objects.get_cheapes_available(coupon)
+    ticket_type = TicketType.objects.get_cheapest_available(coupon)
 
     template = loader.get_template('tickets/home.html')
 
