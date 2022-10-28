@@ -45,7 +45,7 @@ class Coupon(BaseModel):
 
 
 class TicketTypeManager(models.Manager):
-    def get_cheapeast_available(self, coupon):
+    def get_cheapest_available(self, coupon):
         ticket_type = (TicketType.objects
             # filter by date
             .filter(Q(date_from__lte=datetime.now()) | Q(date_from__isnull=True))

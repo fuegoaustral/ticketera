@@ -17,7 +17,7 @@ def home(request):
 
     coupon = Coupon.objects.filter(token=request.GET.get('coupon')).first()
 
-    ticket_type = TicketType.objects.get_cheapeast_available(coupon)
+    ticket_type = TicketType.objects.get_cheapes_available(coupon)
 
     template = loader.get_template('tickets/home.html')
 
@@ -38,7 +38,7 @@ class BaseTicketFormset(BaseModelFormSet):
 def order(request, ticket_type_id):
     coupon = Coupon.objects.filter(token=request.GET.get('coupon')).first()
 
-    ticket_type = TicketType.objects.get_cheapeast_available(coupon)
+    ticket_type = TicketType.objects.get_cheapest_available(coupon)
 
     if not ticket_type:
         return HttpResponse('Lo sentimos, este link es inválido.', status=404)
@@ -92,7 +92,7 @@ def order(request, ticket_type_id):
 def is_order_valid(order):
     num_tickets = order.ticket_set.count()
 
-    ticket_type = TicketType.objects.get_cheapeast_available(order.coupon)
+    ticket_type = TicketType.objects.get_cheapest_available(order.coupon)
 
     if not ticket_type:
         return False
