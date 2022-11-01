@@ -25,3 +25,4 @@ django-storages
 auditlog3
 jsonfield
 django_s3_storage
+zappa-django-utils

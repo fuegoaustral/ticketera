@@ -4,6 +4,12 @@ CSRF_TRUSTED_ORIGINS = ['bonos.fuegoaustral.org']
 
 STATICFILES_STORAGE = 'deprepagos.storages.S3PipelineManifestStorage'
 
+AWS_STORAGE_BUCKET_NAME = 'faticketera-zappa-prod' 
+AWS_QUERYSTRING_AUTH = False
+AWS_S3_BUCKET_NAME_STATIC = 'faticketera-zappa-prod'
+AWS_S3_BUCKET_AUTH_STATIC = False
+AWS_S3_BUCKET_AUTH = False
+
 EMAIL_HOST = os.environ.get('EMAIL_HOST')
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')

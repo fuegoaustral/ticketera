@@ -141,12 +141,13 @@ PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(PROJECT_ROOT, 'static')
 
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-STATICFILES_STORAGE = 'pipeline.storage.PipelineManifestStorage'
+STATICFILES_STORAGE = 'deprepagos.storages.S3PipelineManifestStorage'
 STATICFILES_FINDERS = (
     'django.contrib.staticfiles.finders.FileSystemFinder',
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
@@ -154,7 +155,7 @@ STATICFILES_FINDERS = (
 )
 
 PIPELINE = {
-   # 'PIPELINE_ENABLED': True,
+   'PIPELINE_ENABLED': True,
     'SHOW_ERRORS_INLINE': True,
     'COMPILERS': (
         'libsasscompiler.LibSassCompiler',
@@ -194,8 +195,6 @@ DEFAULT_FROM_EMAIL = 'Fuego Austral <bonos@bonos.fuegoaustral.org>'
 TEMPLATED_EMAIL_TEMPLATE_DIR = 'emails/'
 TEMPLATED_EMAIL_FILE_EXTENSION = 'html'
 
-AWS_STORAGE_BUCKET_NAME = 'deprepagos-zappa-static'
-AWS_QUERYSTRING_AUTH = False
 
 
 # user comprador {"id":1037327132,"nickname":"TETE9670391","password":"qatest8330","site_status":"active","email":"test_user_43578812@testuser.com"}%
