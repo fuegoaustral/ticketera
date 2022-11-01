@@ -2,7 +2,7 @@
     "dev": {
         "aws_region": "us-east-1",
         "django_settings": "deprepagos.settings_dev",
-        "profile_name": "default",
+        "profile_name": "faticketera",
         "project_name": "deprepagos",
         "runtime": "python3.8",
         "timeout_seconds": 30,
