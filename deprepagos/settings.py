@@ -147,7 +147,7 @@ STATIC_ROOT = os.path.join(PROJECT_ROOT, 'static')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-STATICFILES_STORAGE = 'deprepagos.storages.S3PipelineManifestStorage'
+# STATICFILES_STORAGE = 'pipeline.storage.PipelineManifestStorage'
 STATICFILES_FINDERS = (
     'django.contrib.staticfiles.finders.FileSystemFinder',
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
@@ -155,7 +155,7 @@ STATICFILES_FINDERS = (
 )
 
 PIPELINE = {
-   'PIPELINE_ENABLED': True,
+    'PIPELINE_ENABLED': True,
     'SHOW_ERRORS_INLINE': True,
     'COMPILERS': (
         'libsasscompiler.LibSassCompiler',
@@ -207,3 +207,25 @@ except ImportError:
     # using print and not log here as logging is yet not configured
     print('local settings not found')
     pass
+
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'WARNING',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': os.getenv('DJANGO_LOG_LEVEL', 'DEBUG'),
+            'propagate': False,
+        },
+    },
+}
