@@ -1,3 +1,4 @@
 .idea/
 __pycache__
 deprepagos/local_settings.py
+static/*
