@@ -1,6 +1,6 @@
 from datetime import datetime
 
-import mercadopago
+import mercadopago, logging
 
 from django.conf import settings
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest
@@ -108,24 +108,31 @@ def is_order_valid(order):
 def order_detail(request, order_key):
 
     order = Order.objects.get(key=order_key)
+    logging.info('got order')
 
     context = {
         'order': order,
         'is_order_valid': (order.status == 'CONFIRMED') or is_order_valid(order),
     }
+    logging.info('got order context')
 
     if order.amount > 0:
-
+        logging.info('getting payment preferences')
         payment_preference_id = order.get_payment_preference()['id'] if order.status == Order.OrderStatus.PENDING else None
 
         context.update({
             'preference_id': payment_preference_id,
             'MERCADOPAGO_PUBLIC_KEY': settings.MERCADOPAGO['PUBLIC_KEY'],
         })
+    logging.info('got payment preferences')
 
     template = loader.get_template('tickets/order_detail.html')
+    logging.info('got template')
 
-    return HttpResponse(template.render(context, request))
+    rendered_template = template.render(context, request)
+    logging.info('rendered template')
+
+    return HttpResponse(rendered_template)
 
 
 def ticket_detail(request, ticket_key):
