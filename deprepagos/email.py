@@ -2,6 +2,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 
 from templated_email import send_templated_mail
+import logging
 
 
 def send_mail(*args, **kwargs):
@@ -18,7 +19,9 @@ def send_mail(*args, **kwargs):
     if 'from_email' not in kwargs:
         kwargs['from_email'] = settings.DEFAULT_FROM_EMAIL
 
+    logging.info('Sending email to %s', kwargs['recipient_list'])
     send_templated_mail(*args, **kwargs)
+    logging.info('Email sent')
 
 
 def send_staff_mail(*args, **kwargs):

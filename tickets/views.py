@@ -148,8 +148,11 @@ def ticket_detail(request, ticket_key):
 
 
 def _complete_order(order):
+    logging.info('completing order')
     order.status = Order.OrderStatus.CONFIRMED
+    logging.info('saving order')
     order.save()
+    logging.info('redirecting')
     return HttpResponseRedirect(order.get_resource_url())
 
 
@@ -187,9 +190,9 @@ def payment_notification(request):
     if request.GET['topic'] == 'payment':
         sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
         payment = sdk.payment().get(request.GET.get('id'))['response']
-        merchant_order = sdk.merchant_order().get(payment['order']['id'])['response']
-
         print('[IPN] Payment', payment)
+        
+        merchant_order = sdk.merchant_order().get(payment['order']['id'])['response']
         print('[IPN] Merchant Order', merchant_order)
 
         order = Order.objects.get(id=int(merchant_order['external_reference']))
@@ -200,8 +203,11 @@ def payment_notification(request):
             if payment['status'] == 'approved':
                 paid_amount += payment['total_paid_amount']
 
+        logging.info('paid amount: %s', paid_amount)
         if paid_amount >= merchant_order['total_amount']:
+            logging.info('order is paid')
             _complete_order(order)
+            logging.info('order completed')
 
     return HttpResponse('Notified!')
 

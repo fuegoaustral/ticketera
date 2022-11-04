@@ -12,6 +12,7 @@ from auditlog.registry import auditlog
 
 from deprepagos.email import send_mail
 from templated_email import InlineImage
+import logging
 
 
 class BaseModel(models.Model):
@@ -151,10 +152,16 @@ class Order(BaseModel):
 
     def save(self):
         super(Order, self).save()
+        logging.info(f'Order {self.id} saved with status {self.status}')
+        logging.info(f'Old status was {self._old_status}')
         if self._old_status != Order.OrderStatus.CONFIRMED and self.status == Order.OrderStatus.CONFIRMED:
+            logging.info(f'Order {self.id} confirmed')
             self.send_confirmation_email()
+            logging.info(f'Order {self.id} confirmation email sent')
             for ticket in self.ticket_set.all():
+                logging.info(f'Order {self.id} ticket {ticket.id} created')
                 ticket.send_email()
+                logging.info(f'Order {self.id} ticket {ticket.id} email sent')
 
     def send_confirmation_email(self):
         send_mail(
