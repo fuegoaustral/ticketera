@@ -154,7 +154,7 @@ class Order(BaseModel):
         super(Order, self).save()
         logging.info(f'Order {self.id} saved with status {self.status}')
         logging.info(f'Old status was {self._old_status}')
-        if self.status == Order.OrderStatus.CONFIRMED:
+        if self._old_status != Order.OrderStatus.CONFIRMED and self.status == Order.OrderStatus.CONFIRMED:
             logging.info(f'Order {self.id} confirmed')
             self.send_confirmation_email()
             logging.info(f'Order {self.id} confirmation email sent')
