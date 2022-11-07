@@ -1,50 +1,45 @@
 {% extends 'emails/base.html' %}
-{% block subject %}¡Ya tenés tu bono para Lo que el Fuego nos dejó!{% endblock %}
+{% block subject %}¡Ya tenés tu bono para Fuego Austral 2022 eOs!{% endblock %}
 {% block title %}
-Ya tenés tu bono para:<br />
-<b>Lo que el Fuego nos dejó</b><br />
+¡TODO LISTO!<br />
+Ya tenés tu bono contribución de ingreso para:<br />
+<b>Fuego Austral 2022 eOs</b><br />
 {% endblock %}
 {% block content %}
 
-<p>
-Bienvenido a Lo que el fuego nos dejó, un evento de La Sede y la Comunidad Fuego Austral.
-</p>
-<p>
-Estamos muy content@s de que seas parte.
-</p>
-<p>
-<strong>Te esperamos con tu vaso</strong> y muchas ganas de participar.
-</p>
-<p>
-Vas a poder disfrutar un montón de actividades, música, barra y muchas sorpresas más.
-</p>
-<p>
-Sábado 14/05 de 11:00 a 23:00hs. en La Sede
-<br />
-Paz Soldán 5150, CABA.
-</p>
-<p>
-Niños menores de 12 años gratis.
-</p>
-
-</br>
-</br>
 
 <p>
-Ojalá que disfrutes mucho el evento y sigamos compartiendo cosas en el futuro.
-</p>
-<p>
-Como siempre, nos relacionamos con los 10 principios:
+Tu Bono es el <b>#{{ ticket.key }}</b><br />
+de la Orden de Compra <b>#{{ ticket.order.id }}</b>
 </p>
 
-<p class="align-center">
-    <img src="https://deprepagos-zappa-static.s3.amazonaws.com/img/principios.png" class="principios" alt="principios">
+<p>
+Este bono es transferible hasta el 11 de febrero del 2022. 
+LA REVENTA CON SOBREPRECIOS IMPLICARÁ LA CANCELACIÓN DEL BONO CONTRIBUCIÓN
 </p>
 
 
+<p>
+Lo locación exacta del evento se te informará por esta vía 15 días antes del inicio. Recordá chequear spam y promociones.
+</p>
 
 <p>
-Cualquier problema que tengas con la compra, podés escribirnos a <a href="mailto:bonos@fuegoaustral.org">bonos@fuegoaustral.org</a>
+Cualquier problema que tengas con tu bono, podés escribirnos a <a href="mailto:bonos@fuegoaustral.org">bonos@fuegoaustral.org</a>
+</p>
+
+<p>
+    Te acercamos, una vez más, la
+    <a href="http://fuegoaustral.org/prepararse/" target="_blank">guía de supervivencia</a>
+    de Fuego Austral y el cronograma para 
+    <a href="http://fuegoaustral.org/el-evento/">participar del evento</a>
+    con otras propuestas, además de los 
+    <a href="http://fuegoaustral.org/wp-content/uploads/2021/FA2022_Terminos_y_Condiciones.pdf" target="_blank">términos y condiciones
+    .
+</p>
+
+
+<p>
+“La experiencia será lo que hagamos de ella”
 </p>
 
     {% include 'emails/partials/btn.html' with label='Ver Bono' href=ticket.get_absolute_url domain=domain %}

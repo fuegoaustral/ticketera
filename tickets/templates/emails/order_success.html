@@ -1,19 +1,23 @@
 {% extends 'emails/base.html' %}
-{% block subject %}Tu orden para Lo que el Fuego nos dejó ha sido confirmada{% endblock %}
+{% block subject %}Tu orden para FA2022 eOs ha sido confirmada{% endblock %}
 {% block title %}
-    Lo que el Fuego nos dejó
+    ¡TODO EN ORDEN!
 {% endblock %}
 {% block content %}
 <p>
-    Tu orden para <b>lo que el Fuego nos dejó</b> ha sido:
+    Tu Orden de Compra <b>#{{ order.id }}</b> para <b>Fuego Austral 2022 eOs</b> ha sido:
 </p>
 
 <p><b>CONFIRMADA</b></p>
 
-<p>
-En breve recibirán los bonos contribución de ingreso a los correos cargados.
-<br />
-Cualquier problema que tengas, escribinos a: <a href="mailto:bonos@fuegoaustral.org">bonos@fuegoaustral.org</a>
-</p>
+<p>En breve recibirán los bonos contribución de ingreso a los correos cargados. Cualquier problema que tengas, escribinos a: <a href="mailto:bonos@fuegoaustral.org">bonos@fuegoaustral.org</a></p>
+
+<p><b>ESTE EMAIL NO ES UN BONO CONTRIBUCIÓN DE INGRESO</b></p>
+
+<p>"La experiencia será lo que hagamos de ella".</p>
+
+
+
+
 
 {% endblock %}
