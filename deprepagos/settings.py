@@ -147,7 +147,7 @@ STATIC_ROOT = os.path.join(PROJECT_ROOT, 'static')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# STATICFILES_STORAGE = 'pipeline.storage.PipelineManifestStorage'
+STATICFILES_STORAGE = 'pipeline.storage.PipelineManifestStorage'
 STATICFILES_FINDERS = (
     'django.contrib.staticfiles.finders.FileSystemFinder',
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
