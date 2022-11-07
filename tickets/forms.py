@@ -33,11 +33,6 @@ class TicketForm(PersonForm):
             if not volunteer_ranger and not volunteer_transmutator and not volunteer_umpalumpa:
                 self.add_error('volunteer', 'Indicar el tipo de voluntariado')
 
-    def __init__(self, *args, **kwargs):
-        super(TicketForm, self).__init__(*args, **kwargs)
-        # quick hack for not displaying volunteer no la sede event
-        self.initial['volunteer'] = 'no'
-
 
 class OrderForm(PersonForm):
     class Meta:
