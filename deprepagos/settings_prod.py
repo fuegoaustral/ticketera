@@ -2,7 +2,7 @@ from deprepagos.settings import *
 
 CSRF_TRUSTED_ORIGINS = ['bonos.fuegoaustral.org']
 
-STATICFILES_STORAGE = 'deprepagos.storages.S3PipelineManifestStorage'
+STATICFILES_STORAGE = 'deprepagos.storages.StaticS3PipelineManifestStorage'
 
 AWS_STORAGE_BUCKET_NAME = 'faticketera-zappa-prod' 
 AWS_QUERYSTRING_AUTH = False
