@@ -1,6 +1,6 @@
 from deprepagos.settings import *
 
-CSRF_TRUSTED_ORIGINS = ['bonos.fuegoaustral.org']
+CSRF_TRUSTED_ORIGINS = ['eventos.fuegoaustral.org']
 
 STATICFILES_STORAGE = 'deprepagos.storages.StaticS3PipelineManifestStorage'
 

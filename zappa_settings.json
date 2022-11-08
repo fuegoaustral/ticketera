@@ -47,7 +47,7 @@
             ],
             "SecurityGroupIds": ["sg-0c63c3a7d4263c4d4"]
         },
-        "domain": "bonos.fuegoaustral.org",
+        "domain": "eventos.fuegoaustral.org",
         "route53_enabled": false,
         "extra_permissions": [{
             "Effect": "Allow",
@@ -58,6 +58,6 @@
             ],
             "Resource": "arn:aws:s3:::faticketera-zappa-prod/*"
         }],
-        "certificate_arn": "arn:aws:acm:us-east-1:251799394474:certificate/a2158123-b65e-4a07-b462-bbcf9c14178b"
+        "certificate_arn": "arn:aws:acm:us-east-1:251799394474:certificate/84e0a65b-041f-49f0-8fb5-f440fb700aef"
     }
 }

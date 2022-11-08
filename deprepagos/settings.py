@@ -31,7 +31,7 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
     'localhost',
     'bonos.fa2022.org',
-    'bonos.fuegoaustral.org',
+    'eventos.fuegoaustral.org',
     os.environ.get('EXTRA_HOST')
 ]
 
@@ -190,7 +190,7 @@ EMAIL_HOST_PASSWORD = '1e355fb5adb1fd'
 EMAIL_PORT = '2525'
 EMAIL_USE_TLS = True
 
-DEFAULT_FROM_EMAIL = 'Fuego Austral <bonos@bonos.fuegoaustral.org>'
+DEFAULT_FROM_EMAIL = 'Fuego Austral <bonos@eventos.fuegoaustral.org>'
 
 TEMPLATED_EMAIL_TEMPLATE_DIR = 'emails/'
 TEMPLATED_EMAIL_FILE_EXTENSION = 'html'
