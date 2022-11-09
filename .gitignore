@@ -2,3 +2,4 @@
 __pycache__
 deprepagos/local_settings.py
 static/*
+deprepagos/static/*

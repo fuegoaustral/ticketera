@@ -3,7 +3,7 @@
   margin-right: auto !important; }
 
 .site-header {
-  background: black url("https://deprepagos-zappa-static.s3.amazonaws.com/img/hero.jpg") no-repeat top center;
+  background: black url("https://faticketera-zappa-prod.s3.amazonaws.com/img/hero.jpg") no-repeat top center;
   height: 140px; }
   .site-header.hero {
     height: 500px; }
