@@ -796,7 +796,7 @@ a:hover, a:active {
     max-width: 960px; } }
 
 .site-header {
-  background: black url("https://faticketera-zappa-prod.s3.amazonaws.com/img/hero.jpg") no-repeat top center;
+  background: #fc0006 url("https://faticketera-zappa-prod.s3.amazonaws.com/img/hero.jpg") no-repeat top center;
   background-size: 1680px;
   height: 140px; }
 
