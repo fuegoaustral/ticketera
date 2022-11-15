@@ -10,7 +10,7 @@ from django.utils.safestring import mark_safe
 from .models import Ticket, TicketType, Order, Coupon
 
 
-admin.site.site_header = 'Bonos de Fuego Austral 2022 eOs'
+admin.site.site_header = 'Bonos de Fuego Austral 2023'
 
 
 class TicketAdmin(admin.ModelAdmin):
