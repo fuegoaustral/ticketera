@@ -124,8 +124,8 @@ class Order(BaseModel):
     phone = models.CharField(max_length=50)
     dni = models.CharField(max_length=10)
     donation_art = models.DecimalField('Becas de Arte', decimal_places=2, max_digits=10, blank=True, null=True, help_text='Para empujar la creatividad en nuestra ciudad temporal.')
-    donation_venue = models.DecimalField('Donaciones a La Sede', decimal_places=2, max_digits=10, blank=True, null=True, help_text='Para ayudar a quienes necesitan una mano con su bono contribución.')
-    donation_grant = models.DecimalField('Becas No Tengo Un Mango (NTUM)', decimal_places=2, max_digits=10, blank=True, null=True, help_text='Para mejorar el espacio donde nos encontramos todo el año.')
+    donation_venue = models.DecimalField('Donaciones a La Sede', decimal_places=2, max_digits=10, blank=True, null=True, help_text='Para mejorar el espacio donde nos encontramos todo el año.')
+    donation_grant = models.DecimalField('Beca Inclusión Radical', decimal_places=2, max_digits=10, blank=True, null=True, help_text='Para ayudar a quienes necesitan una mano con su bono contribución.')
     amount = models.DecimalField(decimal_places=2, max_digits=10)
 
     coupon = models.ForeignKey('Coupon', null=True, blank=True, on_delete=models.RESTRICT)
@@ -255,7 +255,7 @@ class Ticket(BaseModel):
     volunteer = models.CharField(choices=VOLUNTEER_CHOICES, max_length=10)
     volunteer_ranger = models.BooleanField('Rangers')
     volunteer_transmutator = models.BooleanField('Transmutadores')
-    volunteer_umpalumpa = models.BooleanField('Umpa Lumpas (Armado y Desarme de la Ciudad)')
+    volunteer_umpalumpa = models.BooleanField('CAOS (Armado y Desarme de la Ciudad)')
 
     def __str__(self):
         return f'({self.order.status}) {self.first_name} {self.last_name}'
