@@ -1,0 +1,45 @@
+{% extends 'emails/base.html' %}
+{% block subject %}Confirmar transferencia de Bono para Fuego Austral{% endblock %}
+{% block title %}
+Transferencia de Bono<br />
+{% endblock %}
+{% block content %}
+
+
+<p>
+LA REVENTA CON SOBREPRECIOS IMPLICARÁ LA CANCELACIÓN DEL BONO CONTRIBUCIÓN
+</p>
+
+<p>
+Por favor revisá los siguientes datos y después confirmá la transferencia:
+</p>
+
+<dl>
+    <dt>Primer nombre</dt>
+    <dd>{{ transfer.first_name }}</dd>
+
+    <dt>Apellido</dt>
+    <dd>{{ transfer.last_name }}</dd>
+
+
+    <dt>Email</dt>
+    <dd>{{ transfer.email }}</dd>
+
+    <dt>Teléfono</dt>
+    <dd>{{ transfer.phone }}</dd>
+
+    <dt>DNI o Pasaporte</dt>
+    <dd>{{ transfer.dni }}</dd>
+</dl>
+
+
+<p>
+Cualquier problema que tengas con tu bono, podés escribirnos a <a href="mailto:bonos@fuegoaustral.org">bonos@fuegoaustral.org</a>
+</p>
+
+{% include 'emails/partials/btn.html' with label='Confirmar transferencia' href=transfer.get_absolute_url domain=domain %}
+
+<p>
+“La experiencia será lo que hagamos de ella”
+</p>
+{% endblock %}
