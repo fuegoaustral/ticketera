@@ -1,5 +1,5 @@
 from django import forms
-from .models import Order, Ticket
+from .models import Order, Ticket, TicketTransfer
 
 
 class PersonForm(forms.ModelForm):
@@ -38,3 +38,9 @@ class OrderForm(PersonForm):
     class Meta:
         model = Order
         fields = ('first_name', 'last_name', 'email', 'phone', 'dni', 'donation_art', 'donation_grant', 'donation_venue',)
+
+
+class TransferForm(PersonForm):
+    class Meta:
+        model = TicketTransfer
+        fields = ('first_name', 'last_name', 'email', 'phone', 'dni', )

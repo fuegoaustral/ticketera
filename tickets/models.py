@@ -235,16 +235,12 @@ class Order(BaseModel):
         return f'#{self.pk} {self.last_name}'
 
 
-class Ticket(BaseModel):
-    key = models.UUIDField(default=uuid.uuid4, editable=False)
+class TicketPerson(models.Model):
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
     email = models.CharField(max_length=320)
     phone = models.CharField(max_length=50)
     dni = models.CharField(max_length=10)
-
-    price = models.IntegerField(default=0)
-    order = models.ForeignKey('Order', on_delete=models.CASCADE)
 
     # volunteer
     VOLUNTEER_CHOICES = (
@@ -256,6 +252,16 @@ class Ticket(BaseModel):
     volunteer_ranger = models.BooleanField('Rangers')
     volunteer_transmutator = models.BooleanField('Transmutadores')
     volunteer_umpalumpa = models.BooleanField('CAOS (Armado y Desarme de la Ciudad)')
+
+    class Meta:
+        abstract = True
+
+
+class Ticket(TicketPerson, BaseModel):
+    key = models.UUIDField(default=uuid.uuid4, editable=False)
+
+    price = models.IntegerField(default=0)
+    order = models.ForeignKey('Order', on_delete=models.CASCADE)
 
     def __str__(self):
         return f'({self.order.status}) {self.first_name} {self.last_name}'
@@ -287,6 +293,39 @@ class Ticket(BaseModel):
             }
         )
 
+
+class TicketTransfer(TicketPerson, BaseModel):
+    key = models.UUIDField(default=uuid.uuid4, editable=False)
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE)
+    transferred = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f'Transferencia a {self.first_name} {self.last_name}'
+
+    def transfer(self):
+        self.transferred = True
+        self.ticket.first_name = self.first_name
+        self.ticket.last_name = self.last_name
+        self.ticket.email = self.email
+        self.ticket.phone = self.phone
+        self.ticket.dni = self.dni
+        self.ticket.save()
+        self.ticket.send_email()
+        self.save()
+
+    def send_email(self):
+
+        return send_mail(
+            template_name='transfer',
+            recipient_list=[self.ticket.email],
+            context={
+                'transfer': self,
+                'ticket': self.ticket,
+            }
+        )
+
+    def get_absolute_url(self):
+        return reverse('ticket_transfer_confirmed', args=(self.key,))
 
 
 auditlog.register(Coupon)

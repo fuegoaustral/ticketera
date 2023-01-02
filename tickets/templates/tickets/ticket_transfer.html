@@ -1,0 +1,26 @@
+{% extends 'tickets/base.html' %}
+{% load bootstrap5 %}
+{% load pipeline %}
+
+{% block content %}
+
+    <h2 class="text-success">
+        Transferencia de bono
+    </h2>
+
+    <p>
+        Por favor cargá los datos de la persona a quien querés transferir el bono. 
+    </p>
+
+    <form method="post" novalidate class="mb-5">
+        {% csrf_token %}
+
+        {% bootstrap_form form form_group_class='form-group' %}
+
+        <div class="form-group">
+            <input type="submit" value="Continuar" class="btn btn-primary btn-lg w-100 btn-submit">
+        </div>
+
+    </form>
+
+{% endblock %}

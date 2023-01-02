@@ -9,8 +9,8 @@ from django.forms import modelformset_factory, BaseModelFormSet
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 
-from .models import Coupon, Order, TicketType, Ticket
-from .forms import OrderForm, TicketForm
+from .models import Coupon, Order, TicketType, Ticket, TicketTransfer
+from .forms import OrderForm, TicketForm, TransferForm
 
 
 def home(request):
@@ -142,6 +142,60 @@ def ticket_detail(request, ticket_key):
     template = loader.get_template('tickets/ticket_detail.html')
     context = {
         'ticket': ticket,
+    }
+
+    return HttpResponse(template.render(context, request))
+
+
+def ticket_transfer(request, ticket_key):
+
+    ticket = Ticket.objects.get(key=ticket_key)
+
+    if request.method == 'POST':
+        form = TransferForm(request.POST)
+        if form.is_valid():
+            transfer = form.save(commit=False)
+            transfer.ticket = ticket
+            transfer.volunteer_ranger = False
+            transfer.volunteer_transmutator = False
+            transfer.volunteer_umpalumpa = False
+            transfer.save()
+            transfer.send_email()
+
+            return HttpResponseRedirect(reverse('ticket_transfer_confirmation', args=[ticket.key]))
+    else:
+        form = TransferForm()
+
+    template = loader.get_template('tickets/ticket_transfer.html')
+    context = {
+        'ticket': ticket,
+        'form': form,
+    }
+
+    return HttpResponse(template.render(context, request))
+
+
+def ticket_transfer_confirmation(request, ticket_key):
+
+    ticket = Ticket.objects.get(key=ticket_key)
+
+    template = loader.get_template('tickets/ticket_transfer_confirmation.html')
+    context = {
+        'ticket': ticket,
+    }
+
+    return HttpResponse(template.render(context, request))
+
+
+def ticket_transfer_confirmed(request, transfer_key):
+
+    transfer = TicketTransfer.objects.get(key=transfer_key)
+
+    transfer.transfer()
+
+    template = loader.get_template('tickets/ticket_transfer_confirmed.html')
+    context = {
+        'transfer': transfer,
     }
 
     return HttpResponse(template.render(context, request))

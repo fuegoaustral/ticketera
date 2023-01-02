@@ -7,7 +7,7 @@ from django.http import HttpResponse
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 
-from .models import Ticket, TicketType, Order, Coupon
+from .models import Ticket, TicketType, Order, Coupon, TicketTransfer
 
 
 admin.site.site_header = 'Bonos de Fuego Austral 2023'
@@ -141,7 +141,18 @@ class CouponAdmin(admin.ModelAdmin):
     def display_url(self, order):
         return f"{getattr(settings, 'APP_URL')}/?coupon={order.token}"
 
+
+class TicketTransferAdmin(admin.ModelAdmin):
+    fields = ('ticket', 'first_name', 'last_name', 'email', 'phone', 'dni', 'transferred', )
+    list_filter = ('transferred', )
+    list_display = ('first_name', 'last_name', 'ticket',  'transferred', )
+
+    class Meta:
+        model = TicketTransfer
+
+
 admin.site.register(Ticket, TicketAdmin)
 admin.site.register(TicketType, TicketTypeAdmin)
 admin.site.register(Order, OrderAdmin)
 admin.site.register(Coupon, CouponAdmin)
+admin.site.register(TicketTransfer, TicketTransferAdmin)

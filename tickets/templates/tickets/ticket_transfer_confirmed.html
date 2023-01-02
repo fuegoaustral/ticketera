@@ -1,0 +1,19 @@
+{% extends 'tickets/base.html' %}
+{% load bootstrap5 %}
+{% load pipeline %}
+
+{% block content %}
+
+    <h2 class="text-success">
+        Transferencia de bono
+    </h2>
+
+    <p>
+    La transferencia de bono se ha realizado de forma correcta.
+    </p>
+
+    <p>
+    Envíamos un email a <b>{{ transfer.email }}</b> con los datos del bono.
+    </p>
+
+{% endblock %}

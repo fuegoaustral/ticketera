@@ -11,4 +11,11 @@
     <h3>Datos del Portador</h3>
     {% include 'partials/person_details.html' with person=ticket %}
 
+
+    <br />
+    <br />
+    <h4>Transferenca de bono</h4>
+
+    Haga click <a href="{% url 'ticket_transfer' ticket_key=ticket.key %}">aquí</a> para transferir tu bono a otra persona.
+
 {% endblock %}
