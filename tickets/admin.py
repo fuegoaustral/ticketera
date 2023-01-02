@@ -14,10 +14,11 @@ admin.site.site_header = 'Bonos de Fuego Austral 2023'
 
 
 class TicketAdmin(admin.ModelAdmin):
-    list_display = ('order_id', 'get_status', 'first_name', 'last_name', 'email', 'phone', 'dni', 'price')
+    list_display = ('order_id', 'get_status', 'first_name', 'last_name', 'email', 'phone', 'dni', 'price', 'key', )
     list_filter = ('order__status', 'volunteer_ranger', 'volunteer_umpalumpa', 'volunteer_transmutator', )
-    search_fields = ('first_name', 'last_name', )
+    search_fields = ('first_name', 'last_name', 'key', )
     actions = ['export']
+    readonly_fields = ('key', )
 
     @admin.action(description='Exportar tickets seleccionados')
     def export(self, request, queryset):
