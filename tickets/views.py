@@ -148,31 +148,37 @@ def ticket_detail(request, ticket_key):
 
 
 def ticket_transfer(request, ticket_key):
+    period_transfer_time = False
 
-    ticket = Ticket.objects.get(key=ticket_key)
+    if period_transfer_time:
+        ticket = Ticket.objects.get(key=ticket_key)
 
-    if request.method == 'POST':
-        form = TransferForm(request.POST)
-        if form.is_valid():
-            transfer = form.save(commit=False)
-            transfer.ticket = ticket
-            transfer.volunteer_ranger = False
-            transfer.volunteer_transmutator = False
-            transfer.volunteer_umpalumpa = False
-            transfer.save()
-            transfer.send_email()
+        if request.method == 'POST':
+            form = TransferForm(request.POST)
+            if form.is_valid():
+                transfer = form.save(commit=False)
+                transfer.ticket = ticket
+                transfer.volunteer_ranger = False
+                transfer.volunteer_transmutator = False
+                transfer.volunteer_umpalumpa = False
+                transfer.save()
+                transfer.send_email()
 
-            return HttpResponseRedirect(reverse('ticket_transfer_confirmation', args=[ticket.key]))
+                return HttpResponseRedirect(reverse('ticket_transfer_confirmation', args=[ticket.key]))
+        else:
+            form = TransferForm()
+
+        template = loader.get_template('tickets/ticket_transfer.html')
+        context = {
+            'ticket': ticket,
+            'form': form,
+        }
+
+        return HttpResponse(template.render(context, request))
+
     else:
-        form = TransferForm()
-
-    template = loader.get_template('tickets/ticket_transfer.html')
-    context = {
-        'ticket': ticket,
-        'form': form,
-    }
-
-    return HttpResponse(template.render(context, request))
+        template = loader.get_template('tickets/ticket_transfer_expired.html')
+        return HttpResponse(template.render({}, request))
 
 
 def ticket_transfer_confirmation(request, ticket_key):
