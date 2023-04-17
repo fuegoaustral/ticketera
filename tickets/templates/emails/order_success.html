@@ -1,11 +1,11 @@
 {% extends 'emails/base.html' %}
-{% block subject %}Tu orden para FA2023 ha sido confirmada{% endblock %}
+{% block subject %}Tu orden para {{ event.name|safe }} ha sido confirmada{% endblock %}
 {% block title %}
     ¡TODO EN ORDEN!
 {% endblock %}
 {% block content %}
 <p>
-    Tu Orden de Compra <b>#{{ order.id }}</b> para <b>Fuego Austral 2023</b> ha sido:
+    Tu Orden de Compra <b>#{{ order.id }}</b> para <b>{{ event.name|safe }}</b> ha sido:
 </p>
 
 <p><b>CONFIRMADA</b></p>
@@ -15,9 +15,5 @@
 <p><b>ESTE EMAIL NO ES UN BONO CONTRIBUCIÓN DE INGRESO</b></p>
 
 <p>"La experiencia será lo que hagamos de ella".</p>
-
-
-
-
 
 {% endblock %}

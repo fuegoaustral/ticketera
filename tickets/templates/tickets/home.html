@@ -4,51 +4,35 @@
 
 {% block content %}
 
-    <h1 class="entry-title">
-        Fuego Austral 2023<br/>
-        del 17/02 al 21/2.
-    </h1>
+    {% if event %}
+        <h1 class="entry-title">
+            {{ event.title|safe }}
+        </h1>
 
-    <p class="event-description">
-        Llegó la hora. Nos juntamos a jugar, a compartir, a bailar, a construir, a esforzarnos, a desafiarnos, a crear.<br/>
-        A veces con una consigna, esta vez no.<br/>
-        Nos juntamos, porque nos gusta juntarnos.<br/>
-        Fuego Austral 2023, y punto.<br/>
-    
-    </p>
+        <div class="event-description">
+            {{ event.description|safe }}
+        </div>
 
-    <p class="event-description">
-    <strong>Antes de adquirir tu bono leé las 
-        <a href="http://fuegoaustral.org/wp-content/uploads/2022/FA2023_Terminos_y_Condiciones.pdf" target="_blank"> condiciones del evento </a> 
-        y la <a href="http://fuegoaustral.org/prepararse/" target="_blank">guía de supervivencia para participar.</a>
-    </p>
-
-
-
-    <p class="event-description">
-    El evento se realizara aproximadamente a 400Km de la Ciudad de Buenos Aires.
-    <br/>
-    La ubicación exacta solo será revelada a quienes tengan un bono a su nombre.
-    <br/>
-    Capacidad limitada.
-    <br/>
-    Niños menores de 12 años con acceso gratis.
-    </p>
-    <div class="list-group">
-        {% if ticket_type %}
-        <a href="{% url 'order' ticket_type_id=ticket_type.id %}?coupon={{ coupon.token }}" class="card">
-            <div class="card-body p-lg-5">
-                <h3 class="card-title">{{ ticket_type.name }}</h3>
-                <p class="card-text">{{ ticket_type.description }}</p>
-                <button class="btn btn-primary mt-3">Comprar</button>
+        <div class="list-group">
+            {% if ticket_type %}
+            <a href="{% url 'order' ticket_type_id=ticket_type.id %}?coupon={{ coupon.token }}" class="card">
+                <div class="card-body p-lg-5">
+                    <h3 class="card-title">{{ ticket_type.name }}</h3>
+                    <p class="card-text">{{ ticket_type.description }}</p>
+                    <button class="btn btn-primary mt-3">Comprar</button>
+                </div>
+            </a>
+            {% else %}
+            <div class="alert alert-danger">
+                Lo sentimos. No hay bonos disponibles por el momento.
             </div>
-        </a>
-        {% else %}
+            {% endif %}
+        </div>
+    {% else %}
         <div class="alert alert-danger">
             Lo sentimos. No hay bonos disponibles por el momento.
         </div>
-        {% endif %}
-    </div>
+    {% endif %}
 
     <h3 class="mt-3">Donaciones</h3>
     <p>

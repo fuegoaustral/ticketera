@@ -11,9 +11,9 @@
 {% block content %}
 
     <h2 class="mb-5">Completá tus datos</h2>
-    <p>
-    IMPORTANTE: Antes de adquirir tu bono leé las <a href="http://fuegoaustral.org/wp-content/uploads/2022/FA2023_Terminos_y_Condiciones.pdf" target="_blank">condiciones del evento</a> y <a href="http://fuegoaustral.org/prepararse/" target="_blank">la guía de supervivencia</a> para participar de Fuego Austral 2023.
-    </p>
+
+    {{ event.pre_ticket_form_info|safe }}
+
     <p>
     Si tenés algún problema durante o luego de la compra del bono, escribinos a <a href="mailto:bonos@fuegoaustral.org">bonos@fuegoaustral.org</a> incluyendo una descripción del error encontrado.
     </p>

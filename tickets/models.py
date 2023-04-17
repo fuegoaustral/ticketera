@@ -2,6 +2,7 @@ from datetime import datetime
 import uuid
 import qrcode
 from io import BytesIO
+import logging
 
 from django.db import models
 from django.db.models import Count, Sum, Q, F
@@ -9,18 +10,11 @@ from django.conf import settings
 from django.urls import reverse
 
 from auditlog.registry import auditlog
-
-from deprepagos.email import send_mail
 from templated_email import InlineImage
-import logging
 
-
-class BaseModel(models.Model):
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        abstract = True
+from events.models import Event
+from utils.email import send_mail
+from utils.models import BaseModel
 
 
 class Coupon(BaseModel):
@@ -78,6 +72,7 @@ class TicketTypeManager(models.Manager):
 
 
 class TicketType(BaseModel):
+    event = models.ForeignKey(Event, on_delete=models.CASCADE)
     price = models.DecimalField(decimal_places=2, max_digits=10, null=True, blank=True)
     price_with_coupon = models.DecimalField(decimal_places=2, max_digits=10, null=True, blank=True)
     date_from = models.DateTimeField(null=True, blank=True)
@@ -169,7 +164,8 @@ class Order(BaseModel):
             recipient_list=[self.email],
             context={
                 'order': self,
-                'url': self.get_resource_url()
+                'url': self.get_resource_url(),
+                'event': self.ticket_type.event,
             }
         )
 
@@ -226,9 +222,7 @@ class Order(BaseModel):
             "external_reference": self.id,
         }
 
-        print('PREFERENCE', preference_data)
         response = sdk.preference().create(preference_data)['response']
-        print('RESPONSE', response)
         return response
 
     def __str__(self):
@@ -289,6 +283,7 @@ class Ticket(TicketPerson, BaseModel):
             recipient_list=[self.email],
             context={
                 'ticket': self,
+                'event': self.order.ticket_type.event,
                 # 'qr': inline_img
             }
         )
