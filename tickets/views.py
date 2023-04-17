@@ -22,14 +22,12 @@ def home(request):
     except Event.DoesNotExist:
         event = None
 
-    context = {
-        'event': event,
-    }
+    context = {}
 
     if event:
-        coupon = Coupon.objects.filter(token=request.GET.get('coupon')).first()
+        coupon = Coupon.objects.filter(token=request.GET.get('coupon'), ticket_type__event=event).first()
 
-        ticket_type = TicketType.objects.get_cheapest_available(coupon)
+        ticket_type = TicketType.objects.get_cheapest_available(coupon, event)
 
         context.update({
             'coupon': coupon,
@@ -54,7 +52,7 @@ def order(request, ticket_type_id):
 
     coupon = Coupon.objects.filter(token=request.GET.get('coupon')).first()
 
-    ticket_type = TicketType.objects.get_cheapest_available(coupon)
+    ticket_type = TicketType.objects.get_cheapest_available(coupon, event)
 
     if not ticket_type:
         return HttpResponse('Lo sentimos, este link es inválido.', status=404)
@@ -95,7 +93,6 @@ def order(request, ticket_type_id):
 
     template = loader.get_template('tickets/order_new.html')
     context = {
-        'event': event,
         'max_tickets': max_tickets,
         'ticket_type': ticket_type,
         'order_form': order_form,
@@ -109,7 +106,7 @@ def order(request, ticket_type_id):
 def is_order_valid(order):
     num_tickets = order.ticket_set.count()
 
-    ticket_type = TicketType.objects.get_cheapest_available(order.coupon)
+    ticket_type = TicketType.objects.get_cheapest_available(order.coupon, order.ticket_type.event)
 
     if not ticket_type:
         return False

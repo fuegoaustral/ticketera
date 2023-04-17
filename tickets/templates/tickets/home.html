@@ -4,7 +4,7 @@
 
 {% block content %}
 
-    {% if event %}
+    {% if event.active %}
         <h1 class="entry-title">
             {{ event.title|safe }}
         </h1>

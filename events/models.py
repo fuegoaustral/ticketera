@@ -17,6 +17,7 @@ class Event(BaseModel):
 
     # homepage
     header_image = models.ImageField(upload_to='events/heros', help_text=u"Dimensions: 1666px x 500px")
+    header_bg_color = models.CharField(max_length=7, help_text='e.g. "#fc0006". The color of the background to fill on bigger screens.')
     title = models.TextField()
     description = models.TextField()
 
