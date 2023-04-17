@@ -1,4 +1,6 @@
 from django.db import models
+from django.db.models import Q
+from django.forms import ValidationError
 
 from auditlog.registry import auditlog
 
@@ -24,12 +26,22 @@ class Event(BaseModel):
     # ticket email
     email_info = models.TextField()
 
-    def clean(*args, **kwargs):
-        # TODO: check that only one is active
-        pass
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['active'], condition=Q(active=True), name='unique_active')
+        ]
 
     def __str__(self):
         return self.name
+
+    def clean(self, *args, **kwargs):
+        if self.active:
+            qs = Event.objects.exclude(pk=self.pk).filter(active=True)
+            if qs.exists():
+                raise ValidationError({
+                    'active': ValidationError('Only one event can be active at the same time. Please set the other events as inactive before saving.', code='not_unique'),
+                })
+        return super().clean(*args, **kwargs)
 
 
 auditlog.register(Event)
