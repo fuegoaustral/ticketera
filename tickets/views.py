@@ -7,6 +7,7 @@ from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadReque
 from django.template import loader
 from django.forms import modelformset_factory, BaseModelFormSet
 from django.urls import reverse
+from django.utils.timezone import now
 from django.views.decorators.csrf import csrf_exempt
 
 from .models import Coupon, Order, TicketType, Ticket, TicketTransfer
@@ -164,12 +165,9 @@ def ticket_detail(request, ticket_key):
 
 
 def ticket_transfer(request, ticket_key):
-    ticket = Ticket.objects.get(key=ticket_key)
+    ticket = Ticket.objects.select_related('order__ticket_type__event').get(key=ticket_key)
 
-    # TODO: auto calculate this field
-    transfer_period_expired = False
-
-    if transfer_period_expired:
+    if ticket.order.ticket_type.event.transfers_enabled_until < now():
         template = loader.get_template('tickets/ticket_transfer_expired.html')
         return HttpResponse(template.render({'ticket': ticket}, request))
 
