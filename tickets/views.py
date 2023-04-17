@@ -126,6 +126,7 @@ def order_detail(request, order_key):
 
     context = {
         'order': order,
+        'event': order.ticket_type.event,
         'is_order_valid': (order.status == 'CONFIRMED') or is_order_valid(order),
     }
     logging.info('got order context')
@@ -156,6 +157,7 @@ def ticket_detail(request, ticket_key):
     template = loader.get_template('tickets/ticket_detail.html')
     context = {
         'ticket': ticket,
+        'event': ticket.order.ticket_type.event,
     }
 
     return HttpResponse(template.render(context, request))
@@ -187,6 +189,7 @@ def ticket_transfer(request, ticket_key):
     template = loader.get_template('tickets/ticket_transfer.html')
     context = {
         'ticket': ticket,
+        'event': ticket.order.ticket_type.event,
         'form': form,
     }
 
