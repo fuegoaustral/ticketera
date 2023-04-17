@@ -48,10 +48,12 @@ INSTALLED_APPS = [
     'django.contrib.admin',
     'pipeline',
     'bootstrap5',
-    'tickets.apps.TicketsConfig',
     'django_inlinecss',
     'django_s3_storage',
     'auditlog',
+
+    'tickets.apps.TicketsConfig',
+    'events.apps.EventsConfig',
 ]
 
 MIDDLEWARE = [
@@ -134,6 +136,10 @@ USE_L10N = True
 USE_TZ = True
 
 
+# Default primary key field type
+# https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
 
@@ -141,11 +147,8 @@ PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(PROJECT_ROOT, 'static')
 
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
-
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(PROJECT_ROOT, 'media')
 
 STATICFILES_STORAGE = 'pipeline.storage.PipelineManifestStorage'
 STATICFILES_FINDERS = (
