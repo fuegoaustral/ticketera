@@ -14,7 +14,7 @@
   <dt>DNI</dt>
   <dd>{{ person.dni }}</dd>
 </dl>
-{% if person.volunteer %}
+{% if event.has_volunteers and person.volunteer %}
 <dl>
   <dt>Voluntario</dt>
   <dd>

@@ -1,5 +1,7 @@
 from django import forms
+
 from .models import Order, Ticket, TicketTransfer
+from events.models import Event
 
 
 class PersonForm(forms.ModelForm):
@@ -22,6 +24,13 @@ class TicketForm(PersonForm):
         widgets = {
             'volunteer': forms.RadioSelect
         }
+
+    def __init__(self, *args, **kwargs):
+        super(TicketForm, self).__init__(*args, **kwargs)
+        # ugly hack to disable volunteers
+        event = Event.objects.get(active=True)
+        if not event.has_volunteers:
+            self.initial['volunteer'] = 'no'
 
     def clean(self):
         super().clean()

@@ -118,6 +118,14 @@
                 } else {
                     $(this).prop('checked', false);
                 }
+
+                {% if not event.has_volunteers %}
+                // hack to disable volunteers
+                if (type === 'radio' && $(this).prop('value') === 'no') {
+                    this.checked = true;
+                }
+                {% endif %}
+
             });
             $(row).find('.invalid-feedback').remove();
             $(row).find('.delete-row').click(function() {
@@ -179,6 +187,10 @@
             });
         });
 
+        {% if not event.has_volunteers %}
+            // hack to disable volunteers
+            $('input[type=radio]').parents('.form-group').css({visibility: 'hidden', position: 'absolute'});
+        {% endif %}
     </script>
 
 {% endblock %}
