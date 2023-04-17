@@ -28,5 +28,8 @@ class Event(BaseModel):
         # TODO: check that only one is active
         pass
 
+    def __str__(self):
+        return self.name
+
 
 auditlog.register(Event)
