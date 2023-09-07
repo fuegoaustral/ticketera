@@ -1,7 +1,6 @@
 from datetime import datetime
 import uuid
 import qrcode
-from io import BytesIO
 import logging
 
 from django.db import models
@@ -40,8 +39,8 @@ class Coupon(BaseModel):
 
 
 class TicketTypeManager(models.Manager):
-    def get_cheapest_available(self, coupon, event):
-        ticket_type = (TicketType.objects
+    def get_available(self, coupon, event):
+        ticket_types = (TicketType.objects
             .filter(event=event)
 
             # filter by date
@@ -56,21 +55,23 @@ class TicketTypeManager(models.Manager):
 
         # add coupon filter
         if coupon:
-            ticket_type = ticket_type.filter(coupon=coupon)
+            # block purchase if the allowed tickets for a coupon have been sold
+            if coupon.tickets_remaining() <= 0:
+                return TicketType.objects.none()
+
+            ticket_types = ticket_types.filter(coupon=coupon)
         else:
             # filter the ones only for coupons
-            ticket_type = ticket_type.filter(price__isnull=False, price__gt=0)
+            ticket_types = ticket_types.filter(price__isnull=False, price__gt=0)
 
-        ticket_type = (ticket_type
-            .order_by('-price_with_coupon' if coupon else '-price')
-            .first()
-        )
+        # just get the cheapest one available
+        if not event.show_multiple_tickets:
+            try:
+                ticket_types = ticket_types.order_by('price_with_coupon' if coupon else 'price')[:1]
+            except IndexError:
+                return TicketType.objects.none()
 
-        # block purchase if the allowed tickets for a coupon have been sold
-        if coupon and coupon.tickets_remaining() <= 0:
-            ticket_type = None
-
-        return ticket_type
+        return ticket_types
 
 
 class TicketType(BaseModel):

@@ -14,7 +14,7 @@
         </div>
 
         <div class="list-group">
-            {% if ticket_type %}
+            {% for ticket_type in ticket_types %}
             <a href="{% url 'order' ticket_type_id=ticket_type.id %}?coupon={{ coupon.token }}" class="card">
                 <div class="card-body p-lg-5">
                     <h3 class="card-title">{{ ticket_type.name }}</h3>
@@ -22,11 +22,11 @@
                     <button class="btn btn-primary mt-3">Comprar</button>
                 </div>
             </a>
-            {% else %}
+            {% empty %}
             <div class="alert alert-danger">
                 Lo sentimos. No hay bonos disponibles por el momento.
             </div>
-            {% endif %}
+            {% endfor %}
         </div>
     {% else %}
         <div class="alert alert-danger">

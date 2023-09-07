@@ -14,6 +14,7 @@ class Event(BaseModel):
     start = models.DateTimeField()
     end = models.DateTimeField()
     transfers_enabled_until = models.DateTimeField()
+    show_multiple_tickets = models.BooleanField(default=False, help_text="If unchecked, only the chepeast ticket will be shown.")
 
     # homepage
     header_image = models.ImageField(upload_to='events/heros', help_text=u"Dimensions: 1666px x 500px")
