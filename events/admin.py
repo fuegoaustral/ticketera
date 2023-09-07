@@ -12,13 +12,13 @@ class EventAdmin(admin.ModelAdmin):
         (
             None,
             {
-                'fields': ['active', 'name', 'has_volunteers', 'start', 'end', 'transfers_enabled_until', ]
+                'fields': ['active', 'name', 'has_volunteers', 'start', 'end', 'transfers_enabled_until', 'show_multiple_tickets', ]
             },
         ),
         (
             'Homepage',
             {
-                'fields': ['header_image', 'title', 'description', ]
+                'fields': ['header_image', 'header_bg_color', 'title', 'description', ]
             },
         ),
         (

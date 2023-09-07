@@ -27,11 +27,11 @@ def home(request):
     if event:
         coupon = Coupon.objects.filter(token=request.GET.get('coupon'), ticket_type__event=event).first()
 
-        ticket_type = TicketType.objects.get_cheapest_available(coupon, event)
+        ticket_types = TicketType.objects.get_available(coupon, event)
 
         context.update({
             'coupon': coupon,
-            'ticket_type': ticket_type
+            'ticket_types': ticket_types
         })
 
     template = loader.get_template('tickets/home.html')
@@ -52,9 +52,13 @@ def order(request, ticket_type_id):
 
     coupon = Coupon.objects.filter(token=request.GET.get('coupon')).first()
 
-    ticket_type = TicketType.objects.get_cheapest_available(coupon, event)
+    ticket_types = TicketType.objects.get_available(coupon, event)
 
-    if not ticket_type:
+    # we need to iterate over because after slicing we cannot filter
+    for ticket_type in ticket_types:
+        if ticket_type.pk == ticket_type_id:
+            break
+    if ticket_type.pk != ticket_type_id:
         return HttpResponse('Lo sentimos, este link es inválido.', status=404)
 
     # get available tickets from coupon/type
@@ -106,9 +110,12 @@ def order(request, ticket_type_id):
 def is_order_valid(order):
     num_tickets = order.ticket_set.count()
 
-    ticket_type = TicketType.objects.get_cheapest_available(order.coupon, order.ticket_type.event)
+    ticket_types = TicketType.objects.get_available(order.coupon, order.ticket_type.event)
 
-    if not ticket_type:
+    try:
+        # use the get_available method that annotates the queryset with available_tickets
+        ticket_type = ticket_types.get(pk=order.ticket_type.pk)
+    except TicketType.DoesNotExist:
         return False
 
     if ticket_type.available_tickets < num_tickets:
