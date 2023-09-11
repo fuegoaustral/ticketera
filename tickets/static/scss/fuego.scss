@@ -69,11 +69,6 @@ body {
  * `article` contexts in Chrome, Firefox, and Safari.
  */
 
-h1 {
-	font-size: 2em;
-	margin: 0.67em 0;
-}
-
 /* Grouping content
 	 ========================================================================== */
 /**
@@ -389,7 +384,6 @@ select,
 optgroup,
 textarea {
 	color: #404040;
-	font-family: 'Open Sans', Arial, Helvetica, sans-serif;
 	font-weight: 300;
 	font-size: 16px;
 	font-size: 1rem;
@@ -909,7 +903,7 @@ a:hover, a:active {
 --------------------------------------------------------------*/
 @media screen and (min-width: 1200px) {
 	.container {
-		max-width: 960px;
+		max-width: 800px;
 	}
 }
 
@@ -968,12 +962,6 @@ a:hover, a:active {
 	color: #F4EAD6;
 }
 
-.principles h2 {
-	font-family: 'Amatic SC', 'Open Sans', Arial, Helvetica, sans-serif;
-	font-size: 62px;
-	text-align: center;
-	margin: 20px 0 40px;
-}
 
 .principles a {
 	color: #F4EAD6;
@@ -1070,11 +1058,6 @@ a:hover, a:active {
 	padding: 30px 40px;
 }
 
-.current-edition .card h2 {
-	font-size: 52px;
-	letter-spacing: -1px;
-	font-weight: bold;
-}
 
 .current-edition .card h3 {
 	font-size: 30px;
@@ -1135,10 +1118,6 @@ a:hover, a:active {
 		padding-left: 20px;
 	}
 
-	.current-edition .card h2 {
-		font-size: 36px;
-	}
-
 	.current-edition .card h3 {
 		font-size: 20px;
 	}
@@ -1153,19 +1132,6 @@ a:hover, a:active {
 --------------------------------------------------------------*/
 .no-spectators {
 	color: #D6C4A1;
-}
-
-.no-spectators h2 {
-	font-family: 'Amatic SC', 'Open Sans', Arial, Helvetica, sans-serif;
-	font-size: 62px;
-	font-weight: normal;
-	text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-	text-align: center;
-	margin-bottom: 40px;
-}
-
-.no-spectators h2 a {
-	text-decoration: none;
 }
 
 .no-spectators a {
@@ -1247,9 +1213,7 @@ a:hover, a:active {
 }
 
 .site-main {
-	margin: 40px 0 80px;
 	color: #735b59;
-	font-weight: 400;
 }
 
 .site-main hr {
@@ -1262,17 +1226,8 @@ a:hover, a:active {
 	line-height: 1.8em;
 }
 
-.site-main h2, .site-main h3, .site-main h4 {
-	padding: 10px 0 5px;
-	color: #503C3A;
-}
-
 .site-main h3 {
 	display: inline-block;
-}
-
-.site-main p {
-	line-height: 1.8em;
 }
 
 .site-main a {
@@ -1298,20 +1253,8 @@ a:hover, a:active {
 	padding-left: 5px;
 }
 
-.site-main h1 {
-	text-align: center;
-	font-family: 'Amatic SC', 'Open Sans', Arial, Helvetica, sans-serif;
-	font-size: 60px;
-	color: #503C3A;
-}
-
 .site-main pre {
 	background: #f1eadc;
-}
-
-.site-main h2, .site-main h3, .site-main h4 {
-	clear: none;
-	line-height: 1.5em;
 }
 
 .site-main .card {
@@ -1453,7 +1396,6 @@ object {
 }
 
 .gallery-columns-3 .gallery-item {
-	max-width: 33.33%;
 }
 
 .gallery-columns-4 .gallery-item {
