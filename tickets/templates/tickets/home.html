@@ -20,7 +20,7 @@
                     <i class="{{ ticket_type.emoji }}"></i>
                 </div>
                 <h2>{{ ticket_type.name }}</h2>
-                <p class="text-small">{{ ticket_type.description }}</p>
+                <p class="text-small">{% comment %}{{ ticket_type.description }}{% endcomment %}</p>
                 <a class="button" style="background-color: #{{ ticket_type.color }}" href="{% url 'order' ticket_type_id=ticket_type.id %}?coupon={{ coupon.token }}">Comprar</a>
             </div>
 
