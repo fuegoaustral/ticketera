@@ -22,6 +22,8 @@
 
 {% endblock %}
 
+{% block container_type %}{{ block.super }} to-left{% endblock %}
+
 {% block content %}
 
 <h2>Confirmá los Datos</h2>
@@ -58,7 +60,7 @@
 </dl>
 
 
-<h3>Datos del Comprador</h3>
+<h3 class="mt-5">Datos del Comprador</h3>
 {% include 'partials/person_details.html' with person=order %}
 
 <h3 class="mt-5">Participantes</h3>

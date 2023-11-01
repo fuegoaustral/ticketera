@@ -83,7 +83,7 @@ class TicketType(BaseModel):
     name = models.CharField(max_length=100)
     description = models.TextField(max_length=2000, blank=True)
     color = models.CharField(max_length=6, default='6633ff')
-    emoji=models.CharField(max_length=20, default='🖕')
+    emoji=models.CharField(max_length=255, default='🖕')
     ticket_count=models.IntegerField()
 
     objects = TicketTypeManager()
@@ -111,7 +111,7 @@ class TicketType(BaseModel):
             .first()
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.event.name})"
 
 
 class Order(BaseModel):
@@ -248,7 +248,7 @@ class TicketPerson(models.Model):
     volunteer = models.CharField(choices=VOLUNTEER_CHOICES, max_length=10)
     volunteer_ranger = models.BooleanField('Rangers')
     volunteer_transmutator = models.BooleanField('Transmutadores')
-    volunteer_umpalumpa = models.BooleanField('CAOS (Armado y Desarme de la Ciudad)')
+    volunteer_umpalumpa = models.BooleanField('CAOS (Desarme de la Ciudad)')
 
     class Meta:
         abstract = True

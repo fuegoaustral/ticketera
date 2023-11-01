@@ -70,6 +70,9 @@ h1, h2, p, img.full-width {
     margin-bottom: 4rem !important;
 }
 
+.to-left {
+    text-align: left !important;
+}
 .centered {
     margin-left: auto;
     margin-right: auto;
@@ -244,6 +247,7 @@ img.full-width {
 
 .form-group {
     margin: 0.5rem 0 1rem 0;
+    text-align: left;
 }
 
 .ticket-form {
