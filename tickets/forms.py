@@ -14,9 +14,9 @@ class PersonForm(forms.ModelForm):
 
 class TicketForm(PersonForm):
     volunteer = forms.ChoiceField(label='Voluntariado', widget=forms.RadioSelect(attrs={'class': 'input-volunteer',}), choices=Ticket.VOLUNTEER_CHOICES)
-    # volunteer_ranger = forms.BooleanField(label='Ranger', required=False)
-    # volunteer_transmutator = forms.BooleanField(label='Transmutadores', required=False)
-    # volunteer_umpalumpa = forms.BooleanField(label='Umpa Lumpas (armado y desarme de la ciudad)', required=False)
+    volunteer_ranger = forms.BooleanField(label='Ranger', required=False)
+    volunteer_transmutator = forms.BooleanField(label='Transmutadores', required=False)
+    volunteer_umpalumpa = forms.BooleanField(label='CAOS (Desarme de la Ciudad)', required=False)
 
     class Meta:
         model = Ticket
