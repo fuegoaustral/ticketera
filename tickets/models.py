@@ -1,8 +1,10 @@
 from datetime import datetime
+from decimal import Decimal
 import uuid
 import qrcode
 import logging
 
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Count, Sum, Q, F
 from django.conf import settings
@@ -121,9 +123,9 @@ class Order(BaseModel):
     email = models.CharField(max_length=320)
     phone = models.CharField(max_length=50)
     dni = models.CharField(max_length=10)
-    donation_art = models.DecimalField('Becas de Arte', decimal_places=2, max_digits=10, blank=True, null=True, help_text='Para empujar la creatividad en nuestra ciudad temporal.')
-    donation_venue = models.DecimalField('Donaciones a La Sede', decimal_places=2, max_digits=10, blank=True, null=True, help_text='Para mejorar el espacio donde nos encontramos todo el año.')
-    donation_grant = models.DecimalField('Beca Inclusión Radical', decimal_places=2, max_digits=10, blank=True, null=True, help_text='Para ayudar a quienes necesitan una mano con su bono contribución.')
+    donation_art = models.DecimalField('Becas de Arte $', validators=[MinValueValidator(Decimal('0'))], decimal_places=0, max_digits=10, blank=True, null=True, help_text='Para empujar la creatividad en nuestra ciudad temporal.')
+    donation_venue = models.DecimalField('Donaciones a La Sede $', validators=[MinValueValidator(Decimal('0'))], decimal_places=0, max_digits=10, blank=True, null=True, help_text='Para mejorar el espacio donde nos encontramos todo el año.')
+    donation_grant = models.DecimalField('Beca Inclusión Radical $', validators=[MinValueValidator(Decimal('0'))], decimal_places=0, max_digits=10, blank=True, null=True, help_text='Para ayudar a quienes necesitan una mano con su bono contribución.')
     amount = models.DecimalField(decimal_places=2, max_digits=10)
 
     coupon = models.ForeignKey('Coupon', null=True, blank=True, on_delete=models.RESTRICT)
