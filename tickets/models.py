@@ -42,6 +42,9 @@ class Coupon(BaseModel):
 
 class TicketTypeManager(models.Manager):
     def get_available(self, coupon, event):
+        if event.tickets_remaining() <= 0:
+            return TicketType.objects.none()
+
         ticket_types = (TicketType.objects
             .filter(event=event)
 
@@ -69,7 +72,8 @@ class TicketTypeManager(models.Manager):
         # just get the cheapest one available
         if not event.show_multiple_tickets:
             try:
-                ticket_types = ticket_types.order_by('price_with_coupon' if coupon else 'price')[:1]
+                first_ticket = ticket_types.order_by('price_with_coupon' if coupon else 'price').first()
+                return ticket_types.filter(id=first_ticket.id)
             except IndexError:
                 return TicketType.objects.none()
 

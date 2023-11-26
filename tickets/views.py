@@ -62,7 +62,7 @@ def order(request, ticket_type_id):
         return HttpResponse('Lo sentimos, este link es inválido.', status=404)
 
     # get available tickets from coupon/type
-    max_tickets = min(ticket_type.available_tickets, coupon.tickets_remaining() if coupon else 5)
+    max_tickets = min(ticket_type.available_tickets, coupon.tickets_remaining() if coupon else 5, event.tickets_remaining())
 
     order_form = OrderForm(request.POST or None)
     TicketsFormSet = modelformset_factory(Ticket, formset=BaseTicketFormset, form=TicketForm,
@@ -122,6 +122,9 @@ def is_order_valid(order):
         return False
 
     if order.coupon and order.coupon.tickets_remaining() < num_tickets:
+        return False
+
+    if ticket_type.event.tickets_remaining() < num_tickets:
         return False
     return True
 
