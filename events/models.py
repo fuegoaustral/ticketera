@@ -1,5 +1,5 @@
 from django.db import models
-from django.db.models import Q
+from django.db.models import Count, Sum, Q
 from django.forms import ValidationError
 
 from auditlog.registry import auditlog
@@ -13,6 +13,7 @@ class Event(BaseModel):
     has_volunteers = models.BooleanField(default=False)
     start = models.DateTimeField()
     end = models.DateTimeField()
+    max_tickets = models.IntegerField(blank=True, null=True)
     transfers_enabled_until = models.DateTimeField()
     show_multiple_tickets = models.BooleanField(default=False, help_text="If unchecked, only the chepeast ticket will be shown.")
 
@@ -44,6 +45,19 @@ class Event(BaseModel):
                     'active': ValidationError('Only one event can be active at the same time. Please set the other events as inactive before saving.', code='not_unique'),
                 })
         return super().clean(*args, **kwargs)
+
+    def tickets_remaining(self):
+        from tickets.models import Order
+        if self.max_tickets:
+            tickets_sold = (Order.objects
+                .filter(ticket_type__event=self)
+                .filter(status=Order.OrderStatus.CONFIRMED)
+                .annotate(num_tickets=Count('ticket'))
+                .aggregate(tickets_sold=Sum('num_tickets')
+            ))['tickets_sold'] or 0
+            return self.max_tickets - tickets_sold
+        else:
+            return 999999999  # extra high number (easy hack)
 
 
 auditlog.register(Event)
