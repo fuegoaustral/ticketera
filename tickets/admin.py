@@ -1,11 +1,12 @@
 import csv
 
 from django.conf import settings
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.db.models import Count, Q
 from django.http import HttpResponse
 from django.urls import reverse
 from django.utils.safestring import mark_safe
+from django.utils.translation import ngettext
 
 from .models import Ticket, TicketType, Order, Coupon, TicketTransfer
 
@@ -17,7 +18,7 @@ class TicketAdmin(admin.ModelAdmin):
     list_display = ('order_id', 'get_status', 'get_event',  'first_name', 'last_name', 'email', 'phone', 'dni', 'price', 'key', )
     list_filter = ('order__ticket_type__event', 'order__status', 'volunteer_ranger', 'volunteer_umpalumpa', 'volunteer_transmutator', )
     search_fields = ('first_name', 'last_name', 'key', )
-    actions = ['export']
+    actions = ['export', 'resend_email', ]
     readonly_fields = ('key', )
 
     def get_queryset(self, request):
@@ -52,6 +53,23 @@ class TicketAdmin(admin.ModelAdmin):
             ])
 
         return response
+
+    @admin.action(description='Volver a enviar email')
+    def resend_email(self, request, queryset):
+
+        for ticket in queryset:
+            ticket.send_email()
+        count = queryset.count()
+        self.message_user(
+            request,
+            ngettext(
+                "Enviado %d email de ticket.",
+                "Enviados %d emails de ticket.",
+                count,
+            )
+            % count,
+            messages.SUCCESS,
+        )
 
     @admin.display(ordering='order__status', description='status')
     def get_status(self, obj):
