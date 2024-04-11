@@ -1,3 +1,16 @@
+import os
+
 DEBUG = True
 
 EXTRA_INSTALLED_APPS = ['django_extensions']
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('DB_DATABASE', 'deprepagos_development'),
+        'USER': os.environ.get('DB_USER', '<FIND_ME_BY_TYPING_whoami_IN_TERMINAL>'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+        'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
+        'PORT': '5432',
+    }
+}
