@@ -15,6 +15,7 @@ whoami # copy the output
 open deprepagos/local_settings.py # and paste the output as `DB_USER` value
 createdb deprepagos_development
 python manage.py migrate
+python manage.py createsuperuser # to create admin user to login into /admin
 deactivate # only if you want to deactivate the virtualenv
 ```
 
