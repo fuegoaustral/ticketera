@@ -14,3 +14,27 @@ DATABASES = {
         'PORT': '5432',
     }
 }
+
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+STATIC_ROOT = os.path.join(PROJECT_ROOT, 'collected_static')
+
+PIPELINE = {
+    'PIPELINE_ENABLED': False,
+    'SHOW_ERRORS_INLINE': False,
+    'COMPILERS': (
+        'libsasscompiler.LibSassCompiler',
+    ),
+    'CSS_COMPRESSOR': 'pipeline.compressors.csshtmljsminify.CssHtmlJsMinifyCompressor',
+    'STYLESHEETS': {
+        'main': {
+            'source_filenames': (
+                'scss/fuego.scss',
+                'scss/global.scss',
+            ),
+            'output_filename': 'css/main.css',
+            'extra_context': {
+                'media': 'screen,projection',
+            },
+        },
+    },
+}
