@@ -15,24 +15,31 @@
 
             {% for ticket_type in ticket_types %}
 
-            <div class="box">
-                <div class="icon">
-                    <i class="{{ ticket_type.emoji }}"></i>
+                <div class="box">
+                    <div class="icon">
+                        <i class="{{ ticket_type.emoji }}"></i>
+                    </div>
+                    <h2>{{ ticket_type.name }}</h2>
+                    <p class="text-small">{% comment %}{{ ticket_type.description }}{% endcomment %}</p>
+                    {% load text_color %}
+                    <a
+                        class="button"
+                        style="background-color: #{{ ticket_type.color }}; color: {{ ticket_type.color|text_color }}"
+                        href="{% url 'order' ticket_type_id=ticket_type.id %}{% if coupon %}?coupon={{ coupon.token }}{% endif %}"
+                    >
+                        Comprar
+                    </a>
                 </div>
-                <h2>{{ ticket_type.name }}</h2>
-                <p class="text-small">{% comment %}{{ ticket_type.description }}{% endcomment %}</p>
-                <a class="button" style="background-color: #{{ ticket_type.color }}" href="{% url 'order' ticket_type_id=ticket_type.id %}?coupon={{ coupon.token }}">Comprar</a>
-            </div>
 
-            {% empty %}
+                {% empty %}
 
-            <div class="box">
-                <div class="icon">
-                    <i class="fa-solid fa-heart-crack"></i>
+                <div class="box">
+                    <div class="icon">
+                        <i class="fa-solid fa-heart-crack"></i>
+                    </div>
+                    <h2>Lo sentimos</h2>
+                    <p class="text-small">No hay bonos disponibles en este momento.</p>
                 </div>
-                <h2>Lo sentimos</h2>
-                <p class="text-small">No hay bonos disponibles en este momento.</p>
-            </div>
 
             {% endfor %}
         </div>
@@ -51,10 +58,10 @@
     </div>
     {% endif %}
 
-    
 
 
-    
+
+
     <div class="section">
 
         <div class="two-columns">
