@@ -14,4 +14,11 @@ urlpatterns = [
     path('ticket/<str:ticket_key>/transfer/confirmation', views.ticket_transfer_confirmation, name='ticket_transfer_confirmation'),
     path('ticket/<str:transfer_key>/confirmed', views.ticket_transfer_confirmed, name='ticket_transfer_confirmed'),
     path('payments/ipn/', views.payment_notification, name='payment_notification'),
+
+    path('dashboard/', views.dashboard_view, name='dashboard'),
+
+    path('complete-profile/', views.complete_profile, name='complete_profile'),
+    path('accounts/verification-congrats/', views.verification_congrats, name='verification_congrats'),
+
+
 ]

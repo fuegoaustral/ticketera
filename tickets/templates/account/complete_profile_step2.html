@@ -1,0 +1,54 @@
+{% extends "../tickets/base.html" %}
+{% load static %}
+
+{% block content %}
+    <div class="d-flex flex-column flex-grow-1 justify-content-center align-items-center pb-4">
+        <div class="card p-4" style="max-width: 400px; width: 100%;">
+            <h2 class="text-center mb-4">Completa tu perfil</h2>
+            <form method="post">
+                {% csrf_token %}
+                <div class="form-group d-flex flex-column w-100">
+
+                    <!-- Phone Input -->
+                    <label for="phone">Teléfono</label>
+                    <input type="text" class="form-control" id="phone" name="phone" placeholder="Ingresa tu número de teléfono" value="{{ form.phone.value|default:profile.phone }}" {% if code_sent %}disabled{% endif %}>
+                    {% if form.phone.errors %}
+                        <div class="text-danger">
+                            {% for error in form.phone.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    {% if code_sent %}
+                        <!-- Verification Code Input -->
+                        <label class="mt-3" for="code">Código de verificación</label>
+                        <input type="text" class="form-control" id="code" name="code" placeholder="Ingresa el código" value="{{ form.code.value|default:'' }}">
+                        {% if form.code.errors %}
+                            <div class="text-danger">
+                                {% for error in form.code.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        {% if error_message %}
+                            <div class="text-danger mt-2">{{ error_message }}</div>
+                        {% endif %}
+
+                        <button type="submit" name="verify_code" class="btn btn-primary mt-3">Verificar código</button>
+                        <a href="#" onclick="resendCode()" class="btn btn-link mt-2">Reenviar código</a>
+                    {% else %}
+                        <button type="submit" name="send_code" class="btn btn-primary mt-3">Enviar código de verificación</button>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function resendCode() {
+            document.querySelector('form').submit();
+        }
+    </script>
+{% endblock %}
