@@ -1,17 +1,19 @@
 <!doctype html>
 {% load static %}
 {% load pipeline %}
+{% load account %}
 <html lang="es-AR" prefix="og: http://ogp.me/ns# fb: http://ogp.me/ns/fb#">
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-	<link rel="profile" href="https://gmpg.org/xfn/11">
-	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
-	<link rel="icon" href="{% static 'img/favicon.png' %}" type="image/png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="profile" href="https://gmpg.org/xfn/11">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+          integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link rel="icon" href="{% static 'img/favicon.png' %}" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@1,300&family=Rubik:wght@300;400&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@1,300&family=Rubik:wght@300;400&display=swap');
     </style>
 
 
@@ -19,8 +21,9 @@
     <style>
         .site-header {
             background: {{event.header_bg_color}} url("{{event.header_image.url}}") no-repeat top center !important;
-            height: 140px;
+            height: 200px;
         }
+
         @media only screen and (min-width: 601px) {
             .site-header.hero {
                 height: {{event.header_image.height}}px !important;
@@ -28,45 +31,85 @@
         }
     </style>
 
-	<title>Fuego Austral &#8211; La experiencia será lo que hagamos de ella</title>
+    <title>Fuego Austral &#8211; La experiencia será lo que hagamos de ella</title>
 
     {% block extrahead %}{% endblock %}
 
 </head>
 
 <body class="home blog hfeed">
-<div class="content d-flex flex-column" style="min-height: 100vh;">
+<div class="content d-flex flex-column min-vh-100">
 
-	<header id="masthead" class="site-header {% block hero%}{% endblock %}">
-		<div class="container">
-			<div class="row">
-				<div class="col-md-3 site-branding">
-					<a href="http://fuegoaustral.org/">
-						<img src="{% static 'img/logo.svg' %}" alt="Fuego Austral" width="140">
-					</a>
-				</div>
+    <header id="masthead" class="site-header {% block hero %}{% endblock %}">
 
-				<div class="col-md main-navigation-wrap">
-					<nav id="site-navigation" class="main-navigation">
-						<button class="menu-toggle btn" aria-controls="primary-menu" aria-expanded="false" aria-label="Toggle navigation">
-							<span class="navbar-toggler-icon"></span>
-						</button>
-						<div class="menu-primary-container">
-                            <ul id="primary-menu" class="menu"><li id="menu-item-18" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-18"><a href="http://fuegoaustral.org/el-evento/">El Evento</a></li>
-                                <li id="menu-item-54" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-54"><a href="http://fuegoaustral.org/participar/">Participar</a></li>
-                                <li id="menu-item-22" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-22"><a href="http://fuegoaustral.org/prepararse/">Prepararse</a></li>
-                                <li id="menu-item-20" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-20"><a href="http://fuegoaustral.org/historia/">Historia</a></li>
-                                <li id="menu-item-2395" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-2395"><a href="http://fuegoaustral.org/la-sede/">La Sede</a></li>
-                                <li id="menu-item-19" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-19"><a href="http://fuegoaustral.org/faq/">FAQ</a></li>
+
+        <div class="container">
+            <div class="d-flex flex-row justify-content-end mt-4">
+                {% if user.is_authenticated %}
+                    <label class="text-white">{{ user.email }}</label>
+                    <label class="text-white  mx-2">|</label>
+                    <a href="{% url 'account_logout' %}" style="color: #ffffff;">Cerrar sesión</a>
+                {% else %}
+                    <a class="btn btn-primary mx-2"
+                       href="{% url 'account_login' %}"
+                       style="color: #ffffff; text-decoration: none;"
+                       onmouseover="this.style.color='#007bff';"
+                       onmouseout="this.style.color='#ffffff';">Iniciar sesión</a>
+
+                    <a class="btn btn-secondary"
+                       href="{% url 'account_signup' %}"
+                       style="color: #ffffff; text-decoration: none;"
+                       onmouseover="this.style.color='#6c757d';"
+                       onmouseout="this.style.color='#ffffff';">Registrarse</a>
+                {% endif %}
+            </div>
+            <div class="row">
+                <div class="col-md-3 site-branding">
+                    <a href="http://fuegoaustral.org/">
+                        <img src="{% static 'img/logo.svg' %}" alt="Fuego Austral" width="140">
+                    </a>
+                </div>
+
+                <div class="col-md main-navigation-wrap">
+                    <nav id="site-navigation" class="main-navigation">
+                        <button class="menu-toggle btn" aria-controls="primary-menu" aria-expanded="false"
+                                aria-label="Toggle navigation">
+                            <span class="navbar-toggler-icon"></span>
+                        </button>
+                        <div class="menu-primary-container">
+                            <ul id="primary-menu" class="menu">
+                                {% if user.is_authenticated %}
+                                    <li>
+                                        <a class="btn btn-danger text-white" href="/dashboard/">Mis bonos</a>
+                                    </li>
+                                {% endif %}
+                                <li id="menu-item-18"
+                                    class="menu-item menu-item-type-post_type menu-item-object-page menu-item-18"><a
+                                        href="http://fuegoaustral.org/el-evento/">El Evento</a></li>
+                                <li id="menu-item-54"
+                                    class="menu-item menu-item-type-post_type menu-item-object-page menu-item-54"><a
+                                        href="http://fuegoaustral.org/participar/">Participar</a></li>
+                                <li id="menu-item-22"
+                                    class="menu-item menu-item-type-post_type menu-item-object-page menu-item-22"><a
+                                        href="http://fuegoaustral.org/prepararse/">Prepararse</a></li>
+                                <li id="menu-item-20"
+                                    class="menu-item menu-item-type-post_type menu-item-object-page menu-item-20"><a
+                                        href="http://fuegoaustral.org/historia/">Historia</a></li>
+                                <li id="menu-item-2395"
+                                    class="menu-item menu-item-type-post_type menu-item-object-page menu-item-2395"><a
+                                        href="http://fuegoaustral.org/la-sede/">La Sede</a></li>
+                                <li id="menu-item-19"
+                                    class="menu-item menu-item-type-post_type menu-item-object-page menu-item-19"><a
+                                        href="http://fuegoaustral.org/faq/">FAQ</a></li>
                             </ul>
                         </div>
                     </nav>
-				</div>
-			</div>
-		</div>
-	</header><!-- #masthead -->
+                </div>
+            </div>
+        </div>
+    </header><!-- #masthead -->
 
-    <div class="site-main {% block container_type %}container{% endblock %}">
+    <div class="site-main {% block container_type %}container{% endblock %} d-flex flex-column flex-grow-1">
         {% block content %}{% endblock %}
     </div>
 

@@ -80,6 +80,9 @@ MIDDLEWARE = [
     'auditlog.middleware.AuditlogMiddleware',
 
     "allauth.account.middleware.AccountMiddleware",
+
+    'tickets.middleware.ProfileCompletionMiddleware',
+
 ]
 
 ROOT_URLCONF = 'deprepagos.urls'
@@ -217,6 +220,9 @@ DEFAULT_FROM_EMAIL = 'Fuego Austral <bonos@eventos.fuegoaustral.org>'
 TEMPLATED_EMAIL_TEMPLATE_DIR = 'emails/'
 TEMPLATED_EMAIL_FILE_EXTENSION = 'html'
 
+TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', '')
+TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
+TWILIO_VERIFY_SERVICE_SID = os.environ.get('TWILIO_VERIFY_SERVICE_SID', '')
 
 
 # user comprador {"id":1037327132,"nickname":"TETE9670391","password":"qatest8330","site_status":"active","email":"test_user_43578812@testuser.com"}%
@@ -254,7 +260,7 @@ LOGGING = {
 
 # Email settings
 ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_EMAIL_VERIFICATION = 'mandatory'  # 'optional' or 'none'
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
 ACCOUNT_USERNAME_REQUIRED = False
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 
@@ -266,3 +272,7 @@ ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 3
 
 SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
 SOCIALACCOUNT_LOGIN_ON_GET=True
+ACCOUNT_LOGOUT_ON_GET=True
+ACCOUNT_CONFIRM_EMAIL_ON_GET=True
+ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = '/accounts/verification-congrats/'
+
