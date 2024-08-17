@@ -29,7 +29,8 @@
         "Resource": "arn:aws:s3:::faticketera-zappa-dev/*"
       }
     ],
-    "postdeploy": "python manage.py migrate"
+    "postdeploy": "python manage.py migrate",
+    // "certificate_arn": "arn:aws:acm:us-east-1:153920312805:certificate/7c83858c-a0e9-4396-b1d2-b596e15dac52"
   },
   "prod": {
     "aws_region": "us-east-1",
