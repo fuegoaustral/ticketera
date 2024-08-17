@@ -1,63 +1,71 @@
 {
-    "dev": {
-        "aws_region": "us-east-1",
-        "django_settings": "deprepagos.settings_dev",
-        "profile_name": "default",
-        "project_name": "deprepagos",
-        "runtime": "python3.8",
-        "timeout_seconds": 30,
-        "s3_bucket": "faticketera-zappa-dev",
-        "vpc_config" : {
-            "SubnetIds": [ 
-                "subnet-0d7a6e86d022b6ce5", 
-                "subnet-0be4af32a014a1734", 
-                "subnet-0a902c2f8d32f26f5", 
-                "subnet-0d3504ba22b734981", 
-                "subnet-01b326364992b2f57", 
-                "subnet-0a10faa62f52d05a8"
-            ],
-            "SecurityGroupIds": ["sg-05430820583c3e497"]
-        },
-        "extra_permissions": [{
-            "Effect": "Allow",
-            "Action": ["s3:*"],
-            "Resource": "arn:aws:s3:::faticketera-zappa-dev/*"
-        }]
-        // "exclude": ["local_settings.py"],
-        // "exclude_glob": ["venv/*"]
-        // "domain": "bonos.fa2022.org",
-        // "certificate_arn": "arn:aws:acm:us-east-1:153920312805:certificate/7c83858c-a0e9-4396-b1d2-b596e15dac52"
+  "dev": {
+    "aws_region": "us-east-1",
+    "django_settings": "deprepagos.settings_dev",
+    "profile_name": "default",
+    "project_name": "deprepagos",
+    "runtime": "python3.9",
+    "timeout_seconds": 30,
+    "s3_bucket": "faticketera-zappa-dev",
+    "vpc_config": {
+      "SubnetIds": [
+        "subnet-0d7a6e86d022b6ce5",
+        "subnet-0be4af32a014a1734",
+        "subnet-0a902c2f8d32f26f5",
+        "subnet-0d3504ba22b734981",
+        "subnet-01b326364992b2f57",
+        "subnet-0a10faa62f52d05a8"
+      ],
+      "SecurityGroupIds": [
+        "sg-05430820583c3e497"
+      ]
     },
-    "prod": {
-        "aws_region": "us-east-1",
-        "django_settings": "deprepagos.settings_prod",
-        "profile_name": "default",
-        "project_name": "deprepagos",
-        "runtime": "python3.8",
-        "timeout_seconds": 30,
-        "s3_bucket": "faticketera-zappa-prod",
-        "vpc_config" : {
-            "SubnetIds": [ 
-                "subnet-0130a8113f5e1feb7", 
-                "subnet-0ec9b01ef200e3fd8", 
-                "subnet-0ca111a1082be3412", 
-                "subnet-087803ad71197bfd6", 
-                "subnet-09df22997bd332147", 
-                "subnet-0c0872c4d05ed309d"
-            ],
-            "SecurityGroupIds": ["sg-0c63c3a7d4263c4d4"]
-        },
-        "domain": "eventos.fuegoaustral.org",
-        "route53_enabled": false,
-        "extra_permissions": [{
-            "Effect": "Allow",
-            "Action": [
-                "s3:PutObject",
-                "s3:GetObjectAcl",
-                "s3:GetObject"
-            ],
-            "Resource": "arn:aws:s3:::faticketera-zappa-prod/*"
-        }],
-        "certificate_arn": "arn:aws:acm:us-east-1:251799394474:certificate/84e0a65b-041f-49f0-8fb5-f440fb700aef"
-    }
+    "extra_permissions": [
+      {
+        "Effect": "Allow",
+        "Action": [
+          "s3:*"
+        ],
+        "Resource": "arn:aws:s3:::faticketera-zappa-dev/*"
+      }
+    ],
+    "postdeploy": "python manage.py migrate"
+    // "certificate_arn": "arn:aws:acm:us-east-1:153920312805:certificate/7c83858c-a0e9-4396-b1d2-b596e15dac52"
+  },
+  "prod": {
+    "aws_region": "us-east-1",
+    "django_settings": "deprepagos.settings_prod",
+    "profile_name": "default",
+    "project_name": "deprepagos",
+    "runtime": "python3.8",
+    "timeout_seconds": 30,
+    "s3_bucket": "faticketera-zappa-prod",
+    "vpc_config": {
+      "SubnetIds": [
+        "subnet-0130a8113f5e1feb7",
+        "subnet-0ec9b01ef200e3fd8",
+        "subnet-0ca111a1082be3412",
+        "subnet-087803ad71197bfd6",
+        "subnet-09df22997bd332147",
+        "subnet-0c0872c4d05ed309d"
+      ],
+      "SecurityGroupIds": [
+        "sg-0c63c3a7d4263c4d4"
+      ]
+    },
+    "domain": "eventos.fuegoaustral.org",
+    "route53_enabled": false,
+    "extra_permissions": [
+      {
+        "Effect": "Allow",
+        "Action": [
+          "s3:PutObject",
+          "s3:GetObjectAcl",
+          "s3:GetObject"
+        ],
+        "Resource": "arn:aws:s3:::faticketera-zappa-prod/*"
+      }
+    ],
+    "certificate_arn": "arn:aws:acm:us-east-1:251799394474:certificate/84e0a65b-041f-49f0-8fb5-f440fb700aef"
+  }
 }
