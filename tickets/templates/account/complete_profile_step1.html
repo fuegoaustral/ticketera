@@ -1,0 +1,68 @@
+{% extends "../tickets/base.html" %}
+{% load static %}
+
+{% block content %}
+    <div class="d-flex flex-column flex-grow-1 justify-content-center align-items-center pb-4">
+        <div class="card p-4" style="max-width: 400px; width: 100%;">
+            <h2 class="text-center mb-4">Completa tu perfil</h2>
+            <form method="post">
+                {% csrf_token %}
+                <div class="form-group d-flex flex-column w-100">
+
+                    <!-- First Name -->
+                    <label for="first_name">Nombre</label>
+                    <input type="text" class="form-control" id="first_name" name="first_name"
+                           placeholder="Ingresa tu nombre">
+                    {% if form.first_name.errors %}
+                        <div class="text-danger">
+                            {% for error in form.first_name.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <!-- Last Name -->
+                    <label for="last_name">Apellido</label>
+                    <input type="text" class="form-control" id="last_name" name="last_name"
+                           placeholder="Ingresa tu apellido">
+                    {% if form.last_name.errors %}
+                        <div class="text-danger">
+                            {% for error in form.last_name.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <!-- Document Type -->
+                    <label for="document_type">Tipo de documento</label>
+                    <select class="form-control" id="document_type" name="document_type">
+                        <option value="DNI">DNI</option>
+                        <option value="PASSPORT">Pasaporte</option>
+                        <option value="OTHER">Otro</option>
+                    </select>
+                    {% if form.document_type.errors %}
+                        <div class="text-danger">
+                            {% for error in form.document_type.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <!-- Document Number -->
+                    <label for="document_number">Numero de documento</label>
+                    <input type="text" class="form-control" id="document_number" name="document_number"
+                           placeholder="Ingresa tu numero de documento">
+                    {% if form.document_number.errors %}
+                        <div class="text-danger">
+                            {% for error in form.document_number.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                </div>
+                <button type="submit" class="btn btn-primary">Continuar</button>
+            </form>
+        </div>
+    </div>
+{% endblock %}

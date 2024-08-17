@@ -9,14 +9,15 @@ from django.forms import modelformset_factory, BaseModelFormSet
 from django.urls import reverse
 from django.utils.timezone import now
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect
 
 from .models import Coupon, Order, TicketType, Ticket, TicketTransfer
-from .forms import OrderForm, TicketForm, TransferForm
+from .forms import OrderForm, TicketForm, TransferForm, ProfileStep1Form, ProfileStep2Form
 from events.models import Event
 
 
 def home(request):
-
     try:
         event = Event.objects.get(active=True)
     except Event.DoesNotExist:
@@ -62,7 +63,8 @@ def order(request, ticket_type_id):
         return HttpResponse('Lo sentimos, este link es inválido.', status=404)
 
     # get available tickets from coupon/type
-    max_tickets = min(ticket_type.available_tickets, coupon.tickets_remaining() if coupon else 5, event.tickets_remaining())
+    max_tickets = min(ticket_type.available_tickets, coupon.tickets_remaining() if coupon else 5,
+                      event.tickets_remaining())
 
     order_form = OrderForm(request.POST or None)
     TicketsFormSet = modelformset_factory(Ticket, formset=BaseTicketFormset, form=TicketForm,
@@ -79,7 +81,7 @@ def order(request, ticket_type_id):
             order.coupon = coupon
             tickets = tickets_formset.save(commit=False)
             price = ticket_type.price_with_coupon if order.coupon else ticket_type.price
-            order.amount = len(tickets) * price # + donations
+            order.amount = len(tickets) * price  # + donations
             order.amount += order.donation_art or 0
             order.amount += order.donation_grant or 0
             order.amount += order.donation_venue or 0
@@ -130,7 +132,6 @@ def is_order_valid(order):
 
 
 def order_detail(request, order_key):
-
     order = Order.objects.get(key=order_key)
     logging.info('got order')
 
@@ -143,7 +144,8 @@ def order_detail(request, order_key):
 
     if order.amount > 0:
         logging.info('getting payment preferences')
-        payment_preference_id = order.get_payment_preference()['id'] if order.status == Order.OrderStatus.PENDING else None
+        payment_preference_id = order.get_payment_preference()[
+            'id'] if order.status == Order.OrderStatus.PENDING else None
 
         context.update({
             'preference_id': payment_preference_id,
@@ -161,7 +163,6 @@ def order_detail(request, order_key):
 
 
 def ticket_detail(request, ticket_key):
-
     ticket = Ticket.objects.get(key=ticket_key)
 
     template = loader.get_template('tickets/ticket_detail.html')
@@ -179,7 +180,6 @@ def ticket_transfer(request, ticket_key):
     if ticket.order.ticket_type.event.transfers_enabled_until < now():
         template = loader.get_template('tickets/ticket_transfer_expired.html')
         return HttpResponse(template.render({'ticket': ticket}, request))
-
 
     if request.method == 'POST':
         form = TransferForm(request.POST)
@@ -207,7 +207,6 @@ def ticket_transfer(request, ticket_key):
 
 
 def ticket_transfer_confirmation(request, ticket_key):
-
     ticket = Ticket.objects.get(key=ticket_key)
 
     template = loader.get_template('tickets/ticket_transfer_confirmation.html')
@@ -219,7 +218,6 @@ def ticket_transfer_confirmation(request, ticket_key):
 
 
 def ticket_transfer_confirmed(request, transfer_key):
-
     transfer = TicketTransfer.objects.get(key=transfer_key)
 
     transfer.transfer()
@@ -266,13 +264,13 @@ def payment_failure(request):
 def payment_pending(request):
     return HttpResponse('PAYMENT PENDING')
 
+
 @csrf_exempt
 def payment_notification(request):
-
     if request.GET['topic'] == 'payment':
         sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
         payment = sdk.payment().get(request.GET.get('id'))['response']
-        
+
         merchant_order = sdk.merchant_order().get(payment['order']['id'])['response']
 
         order = Order.objects.get(id=int(merchant_order['external_reference']))
@@ -290,3 +288,59 @@ def payment_notification(request):
 
     return HttpResponse('Notified!')
 
+
+@login_required
+def dashboard_view(request):
+    # Add logic to handle the dashboard view
+    return render(request, 'dashboard/protected_page.html')
+
+
+@login_required
+def complete_profile(request):
+    profile = request.user.profile
+    error_message = None
+    code_sent = False
+
+    if profile.profile_completion == 'NONE':
+        if request.method == 'POST':
+            form = ProfileStep1Form(request.POST, instance=profile, user=request.user)
+            if form.is_valid():
+                form.save()
+                profile.profile_completion = 'INITIAL_STEP'
+                profile.save()
+                return redirect('complete_profile')
+        else:
+            form = ProfileStep1Form(instance=profile, user=request.user)
+        return render(request, 'account/complete_profile_step1.html', {'form': form})
+
+    elif profile.profile_completion == 'INITIAL_STEP':
+        form = ProfileStep2Form(request.POST or None, instance=profile)
+        if request.method == 'POST':
+            if 'send_code' in request.POST:
+                if form.is_valid():
+                    form.save()
+                    form.send_verification_code()
+                    code_sent = True
+            elif 'verify_code' in request.POST:
+                code_sent = True  # Keep this True to stay in verification mode
+                form = ProfileStep2Form(request.POST, instance=profile, code_sent=True)
+                if form.is_valid():
+                    if form.verify_code():
+                        profile.profile_completion = 'COMPLETE'
+                        profile.save()
+                        return redirect('home')
+                    else:
+                        error_message = "Código inválido. Por favor, intenta de nuevo."
+
+        return render(request, 'account/complete_profile_step2.html', {
+            'form': form,
+            'error_message': error_message,
+            'code_sent': code_sent,
+            'profile': profile  # Pass the profile object to the template
+        })
+    else:
+        return redirect('home')
+
+
+def verification_congrats(request):
+    return render(request, 'account/verification_congrats.html')
