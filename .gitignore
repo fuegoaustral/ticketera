@@ -6,3 +6,4 @@ deprepagos/media
 !deprepagos/media/events/heros/no-image.jpg
 *DS_Store
 venv/*
+.env*

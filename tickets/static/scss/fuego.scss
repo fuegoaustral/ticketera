@@ -903,14 +903,14 @@ a:hover, a:active {
 --------------------------------------------------------------*/
 @media screen and (min-width: 1200px) {
 	.container {
-		max-width: 800px;
+
 	}
 }
 
 .site-header {
 	background: rgb(252, 0, 6) url('https://faticketera-zappa-prod.s3.amazonaws.com/img/hero.jpg') no-repeat top center;
 	background-size: 1680px;
-	height: 140px;
+	height: 200px;
 }
 
 .site-header.hero {
