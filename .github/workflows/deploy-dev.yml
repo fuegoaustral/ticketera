@@ -47,3 +47,8 @@ jobs:
           echo "Zappa update failed, attempting redeploy"
           zappa undeploy dev
           zappa deploy dev
+        fi
+
+    - name: Run Migrations
+      run: |
+        zappa manage dev migrate
