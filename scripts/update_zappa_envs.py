@@ -18,7 +18,7 @@ with open("zappa_settings.json", "r") as f:
     zappa_settings = json.load(f)
 
 # Update the environment_variables section for the specific environment in zappa_settings
-zappa_settings[environment]["environment_variables"] = env_vars
+zappa_settings[environment]["aws_environment_variables"] = env_vars
 
 # Save back to zappa_settings.json
 with open("zappa_settings.json", "w") as f:
