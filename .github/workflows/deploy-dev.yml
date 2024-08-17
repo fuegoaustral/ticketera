@@ -42,7 +42,6 @@ jobs:
         run: |
           source venv/bin/activate
           python update_zappa_envs.py dev
-          cat zappa_settings.json
           zappa update dev
 
       - name: Run Migrations
