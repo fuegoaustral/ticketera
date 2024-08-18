@@ -28,7 +28,9 @@
         ],
         "Resource": "arn:aws:s3:::faticketera-zappa-dev/*"
       }
-    ]
+    ],
+    "domain": "dev.fuegoaustral.org",
+    "certificate_arn": "arn:aws:acm:us-east-1:251799394474:certificate/09f6bc34-2d5a-4172-a25a-2602f1b15fca"
   },
   "prod": {
     "aws_region": "us-east-1",
