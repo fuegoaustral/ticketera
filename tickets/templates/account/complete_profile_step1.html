@@ -5,7 +5,7 @@
     <div class="d-flex flex-column flex-grow-1 justify-content-center align-items-center pb-4">
         <div class="card p-4" style="max-width: 400px; width: 100%;">
             <h2 class="text-center mb-4">Completa tu perfil</h2>
-            <form method="post">
+            <form method="post" id="profile-form">
                 {% csrf_token %}
                 <div class="form-group d-flex flex-column w-100">
 
@@ -59,10 +59,18 @@
                             {% endfor %}
                         </div>
                     {% endif %}
-
+                    <button type="submit" class="btn btn-primary mt-3" id="submit-button">Continuar</button>
                 </div>
-                <button type="submit" class="btn btn-primary">Continuar</button>
+
             </form>
         </div>
     </div>
+
+    <script>
+        document.getElementById('profile-form').addEventListener('submit', function () {
+            var submitButton = document.getElementById('submit-button');
+            submitButton.disabled = true;
+            submitButton.innerHTML = 'Cargando...';
+        });
+    </script>
 {% endblock %}

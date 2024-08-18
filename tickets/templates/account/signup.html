@@ -4,7 +4,7 @@
 {% load allauth i18n %}
 
 {% block content %}
-    <div class="d-flex flex-grow-1 justify-content-center align-items-center mb-4">
+    <div class="d-flex flex-column flex-grow-1 justify-content-center align-items-center pb-4">
         <div class="card p-4" style="max-width: 400px; width: 100%;">
             <h2 class="text-center mb-4">Crea tu cuenta</h2>
             <div class="text-center">
@@ -20,35 +20,34 @@
                 </div>
             {% endif %}
 
-            <form method="post" action="{% url 'account_signup' %}">
+            <form method="post" action="{% url 'account_signup' %}" id="signup-form">
                 {% csrf_token %}
 
-                <div class="form-group w-100">
+                <div class="form-group d-flex flex-column w-100">
                     <label for="email">Email</label>
                     <input type="email" class="form-control" id="email" placeholder="Enter your email" name="email"
                            required autocomplete="off">
-                </div>
-                <div class="form-group w-100">
+
                     <label for="password">Password</label>
                     <input type="password" class="form-control" id="password1" placeholder="Enter your password"
                            name="password1" required autocomplete="new-password">
-                </div>
-                <div class="form-group w-100">
+
                     <label for="password2">Confirmar password</label>
                     <input type="password" class="form-control" id="password2" placeholder="Confirmar password"
                            name="password2" required autocomplete="new-password">
-                </div>
-                {{ redirect_field }}
-                <button type="submit" class="btn btn-primary btn-block">Registrarse</button>
-            </form>
 
+                    {{ redirect_field }}
+                    <button type="submit" class="btn btn-primary mt-3" id="submit-button">
+                        Registrarse
+                    </button>
+                </div>
+            </form>
 
             <div class="d-flex align-items-center my-4">
                 <div class="flex-grow-1 border-top" style="border-color: #C3B59F; border-style: solid"></div>
                 <span class="mx-3">o</span>
                 <div class="flex-grow-1 border-top" style="border-color: #C3B59F;border-style: solid"></div>
             </div>
-
 
             <a href="{% provider_login_url 'google' %}" class="btn d-flex align-items-center justify-content-center"
                style="background-color: white; border: 1px solid #ccc; color: #333; text-decoration: none; transition: background-color 0.3s, border-color 0.3s, color 0.3s;"
@@ -58,7 +57,14 @@
                 <span>Registrate con Google</span>
             </a>
 
-
         </div>
     </div>
+
+    <script>
+        document.getElementById('signup-form').addEventListener('submit', function () {
+            var submitButton = document.getElementById('submit-button');
+            submitButton.disabled = true;
+            submitButton.innerHTML = 'Cargando...';
+        });
+    </script>
 {% endblock %}
