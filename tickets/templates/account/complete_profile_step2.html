@@ -5,13 +5,15 @@
     <div class="d-flex flex-column flex-grow-1 justify-content-center align-items-center pb-4">
         <div class="card p-4" style="max-width: 400px; width: 100%;">
             <h2 class="text-center mb-4">Completa tu perfil</h2>
-            <form method="post">
+            <form method="post" id="profileForm">
                 {% csrf_token %}
                 <div class="form-group d-flex flex-column w-100">
 
                     <!-- Phone Input -->
                     <label for="phone">Teléfono</label>
-                    <input type="text" class="form-control" id="phone" name="phone" placeholder="Ingresa tu número de teléfono" value="{{ form.phone.value|default:profile.phone }}" {% if code_sent %}disabled{% endif %}>
+                    <input type="text" class="form-control" id="phone" name="phone" placeholder="Ingresa tu número de teléfono"
+                           value="{{ form.phone.value|default:profile.phone }}"
+                           {% if code_sent %}disabled{% endif %}>  <!-- Disable if code sent -->
                     {% if form.phone.errors %}
                         <div class="text-danger">
                             {% for error in form.phone.errors %}
@@ -23,7 +25,8 @@
                     {% if code_sent %}
                         <!-- Verification Code Input -->
                         <label class="mt-3" for="code">Código de verificación</label>
-                        <input type="text" class="form-control" id="code" name="code" placeholder="Ingresa el código" value="{{ form.code.value|default:'' }}">
+                        <input type="text" class="form-control" id="code" name="code" placeholder="Ingresa el código"
+                               value="{{ form.code.value|default:'' }}">
                         {% if form.code.errors %}
                             <div class="text-danger">
                                 {% for error in form.code.errors %}
@@ -36,10 +39,18 @@
                             <div class="text-danger mt-2">{{ error_message }}</div>
                         {% endif %}
 
-                        <button type="submit" name="verify_code" class="btn btn-primary mt-3">Verificar código</button>
+                        <!-- Verify Code Button -->
+                        <input type="hidden" name="verify_code" value="1">
+                        <button id="verifyButton" type="submit" name="verify_code" class="btn btn-primary mt-3">
+                            Verificar código
+                        </button>
                         <a href="#" onclick="resendCode()" class="btn btn-link mt-2">Reenviar código</a>
                     {% else %}
-                        <button type="submit" name="send_code" class="btn btn-primary mt-3">Enviar código de verificación</button>
+                        <!-- Send Code Button -->
+                        <input type="hidden" name="send_code" value="1">
+                        <button id="sendButton" type="submit" name="send_code" class="btn btn-primary mt-3">
+                            Enviar código de verificación
+                        </button>
                     {% endif %}
                 </div>
             </form>
@@ -47,8 +58,30 @@
     </div>
 
     <script>
+        document.getElementById('profileForm').addEventListener('submit', function(event) {
+            var sendButton = document.getElementById('sendButton');
+            var verifyButton = document.getElementById('verifyButton');
+
+            if (sendButton && sendButton.name === 'send_code') {
+                sendButton.disabled = true;
+                sendButton.innerHTML = 'Enviando...';
+            }
+
+            if (verifyButton && verifyButton.name === 'verify_code') {
+                verifyButton.disabled = true;
+                verifyButton.innerHTML = 'Verificando...';
+            }
+
+        });
+
         function resendCode() {
-            document.querySelector('form').submit();
+            var sendCodeInput = document.querySelector('input[name="verify_code"]');
+            if (sendCodeInput) {
+                sendCodeInput.remove();
+            }
+            document.getElementById('profileForm').noValidate = true;
+
+            document.getElementById('profileForm').submit();
         }
     </script>
 {% endblock %}

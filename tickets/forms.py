@@ -129,7 +129,7 @@ class ProfileStep2Form(forms.ModelForm):
             .services(settings.TWILIO_VERIFY_SERVICE_SID) \
             .verifications \
             .create(to=phone, channel='sms')
-        return "verification.sid"
+        return verification.sid
 
     def verify_code(self):
         phone = self.cleaned_data['phone']

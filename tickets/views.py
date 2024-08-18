@@ -328,9 +328,11 @@ def complete_profile(request):
                     if form.verify_code():
                         profile.profile_completion = 'COMPLETE'
                         profile.save()
-                        return redirect('home')
+                        return profile_congrats(request)
                     else:
                         error_message = "Código inválido. Por favor, intenta de nuevo."
+            else:
+                form = ProfileStep2Form(request.POST, instance=profile, code_sent=True)
 
         return render(request, 'account/complete_profile_step2.html', {
             'form': form,
@@ -341,6 +343,9 @@ def complete_profile(request):
     else:
         return redirect('home')
 
+
+def profile_congrats(request):
+    return render(request, 'account/profile_congrats.html')
 
 def verification_congrats(request):
     return render(request, 'account/verification_congrats.html')
