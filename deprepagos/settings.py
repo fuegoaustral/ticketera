@@ -102,6 +102,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'utils.context_processors.current_event',
+                'utils.context_processors.app_url',
             ],
         },
     },
@@ -281,4 +282,4 @@ SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
 SOCIALACCOUNT_LOGIN_ON_GET = True
 ACCOUNT_LOGOUT_ON_GET = True
 ACCOUNT_CONFIRM_EMAIL_ON_GET = True
-ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = APP_URL.join('/accounts/verification-congrats/')
+ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = APP_URL + '/accounts/verification-congrats/'
