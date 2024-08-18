@@ -19,6 +19,7 @@ urlpatterns = [
 
     path('complete-profile/', views.complete_profile, name='complete_profile'),
     path('accounts/verification-congrats/', views.verification_congrats, name='verification_congrats'),
+    path('accounts/profile-congrats/', views.profile_congrats, name='profile_congrats'),
 
 
 ]

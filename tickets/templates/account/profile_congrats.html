@@ -1,0 +1,17 @@
+{% extends "../tickets/base.html" %}
+{% load account %}
+
+{% block content %}
+    <div class="d-flex flex-column justify-content-center align-items-center flex-grow-1 my-5">
+        <div class="text-center p-4 bg-light border rounded shadow-sm">
+            <h4 class="mb-4"> ¡Gracias por completar tu perfil! ❤️</h4>
+
+            <p class="mb-4">
+                Con tu suario podras acceder a tus bonos, y mucho más.
+            </p>
+            <a class="btn btn-primary mx-2 text-white text-decoration-none" href="{{ APP_URL }}">
+                Continuar
+            </a>
+        </div>
+    </div>
+{% endblock %}
