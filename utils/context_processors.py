@@ -1,4 +1,6 @@
+from deprepagos import settings
 from events.models import Event
+
 
 def current_event(request):
     try:
@@ -9,3 +11,8 @@ def current_event(request):
         'event': event,
     }
 
+
+def app_url(request):
+    return {
+        'APP_URL': settings.APP_URL
+    }
