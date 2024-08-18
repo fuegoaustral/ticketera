@@ -10,7 +10,7 @@ if len(sys.argv) != 2 or sys.argv[1] not in ['dev', 'prod']:
 environment = sys.argv[1]
 
 # Load the appropriate .env file based on the environment
-env_file = f".env.{environment}"
+env_file = f"env.{environment}"
 env_vars = dotenv_values(env_file)
 
 # Load zappa_settings.json

@@ -29,7 +29,7 @@ jobs:
 
       - name: Download env.dev from S3
         run: |
-          aws s3 cp s3://faprivate/envs/env.dev .env.dev
+          aws s3 cp s3://faprivate/envs/env.dev env.dev
 
       - name: Create Virtual Environment and Install dependencies
         run: |
