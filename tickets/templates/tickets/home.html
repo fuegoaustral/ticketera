@@ -11,7 +11,7 @@
             {{ event.description|safe }}
         </div>
 
-        <div class="boxes white-bg pb-7">
+        <div class="boxes white-bg py-5">
 
             {% for ticket_type in ticket_types %}
 
@@ -20,18 +20,21 @@
                         <i class="{{ ticket_type.emoji }}"></i>
                     </div>
                     <h2>{{ ticket_type.name }}</h2>
+                    <p class="text-small">${{ ticket_type.price }}</p>
                     <p class="text-small">{{ ticket_type.description }}</p>
+
                     {% load text_color %}
                     <a
-                        class="button"
-                        style="background-color: #{{ ticket_type.color }}; color: {{ ticket_type.color|text_color }}"
-                        href="{% url 'order' ticket_type_id=ticket_type.id %}{% if coupon %}?coupon={{ coupon.token }}{% endif %}"
+                            class="button"
+                            style="background-color: #{{ ticket_type.color }}; color: {{ ticket_type.color|text_color }}"
+                            href="
+                                    {% url 'order' ticket_type_id=ticket_type.id %}{% if coupon %}?coupon={{ coupon.token }}{% endif %}"
                     >
                         Comprar
                     </a>
                 </div>
 
-                {% empty %}
+            {% empty %}
 
                 <div class="box">
                     <div class="icon">
@@ -44,18 +47,18 @@
             {% endfor %}
         </div>
 
-    {% else %}
-    <div class="section">
-        <div class="boxes">
-            <div class="box white-bg">
-                <div class="icon">
-                    <i class="fa-solid fa-heart-crack"></i>
+    {% else %}public
+        <div class="section">
+            <div class="boxes">
+                <div class="box white-bg">
+                    <div class="icon">
+                        <i class="fa-solid fa-heart-crack"></i>
+                    </div>
+                    <h2>Lo sentimos</h2>
+                    <p class="text-small">No hay bonos disponibles en este momento.</p>
                 </div>
-                <h2>Lo sentimos</h2>
-                <p class="text-small">No hay bonos disponibles en este momento.</p>
             </div>
         </div>
-    </div>
     {% endif %}
 
 
@@ -70,8 +73,10 @@
             </div>
             <div class="column">
                 <p class="text-small">
-                <b>Toda creación de la comunidad en Fuego Austral o en La Sede requiere de mucho trabajo, procesos y materiales.</b></br>
-                Por eso, además de adquirir tu bono contribución de ingreso, podes colaborar con algunas de las siguientes propuestas:
+                    <b>Toda creación de la comunidad en Fuego Austral o en La Sede requiere de mucho trabajo, procesos y
+                        materiales.</b></br>
+                    Por eso, además de adquirir tu bono contribución de ingreso, podes colaborar con algunas de las
+                    siguientes propuestas:
                 </p>
             </div>
         </div>
@@ -84,7 +89,9 @@
                 </div>
                 <h2>Becas de Arte</h2>
                 <p class="text-small">Para impulsar la creatividad en nuestra ciudad temporal.</p>
-                <a class="button text-white" href="https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=2c9380847dbdc0a1017dbe5bcec20059" class="btn btn-primary text-white text-decoration-none mb-4" target="_blank">Donar</a>
+                <a class="button text-white"
+                   href="https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=2c9380847dbdc0a1017dbe5bcec20059"
+                   class="btn btn-primary text-white text-decoration-none mb-4" target="_blank">Donar</a>
             </div>
 
             <div class="box white-bg ">
@@ -93,7 +100,9 @@
                 </div>
                 <h2>Inclusión Radical</h2>
                 <p class="text-small">Para ayudar a quienes necesitan una mano con su bono contribución.</p>
-                <a class="button text-white" href="https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=2c9380847db896ff017dbe5d2afd030a" class="btn btn-primary text-white text-decoration-none mb-4" target="_blank">Donar</a>
+                <a class="button text-white"
+                   href="https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=2c9380847db896ff017dbe5d2afd030a"
+                   class="btn btn-primary text-white text-decoration-none mb-4" target="_blank">Donar</a>
             </div>
 
 
@@ -104,7 +113,9 @@
                 </div>
                 <h2>La Sede</h2>
                 <p class="text-small">Para mejorar el espacio donde nos encontramos todo el año.</p>
-                <a class="button text-white" href="https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=2c9380847dbdc0a1017dbe5e16a1005c" class="btn btn-primary text-white text-decoration-none mb-4" target="_blank">Donar</a>
+                <a class="button text-white"
+                   href="https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=2c9380847dbdc0a1017dbe5e16a1005c"
+                   class="btn btn-primary text-white text-decoration-none mb-4" target="_blank">Donar</a>
             </div>
 
         </div>
