@@ -56,37 +56,31 @@
                     <label class="text-white  mx-2">|</label>
                     <a href="{% url 'account_logout' %}" style="color: #ffffff;">Cerrar sesión</a>
                 {% else %}
-                    <a class="btn btn-primary mx-2"
-                       href="{% url 'account_login' %}"
-                       style="color: #ffffff; text-decoration: none;"
-                       onmouseover="this.style.color='#007bff';"
-                       onmouseout="this.style.color='#ffffff';">Iniciar sesión</a>
+                    <a class="btn btn-primary mx-2 text-white text-decoration-none"
+                       href="{% url 'account_login' %}">Iniciar sesión</a>
 
-                    <a class="btn btn-dark"
-                       href="{% url 'account_signup' %}"
-                       style="color: #ffffff; text-decoration: none;"
-                       onmouseover="this.style.color='#6c757d';"
-                       onmouseout="this.style.color='#ffffff';">Registrarse</a>
+                    <a class="btn btn-dark text-white text-decoration-none"
+                       href="{% url 'account_signup' %}">Registrarse</a>
                 {% endif %}
             </div>
             <div class="row">
                 <div class="col-md-3 site-branding">
-                    <a href="http://fuegoaustral.org/">
+                    <a href="{{ APP_URL }}">
                         <img src="{% static 'img/logo.svg' %}" alt="Fuego Austral" width="140">
                     </a>
                 </div>
 
                 <div class="col-md main-navigation-wrap">
                     <nav id="site-navigation" class="main-navigation">
-                        <button class="menu-toggle btn" aria-controls="primary-menu" aria-expanded="false"
-                                aria-label="Toggle navigation">
-                            <span class="navbar-toggler-icon"></span>
-                        </button>
+                        <button class="menu-toggle btn" aria-controls="primary-menu" aria-expanded="false" aria-label="Toggle navigation">
+							<span class="navbar-toggler-icon"></span>
+						</button>
                         <div class="menu-primary-container">
                             <ul id="primary-menu" class="menu">
                                 {% if user.is_authenticated %}
                                     <li>
-                                        <a class="btn btn-danger text-white" href="{{ APP_URL }}/dashboard/">Mis bonos</a>
+                                        <a class="btn btn-danger text-white" href="{{ APP_URL }}/dashboard/">Mis
+                                            bonos</a>
                                     </li>
                                 {% endif %}
                                 <li id="menu-item-18"

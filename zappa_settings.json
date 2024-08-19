@@ -20,6 +20,7 @@
         "sg-05430820583c3e497"
       ]
     },
+    "route53_enabled": false,
     "extra_permissions": [
       {
         "Effect": "Allow",

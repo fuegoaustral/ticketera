@@ -22,7 +22,7 @@
                     {% endif %}
 
                     <!-- Last Name -->
-                    <label for="last_name">Apellido</label>
+                    <label for="last_name" class="mt-3">Apellido</label>
                     <input type="text" class="form-control" id="last_name" name="last_name"
                            placeholder="Ingresa tu apellido">
                     {% if form.last_name.errors %}
@@ -34,8 +34,8 @@
                     {% endif %}
 
                     <!-- Document Type -->
-                    <label for="document_type">Tipo de documento</label>
-                    <select class="form-control" id="document_type" name="document_type">
+                    <label for="document_type" class="mt-3">Tipo de documento</label>
+                    <select class="form-control" id="document_type" name="document_type" class="mt-3">
                         <option value="DNI">DNI</option>
                         <option value="PASSPORT">Pasaporte</option>
                         <option value="OTHER">Otro</option>
@@ -49,7 +49,7 @@
                     {% endif %}
 
                     <!-- Document Number -->
-                    <label for="document_number">Numero de documento</label>
+                    <label for="document_number" class="mt-3">Numero de documento</label>
                     <input type="text" class="form-control" id="document_number" name="document_number"
                            placeholder="Ingresa tu numero de documento">
                     {% if form.document_number.errors %}
