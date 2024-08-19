@@ -47,6 +47,11 @@
         <div class="container">
             <div class="d-flex flex-row justify-content-end mt-4">
                 {% if user.is_authenticated %}
+                    {% if user.is_staff %}
+                        <a class="btn btn-success mx-2 btn-sm text-white text-decoration-none"
+                           href="{% url 'admin:index' %}">Admin | {{ user }}</a>
+
+                    {% endif %}
                     <label class="text-white">{{ user.email }}</label>
                     <label class="text-white  mx-2">|</label>
                     <a href="{% url 'account_logout' %}" style="color: #ffffff;">Cerrar sesión</a>
@@ -57,7 +62,7 @@
                        onmouseover="this.style.color='#007bff';"
                        onmouseout="this.style.color='#ffffff';">Iniciar sesión</a>
 
-                    <a class="btn btn-secondary"
+                    <a class="btn btn-dark"
                        href="{% url 'account_signup' %}"
                        style="color: #ffffff; text-decoration: none;"
                        onmouseover="this.style.color='#6c757d';"
