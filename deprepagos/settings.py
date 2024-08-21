@@ -213,6 +213,7 @@ EMAIL_HOST_PASSWORD = '1e355fb5adb1fd'
 EMAIL_PORT = '2525'
 EMAIL_USE_TLS = True
 
+#TODO move this into the event
 DONATION_AMOUNT=1
 
 DEFAULT_FROM_EMAIL = 'Fuego Austral <bonos@eventos.fuegoaustral.org>'
