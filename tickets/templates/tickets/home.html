@@ -10,7 +10,6 @@
         <div class="event-description">
             {{ event.description|safe }}
         </div>
-
         <div class="boxes white-bg py-5">
 
             {% for ticket_type in ticket_types %}
@@ -25,10 +24,9 @@
 
                     {% load text_color %}
                     <a
-                            class="button"
-                            style="background-color: #{{ ticket_type.color }}; color: {{ ticket_type.color|text_color }}"
-                            href="
-                                    {% url 'order' ticket_type_id=ticket_type.id %}{% if coupon %}?coupon={{ coupon.token }}{% endif %}"
+                            class="button btn"
+                            style="background-color: #{{ ticket_type.color }}; color: {{ ticket_type.color|text_color }};"
+                            href="{% url 'select_tickets' %}?new"
                     >
                         Comprar
                     </a>
@@ -36,7 +34,7 @@
 
             {% empty %}
 
-                <div class="box">
+                <div class=" box">
                     <div class="icon">
                         <i class="fa-solid fa-heart-crack"></i>
                     </div>

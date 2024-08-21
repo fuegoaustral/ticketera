@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import Order, Ticket, TicketTransfer, Profile
+from .models import Order, Ticket, TicketTransfer, Profile, TicketType
 from events.models import Event
 from twilio.rest import Client
 from django.conf import settings
@@ -141,3 +141,62 @@ class ProfileStep2Form(forms.ModelForm):
             .verification_checks \
             .create(to=phone, code=code)
         return verification_check.status == 'approved'
+
+
+class CheckoutTicketSelectionForm(forms.Form):
+    def __init__(self, *args, **kwargs):
+        initial_data = kwargs.pop('initial', {})
+        super(CheckoutTicketSelectionForm, self).__init__(*args, **kwargs)
+
+
+        ticket_types = TicketType.objects.get_available_ticket_types_for_current_events()
+
+        self.ticket_data = []  # Initialize an empty list to store ticket data
+
+        if ticket_types.exists():
+            for ticket_type in ticket_types:
+                field_name = f'ticket_{ticket_type.id}_quantity'
+                initial_value = initial_data.get(field_name, 0)
+
+                # Create a form field for each ticket type
+                self.fields[field_name] = forms.IntegerField(
+                    label=f"{ticket_type.name}",
+                    min_value=0,
+                    initial=initial_value
+                )
+
+                # Store ticket type and price to use in the template
+                self.ticket_data.append({
+                    'id': ticket_type.id,
+                    'name': ticket_type.name,
+                    'description': ticket_type.description,
+                    'price': ticket_type.price,
+                    'field_name': field_name,
+                    'initial_quantity': initial_value  # Pass the initial value to the template
+                })
+        else:
+            self.ticket_data = []
+
+
+class CheckoutDonationsForm(forms.Form):
+    def __init__(self, *args, **kwargs):
+        initial_data = kwargs.pop('initial', {})
+        super(CheckoutDonationsForm, self).__init__(*args, **kwargs)
+        self.fields['donation_art'] = forms.IntegerField(
+            label="Becas de Arte",
+            min_value=0,
+            initial=initial_data.get('donation_art', 0),
+            required=False
+        )
+        self.fields['donation_venue'] = forms.IntegerField(
+            label="Donaciones a La Sede",
+            min_value=0,
+            initial=initial_data.get('donation_venue', 0),
+            required=False
+        )
+        self.fields['donation_grant'] = forms.IntegerField(
+            label="Beca Inclusión Radical",
+            min_value=0,
+            initial=initial_data.get('donation_grant', 0),
+            required=False
+        )
