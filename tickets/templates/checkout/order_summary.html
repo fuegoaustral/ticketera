@@ -1,0 +1,67 @@
+{% extends "tickets/base.html" %}
+
+{% block content %}
+    <div class="d-flex flex-column justify-content-center align-items-center flex-grow-1 my-5">
+        <div class="text-center p-4 bg-light border rounded shadow-sm">
+            <h2 class="mb-4">Resumen de tu Pedido</h2>
+
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                    <tr>
+                        <th>Descripción</th>
+                        <th>Precio</th>
+                        <th>Cantidad</th>
+                        <th>Subtotal</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for ticket in ticket_data %}
+                        {% if ticket.quantity > 0 %}
+                            <tr>
+                                <td class="text-start">{{ ticket.name }}</td>
+                                <td class="text-end">${{ ticket.price|floatformat:2 }}</td>
+                                <td>{{ ticket.quantity }}</td>
+                                <td class="text-end">${{ ticket.subtotal|floatformat:2 }}</td>
+                            </tr>
+                        {% endif %}
+                    {% endfor %}
+                    {% for donation in donation_data %}
+                        {% if donation.quantity > 0 %}
+                            <tr>
+                                <td class="text-start">{{ donation.name }}</td>
+                                <td class="text-end">$1000.00</td>
+                                <td>{{ donation.quantity }}</td>
+                                <td class="text-end">${{ donation.subtotal|floatformat:2 }}</td>
+                            </tr>
+                        {% endif %}
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="d-flex form-group mt-4 justify-content-end font-weight-bold">
+                <label class="mx-2">Total:</label>
+                <span class="fw-bold">${{ total_amount|floatformat:2 }}</span>
+            </div>
+
+            <form id="payment-form" method="post" action="{% url 'order_summary' %}">
+                {% csrf_token %}
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'select_donations' %}" class="btn btn-secondary text-white text-decoration-none">Atras</a>
+                    <button type="submit" class="btn btn-primary" id="submit-button">Proceder al Pago</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        document.getElementById('payment-form').addEventListener('submit', function () {
+            // Deshabilita el botón de submit y el de back
+            document.getElementById('submit-button').disabled = true;
+            document.querySelector('a.btn-secondary').classList.add('disabled');
+            // Cambia el texto del botón de submit para indicar que está cargando
+            document.getElementById('submit-button').innerText = 'Procesando...';
+        });
+    </script>
+{% endblock %}

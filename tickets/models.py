@@ -11,6 +11,7 @@ from django.conf import settings
 from django.urls import reverse
 from django.contrib.auth.models import User
 from django.core.validators import RegexValidator
+from django.utils import timezone
 
 from auditlog.registry import auditlog
 from templated_email import InlineImage
@@ -30,11 +31,11 @@ class Coupon(BaseModel):
 
     def tickets_remaining(self):
         tickets_sold = (Order.objects
-            .filter(coupon=self)
-            .filter(status=Order.OrderStatus.CONFIRMED)
-            .annotate(num_tickets=Count('ticket'))
-            .aggregate(tickets_sold=Sum('num_tickets')
-        ))['tickets_sold'] or 0
+                        .filter(coupon=self)
+                        .filter(status=Order.OrderStatus.CONFIRMED)
+                        .annotate(num_tickets=Count('ticket'))
+                        .aggregate(tickets_sold=Sum('num_tickets')
+                                   ))['tickets_sold'] or 0
 
         try:
             return max(0, self.max_tickets - (tickets_sold or 0))
@@ -43,40 +44,47 @@ class Coupon(BaseModel):
 
 
 class TicketTypeManager(models.Manager):
+    # get all available ticket types for available events
+    def get_available_ticket_types_for_current_events(self):
+        return (self
+                .filter(event__active=True)
+                .filter(Q(date_from__lte=timezone.now()) | Q(date_from__isnull=True))
+                .filter(Q(date_to__gte=timezone.now()) | Q(date_to__isnull=True))
+                .filter(Q(ticket_count__gt=0) | Q(ticket_count__isnull=True))
+                )
+
     def get_available(self, coupon, event):
         if event.tickets_remaining() <= 0:
             return TicketType.objects.none()
 
-        ticket_types = (TicketType.objects
-            .filter(event=event)
+        # Get the current time using Django's timezone utility
+        now = timezone.now()
 
-            # filter by date
-            .filter(Q(date_from__lte=datetime.now()) | Q(date_from__isnull=True))
-            .filter(Q(date_to__gte=datetime.now()) | Q(date_to__isnull=True))
+        # Query available ticket types for the event
+        ticket_types = (self.filter(event=event)
+                        .filter(Q(date_from__lte=now) | Q(date_from__isnull=True))
+                        .filter(Q(date_to__gte=now) | Q(date_to__isnull=True))
+                        .annotate(confirmed_tickets=Count('order_tickets', filter=Q(
+            order_tickets__order__status=Order.OrderStatus.CONFIRMED)))
+                        .annotate(available_tickets=F('ticket_count') - F('confirmed_tickets'))
+                        .filter(available_tickets__gt=0))
 
-            # filter by sold out tickets
-            .annotate(confirmed_tickets=Count('order__ticket', filter=Q(order__status=Order.OrderStatus.CONFIRMED)))
-            .annotate(available_tickets=F('ticket_count') - F('confirmed_tickets'))
-            .filter(available_tickets__gt=0)
-        )
-
-        # add coupon filter
+        # Apply coupon filtering if a coupon is provided
         if coupon:
-            # block purchase if the allowed tickets for a coupon have been sold
             if coupon.tickets_remaining() <= 0:
                 return TicketType.objects.none()
 
             ticket_types = ticket_types.filter(coupon=coupon)
         else:
-            # filter the ones only for coupons
+            # Exclude ticket types that are only available with coupons
             ticket_types = ticket_types.filter(price__isnull=False, price__gt=0)
 
-        # just get the cheapest one available
+        # If event does not show multiple tickets, return the cheapest available ticket
         if not event.show_multiple_tickets:
-            try:
-                first_ticket = ticket_types.order_by('price_with_coupon' if coupon else 'price').first()
+            first_ticket = ticket_types.order_by('price_with_coupon' if coupon else 'price').first()
+            if first_ticket:
                 return ticket_types.filter(id=first_ticket.id)
-            except IndexError:
+            else:
                 return TicketType.objects.none()
 
         return ticket_types
@@ -91,8 +99,8 @@ class TicketType(BaseModel):
     name = models.CharField(max_length=100)
     description = models.TextField(max_length=2000, blank=True)
     color = models.CharField(max_length=6, default='6633ff')
-    emoji=models.CharField(max_length=255, default='🖕')
-    ticket_count=models.IntegerField()
+    emoji = models.CharField(max_length=255, default='🖕')
+    ticket_count = models.IntegerField()
 
     objects = TicketTypeManager()
 
@@ -122,27 +130,42 @@ class TicketType(BaseModel):
         return f"{self.name} ({self.event.name})"
 
 
+class OrderTicket(models.Model):
+    order = models.ForeignKey('Order', related_name='order_tickets', on_delete=models.CASCADE)
+    ticket_type = models.ForeignKey('TicketType',  related_name='order_tickets', on_delete=models.RESTRICT)
+    quantity = models.PositiveIntegerField(default=1)
+
+
 class Order(BaseModel):
     key = models.UUIDField(default=uuid.uuid4, editable=False)
+
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
     email = models.CharField(max_length=320)
     phone = models.CharField(max_length=50)
     dni = models.CharField(max_length=10)
-    donation_art = models.DecimalField('Becas de Arte $', validators=[MinValueValidator(Decimal('0'))], decimal_places=0, max_digits=10, blank=True, null=True, help_text='Para empujar la creatividad en nuestra ciudad temporal.')
-    donation_venue = models.DecimalField('Donaciones a La Sede $', validators=[MinValueValidator(Decimal('0'))], decimal_places=0, max_digits=10, blank=True, null=True, help_text='Para mejorar el espacio donde nos encontramos todo el año.')
-    donation_grant = models.DecimalField('Beca Inclusión Radical $', validators=[MinValueValidator(Decimal('0'))], decimal_places=0, max_digits=10, blank=True, null=True, help_text='Para ayudar a quienes necesitan una mano con su bono contribución.')
+    donation_art = models.DecimalField('Becas de Arte $', validators=[MinValueValidator(Decimal('0'))],
+                                       decimal_places=0, max_digits=10, blank=True, null=True,
+                                       help_text='Para empujar la creatividad en nuestra ciudad temporal.')
+    donation_venue = models.DecimalField('Donaciones a La Sede $', validators=[MinValueValidator(Decimal('0'))],
+                                         decimal_places=0, max_digits=10, blank=True, null=True,
+                                         help_text='Para mejorar el espacio donde nos encontramos todo el año.')
+    donation_grant = models.DecimalField('Beca Inclusión Radical $', validators=[MinValueValidator(Decimal('0'))],
+                                         decimal_places=0, max_digits=10, blank=True, null=True,
+                                         help_text='Para ayudar a quienes necesitan una mano con su bono contribución.')
     amount = models.DecimalField(decimal_places=2, max_digits=10)
 
     coupon = models.ForeignKey('Coupon', null=True, blank=True, on_delete=models.RESTRICT)
-    ticket_type = models.ForeignKey('TicketType', on_delete=models.RESTRICT)
 
     response = models.JSONField(null=True, blank=True)
 
     class OrderStatus(models.TextChoices):
         PENDING = 'PENDING', 'Pendiente'
+        PROCESSING = 'PROCESSING', 'Procesando'
         CONFIRMED = 'CONFIRMED', 'Confirmada'
         ERROR = 'ERROR', 'Error'
+        REFUNDED = 'REFUNDED', 'Reembolsada'
+
     status = models.CharField(
         max_length=20,
         choices=OrderStatus.choices,
@@ -187,10 +210,10 @@ class Order(BaseModel):
 
         items = []
         items.extend([{
-                    "title": self.ticket_type.name,
-                    "quantity": 1,
-                    "unit_price": ticket.price,
-                } for ticket in self.ticket_set.all() if ticket.price >0])
+            "title": self.ticket_type.name,
+            "quantity": 1,
+            "unit_price": ticket.price,
+        } for ticket in self.ticket_set.all() if ticket.price > 0])
 
         if self.donation_art:
             items.append({
@@ -219,7 +242,7 @@ class Order(BaseModel):
                 "name": self.first_name,
                 "surname": self.last_name,
                 "email": self.email,
-                "identification": { "type": "DNI", "number": self.dni },
+                "identification": {"type": "DNI", "number": self.dni},
             },
             "back_urls": {
                 "success": settings.APP_URL + reverse("payment_success_callback", kwargs={'order_key': self.key}),
@@ -274,9 +297,7 @@ class Ticket(TicketPerson, BaseModel):
     def get_absolute_url(self):
         return reverse('ticket_detail', args=(self.key,))
 
-
     def send_email(self):
-
         # img = qrcode.make(f'{settings.APP_URL}{url}')
 
         # logo = Image.open('tickets/static/img/logo.png')
@@ -320,7 +341,6 @@ class TicketTransfer(TicketPerson, BaseModel):
         self.save()
 
     def send_email(self):
-
         return send_mail(
             template_name='transfer',
             recipient_list=[self.ticket.email],
@@ -361,11 +381,12 @@ class Profile(models.Model):
     phone = models.CharField(max_length=15, validators=[RegexValidator(r'^\+?1?\d{9,15}$')])
     profile_completion = models.CharField(max_length=15, choices=PROFILE_COMPLETION_CHOICES, default=NONE)
 
-
     class Meta:
         db_table = 'users_profile'
+
     def __str__(self):
         return self.user.username
+
 
 auditlog.register(Coupon)
 auditlog.register(TicketType)
