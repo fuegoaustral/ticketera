@@ -1,0 +1,134 @@
+{% extends "tickets/base.html" %}
+
+
+
+{% block content %}
+    <div class="d-flex flex-column justify-content-center align-items-center flex-grow-1 my-5">
+        <div class="text-center p-4 bg-light border rounded shadow-sm">
+            <h2 class="mb-4">Donaciones</h2>
+            <p class="text-start">Toda creación de la comunidad en Fuego Austral o en La Sede requiere de mucho trabajo,
+                procesos y
+                materiales. Por eso, además de adquirir tu bono contribución de ingreso, podes colaborar con algunas de
+                las
+                siguientes propuestas:</p>
+
+            <form method="post" action="{% url 'select_donations' %}">
+                {% csrf_token %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                        <tr>
+                            <th>Tipo de Donación</th>
+                            <th>Monto por unidad</th>
+                            <th>Cantidad</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td class="text-start">Becas de Arte
+                                <br>
+                                <span style="font-size: 0.85em; color: #666;">Para empujar la creatividad en nuestra ciudad temporal.</span>
+                            </td>
+                            <td>${{ DONATION_AMOUNT }}</td>
+                            <td>
+                                <button type="button" class="btn btn-info"
+                                        onclick="updateDonationQuantity('art', -1)">-
+                                </button>
+                                <input type="text" id="donation_art_quantity"
+                                       name="donation_art" value="{{ form.donation_art.value|default:0 }}"
+                                       class="form-control d-inline-block mx-2 text-center" style="width: 50px;"
+                                       readonly>
+                                <button type="button" class="btn btn-info"
+                                        onclick="updateDonationQuantity('art', 1)">+
+                                </button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-start">Beca Inclusión Radical<br>
+                                <span style="font-size: 0.85em; color: #666;">Para ayudar a quienes necesitan una mano con su bono contribución.</span>
+                            </td>
+                            <td>${{ DONATION_AMOUNT }}</td>
+                            <td>
+                                <button type="button" class="btn btn-info"
+                                        onclick="updateDonationQuantity('grant', -1)">-
+                                </button>
+                                <input type="text" id="donation_grant_quantity"
+                                       name="donation_grant" value="{{ form.donation_grant.value|default:0 }}"
+                                       class="form-control d-inline-block mx-2 text-center" style="width: 50px;"
+                                       readonly>
+                                <button type="button" class="btn btn-info"
+                                        onclick="updateDonationQuantity('grant', 1)">+
+                                </button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-start">Donaciones a La Sede
+                                <br>
+                                <span style="font-size: 0.85em; color: #666;">Para mejorar el espacio donde nos encontramos todo el año.</span>
+                            </td>
+                            <td>${{ DONATION_AMOUNT }}</td>
+                            <td>
+                                <button type="button" class="btn btn-info"
+                                        onclick="updateDonationQuantity('venue', -1)">-
+                                </button>
+                                <input type="text" id="donation_venue_quantity"
+                                       name="donation_venue" value="{{ form.donation_venue.value|default:0 }}"
+                                       class="form-control d-inline-block mx-2 text-center" style="width: 50px;"
+                                       readonly>
+                                <button type="button" class="btn btn-info"
+                                        onclick="updateDonationQuantity('venue', 1)">+
+                                </button>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="d-flex form-group mt-4 justify-content-end font-weight-bold">
+                    <label class="mx-2">Total Donaciones:</label>
+                    <span id="total_donations" class="fw-bold">$0.00</span>
+                </div>
+
+                <div class="d-flex  {% if ticket_data %}justify-content-between{% else %}justify-content-end{% endif %}">
+
+                    {% if ticket_data %}
+                        <a href="{% url 'select_tickets' %}"
+                           class="btn btn-secondary text-white text-decoration-none">Atras</a>
+                    {% endif %}
+                    <button type="submit" class="btn btn-primary self-align-end">Continuar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        const donationAmount = {{ DONATION_AMOUNT }};
+
+        function updateDonationQuantity(type, increment) {
+            var quantityInput = document.getElementById('donation_' + type + '_quantity');
+            var currentValue = parseInt(quantityInput.value);
+            var newValue = currentValue + increment;
+
+            if (newValue >= 0) {
+                quantityInput.value = newValue;
+                calculateTotalDonations();
+            }
+        }
+
+        function calculateTotalDonations() {
+            var total = 0;
+
+            var artQuantity = parseInt(document.getElementById('donation_art_quantity').value);
+            var venueQuantity = parseInt(document.getElementById('donation_venue_quantity').value);
+            var grantQuantity = parseInt(document.getElementById('donation_grant_quantity').value);
+
+            total += (artQuantity + venueQuantity + grantQuantity) * donationAmount;
+
+            document.getElementById('total_donations').innerText = '$' + total.toFixed(2);
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            calculateTotalDonations();
+        });
+    </script>
+{% endblock %}

@@ -16,3 +16,8 @@ def app_url(request):
     return {
         'APP_URL': settings.APP_URL
     }
+
+def donation_amount(request):
+    return {
+        'DONATION_AMOUNT': settings.DONATION_AMOUNT
+    }
