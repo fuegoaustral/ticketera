@@ -1,10 +1,48 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
+
+from events.models import Event
 from tickets.forms import ProfileStep1Form, ProfileStep2Form
+from tickets.models import NewTicket, NewTicketTransfer
+
 
 @login_required
 def dashboard_view(request):
-    return render(request, 'dashboard/protected_page.html')
+    event = Event.objects.get(active=True)
+    tickets = NewTicket.objects.filter(holder=request.user, event=event)
+
+    tickets_dto = []
+
+    for ticket in tickets:
+        transfer_pending = NewTicketTransfer.objects.filter(ticket=ticket, tx_from=request.user,
+                                                            status='PENDING').first()
+        tickets_dto.append({
+            'key': ticket.key,
+            'order': ticket.order.key,
+            'ticket_type': ticket.ticket_type.name,
+            'ticket_color': ticket.ticket_type.color,
+            'price': ticket.ticket_type.price,
+            'is_transfer_pending': transfer_pending is not None,
+            'transferring_to': transfer_pending.tx_to_email if transfer_pending else None,
+            'is_owners': ticket.holder == ticket.owner,
+            'volunteer_ranger': ticket.volunteer_ranger,
+            'volunteer_transmutator': ticket.volunteer_transmutator,
+            'volunteer_umpalumpa': ticket.volunteer_umpalumpa,
+        })
+
+    # Check if any ticket is not owned by the current user
+    has_unassigned_tickets = any(ticket['is_owners'] is False for ticket in tickets_dto)
+
+    # Check if any ticket has a transfer pending
+    has_transfer_pending = any(ticket['is_transfer_pending'] is True for ticket in tickets_dto)
+
+    return render(request, 'mi_fuego/mis_bonos.html', {
+        'has_unassigned_tickets': has_unassigned_tickets,
+        'has_transfer_pending': has_transfer_pending,
+        'tickets_dto': tickets_dto,
+        'event': event
+    })
+
 
 @login_required
 def complete_profile(request):
@@ -54,8 +92,10 @@ def complete_profile(request):
     else:
         return redirect('home')
 
+
 def profile_congrats(request):
     return render(request, 'account/profile_congrats.html')
+
 
 @login_required
 def verification_congrats(request):

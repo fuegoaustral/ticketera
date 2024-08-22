@@ -12,6 +12,7 @@ from tickets.models import Event, TicketType, Order, OrderTicket
 from tickets.forms import CheckoutTicketSelectionForm, CheckoutDonationsForm
 from .utils import available_tickets_for_user
 
+
 @login_required
 def select_tickets(request):
     event = Event.objects.get(active=True)
@@ -43,6 +44,7 @@ def select_tickets(request):
         'tickets_remaining': tickets_remaining
     })
 
+
 @login_required
 def select_donations(request):
     if 'new' in request.GET or request.session.get('order_sid') is None:
@@ -63,6 +65,7 @@ def select_donations(request):
         'form': form,
         'ticket_selection': request.session.get('ticket_selection', None),
     })
+
 
 @login_required
 def order_summary(request):
@@ -148,6 +151,8 @@ def order_summary(request):
                 donation_art=donations.get('donation_art', 0) * donation_amount,
                 donation_venue=donations.get('donation_venue', 0) * donation_amount,
                 donation_grant=donations.get('donation_grant', 0) * donation_amount,
+                event=event,
+                user=request.user,
             )
             order.save()
 

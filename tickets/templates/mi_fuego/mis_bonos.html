@@ -1,0 +1,84 @@
+{% extends "../tickets/base.html" %}
+
+
+{% block content %}
+
+    <div class="text-center p-4 bg-light border rounded shadow-sm">
+        <h2 class="mb-4">Mis bonos para {{ event.name }}</h2>
+
+        {% if has_unassigned_tickets or has_transfer_pending %}
+            <div class="alert alert-warning">
+                Tenés
+                {% if has_unassigned_tickets %}
+                    bonos sin asignar,{% if has_transfer_pending %} y{% endif %}
+                {% endif %}
+                {% if has_transfer_pending %}
+                    {% if not has_unassigned_tickets %}bonos{% endif %} que todavía no fueron aceptados,
+                {% endif %}
+                acordate que tenés tiempo para transferirlos hasta
+                <strong>{{ event.transfers_enabled_until|date:"d/m H:i" }}</strong>.
+            </div>
+        {% endif %}
+
+
+        <div class="row">
+            {% for ticket in tickets_dto %}
+                <div class="col-12 mb-4">
+                    <div class="shadow rounded border border-success p-3 {% if ticket.is_owners %}text-white{% endif %}"
+                         style="background-color: {% if ticket.is_owners %}#6cbf6c{% else %}#e9ecef{% endif %};">
+                        <div class="card-body">
+                            <div class="d-flex flex-row justify-content-between align-items-top">
+                                <div class="d-flex flex-column">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                    <span class="badge"
+                                          style="background-color: #{{ ticket.ticket_color }}">{{ ticket.ticket_type }}</span>
+                                            {% if ticket.is_owners %}
+
+                                                {% if ticket.volunteer_ranger %}
+                                                    <span class="badge bg-primary">Ranger</span>
+                                                {% endif %}
+                                                {% if ticket.volunteer_transmutator %}
+                                                    <span class="badge bg-info">Transmutator</span>
+                                                {% endif %}
+                                                {% if ticket.volunteer_umpalumpa %}
+                                                    <span class="badge bg-warning text-dark">Umpalumpa</span>
+                                                {% endif %}
+
+                                            {% else %}
+                                                {% if ticket.is_transfer_pending %}
+                                                    <span class="badge bg-danger">Invitacion pendiente a <strong>{{ ticket.transferring_to }}</strong> </span>
+                                                {% else %}
+                                                    <span class="badge bg-danger">Sin asignar</span>
+                                                {% endif %}
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+
+                                    <div class="d-flex mt-3 text-start">
+                                        <div class="small"><strong>Bono:</strong> {{ ticket.order }}</div>
+                                    </div>
+                                </div>
+                                <div class="d-flex flex-column justify-content-center gap-2">
+                                    {% if ticket.is_owners %}
+                                        <a class="btn btn-sm btn-primary text-white text-decoration-none">Quiero ser
+                                            voluntario</a>
+                                        <a class="btn btn-sm btn-danger text-white text-decoration-none">Desasignar
+                                            bono</a>
+                                    {% elif ticket.is_transfer_pending %}
+                                        <a class="btn btn-sm btn-warning text-white text-decoration-none">Cancelar invitacion</a>
+                                    {% else %}
+                                        <a class="btn btn-sm btn-success text-white text-decoration-none">Transferir
+                                            bono</a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+{% endblock %}

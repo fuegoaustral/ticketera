@@ -132,7 +132,7 @@ class TicketType(BaseModel):
 
 class OrderTicket(models.Model):
     order = models.ForeignKey('Order', related_name='order_tickets', on_delete=models.CASCADE)
-    ticket_type = models.ForeignKey('TicketType',  related_name='order_tickets', on_delete=models.RESTRICT)
+    ticket_type = models.ForeignKey('TicketType', related_name='order_tickets', on_delete=models.RESTRICT)
     quantity = models.PositiveIntegerField(default=1)
 
 
@@ -158,6 +158,8 @@ class Order(BaseModel):
     coupon = models.ForeignKey('Coupon', null=True, blank=True, on_delete=models.RESTRICT)
 
     response = models.JSONField(null=True, blank=True)
+    event = models.ForeignKey(Event, null=True, blank=True, on_delete=models.RESTRICT)
+    user = models.ForeignKey(User, null=True, blank=True, on_delete=models.RESTRICT)
 
     class OrderStatus(models.TextChoices):
         PENDING = 'PENDING', 'Pendiente'
@@ -172,6 +174,12 @@ class Order(BaseModel):
         default=OrderStatus.PENDING
     )
 
+    def total_ticket_types(self):
+        return self.order_tickets.count()
+
+    def total_order_tickets(self):
+        return self.order_tickets.aggregate(total=Sum('quantity'))['total']
+
     def get_resource_url(self):
         return reverse('order_detail', kwargs={'order_key': self.key})
 
@@ -183,14 +191,16 @@ class Order(BaseModel):
         super(Order, self).save()
         logging.info(f'Order {self.id} saved with status {self.status}')
         logging.info(f'Old status was {self._old_status}')
-        if self._old_status != Order.OrderStatus.CONFIRMED and self.status == Order.OrderStatus.CONFIRMED:
-            logging.info(f'Order {self.id} confirmed')
-            self.send_confirmation_email()
-            logging.info(f'Order {self.id} confirmation email sent')
-            for ticket in self.ticket_set.all():
-                logging.info(f'Order {self.id} ticket {ticket.id} created')
-                ticket.send_email()
-                logging.info(f'Order {self.id} ticket {ticket.id} email sent')
+
+        # TODO: review this according to the new ticket model
+        # if self._old_status != Order.OrderStatus.CONFIRMED and self.status == Order.OrderStatus.CONFIRMED:
+        #     logging.info(f'Order {self.id} confirmed')
+        #     self.send_confirmation_email()
+        #     logging.info(f'Order {self.id} confirmation email sent')
+        #     for ticket in self.ticket_set.all():
+        #         logging.info(f'Order {self.id} ticket {ticket.id} created')
+        #         ticket.send_email()
+        #         logging.info(f'Order {self.id} ticket {ticket.id} email sent')
 
     def send_confirmation_email(self):
         send_mail(
@@ -261,6 +271,29 @@ class Order(BaseModel):
 
     def __str__(self):
         return f'#{self.pk} {self.last_name}'
+
+
+class NewTicket(models.Model):
+    key = models.UUIDField(default=uuid.uuid4, editable=False)
+    event = models.ForeignKey(Event, on_delete=models.CASCADE)
+    order = models.ForeignKey('Order', on_delete=models.CASCADE)
+    ticket_type = models.ForeignKey('TicketType', on_delete=models.CASCADE)
+    owner = models.ForeignKey(User, related_name='owned_tickets', null=True, blank=True, on_delete=models.SET_NULL)
+    holder = models.ForeignKey(User, related_name='held_tickets', on_delete=models.CASCADE)
+
+    volunteer_ranger = models.BooleanField('Rangers', null=True, blank=True,)
+    volunteer_transmutator = models.BooleanField('Transmutadores', null=True, blank=True,)
+    volunteer_umpalumpa = models.BooleanField('CAOS (Desarme de la Ciudad)', null=True, blank=True,)
+
+
+class NewTicketTransfer(models.Model):
+    ticket = models.ForeignKey(NewTicket, on_delete=models.CASCADE)
+    tx_from = models.ForeignKey(User, related_name='transferred_tickets', null=True, blank=True,
+                                on_delete=models.CASCADE)
+    tx_to = models.ForeignKey(User, related_name='received_tickets', null=True, blank=True, on_delete=models.CASCADE)
+    tx_to_email = models.CharField(max_length=320)
+    TRANSFER_STATUS = (('PENDING', 'Pendiente'), ('CONFIRMED', 'Confirmado'), ('CANCELLED', 'Cancelado'))
+    status = models.CharField(max_length=10, choices=TRANSFER_STATUS, default='PENDING')
 
 
 class TicketPerson(models.Model):

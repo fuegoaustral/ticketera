@@ -24,7 +24,7 @@ urlpatterns = [
     path('ticket/<str:transfer_key>/confirmed', ticket.ticket_transfer_confirmed, name='ticket_transfer_confirmed'),
 
     # Profile related paths
-    path('dashboard/', profile.dashboard_view, name='dashboard'),
+    path('mi-fuego/', profile.dashboard_view, name='mi_fuego'),
     path('complete-profile/', profile.complete_profile, name='complete_profile'),
     path('accounts/verification-congrats/', profile.verification_congrats, name='verification_congrats'),
     path('accounts/profile-congrats/', profile.profile_congrats, name='profile_congrats'),
