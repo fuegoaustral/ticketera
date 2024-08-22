@@ -16,7 +16,7 @@
                     {% if not has_unassigned_tickets %}bonos{% endif %} que todavía no fueron aceptados,
                 {% endif %}
                 acordate que tenés tiempo para transferirlos hasta
-                <strong>{{ event.transfers_enabled_until|date:"d/m H:i" }}</strong>.
+                <strong>{{ event.transfers_enabled_until|date:"d/m" }}</strong>.
             </div>
         {% endif %}
 
@@ -34,7 +34,7 @@
                                     <span class="badge"
                                           style="background-color: #{{ ticket.ticket_color }}">{{ ticket.ticket_type }}</span>
                                             {% if ticket.is_owners %}
-
+                                                <span class="badge bg-dark">Mi bono</span>
                                                 {% if ticket.volunteer_ranger %}
                                                     <span class="badge bg-primary">Ranger</span>
                                                 {% endif %}
@@ -57,7 +57,7 @@
 
 
                                     <div class="d-flex mt-3 text-start">
-                                        <div class="small"><strong>Bono:</strong> {{ ticket.order }}</div>
+                                        <div class="small"><strong>Bono:</strong> {{ ticket.key }}</div>
                                     </div>
                                 </div>
                                 <div class="d-flex flex-column justify-content-center gap-2">

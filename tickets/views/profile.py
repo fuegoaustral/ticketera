@@ -7,7 +7,7 @@ from tickets.models import NewTicket, NewTicketTransfer
 
 
 @login_required
-def dashboard_view(request):
+def my_tickets_view(request):
     event = Event.objects.get(active=True)
     tickets = NewTicket.objects.filter(holder=request.user, event=event)
 
@@ -29,6 +29,7 @@ def dashboard_view(request):
             'volunteer_transmutator': ticket.volunteer_transmutator,
             'volunteer_umpalumpa': ticket.volunteer_umpalumpa,
         })
+    tickets_dto = sorted(tickets_dto, key=lambda x: not x['is_owners'])
 
     # Check if any ticket is not owned by the current user
     has_unassigned_tickets = any(ticket['is_owners'] is False for ticket in tickets_dto)
