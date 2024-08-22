@@ -28,16 +28,23 @@ def my_tickets_view(request):
             'volunteer_ranger': ticket.volunteer_ranger,
             'volunteer_transmutator': ticket.volunteer_transmutator,
             'volunteer_umpalumpa': ticket.volunteer_umpalumpa,
+            'qr_code': ticket.generate_qr_code(),
         })
     tickets_dto = sorted(tickets_dto, key=lambda x: not x['is_owners'])
 
     # Check if any ticket is not owned by the current user
     has_unassigned_tickets = any(ticket['is_owners'] is False for ticket in tickets_dto)
 
+    has_assigned_tickets = any(ticket['is_owners'] is True for ticket in tickets_dto)
+
+    is_volunteer = any(ticket['is_owners'] is True and (ticket['volunteer_ranger'] or ticket['volunteer_transmutator'] or ticket['volunteer_umpalumpa']) for ticket in tickets_dto)
+
     # Check if any ticket has a transfer pending
     has_transfer_pending = any(ticket['is_transfer_pending'] is True for ticket in tickets_dto)
 
     return render(request, 'mi_fuego/mis_bonos.html', {
+        'is_volunteer': is_volunteer,
+        'has_assigned_tickets': has_assigned_tickets,
         'has_unassigned_tickets': has_unassigned_tickets,
         'has_transfer_pending': has_transfer_pending,
         'tickets_dto': tickets_dto,
