@@ -61,6 +61,7 @@ def select_donations(request):
 
     return render(request, 'checkout/select_donations.html', {
         'form': form,
+        'ticket_selection': request.session.get('ticket_selection', None),
     })
 
 @login_required
