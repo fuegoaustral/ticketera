@@ -52,8 +52,6 @@
             padding: 1rem;
             position: relative;
         }
-
-
     </style>
     <div class="text-center p-4 bg-light border rounded shadow-sm">
         <h2 class="mb-4">Mis bonos para {{ event.name }}</h2>
@@ -106,10 +104,12 @@
                                                     </div>
                                                 </div>
 
-                                                <div class="m-4 border rounded shadow-sm bg-white">
-                                                    <div class="pt-2 small fw-bold text-black "
+                                                <div class="m-4 pt-2 border rounded shadow-sm bg-white">
+                                                    <img src="data:image/png;base64,{{ ticket.qr_code }}"
+                                                         alt="QR Code">
+
+                                                    <div class="small fw-bold text-black pb-2"
                                                          style="font-size:10px">{{ ticket.key }}</div>
-                                                    <img src="data:image/png;base64,{{ ticket.qr_code }}" alt="QR Code">
                                                 </div>
 
                                                 <div class="d-flex flex-row justify-content-end gap-2"
@@ -138,7 +138,7 @@
                                         <br><br>
                                         <div class=" text-center">
                                             <a class="btn btn-sm btn-primary text-white text-decoration-none">Quiero ser
-                                            voluntario</a>
+                                                voluntario</a>
                                         </div>
 
                                     </div>
@@ -150,22 +150,43 @@
                 {% endfor %}
             </div>
         {% endif %}
+
+        {% if has_assigned_tickets and has_unassigned_tickets %}
+            <hr class="my-4" style="border-top: 1px solid">
+        {% endif %}
+
         {% if has_unassigned_tickets %}
             <!-- Sección: Bonos para transferir -->
             <h4 class="d-flex text-start mt-4">Bonos para transferir</h4>
-            <div class="row">
+            <div class="d-flex justify-content-end">
+                <div class="btn-group mb-3" role="group" aria-label="Filtros">
+                    <button type="button" id="btn-all" class="btn btn-sm btn-primary"
+                            onclick="filterTickets('all', this)">Todos
+                    </button>
+                    <button type="button" id="btn-pending" class="btn btn-sm btn-outline-warning"
+                            onclick="filterTickets('pending', this)">
+                        Pendientes
+                    </button>
+                    <button type="button" id="btn-not-pending" class="btn btn-sm btn-outline-danger"
+                            onclick="filterTickets('not-pending', this)">
+                        Sin Asignar
+                    </button>
+                </div>
+
+            </div>
+            <div class="row" id="transfer-tickets">
                 {% for ticket in tickets_dto %}
                     {% if not ticket.is_owners %}
-                        <div class="col-lg-3 col-sm-12 mb-4">
-                            <div class="shadow rounded border border-secondary p-3"
-                                 style="background-color: #e9ecef;">
+                        <div class="col-lg-3 col-sm-12 mb-4 ticket-card
+                {% if ticket.is_transfer_pending %}pending{% else %}not-pending{% endif %}">
+                            <div class="shadow rounded border border-secondary p-3" style="background-color: #e9ecef;">
                                 <div class="card-body">
                                     <div class="d-flex flex-column justify-content-between align-items-top">
                                         <div class="d-flex flex-column">
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <div>
-                                                <span class="badge"
-                                                      style="background-color: #{{ ticket.ticket_color }}">{{ ticket.ticket_type }}</span>
+                                                    <span class="badge"
+                                                          style="background-color: #{{ ticket.ticket_color }}">{{ ticket.ticket_type }}</span>
                                                     {% if ticket.is_transfer_pending %}
                                                         <span class="badge bg-danger">Invitacion pendiente a <strong>{{ ticket.transferring_to }}</strong> </span>
                                                     {% else %}
@@ -174,11 +195,12 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="m-4 border rounded shadow-sm bg-white">
-                                            <div class="pt-2 small fw-bold bg-white text-black"
-                                                 style="font-size:10px">{{ ticket.key }}</div>
+                                        <div class="m-4 pt-2 border rounded shadow-sm bg-white">
                                             <img src="data:image/png;base64,{{ ticket.qr_code }}" alt="QR Code">
+                                            <div class="small fw-bold text-black pb-2"
+                                                 style="font-size:10px">{{ ticket.key }}</div>
                                         </div>
+
                                         <div class="d-flex flex-row justify-content-end gap-2" style="min-width: 180px">
                                             {% if not has_assigned_tickets %}
                                                 <a class="btn btn-sm btn-success text-white text-decoration-none">Asignarmelo</a>
@@ -198,4 +220,51 @@
             </div>
         {% endif %}
     </div>
+    <script>
+        function filterTickets(filter, btn) {
+            const tickets = document.querySelectorAll('.ticket-card');
+            const buttons = document.querySelectorAll('.btn-group .btn');
+
+            // Filter tickets
+            tickets.forEach(ticket => {
+                if (filter === 'all') {
+                    ticket.style.display = 'block';
+                } else if (filter === 'pending' && ticket.classList.contains('pending')) {
+                    ticket.style.display = 'block';
+                } else if (filter === 'not-pending' && ticket.classList.contains('not-pending')) {
+                    ticket.style.display = 'block';
+                } else {
+                    ticket.style.display = 'none';
+                }
+            });
+
+            // Update button styles
+            buttons.forEach(button => {
+                // Reset all buttons to outlined style
+                if (button.id === 'btn-all') {
+                    button.classList.add('btn-outline-primary');
+                    button.classList.remove('btn-primary');
+                } else if (button.id === 'btn-pending') {
+                    button.classList.add('btn-outline-warning');
+                    button.classList.remove('btn-warning');
+                } else if (button.id === 'btn-not-pending') {
+                    button.classList.add('btn-outline-danger');
+                    button.classList.remove('btn-danger');
+                }
+            });
+
+            // Apply solid color to the selected button
+            if (filter === 'all') {
+                btn.classList.remove('btn-outline-primary');
+                btn.classList.add('btn-primary');
+            } else if (filter === 'pending') {
+                btn.classList.remove('btn-outline-warning');
+                btn.classList.add('btn-warning');
+            } else if (filter === 'not-pending') {
+                btn.classList.remove('btn-outline-danger');
+                btn.classList.add('btn-danger');
+            }
+        }
+    </script>
 {% endblock %}
+
