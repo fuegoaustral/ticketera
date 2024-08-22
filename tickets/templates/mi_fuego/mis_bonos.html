@@ -7,7 +7,6 @@
 
         .rainbow-border {
             --borderWidth: 1px; /* Set border width to 1px */
-
             position: relative;
             overflow: hidden;
             padding: 1rem;
@@ -21,7 +20,7 @@
             left: calc(-1 * var(--borderWidth));
             height: calc(100% + var(--borderWidth) * 2);
             width: calc(100% + var(--borderWidth) * 2);
-            background: linear-gradient(60deg,
+            background: linear-gradient(45deg,
             #fd004c 16.66%,
             #fe9000 33.33%,
             #fff020 50%,
@@ -30,8 +29,8 @@
             #b102b7 100%);
             border-radius: calc(5px + var(--borderWidth));
             z-index: -1;
-            animation: animatedgradient 6s ease alternate infinite;
-            background-size: 300% 300%;
+            animation: animatedgradient 4s linear alternate infinite;
+            background-size: 150% 150%;
         }
 
         @keyframes animatedgradient {
@@ -47,7 +46,7 @@
         }
 
         .rainbow-border .card-body {
-            background-color: #60af50; /* Card background color */
+
             z-index: 1; /* Ensure content is above all borders */
             padding: 1rem;
             position: relative;
@@ -80,31 +79,32 @@
                     {% if ticket.is_owners %}
                         <div class="d-flex flex-column align-items-center">
                             <div class="col-lg-3 col-sm-12 mb-4">
-                                <div class="shadow rounded bg-black text-white rainbow-border"
-                                     style="padding: 4px">
-                                    <div>
+                                <div class="rounded" style="border : 2px solid #000000;">
+                                    <div class="shadow rounded bg-black text-white rainbow-border" style="padding: 4px">
+
                                         <div class="card-body">
                                             <div class="d-flex flex-column justify-content-between align-items-top">
                                                 <div class="d-flex flex-column">
                                                     <div class="d-flex justify-content-between align-items-center">
-                                                        <div>
-                                                <span class="badge"
-                                                      style="background-color: #{{ ticket.ticket_color }}">{{ ticket.ticket_type }}</span>
-                                                            <span class="badge bg-dark">Mi bono</span>
-                                                            {% if ticket.volunteer_ranger %}
-                                                                <span class="badge bg-primary">Ranger</span>
-                                                            {% endif %}
-                                                            {% if ticket.volunteer_transmutator %}
-                                                                <span class="badge bg-info">Transmutator</span>
-                                                            {% endif %}
-                                                            {% if ticket.volunteer_umpalumpa %}
-                                                                <span class="badge bg-warning text-dark">Umpalumpa</span>
-                                                            {% endif %}
-                                                        </div>
+                                                        {% if ticket.volunteer_ranger %}
+                                                            <span class="badge bg-primary">Ranger</span>
+                                                        {% endif %}
+                                                        {% if ticket.volunteer_transmutator %}
+                                                            <span class="badge bg-info">Transmutator</span>
+                                                        {% endif %}
+                                                        {% if ticket.volunteer_umpalumpa %}
+                                                            <span class="badge bg-warning text-dark">Umpalumpa</span>
+                                                        {% endif %}
                                                     </div>
+
                                                 </div>
 
                                                 <div class="m-4 pt-2 border rounded shadow-sm bg-white">
+
+                                                    <div class="small fw-bold text-black">
+                                                        {{ event.name }}{{ ticket.emoji }}</div>
+                                                     <span class="badge"
+                                                                  style="background-color: #{{ ticket.ticket_color }}">{{ ticket.ticket_type }}</span>
                                                     <img src="data:image/png;base64,{{ ticket.qr_code }}"
                                                          alt="QR Code">
 
@@ -119,10 +119,10 @@
                                                         bono</a>
                                                 </div>
                                             </div>
+
                                         </div>
                                     </div>
                                 </div>
-
                             </div>
                             {% if  not is_volunteer %}
                                 <div class="col-lg-8 align-center">
@@ -185,8 +185,6 @@
                                         <div class="d-flex flex-column">
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <div>
-                                                    <span class="badge"
-                                                          style="background-color: #{{ ticket.ticket_color }}">{{ ticket.ticket_type }}</span>
                                                     {% if ticket.is_transfer_pending %}
                                                         <span class="badge bg-danger">Invitacion pendiente a <strong>{{ ticket.transferring_to }}</strong> </span>
                                                     {% else %}
@@ -196,6 +194,10 @@
                                             </div>
                                         </div>
                                         <div class="m-4 pt-2 border rounded shadow-sm bg-white">
+                                            <div class="small fw-bold text-black">
+                                                {{ event.name }}{{ ticket.emoji }}</div>
+                                             <span class="badge"
+                                                                  style="background-color: #{{ ticket.ticket_color }}">{{ ticket.ticket_type }}</span>
                                             <img src="data:image/png;base64,{{ ticket.qr_code }}" alt="QR Code">
                                             <div class="small fw-bold text-black pb-2"
                                                  style="font-size:10px">{{ ticket.key }}</div>

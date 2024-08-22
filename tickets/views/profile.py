@@ -21,6 +21,7 @@ def my_tickets_view(request):
             'order': ticket.order.key,
             'ticket_type': ticket.ticket_type.name,
             'ticket_color': ticket.ticket_type.color,
+            'emoji': ticket.ticket_type.emoji,
             'price': ticket.ticket_type.price,
             'is_transfer_pending': transfer_pending is not None,
             'transferring_to': transfer_pending.tx_to_email if transfer_pending else None,
