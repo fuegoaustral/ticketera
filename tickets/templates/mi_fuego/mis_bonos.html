@@ -2,83 +2,200 @@
 
 
 {% block content %}
+    <style>
+        @import url('https://fonts.googleapis.com/css?family=Raleway:200');
 
+        .rainbow-border {
+            --borderWidth: 1px; /* Set border width to 1px */
+
+            position: relative;
+            overflow: hidden;
+            padding: 1rem;
+            z-index: 1; /* Ensure content is above the borders */
+        }
+
+        .rainbow-border:after {
+            content: '';
+            position: absolute;
+            top: calc(-1 * var(--borderWidth));
+            left: calc(-1 * var(--borderWidth));
+            height: calc(100% + var(--borderWidth) * 2);
+            width: calc(100% + var(--borderWidth) * 2);
+            background: linear-gradient(60deg,
+            #fd004c 16.66%,
+            #fe9000 33.33%,
+            #fff020 50%,
+            #3edf4b 66.66%,
+            #3363ff 83.33%,
+            #b102b7 100%);
+            border-radius: calc(5px + var(--borderWidth));
+            z-index: -1;
+            animation: animatedgradient 6s ease alternate infinite;
+            background-size: 300% 300%;
+        }
+
+        @keyframes animatedgradient {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .rainbow-border .card-body {
+            background-color: #60af50; /* Card background color */
+            z-index: 1; /* Ensure content is above all borders */
+            padding: 1rem;
+            position: relative;
+        }
+
+
+    </style>
     <div class="text-center p-4 bg-light border rounded shadow-sm">
         <h2 class="mb-4">Mis bonos para {{ event.name }}</h2>
 
         {% if has_unassigned_tickets or has_transfer_pending %}
-            <div class="alert alert-warning">
-                Tenés
-                {% if has_unassigned_tickets %}
-                    bonos sin asignar,{% if has_transfer_pending %} y{% endif %}
-                {% endif %}
-                {% if has_transfer_pending %}
-                    {% if not has_unassigned_tickets %}bonos{% endif %} que todavía no fueron aceptados,
-                {% endif %}
-                acordate que tenés tiempo para transferirlos hasta
-                <strong>{{ event.transfers_enabled_until|date:"d/m" }}</strong>.
+            <div class="col-12">
+                <div class="alert alert-warning">
+                    Tenés
+                    {% if has_unassigned_tickets %}
+                        bonos sin asignar,{% if has_transfer_pending %} y{% endif %}
+                    {% endif %}
+                    {% if has_transfer_pending %}
+                        {% if not has_unassigned_tickets %}bonos{% endif %} que todavía no
+                        fueron aceptados,
+                    {% endif %}
+                    acordate que tenés tiempo para transferirlos hasta
+                    <strong>{{ event.transfers_enabled_until|date:"d/m" }}</strong>.
+                </div>
             </div>
         {% endif %}
 
+        {% if has_assigned_tickets %}
+            <h4 class="d-flex mt-4 text-start">Mi bono</h4>
+            <div class="row justify-content-center">
+                {% for ticket in tickets_dto %}
+                    {% if ticket.is_owners %}
+                        <div class="d-flex flex-column align-items-center">
+                            <div class="col-lg-3 col-sm-12 mb-4">
+                                <div class="shadow rounded bg-black text-white rainbow-border"
+                                     style="padding: 4px">
+                                    <div>
+                                        <div class="card-body">
+                                            <div class="d-flex flex-column justify-content-between align-items-top">
+                                                <div class="d-flex flex-column">
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <div>
+                                                <span class="badge"
+                                                      style="background-color: #{{ ticket.ticket_color }}">{{ ticket.ticket_type }}</span>
+                                                            <span class="badge bg-dark">Mi bono</span>
+                                                            {% if ticket.volunteer_ranger %}
+                                                                <span class="badge bg-primary">Ranger</span>
+                                                            {% endif %}
+                                                            {% if ticket.volunteer_transmutator %}
+                                                                <span class="badge bg-info">Transmutator</span>
+                                                            {% endif %}
+                                                            {% if ticket.volunteer_umpalumpa %}
+                                                                <span class="badge bg-warning text-dark">Umpalumpa</span>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                </div>
 
-        <div class="row">
-            {% for ticket in tickets_dto %}
-                <div class="col-12 mb-4">
-                    <div class="shadow rounded border border-success p-3 {% if ticket.is_owners %}text-white{% endif %}"
-                         style="background-color: {% if ticket.is_owners %}#6cbf6c{% else %}#e9ecef{% endif %};">
-                        <div class="card-body">
-                            <div class="d-flex flex-row justify-content-between align-items-top">
-                                <div class="d-flex flex-column">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                    <span class="badge"
-                                          style="background-color: #{{ ticket.ticket_color }}">{{ ticket.ticket_type }}</span>
-                                            {% if ticket.is_owners %}
-                                                <span class="badge bg-dark">Mi bono</span>
-                                                {% if ticket.volunteer_ranger %}
-                                                    <span class="badge bg-primary">Ranger</span>
-                                                {% endif %}
-                                                {% if ticket.volunteer_transmutator %}
-                                                    <span class="badge bg-info">Transmutator</span>
-                                                {% endif %}
-                                                {% if ticket.volunteer_umpalumpa %}
-                                                    <span class="badge bg-warning text-dark">Umpalumpa</span>
-                                                {% endif %}
+                                                <div class="m-4 border rounded shadow-sm bg-white">
+                                                    <div class="pt-2 small fw-bold text-black "
+                                                         style="font-size:10px">{{ ticket.key }}</div>
+                                                    <img src="data:image/png;base64,{{ ticket.qr_code }}" alt="QR Code">
+                                                </div>
 
-                                            {% else %}
-                                                {% if ticket.is_transfer_pending %}
-                                                    <span class="badge bg-danger">Invitacion pendiente a <strong>{{ ticket.transferring_to }}</strong> </span>
-                                                {% else %}
-                                                    <span class="badge bg-danger">Sin asignar</span>
-                                                {% endif %}
+                                                <div class="d-flex flex-row justify-content-end gap-2"
+                                                     style="min-width: 180px">
+                                                    <a class="btn btn-sm btn-danger text-white text-decoration-none">Soltar
+                                                        el
+                                                        bono</a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                            {% if  not is_volunteer %}
+                                <div class="col-lg-8 align-center">
+                                    <div class="alert alert-info text-start ">
+
+                                        Fuego Austral es encuentro participativo y todos tenemos un talento para aportar
+                                        a
+                                        nuestra
+                                        ciudad temporal.<br> Te invitamos a sumarte al área en la que sabés que podés
+                                        dar lo
+                                        mejor
+                                        de vos.
+                                        <br><br>
+                                        <div class=" text-center">
+                                            <a class="btn btn-sm btn-primary text-white text-decoration-none">Quiero ser
+                                            voluntario</a>
+                                        </div>
+
+                                    </div>
+                                </div>
+
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        {% endif %}
+        {% if has_unassigned_tickets %}
+            <!-- Sección: Bonos para transferir -->
+            <h4 class="d-flex text-start mt-4">Bonos para transferir</h4>
+            <div class="row">
+                {% for ticket in tickets_dto %}
+                    {% if not ticket.is_owners %}
+                        <div class="col-lg-3 col-sm-12 mb-4">
+                            <div class="shadow rounded border border-secondary p-3"
+                                 style="background-color: #e9ecef;">
+                                <div class="card-body">
+                                    <div class="d-flex flex-column justify-content-between align-items-top">
+                                        <div class="d-flex flex-column">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                <span class="badge"
+                                                      style="background-color: #{{ ticket.ticket_color }}">{{ ticket.ticket_type }}</span>
+                                                    {% if ticket.is_transfer_pending %}
+                                                        <span class="badge bg-danger">Invitacion pendiente a <strong>{{ ticket.transferring_to }}</strong> </span>
+                                                    {% else %}
+                                                        <span class="badge bg-danger">Sin asignar</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="m-4 border rounded shadow-sm bg-white">
+                                            <div class="pt-2 small fw-bold bg-white text-black"
+                                                 style="font-size:10px">{{ ticket.key }}</div>
+                                            <img src="data:image/png;base64,{{ ticket.qr_code }}" alt="QR Code">
+                                        </div>
+                                        <div class="d-flex flex-row justify-content-end gap-2" style="min-width: 180px">
+                                            {% if not has_assigned_tickets %}
+                                                <a class="btn btn-sm btn-success text-white text-decoration-none">Asignarmelo</a>
+                                            {% endif %}
+                                            <a class="btn btn-sm btn-warning text-decoration-none">Transferir</a>
+                                            {% if ticket.is_transfer_pending %}
+                                                <a class="btn btn-sm btn-warning text-white text-decoration-none">Cancelar
+                                                    invitacion</a>
                                             {% endif %}
                                         </div>
                                     </div>
-
-
-                                    <div class="d-flex mt-3 text-start">
-                                        <div class="small"><strong>Bono:</strong> {{ ticket.key }}</div>
-                                    </div>
-                                </div>
-                                <div class="d-flex flex-column justify-content-center gap-2">
-                                    {% if ticket.is_owners %}
-                                        <a class="btn btn-sm btn-primary text-white text-decoration-none">Quiero ser
-                                            voluntario</a>
-                                        <a class="btn btn-sm btn-danger text-white text-decoration-none">Desasignar
-                                            bono</a>
-                                    {% elif ticket.is_transfer_pending %}
-                                        <a class="btn btn-sm btn-warning text-white text-decoration-none">Cancelar invitacion</a>
-                                    {% else %}
-                                        <a class="btn btn-sm btn-success text-white text-decoration-none">Transferir
-                                            bono</a>
-                                    {% endif %}
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-            {% endfor %}
-        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        {% endif %}
     </div>
-
 {% endblock %}

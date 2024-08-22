@@ -1,9 +1,13 @@
+import base64
 from datetime import datetime
 from decimal import Decimal
 import uuid
+from io import BytesIO
+
 import qrcode
 import logging
 
+from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Count, Sum, Q, F
@@ -14,7 +18,9 @@ from django.core.validators import RegexValidator
 from django.utils import timezone
 
 from auditlog.registry import auditlog
-from templated_email import InlineImage
+from PIL import Image
+
+
 
 from events.models import Event
 from utils.email import send_mail
@@ -284,6 +290,19 @@ class NewTicket(models.Model):
     volunteer_ranger = models.BooleanField('Rangers', null=True, blank=True,)
     volunteer_transmutator = models.BooleanField('Transmutadores', null=True, blank=True,)
     volunteer_umpalumpa = models.BooleanField('CAOS (Desarme de la Ciudad)', null=True, blank=True,)
+
+    def generate_qr_code(self):
+        # Generate the QR code
+        img = qrcode.make(f'{self.key}')
+        img_io = BytesIO()
+        img.save(img_io, format='PNG')
+        img_io.seek(0)
+
+        # Encode the image to base64
+        img_data_base64 = base64.b64encode(img_io.getvalue()).decode('utf-8')
+
+        return img_data_base64
+
 
 
 class NewTicketTransfer(models.Model):
