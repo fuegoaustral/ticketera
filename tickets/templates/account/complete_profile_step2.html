@@ -1,17 +1,23 @@
 {% extends "../tickets/base.html" %}
+
+{% block extrahead %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/css/intlTelInput.css">
+    <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/js/intlTelInput.min.js"></script>
+{% endblock extrahead %}
+
 {% load static %}
 
 {% block content %}
+
     <div class="d-flex flex-column flex-grow-1 justify-content-center align-items-center pb-4">
         <div class="card p-4" style="max-width: 400px; width: 100%;">
             <h2 class="text-center mb-4">Completa tu perfil</h2>
             <form method="post" id="profileForm">
                 {% csrf_token %}
                 <div class="form-group d-flex flex-column w-100">
-
                     <!-- Phone Input -->
                     <label for="phone">Teléfono</label>
-                    <input type="text" class="form-control" id="phone" name="phone" placeholder="Ingresa tu número de teléfono"
+                    <input type="tel" id="phone" name="phone_input" style="width: 100%"
                            value="{{ form.phone.value|default:profile.phone }}"
                            {% if code_sent %}disabled{% endif %}>  <!-- Disable if code sent -->
                     {% if form.phone.errors %}
@@ -53,12 +59,26 @@
                         </button>
                     {% endif %}
                 </div>
+                <!-- Hidden input to store the full international phone number -->
+                <input type="hidden" id="fullPhoneNumber" name="phone">
             </form>
         </div>
     </div>
 
     <script>
-        document.getElementById('profileForm').addEventListener('submit', function(event) {
+        const input = document.querySelector("#phone");
+        const iti = window.intlTelInput(input, {
+            utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/js/utils.js",
+            initialCountry: "AR",
+        });
+
+        document.getElementById('profileForm').addEventListener('submit', function (event) {
+            // Get the full international phone number
+            const fullPhoneNumber = iti.getNumber();
+
+            // Set the value of the hidden input field to the full phone number
+            document.getElementById('fullPhoneNumber').value = fullPhoneNumber;
+
             var sendButton = document.getElementById('sendButton');
             var verifyButton = document.getElementById('verifyButton');
 
@@ -71,7 +91,6 @@
                 verifyButton.disabled = true;
                 verifyButton.innerHTML = 'Verificando...';
             }
-
         });
 
         function resendCode() {

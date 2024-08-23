@@ -108,6 +108,7 @@ class ProfileStep1Form(forms.ModelForm):
 
 class ProfileStep2Form(forms.ModelForm):
     code = forms.CharField(max_length=6, required=False, label="Código de verificación")
+    full_phone_number = forms.CharField(widget=forms.HiddenInput(), required=False)
 
     class Meta:
         model = Profile
@@ -120,6 +121,13 @@ class ProfileStep2Form(forms.ModelForm):
         if code_sent:
             self.fields['phone'].required = False  # Make phone non-required if code is sent
             self.fields['phone'].disabled = True  # Disable the phone field if code is sent
+
+    def clean_phone(self):
+        # Use the full_phone_number if provided
+        full_phone_number = self.cleaned_data.get('full_phone_number')
+        if full_phone_number:
+            return full_phone_number
+        return self.cleaned_data['phone']
 
     def send_verification_code(self):
         phone = self.cleaned_data['phone']
@@ -141,7 +149,6 @@ class ProfileStep2Form(forms.ModelForm):
             .verification_checks \
             .create(to=phone, code=code)
         return verification_check.status == 'approved'
-
 
 class CheckoutTicketSelectionForm(forms.Form):
     def __init__(self, *args, **kwargs):

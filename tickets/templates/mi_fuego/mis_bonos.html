@@ -1,5 +1,5 @@
 {% extends "../tickets/base.html" %}
-
+{% load static %}
 
 {% block content %}
     <style>
@@ -29,8 +29,8 @@
             #b102b7 100%);
             border-radius: calc(5px + var(--borderWidth));
             z-index: -1;
-            animation: animatedgradient 4s linear alternate infinite;
-            background-size: 150% 150%;
+            animation: animatedgradient 2s linear alternate infinite;
+            background-size: 120% 120%;
         }
 
         @keyframes animatedgradient {
@@ -51,10 +51,56 @@
             padding: 1rem;
             position: relative;
         }
+
+        .flip-container {
+  perspective: 1000px;
+  width: 320px;
+  height: 427px;
+}
+
+.flip-container:hover .flipper,
+.flip-container.hover .flipper {
+  transform: rotateY(180deg);
+}
+
+.flipper {
+  transition: 0.6s;
+  transform-style: preserve-3d;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.front, .back {
+  backface-visibility: hidden;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: Arial, sans-serif;
+  font-size: 1.5em;
+  color: white;
+  background-color: #333;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.front {
+  z-index: 2;
+}
+
+.back {
+  transform: rotateY(180deg);
+  background-color: #f8f8f8;
+  color: #333;
+}
     </style>
     <div class="text-center p-4 bg-light border rounded shadow-sm">
         <h2 class="mb-4">Mis bonos para {{ event.name }}</h2>
-
         {% if has_unassigned_tickets or has_transfer_pending %}
             <div class="col-12">
                 <div class="alert alert-warning">
@@ -71,16 +117,22 @@
                 </div>
             </div>
         {% endif %}
-
+        <hr class="my-2" style="border-top: 1px solid">
         {% if has_assigned_tickets %}
-            <h4 class="d-flex mt-4 text-start">Mi bono</h4>
+            <div class="d-flex flex-row justify-content-between py-2">
+                <h4>Mi bono</h4>
+
+            </div>
+
             <div class="row justify-content-center">
                 {% for ticket in tickets_dto %}
                     {% if ticket.is_owners %}
                         <div class="d-flex flex-column align-items-center">
                             <div class="col-lg-3 col-sm-12 mb-4">
-                                <div class="rounded" style="border : 2px solid #000000;">
-                                    <div class="shadow rounded bg-black text-white rainbow-border" style="padding: 4px">
+                                <div class="rounded"
+                                     style="border : 2px solid #000000;padding:6px;background-color: black;">
+                                    <div class="shadow rounded bg-black text-white rainbow-border"
+                                         style="padding: 4px;">
 
                                         <div class="card-body">
                                             <div class="d-flex flex-column justify-content-between align-items-top">
@@ -98,26 +150,28 @@
                                                     </div>
 
                                                 </div>
-
-                                                <div class="m-4 pt-2 border rounded shadow-sm bg-white">
+                                                <div class="d-flex flex-column align-items-center">
+                                                    <img src="{% static 'img/logo.svg' %}" alt="Fuego Austral"
+                                                         width="140"/>
+                                                </div>
+                                                <div class="m-2 pt-2 border rounded shadow-sm bg-white">
 
                                                     <div class="small fw-bold text-black">
                                                         {{ event.name }}{{ ticket.emoji }}</div>
-                                                     <span class="badge"
-                                                                  style="background-color: #{{ ticket.ticket_color }}">{{ ticket.ticket_type }}</span>
+                                                    <span class="badge"
+                                                          style="background-color: #{{ ticket.ticket_color }}">{{ ticket.ticket_type }}</span>
                                                     <img src="data:image/png;base64,{{ ticket.qr_code }}"
                                                          alt="QR Code">
 
-                                                    <div class="small fw-bold text-black pb-2"
-                                                         style="font-size:10px">{{ ticket.key }}</div>
+                                                    <div class="small text-start fw-bold text-black pb-2 px-2"
+                                                         style="font-size:10px">
+                                                        {{ user.profile.document_number }} <br>
+                                                        {{ user.first_name }} {{ user.last_name }} <br>
+                                                        {{ ticket.key }}
+                                                    </div>
                                                 </div>
 
-                                                <div class="d-flex flex-row justify-content-end gap-2"
-                                                     style="min-width: 180px">
-                                                    <a class="btn btn-sm btn-danger text-white text-decoration-none">Soltar
-                                                        el
-                                                        bono</a>
-                                                </div>
+
                                             </div>
 
                                         </div>
@@ -128,10 +182,10 @@
                                 <div class="col-lg-8 align-center">
                                     <div class="alert alert-info text-start ">
 
-                                        Fuego Austral es encuentro participativo y todos tenemos un talento para aportar
+                                        Fuego Austral es un encuentro participativo y todos tenemos un talento para aportar
                                         a
                                         nuestra
-                                        ciudad temporal.<br> Te invitamos a sumarte al área en la que sabés que podés
+                                        ciudad temporal. Te invitamos a sumarte al área en la que sabés que podés
                                         dar lo
                                         mejor
                                         de vos.
@@ -178,7 +232,7 @@
                 {% for ticket in tickets_dto %}
                     {% if not ticket.is_owners %}
                         <div class="col-lg-3 col-sm-12 mb-4 ticket-card
-                {% if ticket.is_transfer_pending %}pending{% else %}not-pending{% endif %}">
+                        {% if ticket.is_transfer_pending %}pending{% else %}not-pending{% endif %}">
                             <div class="shadow rounded border border-secondary p-3" style="background-color: #e9ecef;">
                                 <div class="card-body">
                                     <div class="d-flex flex-column justify-content-between align-items-top">
@@ -196,8 +250,8 @@
                                         <div class="m-4 pt-2 border rounded shadow-sm bg-white">
                                             <div class="small fw-bold text-black">
                                                 {{ event.name }}{{ ticket.emoji }}</div>
-                                             <span class="badge"
-                                                                  style="background-color: #{{ ticket.ticket_color }}">{{ ticket.ticket_type }}</span>
+                                            <span class="badge"
+                                                  style="background-color: #{{ ticket.ticket_color }}">{{ ticket.ticket_type }}</span>
                                             <img src="data:image/png;base64,{{ ticket.qr_code }}" alt="QR Code">
                                             <div class="small fw-bold text-black pb-2"
                                                  style="font-size:10px">{{ ticket.key }}</div>
