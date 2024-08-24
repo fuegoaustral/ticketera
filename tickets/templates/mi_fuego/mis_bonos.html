@@ -3,8 +3,6 @@
 
 {% block content %}
     <style>
-        @import url('https://fonts.googleapis.com/css?family=Raleway:200');
-
         .rainbow-border {
             --borderWidth: 1px; /* Set border width to 1px */
             position: relative;
@@ -29,8 +27,8 @@
             #b102b7 100%);
             border-radius: calc(5px + var(--borderWidth));
             z-index: -1;
-            animation: animatedgradient 2s linear alternate infinite;
-            background-size: 120% 120%;
+            animation: animatedgradient 8s linear alternate infinite;
+            background-size: 600% 100%;
         }
 
         @keyframes animatedgradient {
@@ -128,7 +126,7 @@
                 {% for ticket in tickets_dto %}
                     {% if ticket.is_owners %}
                         <div class="d-flex flex-column align-items-center">
-                            <div class="col-lg-3 col-sm-12 mb-4">
+                            <div class="col-lg-4 col-sm-12 mb-4">
                                 <div class="rounded"
                                      style="border : 2px solid #000000;padding:6px;background-color: black;">
                                     <div class="shadow rounded bg-black text-white rainbow-border"
@@ -150,11 +148,11 @@
                                                     </div>
 
                                                 </div>
-                                                <div class="d-flex flex-column align-items-center">
+                                                <div class="d-flex flex-column align-items-center" >
                                                     <img src="{% static 'img/logo.svg' %}" alt="Fuego Austral"
                                                          width="140"/>
                                                 </div>
-                                                <div class="m-2 pt-2 border rounded shadow-sm bg-white">
+                                                <div class="m-2 pt-2 rounded shadow-sm bg-white" style="border: 2px solid black;">
 
                                                     <div class="small fw-bold text-black">
                                                         {{ event.name }}{{ ticket.emoji }}</div>
@@ -165,7 +163,7 @@
 
                                                     <div class="small text-start fw-bold text-black pb-2 px-2"
                                                          style="font-size:10px">
-                                                        {{ user.profile.document_number }} <br>
+                                                        {{ user.profile.document_type }} {{ user.profile.document_number }} <br>
                                                         {{ user.first_name }} {{ user.last_name }} <br>
                                                         {{ ticket.key }}
                                                     </div>

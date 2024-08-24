@@ -104,6 +104,7 @@ TEMPLATES = [
                 'utils.context_processors.current_event',
                 'utils.context_processors.app_url',
                 'utils.context_processors.donation_amount',
+                'utils.context_processors.chatwoot_token',
             ],
         },
     },
@@ -213,8 +214,8 @@ EMAIL_HOST_PASSWORD = '1e355fb5adb1fd'
 EMAIL_PORT = '2525'
 EMAIL_USE_TLS = True
 
-#TODO move this into the event
-DONATION_AMOUNT=1
+# TODO move this into the event
+DONATION_AMOUNT = 1
 
 DEFAULT_FROM_EMAIL = 'Fuego Austral <bonos@eventos.fuegoaustral.org>'
 
@@ -291,4 +292,6 @@ ACCOUNT_DEFAULT_HTTP_PROTOCOL = (
     "http" if "localhost" in APP_URL or "127.0.0.1" in APP_URL else "https"
 )
 
-CSRF_TRUSTED_ORIGINS=[APP_URL]
+CSRF_TRUSTED_ORIGINS = [APP_URL]
+
+CHATWOOT_TOKEN = os.environ.get('CHATWOOT_TOKEN')

@@ -15,7 +15,8 @@
             crossorigin="anonymous"></script>
 
     <link rel="icon" href="{% static 'img/favicon.png' %}" type="image/png">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.6.0/css/all.min.css"
+          integrity="sha384-h/hnnw1Bi4nbpD6kE7nYfCXzovi622sY5WBxww8ARKwpdLj5kUWjRuyiXaD1U2JT" crossorigin="anonymous">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@1,300&family=Rubik:wght@300;400&display=swap');
     </style>
@@ -39,10 +40,44 @@
 
 
     {% block extrahead %}{% endblock %}
-
 </head>
 
-<body class="home blog hfeed">
+<body class="home blog feed">
+{% if user.is_authenticated and user.profile.profile_completion == 'COMPLETE' %}
+    <script>
+        (function (d, t) {
+            window.chatwootSettings = {
+                locale: 'es', // Language to be set
+            };
+            const BASE_URL = "https://app.chatwoot.com";
+            const g = d.createElement(t), s = d.getElementsByTagName(t)[0];
+            g.src = BASE_URL + "/packs/js/sdk.js";
+            g.defer = true;
+            g.async = true;
+            s.parentNode.insertBefore(g, s);
+            g.onload = function () {
+                window.chatwootSDK.run({
+                    websiteToken: '{{ CHATWOOT_TOKEN }}',
+                    baseUrl: BASE_URL
+                })
+            }
+
+        })(document, "script");
+
+        const checkChatwootLoaded = setInterval(() => {
+            if ($chatwoot && $chatwoot.hasLoaded) {
+                clearInterval(checkChatwootLoaded);
+                $chatwoot.setUser({{ user.id }}, {
+                    email: '{{ user.email }}',
+                    name: '{{ user.first_name }} {{ user.last_name }}',
+                    phone_number: '{{ user.profile.phone }}',
+
+                });
+            }
+        }, 100);
+
+    </script>
+{% endif %}
 <div class="content d-flex flex-column min-vh-100">
 
     <header id="masthead" class="site-header {% block hero %}{% endblock %}">
