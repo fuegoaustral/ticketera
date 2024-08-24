@@ -1,8 +1,11 @@
 {% extends "../tickets/base.html" %}
 
 {% block extrahead %}
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/css/intlTelInput.css">
-    <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/js/intlTelInput.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/css/intlTelInput.css"
+          integrity="sha384-josBdHR9a6DDApvQzVz46RUq9U6/iPErv/hIpfkLHxxLLfPOhgvCWrrRi6Ufvbgf" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/js/intlTelInput.min.js"
+            integrity="sha384-6Z2vPsfhcSSIc6aQuBuj8XsgzVLnrlNXrlA/OfTiadr8Pcw3xfho2s4fxWX+beqn"
+            crossorigin="anonymous"></script>
 {% endblock extrahead %}
 
 {% load static %}
@@ -70,17 +73,19 @@
         const iti = window.intlTelInput(input, {
             utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/js/utils.js",
             initialCountry: "AR",
+            customPlaceholder: function (selectedCountryPlaceholder, selectedCountryData) {
+                if (selectedCountryData.iso2 === "ar") {
+                    return "11 1234 5678";
+                }
+                return selectedCountryPlaceholder;
+            },
         });
 
         document.getElementById('profileForm').addEventListener('submit', function (event) {
-            // Get the full international phone number
-            const fullPhoneNumber = iti.getNumber();
+            document.getElementById('fullPhoneNumber').value = iti.getNumber();
 
-            // Set the value of the hidden input field to the full phone number
-            document.getElementById('fullPhoneNumber').value = fullPhoneNumber;
-
-            var sendButton = document.getElementById('sendButton');
-            var verifyButton = document.getElementById('verifyButton');
+            const sendButton = document.getElementById('sendButton');
+            const verifyButton = document.getElementById('verifyButton');
 
             if (sendButton && sendButton.name === 'send_code') {
                 sendButton.disabled = true;
@@ -94,7 +99,7 @@
         });
 
         function resendCode() {
-            var sendCodeInput = document.querySelector('input[name="verify_code"]');
+            const sendCodeInput = document.querySelector('input[name="verify_code"]');
             if (sendCodeInput) {
                 sendCodeInput.remove();
             }

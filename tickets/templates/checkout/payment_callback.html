@@ -13,15 +13,16 @@
         <div class="text-center p-4 bg-light border rounded shadow-sm" id="success-section" style="display: none;">
             <h2 class="mb-4">¡Pago Completado con Éxito!</h2>
             <p>Tu pago ha sido procesado correctamente y tus bonos han sido emitidos.
-            <br>
+                <br>
                 Puedes revisarlos en la sección de "Mis Bonos".</p>
-            <a href="{{ APP_URL }}/dashboard/" class="btn btn-primary mt-4 text-white text-decoration-none">Continuar</a>
+            <a href="{% url 'mi_fuego'%}"
+               class="btn btn-primary mt-4 text-white text-decoration-none">Continuar</a>
         </div>
 
         <div class="text-center p-4 bg-light border rounded shadow-sm" id="refunded-section" style="display: none;">
             <h2 class="mb-4">Pago Devuelto</h2>
             <p>Se agotaron los bonos y tu pago fue devuelto.
-            <br>Estate atento a las novedades de la comunidad para el JORTEO.</p>
+                <br>Estate atento a las novedades de la comunidad para el JORTEO.</p>
         </div>
     </div>
 

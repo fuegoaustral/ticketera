@@ -20,8 +20,6 @@ from django.utils import timezone
 from auditlog.registry import auditlog
 from PIL import Image
 
-
-
 from events.models import Event
 from utils.email import send_mail
 from utils.models import BaseModel
@@ -287,9 +285,9 @@ class NewTicket(models.Model):
     owner = models.ForeignKey(User, related_name='owned_tickets', null=True, blank=True, on_delete=models.SET_NULL)
     holder = models.ForeignKey(User, related_name='held_tickets', on_delete=models.CASCADE)
 
-    volunteer_ranger = models.BooleanField('Rangers', null=True, blank=True,)
-    volunteer_transmutator = models.BooleanField('Transmutadores', null=True, blank=True,)
-    volunteer_umpalumpa = models.BooleanField('CAOS (Desarme de la Ciudad)', null=True, blank=True,)
+    volunteer_ranger = models.BooleanField('Rangers', null=True, blank=True, )
+    volunteer_transmutator = models.BooleanField('Transmutadores', null=True, blank=True, )
+    volunteer_umpalumpa = models.BooleanField('CAOS (Desarme de la Ciudad)', null=True, blank=True, )
 
     def generate_qr_code(self):
         # Generate the QR code
@@ -302,7 +300,6 @@ class NewTicket(models.Model):
         img_data_base64 = base64.b64encode(img_io.getvalue()).decode('utf-8')
 
         return img_data_base64
-
 
 
 class NewTicketTransfer(models.Model):
@@ -444,3 +441,5 @@ auditlog.register(Coupon)
 auditlog.register(TicketType)
 auditlog.register(Order)
 auditlog.register(Ticket)
+auditlog.register(NewTicket)
+auditlog.register(NewTicketTransfer)
