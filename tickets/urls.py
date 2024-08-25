@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import home, order, ticket, profile, checkout, webhooks
+from .views import home, order, ticket, profile, checkout, webhooks, new_ticket
 
 urlpatterns = [
     path('', home.home, name='home'),
@@ -24,7 +24,6 @@ urlpatterns = [
     path('ticket/<str:transfer_key>/confirmed', ticket.ticket_transfer_confirmed, name='ticket_transfer_confirmed'),
 
     # Profile related paths
-    path('mi-fuego/', profile.my_tickets_view, name='mi_fuego'),
     path('complete-profile/', profile.complete_profile, name='complete_profile'),
     path('accounts/verification-congrats/', profile.verification_congrats, name='verification_congrats'),
     path('accounts/profile-congrats/', profile.profile_congrats, name='profile_congrats'),
@@ -36,4 +35,9 @@ urlpatterns = [
 
     # Webhook related paths
     path('webhooks/mercadopago', webhooks.mercadopago_webhook, name='mercadopago_webhook'),
+
+    path('mi-fuego', profile.my_tickets_view, name='mi_fuego'),
+    path('mi-fuego/transfer-ticket', new_ticket.transfer_ticket, name='transfer_ticket'),
+    path('mi-fuego/transfer-ticket/cancel-ticket-transfer', new_ticket.cancel_ticket_transfer,
+         name='cancel_ticket_transfer'),
 ]
