@@ -1,0 +1,41 @@
+{% extends "../../tickets/base.html" %}
+{% load static %}
+
+{% block content %}
+    <div class="text-center p-4 bg-light border rounded shadow-sm">
+        <h2 class="mb-4">Mis bonos para {{ event.name }}</h2>
+        {% if has_unassigned_tickets or has_transfer_pending %}
+            <div class="col-12">
+                <div class="alert alert-warning">
+                    Tenés
+                    {% if has_unassigned_tickets %}
+                        bonos sin asignar,{% if has_transfer_pending %} y{% endif %}
+                    {% endif %}
+                    {% if has_transfer_pending %}
+                        {% if not has_unassigned_tickets %}bonos{% endif %} que todavía no
+                        fueron aceptados,
+                    {% endif %}
+                    acordate que tenés tiempo para transferirlos hasta
+                    <strong>{{ event.transfers_enabled_until|date:"d/m" }}</strong>.
+                </div>
+            </div>
+        {% endif %}
+        <hr class="my-2" style="border-top: 1px solid">
+        {% if tickets_dto %}
+            {% if has_assigned_tickets %}
+                {% include "./assigned_tickets.html" %}
+            {% endif %}
+
+            {% if has_assigned_tickets and has_unassigned_tickets %}
+                <hr class="my-4" style="border-top: 1px solid">
+            {% endif %}
+
+            {% if has_unassigned_tickets %}
+                {% include "./unassigned_tickets.html" %}
+            {% endif %}
+        {% else %}
+            <div class="alert alert-info">No tenés bonos para este evento.</div>
+        {% endif %}
+    </div>
+{% endblock %}
+

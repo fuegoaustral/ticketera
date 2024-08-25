@@ -43,7 +43,7 @@ def my_tickets_view(request):
     # Check if any ticket has a transfer pending
     has_transfer_pending = any(ticket['is_transfer_pending'] is True for ticket in tickets_dto)
 
-    return render(request, 'mi_fuego/mis_bonos.html', {
+    return render(request, 'mi_fuego/mis_bonos/index.html', {
         'is_volunteer': is_volunteer,
         'has_assigned_tickets': has_assigned_tickets,
         'has_unassigned_tickets': has_unassigned_tickets,
