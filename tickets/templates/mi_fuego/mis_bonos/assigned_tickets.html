@@ -1,0 +1,130 @@
+{% load static %}
+{% block extrahead %}
+
+    <style>
+        .rainbow-border {
+            --borderWidth: 1px; /* Set border width to 1px */
+            position: relative;
+            overflow: hidden;
+            padding: 1rem;
+            z-index: 1; /* Ensure content is above the borders */
+        }
+
+        .rainbow-border:after {
+            content: '';
+            position: absolute;
+            top: calc(-1 * var(--borderWidth));
+            left: calc(-1 * var(--borderWidth));
+            height: calc(100% + var(--borderWidth) * 2);
+            width: calc(100% + var(--borderWidth) * 2);
+            background: linear-gradient(45deg,
+            #fd004c 16.66%,
+            #fe9000 33.33%,
+            #fff020 50%,
+            #3edf4b 66.66%,
+            #3363ff 83.33%,
+            #b102b7 100%);
+            border-radius: calc(5px + var(--borderWidth));
+            z-index: -1;
+            animation: animatedgradient 8s linear alternate infinite;
+            background-size: 600% 100%;
+        }
+
+        @keyframes animatedgradient {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .rainbow-border .card-body {
+
+            z-index: 1; /* Ensure content is above all borders */
+            padding: 1rem;
+            position: relative;
+        }
+    </style>
+
+{% endblock extrahead %}
+
+
+<div class="d-flex flex-row justify-content-between py-2">
+    <h4>Mi bono</h4>
+</div>
+
+<div class="row justify-content-center">
+    {% for ticket in tickets_dto %}
+        {% if ticket.is_owners %}
+            <div class="d-flex flex-column align-items-center">
+                <div class="col-lg-4 col-sm-12 mb-4">
+                    <div class="rounded"
+                         style="border : 2px solid #000000;padding:6px;background-color: black;">
+                        <div class="shadow rounded bg-black text-white rainbow-border"
+                             style="padding: 4px;">
+
+                            <div class="card-body">
+                                <div class="d-flex flex-column justify-content-between align-items-top">
+                                    <div class="d-flex flex-column">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            {% if ticket.volunteer_ranger %}
+                                                <span class="badge bg-primary">Ranger</span>
+                                            {% endif %}
+                                            {% if ticket.volunteer_transmutator %}
+                                                <span class="badge bg-info">Transmutator</span>
+                                            {% endif %}
+                                            {% if ticket.volunteer_umpalumpa %}
+                                                <span class="badge bg-warning text-dark">Umpalumpa</span>
+                                            {% endif %}
+                                        </div>
+
+                                    </div>
+                                    <div class="d-flex flex-column align-items-center">
+                                        <img src="{% static 'img/logo.svg' %}" alt="Fuego Austral"
+                                             width="140"/>
+                                    </div>
+                                    <div class="m-2 pt-2 rounded shadow-sm bg-white"
+                                         style="border: 2px solid black;">
+
+                                        <div class="small fw-bold text-black">
+                                            {{ event.name }}{{ ticket.emoji }}</div>
+                                        <span class="badge"
+                                              style="background-color: #{{ ticket.ticket_color }}">{{ ticket.ticket_type }}</span>
+                                        <img src="data:image/png;base64,{{ ticket.qr_code }}"
+                                             alt="QR Code">
+
+                                        <div class="small text-start fw-bold text-black pb-2 px-2"
+                                             style="font-size:10px">
+                                            {{ user.profile.document_type }} {{ user.profile.document_number }}
+                                            <br>
+                                            {{ user.first_name }} {{ user.last_name }} <br>
+                                            {{ ticket.key }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% if  not is_volunteer %}
+                    <div class="col-lg-8 align-center">
+                        <div class="alert alert-info text-start ">
+                            Fuego Austral es un encuentro participativo y todos tenemos un talento para
+                            aportar a nuestra ciudad temporal. Te invitamos a sumarte al área en la que sabés que podés
+                            dar lo mejor de vos.
+                            <br><br>
+                            <div class="text-center">
+                                <a class="btn btn-sm btn-primary text-white text-decoration-none">Quiero
+                                    ser voluntario</a>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        {% endif %}
+    {% endfor %}
+</div>

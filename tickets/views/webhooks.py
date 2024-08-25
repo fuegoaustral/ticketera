@@ -168,12 +168,13 @@ def refund_payment(order, payment):
 def mint_tickets(order):
     try:
         user_already_has_ticket = NewTicket.objects.filter(owner=order.user).exists()
-        print("user_already_has_ticket", user_already_has_ticket)
+        logging.info("user_already_has_ticket", user_already_has_ticket)
         order_has_more_than_one_ticket_type = order.total_ticket_types() > 1
-        print("order_has_more_than_one_ticket_type", order_has_more_than_one_ticket_type)
+        logging.info("order_has_more_than_one_ticket_type", order_has_more_than_one_ticket_type)
 
         order_tickets = OrderTicket.objects.filter(order=order)
-        print("order_tickets", order_tickets)
+
+        new_minted_tickets = []
         with transaction.atomic():
             for ticket in order_tickets:
                 for _ in range(ticket.quantity):
@@ -186,12 +187,16 @@ def mint_tickets(order):
 
                     if not user_already_has_ticket and not order_has_more_than_one_ticket_type:
                         new_ticket.owner = order.user
+                        user_already_has_ticket = True
 
                     new_ticket.save()
+                    new_minted_tickets.append(new_ticket)
 
             order.status = Order.OrderStatus.CONFIRMED
             order.save()
             logging.info(f"Order {order.key} confirmed")
+            for ticket in new_minted_tickets:
+                logging.info(f"Ticket {ticket.ticket_type.name}  {ticket.key} minted")
 
     except AttributeError as e:
         logging.error(f"Attribute error in minting tickets: {str(e)}")
