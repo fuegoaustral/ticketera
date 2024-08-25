@@ -1,3 +1,5 @@
+{% load static %}
+
 <h4 class="d-flex text-start mt-4">Bonos para transferir</h4>
 <div class="d-flex justify-content-end">
     <div class="btn-group mb-3" role="group" aria-label="Filtros">
@@ -27,9 +29,9 @@
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
                                         {% if ticket.is_transfer_pending %}
-                                            <span class="badge bg-danger">Invitacion pendiente a <strong>{{ ticket.transferring_to }}</strong> </span>
+                                            <span class="text-start text-black badge bg-warning">Invitacion pendiente a <br><strong>{{ ticket.transferring_to }}</strong> </span>
                                         {% else %}
-                                            <span class="badge bg-danger">Sin asignar</span>
+                                            <span class="badge bg-danger mb-2">Sin asignar</span>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -39,9 +41,11 @@
                                     {{ event.name }}{{ ticket.emoji }}</div>
                                 <span class="badge"
                                       style="background-color: #{{ ticket.ticket_color }}">{{ ticket.ticket_type }}</span>
-                                <img src="data:image/png;base64,{{ ticket.qr_code }}" alt="QR Code">
-                                <div class="small fw-bold text-black pb-2"
-                                     style="font-size:10px">{{ ticket.key }}</div>
+
+                                <div class="d-flex flex-column justify-content-center m-4">
+                                    <img src="{% static 'img/logo_black.png' %}" alt="Fuego Austral"/>
+                                    <p class="mb-0 small"> Bono para transferir</p>
+                                </div>
                             </div>
 
                             <div class="d-flex flex-row justify-content-end gap-2"
@@ -49,11 +53,19 @@
                                 {% if not has_assigned_tickets %}
                                     <a class="btn btn-sm btn-success text-white text-decoration-none">Asignarmelo</a>
                                 {% endif %}
-                                <a class="btn btn-sm btn-warning text-decoration-none">Transferir</a>
+
                                 {% if ticket.is_transfer_pending %}
-                                    <a class="btn btn-sm btn-warning text-white text-decoration-none">Cancelar
-                                        invitacion</a>
+                                    <a class="btn btn-sm btn-danger text-white text-decoration-none"
+                                       onclick="cancelTicketTransfer('{{ ticket.key }}')">Cancelar
+                                        invitación</a>
+                                {% else %}
+                                    <button class=" btn btn-sm btn-warning text-decoration-none"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#transferModal"
+                                            onclick="setTransferTicketId('{{ ticket.key }}')">Transferir
+                                    </button>
                                 {% endif %}
+
                             </div>
                         </div>
                     </div>
@@ -63,12 +75,169 @@
     {% endfor %}
 </div>
 
+<div class="modal fade" id="transferModal" data-bs-backdrop="static" tabindex="-1" aria-labelledby="transferModalLabel"
+     aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="transferModalLabel">Transferir Bono</h5>
+            </div>
+            <div class="modal-body">
+                <div id="transferForm">
+                    <div class="alert alert-warning text-start" role="alert">
+                        <strong>¡Atención!</strong>
+                        Si el destinatario no tiene cuenta en FA, se enviara una invitacion pero la transferencia no
+                        estara completa <strong>hasta que no se cree su cuenta.</strong>
+                    </div>
+                    <div class="mb-3 form-label text-start d-flex flex-column">
+                        <label for="recipient-email" class="form-label">Correo Electrónico del Destinatario</label>
+                        <input type="email" class="form-control" id="recipient-email" placeholder="nombre@ejemplo.com">
+                        <div class="invalid-feedback">
+                            Por favor, ingresa un correo electrónico válido.
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-primary" onclick="confirmTransfer()">Confirmar</button>
+                    </div>
+
+                </div>
+                <div id="loadingSpinner" class="flex-column justify-content-center align-items-center"
+                     style="display: none;">
+
+                    <div class="spinner-border text-primary" role="status">
+                    </div>
+                    <p class="my-4">Enviando...</p>
+                </div>
+                <div id="transferSuccessMessage" style="display: none;">
+                    <div class="alert alert-success">
+                    <h5>¡Felicidades!</h5>
+                    <p>El bono ha sido transferido con éxito.</p>
+                    <button type="button" class="btn btn-primary" onclick="refreshPage()">Continuar</button>
+                    </div>
+                </div>
+                <div id="transferPendingMessage" style="display: none;">
+                    <div class="alert alert-warning">
+                        <h5>¡Atencion!</h5>
+                        <p class="mb-2">Se envio una invitacion a
+                            <strong id="invitation-email"></strong>.
+                            Hasta que no se cree su cuenta, la
+                            transferencia no estara completa.</p>
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="refreshPage()">Continuar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+    let currentTicketKey = null;
+
+    function setTransferTicketId(ticketId) {
+        currentTicketKey = ticketId;
+    }
+
+    function validateEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    }
+
+    async function confirmTransfer() {
+        const emailInput = document.getElementById('recipient-email');
+
+        const email = emailInput.value;
+
+        if (!validateEmail(email)) {
+            emailInput.classList.add('is-invalid');
+            return;
+        } else {
+            emailInput.classList.remove('is-invalid');
+        }
+        // Show loading spinner
+        document.getElementById('transferForm').style.display = 'none';
+        document.getElementById('loadingSpinner').style.display = 'flex';
+
+        try {
+            const response = await fetch('{% url 'transfer_ticket' %}', {  // Replace with your actual server endpoint
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+
+                },
+                body: JSON.stringify({
+                    ticket_key: currentTicketKey,
+                    email: email
+                })
+            });
+
+            if (response.ok) {
+                document.getElementById('loadingSpinner').style.display = 'none';
+                const responseBody = await response.json()
+
+                if (responseBody.destination_user_exists) {
+                    document.getElementById('transferSuccessMessage').style.display = 'block';
+                } else {
+                    document.getElementById('invitation-email').innerHTML = email;
+                    document.getElementById('transferPendingMessage').style.display = 'block';
+
+                }
+            } else {
+                alert('Error en la transferencia. Por favor, inténtalo de nuevo.');
+                resetModal();
+            }
+        } catch (error) {
+            console.error('Error during fetch:', error);
+            alert('Error en la conexión. Por favor, inténtalo de nuevo.');
+            resetModal();
+        }
+    }
+
+    async function cancelTicketTransfer(ticketKey) {
+        if (!confirm('¿Estás seguro de que deseas cancelar la transferencia?')) {
+            return;
+        }
+        try {
+            const response = await fetch('{% url 'cancel_ticket_transfer' %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+
+                },
+                body: JSON.stringify({
+                    ticket_key: ticketKey
+                })
+            });
+
+            if (response.ok) {
+                refreshPage();
+            } else {
+                alert('Error al cancelar la transferencia. Por favor, inténtalo de nuevo.');
+            }
+        } catch (error) {
+            console.error('Error during fetch:', error);
+            alert('Error en la conexión. Por favor, inténtalo de nuevo.');
+        }
+    }
+
+    function refreshPage() {
+        location.reload();
+    }
+
+    function resetModal() {
+        document.getElementById('transferForm').style.display = 'block';
+        document.getElementById('loadingSpinner').style.display = 'none';
+        document.getElementById('congratsMessage').style.display = 'none';
+        document.getElementById('recipient-email').classList.remove('is-invalid');
+        document.getElementById('recipient-email').value = '';
+    }
+
     function filterTickets(filter, btn) {
         const tickets = document.querySelectorAll('.ticket-card');
         const buttons = document.querySelectorAll('.btn-group .btn');
 
-        // Filter tickets
         tickets.forEach(ticket => {
             if (filter === 'all') {
                 ticket.style.display = 'block';
@@ -81,7 +250,6 @@
             }
         });
 
-        // Update button styles
         buttons.forEach(button => {
             // Reset all buttons to outlined style
             if (button.id === 'btn-all') {
@@ -96,7 +264,6 @@
             }
         });
 
-        // Apply solid color to the selected button
         if (filter === 'all') {
             btn.classList.remove('btn-outline-primary');
             btn.classList.add('btn-primary');
