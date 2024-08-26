@@ -61,7 +61,7 @@ INSTALLED_APPS = [
     'auditlog',
     'allauth',
     'allauth.account',
-    # Optional -- requires install using `django-allauth[socialaccount]`.
+
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
 
@@ -200,24 +200,21 @@ PIPELINE = {
 }
 
 MERCADOPAGO = {
-    # 'PUBLIC_KEY': 'TEST-320090f7-f283-4123-9d0a-ddcc5dca7652', # mauros@gmail.com
-    # 'ACCESS_TOKEN': 'TEST-3993191188804171-120900-49b84931b82af80f4e67442917d5a311-2309703',
-    # 'PUBLIC_KEY': 'TEST-adcf53df-bf76-4579-8f85-e3e1ef658c1c', #
-    # 'ACCESS_TOKEN': 'TEST-8395362091404017-102216-655293c3d37f873676196ce190a66889-663579293',
-    'PUBLIC_KEY': 'TEST-467cbbca-1aac-4d7f-be0b-53bcf92a3064',  # test_user_82107219@testuser.com / qatest8011
-    'ACCESS_TOKEN': 'TEST-6630578586763408-121117-afe84675e0d0a70b7c67a1ade5909b2c-1037325933',
+    'PUBLIC_KEY': os.environ.get('MERCADOPAGO_PUBLIC_KEY'),
+    'ACCESS_TOKEN': os.environ.get('MERCADOPAGO_ACCESS_TOKEN'),
+    'WEBHOOK_SECRET': os.environ.get('MERCADOPAGO_WEBHOOK_SECRET')
 }
-
-EMAIL_HOST = 'smtp.mailtrap.io'
-EMAIL_HOST_USER = '1e47278bc26919'
-EMAIL_HOST_PASSWORD = '1e355fb5adb1fd'
-EMAIL_PORT = '2525'
-EMAIL_USE_TLS = True
 
 # TODO move this into the event
 DONATION_AMOUNT = 1
 
-DEFAULT_FROM_EMAIL = 'Fuego Austral <bonos@eventos.fuegoaustral.org>'
+EMAIL_HOST = os.environ.get('EMAIL_HOST')
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+EMAIL_PORT = os.environ.get('EMAIL_PORT')
+EMAIL_USE_TLS = True
+
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'Fuego Austral <bonos@eventos.fuegoaustral.org>').replace('"', '').replace("'", '')
 
 TEMPLATED_EMAIL_TEMPLATE_DIR = 'emails/'
 TEMPLATED_EMAIL_FILE_EXTENSION = 'html'
@@ -237,9 +234,6 @@ SOCIALACCOUNT_PROVIDERS = {
         }
     }
 }
-
-# user comprador {"id":1037327132,"nickname":"TETE9670391","password":"qatest8330","site_status":"active","email":"test_user_43578812@testuser.com"}%
-# user comprador {"id":1037346624,"nickname":"TETE9234065","password":"qatest9033","site_status":"active","email":"test_user_72163657@testuser.com"}%
 
 try:
     from deprepagos.local_settings import *
@@ -270,6 +264,13 @@ LOGGING = {
         },
     },
 }
+
+# ENABLE DEBUG LOGGING FOR DATABASE QUERIES
+# if ENV == 'local':
+#     LOGGING['loggers']['django.db'] = {
+#         'level': 'DEBUG'
+#     }
+
 
 # Email settings
 ACCOUNT_EMAIL_REQUIRED = True
