@@ -123,6 +123,8 @@ def process_order(payment):
 
         mint_tickets(order)
 
+        Order.objects.get(key=order.key).send_confirmation_email()
+
     except Order.DoesNotExist as e:
         logging.error(f"Order not found: {str(e)}")
         raise e
@@ -142,6 +144,14 @@ def tickets_available(order):
         if tickets_remaining < order.total_order_tickets():
             logging.info(f"Order {order.key} has more tickets than available")
             return False
+
+
+        for order_ticket in OrderTicket.objects.filter(order=order).select_related('ticket_type').all():
+            if order_ticket.quantity > order_ticket.ticket_type.ticket_count:
+                logging.info(
+                    f"Order {order.key} has more tickets of type {order_ticket.ticket_type.name} than available")
+                return False
+
         return True
 
     except AttributeError as e:
@@ -168,9 +178,9 @@ def refund_payment(order, payment):
 def mint_tickets(order):
     try:
         user_already_has_ticket = NewTicket.objects.filter(owner=order.user).exists()
-        logging.info("user_already_has_ticket", user_already_has_ticket)
+        logging.info(f"user_already_has_ticket {user_already_has_ticket}")
         order_has_more_than_one_ticket_type = order.total_ticket_types() > 1
-        logging.info("order_has_more_than_one_ticket_type", order_has_more_than_one_ticket_type)
+        logging.info(f"order_has_more_than_one_ticket_type {order_has_more_than_one_ticket_type}")
 
         order_tickets = OrderTicket.objects.filter(order=order)
 
@@ -194,9 +204,9 @@ def mint_tickets(order):
 
             order.status = Order.OrderStatus.CONFIRMED
             order.save()
-            logging.info(f"Order {order.key} confirmed")
+
             for ticket in new_minted_tickets:
-                logging.info(f"Ticket {ticket.ticket_type.name}  {ticket.key} minted")
+                logging.info(f"Minted {ticket}")
 
     except AttributeError as e:
         logging.error(f"Attribute error in minting tickets: {str(e)}")

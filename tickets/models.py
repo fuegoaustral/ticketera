@@ -9,7 +9,7 @@ import logging
 
 from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Count, Sum, Q, F
 from django.conf import settings
 from django.urls import reverse
@@ -50,7 +50,7 @@ class Coupon(BaseModel):
 class TicketTypeManager(models.Manager):
     # get all available ticket types for available events
     def get_available_ticket_types_for_current_events(self):
-        return (self
+        return  (self
                 .filter(event__active=True)
                 .filter(Q(date_from__lte=timezone.now()) | Q(date_from__isnull=True))
                 .filter(Q(date_to__gte=timezone.now()) | Q(date_to__isnull=True))
@@ -65,13 +65,11 @@ class TicketTypeManager(models.Manager):
         now = timezone.now()
 
         # Query available ticket types for the event
-        ticket_types = (self.filter(event=event)
-                        .filter(Q(date_from__lte=now) | Q(date_from__isnull=True))
-                        .filter(Q(date_to__gte=now) | Q(date_to__isnull=True))
-                        .annotate(confirmed_tickets=Count('order_tickets', filter=Q(
-            order_tickets__order__status=Order.OrderStatus.CONFIRMED)))
-                        .annotate(available_tickets=F('ticket_count') - F('confirmed_tickets'))
-                        .filter(available_tickets__gt=0))
+        ticket_types = TicketType.objects.filter(event=event).filter(
+            Q(date_from__lte=timezone.now()) | Q(date_from__isnull=True),
+            Q(date_to__gte=timezone.now()) | Q(date_to__isnull=True),
+            Q(ticket_count__gt=0) | Q(ticket_count__isnull=True)
+        )
 
         # Apply coupon filtering if a coupon is provided
         if coupon:
@@ -196,26 +194,18 @@ class Order(BaseModel):
         logging.info(f'Order {self.id} saved with status {self.status}')
         logging.info(f'Old status was {self._old_status}')
 
-        # TODO: review this according to the new ticket model
-        # if self._old_status != Order.OrderStatus.CONFIRMED and self.status == Order.OrderStatus.CONFIRMED:
-        #     logging.info(f'Order {self.id} confirmed')
-        #     self.send_confirmation_email()
-        #     logging.info(f'Order {self.id} confirmation email sent')
-        #     for ticket in self.ticket_set.all():
-        #         logging.info(f'Order {self.id} ticket {ticket.id} created')
-        #         ticket.send_email()
-        #         logging.info(f'Order {self.id} ticket {ticket.id} email sent')
-
     def send_confirmation_email(self):
+
         send_mail(
             template_name='order_success',
             recipient_list=[self.email],
             context={
                 'order': self,
-                'url': self.get_resource_url(),
-                'event': self.ticket_type.event,
+                'event': self.event,
+                'has_many_tickets': NewTicket.objects.filter(holder=self.user, event=self.event).count() > 1,
             }
         )
+        logging.info(f'Order {self.id} confirmation email sent')
 
     def get_payment_preference(self):
 
@@ -274,7 +264,7 @@ class Order(BaseModel):
         return response
 
     def __str__(self):
-        return f'#{self.pk} {self.last_name}'
+        return f'Order #{self.pk}  {self.last_name} - {self.email} - {self.status} - {self.amount}'
 
 
 class NewTicket(models.Model):
@@ -301,6 +291,19 @@ class NewTicket(models.Model):
 
         return img_data_base64
 
+    def save(self):
+        with transaction.atomic():
+            is_new = self.pk is None
+            super(NewTicket, self).save()
+
+            if is_new:
+                ticket_type = TicketType.objects.get(id=self.ticket_type.id)
+                ticket_type.ticket_count = ticket_type.ticket_count - 1
+                ticket_type.save()
+
+    def __str__(self):
+        return f'Ticket {self.key} - {self.ticket_type} - holder: {self.holder} - owner: {self.owner}'
+
 
 class NewTicketTransfer(models.Model):
     ticket = models.ForeignKey(NewTicket, on_delete=models.CASCADE)
@@ -310,6 +313,9 @@ class NewTicketTransfer(models.Model):
     tx_to_email = models.CharField(max_length=320)
     TRANSFER_STATUS = (('PENDING', 'Pendiente'), ('CONFIRMED', 'Confirmado'), ('CANCELLED', 'Cancelado'))
     status = models.CharField(max_length=10, choices=TRANSFER_STATUS, default='PENDING')
+
+    def __str__(self):
+        return f'Transferencia de {self.tx_from} a {self.tx_to_email} {self.tx_to} - {self.ticket} - {self.status}'
 
 
 class TicketPerson(models.Model):

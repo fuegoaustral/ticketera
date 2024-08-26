@@ -169,6 +169,7 @@ class CheckoutTicketSelectionForm(forms.Form):
                 self.fields[field_name] = forms.IntegerField(
                     label=f"{ticket_type.name}",
                     min_value=0,
+                    max_value=ticket_type.ticket_count,
                     initial=initial_value
                 )
 
@@ -179,7 +180,8 @@ class CheckoutTicketSelectionForm(forms.Form):
                     'description': ticket_type.description,
                     'price': ticket_type.price,
                     'field_name': field_name,
-                    'initial_quantity': initial_value  # Pass the initial value to the template
+                    'initial_quantity': initial_value,  # Pass the initial value to the template
+                    'ticket_count': ticket_type.ticket_count
                 })
         else:
             self.ticket_data = []

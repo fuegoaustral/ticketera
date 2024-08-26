@@ -87,17 +87,31 @@
 
                 const maxTicketsPerOrder = {{ available_tickets }};
 
-                function updateQuantity(ticketId, increment) {
-                    var quantityInput = document.getElementById('ticket_' + ticketId + '_quantity');
-                    var currentValue = parseInt(quantityInput.value);
-                    var newValue = currentValue + increment;
+                const ticketsRemainingByType = {
+                    {% for ticket in ticket_data %}
+                        '{{ ticket.id }}': {{ ticket.ticket_count }},
+                    {% endfor %}
+                };
 
-                    if (newValue >= 0 && getTotalQuantity() + increment <= maxTicketsPerOrder) {
-                        quantityInput.value = newValue;
-                        calculateSubtotal();
-                        toggleContinueButton();
-                    } else if (newValue > 0) {
-                        alert('No puedes seleccionar más de ' + maxTicketsPerOrder + ' bonos.');
+                function updateQuantity(ticketId, increment) {
+                    const quantityInput = document.getElementById('ticket_' + ticketId + '_quantity');
+                    const currentValue = parseInt(quantityInput.value);
+                    const newValue = currentValue + increment;
+                    const totalQuantity = getTotalQuantity();
+
+
+                    if (newValue >= 0 && newValue <= ticketsRemainingByType[ticketId]) {
+                    
+                        if (totalQuantity + increment <= maxTicketsPerOrder) {
+                            quantityInput.value = newValue;
+                            ticketsRemainingByType[ticketId] -= increment;  
+                            calculateSubtotal();
+                            toggleContinueButton();
+                        } else {
+                            alert('No puedes seleccionar más de ' + maxTicketsPerOrder + ' bonos en total.');
+                        }
+                    } else if (newValue > ticketsRemainingByType[ticketId]) {
+                        alert('No hay suficientes bonos disponibles para este tipo.');
                     }
                 }
 

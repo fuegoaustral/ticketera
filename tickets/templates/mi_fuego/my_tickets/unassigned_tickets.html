@@ -111,9 +111,9 @@
                 </div>
                 <div id="transferSuccessMessage" style="display: none;">
                     <div class="alert alert-success">
-                    <h5>¡Felicidades!</h5>
-                    <p>El bono ha sido transferido con éxito.</p>
-                    <button type="button" class="btn btn-primary" onclick="refreshPage()">Continuar</button>
+                        <h5>¡Felicidades!</h5>
+                        <p>El bono ha sido transferido con éxito.</p>
+                        <button type="button" class="btn btn-primary" onclick="refreshPage()">Continuar</button>
                     </div>
                 </div>
                 <div id="transferPendingMessage" style="display: none;">
@@ -154,7 +154,7 @@
         } else {
             emailInput.classList.remove('is-invalid');
         }
-        // Show loading spinner
+
         document.getElementById('transferForm').style.display = 'none';
         document.getElementById('loadingSpinner').style.display = 'flex';
 
@@ -181,7 +181,6 @@
                 } else {
                     document.getElementById('invitation-email').innerHTML = email;
                     document.getElementById('transferPendingMessage').style.display = 'block';
-
                 }
             } else {
                 alert('Error en la transferencia. Por favor, inténtalo de nuevo.');
@@ -229,7 +228,8 @@
     function resetModal() {
         document.getElementById('transferForm').style.display = 'block';
         document.getElementById('loadingSpinner').style.display = 'none';
-        document.getElementById('congratsMessage').style.display = 'none';
+        document.getElementById('transferSuccessMessage').style.display = 'none';
+        document.getElementById('transferPendingMessage').style.display = 'none';
         document.getElementById('recipient-email').classList.remove('is-invalid');
         document.getElementById('recipient-email').value = '';
     }

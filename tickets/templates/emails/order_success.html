@@ -4,16 +4,26 @@
     ¡TODO EN ORDEN!
 {% endblock %}
 {% block content %}
-<p>
-    Tu Orden de Compra <b>#{{ order.id }}</b> para <b>{{ event.name|safe }}</b> ha sido:
-</p>
+    <p>
+        Tu Orden de Compra <b>#{{ order.id }}</b> para <b>{{ event.name|safe }}</b> ha sido:
+    </p>
 
-<p><b>CONFIRMADA</b></p>
+    <p><b>CONFIRMADA</b></p>
 
-<p>En breve recibirán los bonos contribución de ingreso a los correos cargados. Cualquier problema que tengas, escribinos a: <a href="mailto:bonos@fuegoaustral.org">bonos@fuegoaustral.org</a></p>
+    <p>Podes ver tus bonos entrando a <a href="{{ APP_URL }}/{% url 'my_tickets' %}">Mis Bonos</a></p>
 
-<p><b>ESTE EMAIL NO ES UN BONO CONTRIBUCIÓN DE INGRESO</b></p>
+    {% if has_many_tickets %}
+        <p>Recorda que cada persona debe tener su bono en su cuenta. Si compraste mas de uno, debes transferiselo a la
+            persona
+            correspondiente.</p>
+        <p>Tenes tiempo hasta el <b>{{ event.transfers_enabled_until|date:"d/m" }}</b> para hacerlo.</p>
+    {% endif %}
 
-<p>La experiencia será lo que hagamos de ella.</p>
+
+    <p>Cualquier problema que tengas, escribinos a: <a href="mailto:bonos@fuegoaustral.org">bonos@fuegoaustral.org</a>,
+        o por el chat en la web.</p>
+
+
+    <p>La experiencia será lo que hagamos de ella.</p>
 
 {% endblock %}

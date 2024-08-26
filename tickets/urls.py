@@ -1,5 +1,6 @@
 from django.urls import path
-from .views import home, order, ticket, profile, checkout, webhooks, new_ticket
+
+from .views import home, order, ticket, profile, checkout, webhooks, new_ticket, mi_fuego
 
 urlpatterns = [
     path('', home.home, name='home'),
@@ -36,7 +37,8 @@ urlpatterns = [
     # Webhook related paths
     path('webhooks/mercadopago', webhooks.mercadopago_webhook, name='mercadopago_webhook'),
 
-    path('mi-fuego', profile.my_tickets_view, name='mi_fuego'),
+    path('mi-fuego/', mi_fuego.my_fire_view, name='mi_fuego'),
+    path('mi-fuego/mis-bonos', mi_fuego.my_tickets_view, name='my_tickets'),
     path('mi-fuego/transfer-ticket', new_ticket.transfer_ticket, name='transfer_ticket'),
     path('mi-fuego/transfer-ticket/cancel-ticket-transfer', new_ticket.cancel_ticket_transfer,
          name='cancel_ticket_transfer'),
