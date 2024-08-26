@@ -10,9 +10,6 @@
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
           integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-            integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
-            crossorigin="anonymous"></script>
 
     <link rel="icon" href="{% static 'img/favicon.png' %}" type="image/png">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.6.0/css/all.min.css"
@@ -24,6 +21,7 @@
     <link rel="stylesheet" href="{% static 'scss/global.css' %}">
     <link rel="stylesheet" href="{% static 'scss/fuego.css' %}">
 
+    <!-- TODO move this shit to some other place  -->
     <style>
         .site-header {
             background: {{event.header_bg_color}} url("{{event.header_image.url}}") no-repeat top center !important;
@@ -35,52 +33,105 @@
                 height: {{event.header_image.height}}px !important;
             }
         }
+
+        @media (max-width: 996px) {
+            .navbarNav {
+                width: 100vh;
+                border: 1px solid #C3B59F !important;
+                border-radius: 10px;
+                background-color: #F2F3F7 !important;
+            }
+
+            .nav-item {
+                margin: 4px;
+                border-bottom: 1px solid #C3B59F !important;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+
+            }
+
+            .nav-item:last-child {
+                border-bottom: none !important;
+            }
+
+            .nav-link {
+                color: #503C3A !important;
+                text-decoration: none !important;
+            }
+
+            .nav-item:hover {
+                background-color: #f7f5f0;
+            }
+        }
+
+        .nav-link {
+            color: white;
+            text-decoration: none !important;
+        }
+
+        .nav-link:hover {
+            color: white;
+            text-decoration: underline !important;
+        }
+
+        .nav-link:visited {
+            color: white;
+        }
+
+        .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3e%3cpath stroke='rgba(255, 255, 255, 0.5)' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
+        }
     </style>
+    <!-- TODO move this shit to some other place  -->
+
     <title>Fuego Austral &#8211; La experiencia será lo que hagamos de ella</title>
 
 
     {% block extrahead %}{% endblock %}
+
+    {% if user.is_authenticated and user.profile.profile_completion == 'COMPLETE' %}
+        <script>
+            (function (d, t) {
+                window.chatwootSettings = {
+                    locale: 'es', // Language to be set
+                };
+                const BASE_URL = "https://app.chatwoot.com";
+                const g = d.createElement(t), s = d.getElementsByTagName(t)[0];
+                g.src = BASE_URL + "/packs/js/sdk.js";
+                g.defer = true;
+                g.async = true;
+                s.parentNode.insertBefore(g, s);
+                g.onload = function () {
+                    window.chatwootSDK.run({
+                        websiteToken: '{{ CHATWOOT_TOKEN }}',
+                        baseUrl: BASE_URL
+                    })
+                }
+
+            })(document, "script");
+
+            const checkChatwootLoaded = setInterval(() => {
+                if ($chatwoot && $chatwoot.hasLoaded) {
+                    clearInterval(checkChatwootLoaded);
+                    $chatwoot.setUser({{ user.id }}, {
+                        email: '{{ user.email }}',
+                        name: '{{ user.first_name }} {{ user.last_name }}',
+                        phone_number: '{{ user.profile.phone }}',
+
+                    });
+                }
+            }, 100);
+
+        </script>
+    {% endif %}
 </head>
 
-<body class="home blog feed">
-{% if user.is_authenticated and user.profile.profile_completion == 'COMPLETE' %}
-    <script>
-        (function (d, t) {
-            window.chatwootSettings = {
-                locale: 'es', // Language to be set
-            };
-            const BASE_URL = "https://app.chatwoot.com";
-            const g = d.createElement(t), s = d.getElementsByTagName(t)[0];
-            g.src = BASE_URL + "/packs/js/sdk.js";
-            g.defer = true;
-            g.async = true;
-            s.parentNode.insertBefore(g, s);
-            g.onload = function () {
-                window.chatwootSDK.run({
-                    websiteToken: '{{ CHATWOOT_TOKEN }}',
-                    baseUrl: BASE_URL
-                })
-            }
+<body class="home blog ">
 
-        })(document, "script");
-
-        const checkChatwootLoaded = setInterval(() => {
-            if ($chatwoot && $chatwoot.hasLoaded) {
-                clearInterval(checkChatwootLoaded);
-                $chatwoot.setUser({{ user.id }}, {
-                    email: '{{ user.email }}',
-                    name: '{{ user.first_name }} {{ user.last_name }}',
-                    phone_number: '{{ user.profile.phone }}',
-
-                });
-            }
-        }, 100);
-
-    </script>
-{% endif %}
 <div class="content d-flex flex-column min-vh-100">
 
-    <header id="masthead" class="site-header {% block hero %}{% endblock %}">
+    <div id="masthead" class="site-header {% block hero %}{% endblock %}">
 
 
         <div class="container">
@@ -102,52 +153,58 @@
                        href="{% url 'account_signup' %}">Registrarse</a>
                 {% endif %}
             </div>
-            <div class="row">
-                <div class="col-md-3 site-branding">
-                    <a href="{{ APP_URL }}">
-                        <img src="{% static 'img/logo.svg' %}" alt="Fuego Austral" width="140">
-                    </a>
-                </div>
+            <div class="row d-flex flex-row ">
 
-                <div class="col-md main-navigation-wrap">
-                    <nav id="site-navigation" class="main-navigation">
-                        <button class="menu-toggle btn" aria-controls="primary-menu" aria-expanded="false"
+
+                <nav class="navbar navbar-expand-lg ">
+                    <div class="d-flex container-fluid">
+                        <a href="{{ APP_URL }}" class="m-3">
+                            <img src="{% static 'img/logo.svg' %}" alt="Fuego Austral" width="140">
+                        </a>
+                        <button class="navbar-toggler m-3" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false"
                                 aria-label="Toggle navigation">
                             <span class="navbar-toggler-icon"></span>
                         </button>
-                        <div class="menu-primary-container">
-                            <ul id="primary-menu" class="menu">
-                                {% if user.is_authenticated %}
-                                    <li>
-                                        <a class="btn btn-danger text-white" href="{% url 'my_tickets' %}">Mis
-                                            bonos</a>
-                                    </li>
-                                {% endif %}
-                                <li id="menu-item-18"
-                                    class="menu-item menu-item-type-post_type menu-item-object-page menu-item-18"><a
-                                        href="http://fuegoaustral.org/el-evento/">El Evento</a></li>
-                                <li id="menu-item-54"
-                                    class="menu-item menu-item-type-post_type menu-item-object-page menu-item-54"><a
-                                        href="http://fuegoaustral.org/participar/">Participar</a></li>
-                                <li id="menu-item-22"
-                                    class="menu-item menu-item-type-post_type menu-item-object-page menu-item-22"><a
-                                        href="http://fuegoaustral.org/prepararse/">Prepararse</a></li>
-                                <li id="menu-item-20"
-                                    class="menu-item menu-item-type-post_type menu-item-object-page menu-item-20"><a
-                                        href="http://fuegoaustral.org/historia/">Historia</a></li>
-                                <li id="menu-item-2395"
-                                    class="menu-item menu-item-type-post_type menu-item-object-page menu-item-2395"><a
-                                        href="http://fuegoaustral.org/la-sede/">La Sede</a></li>
-                                <li id="menu-item-19"
-                                    class="menu-item menu-item-type-post_type menu-item-object-page menu-item-19"><a
-                                        href="http://fuegoaustral.org/faq/">FAQ</a></li>
+                        <div class="navbarNav collapse navbar-collapse justify-content-end bg-transparent text-lg-white z-3"
+                             id="navbarNav">
+                            <ul class="navbar-nav m-2">
+                                <li class="nav-item">
+                                    <a class="btn btn-danger text-white mb-2" href="{% url 'my_tickets' %}">Mis
+                                        bonos</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link"
+                                       href="http://fuegoaustral.org/el-evento/">El Evento</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link"
+                                       href="http://fuegoaustral.org/participar/">Participar</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link"
+                                       href="http://fuegoaustral.org/prepararse/">Prepararse</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link"
+                                       href="http://fuegoaustral.org/historia/">Historia</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="http://fuegoaustral.org/la-sede/">La Sede</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link"
+                                       href="http://fuegoaustral.org/faq/">FAQ</a>
+                                </li>
                             </ul>
                         </div>
-                    </nav>
-                </div>
+                    </div>
+                </nav>
+
+
             </div>
         </div>
-    </header><!-- #masthead -->
+    </div><!-- #masthead -->
 
     <div class="site-main my-5 {% block container_type %}container{% endblock %} d-flex flex-column flex-grow-1">
         {% block content %}{% endblock %}
@@ -177,5 +234,8 @@
         </div>
     </footer>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
 </body>
 </html>
