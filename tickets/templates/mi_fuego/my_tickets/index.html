@@ -22,15 +22,15 @@
         {% endif %}
         <hr class="my-2" style="border-top: 1px solid">
         {% if tickets_dto %}
-            {% if has_assigned_tickets %}
+            {% if my_ticket %}
                 {% include "./assigned_tickets.html" %}
             {% endif %}
 
-            {% if has_assigned_tickets and has_unassigned_tickets %}
+            {% if my_ticket and has_unassigned_tickets %}
                 <hr class="my-4" style="border-top: 1px solid">
             {% endif %}
 
-            {% if has_unassigned_tickets %}
+            {% if has_unassigned_tickets or transferred_tickets %}
                 {% include "./unassigned_tickets.html" %}
             {% endif %}
 

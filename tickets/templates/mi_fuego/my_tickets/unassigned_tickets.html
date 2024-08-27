@@ -83,8 +83,9 @@
 
                             <div class="d-flex flex-row justify-content-end gap-2"
                                  style="min-width: 180px">
-                                {% if not has_assigned_tickets %}
-                                    <a class="btn btn-sm btn-success text-white text-decoration-none">Asignarmelo</a>
+                                {% if not my_ticket %}
+                                    <a class="btn btn-sm btn-success text-white text-decoration-none"
+                                        href="{% url 'assign_ticket' ticket.key %}">Asignarmelo</a>
                                 {% endif %}
 
                                 {% if ticket.is_transfer_pending %}
@@ -98,7 +99,6 @@
                                             onclick="setTransferTicketId('{{ ticket.key }}')">Transferir
                                     </button>
                                 {% endif %}
-
                             </div>
                         </div>
                     </div>
