@@ -1,23 +1,15 @@
 {% extends 'emails/base.html' %}
-{% block subject %}🔥¡Te enviaron un bono de Fuego Austral, no cuelges en registrarte!🔥 {% endblock %}
+{% block subject %}🔥¡Te enviaron un bono de Fuego Austral!🔥 {% endblock %}
 {% block title %}
     Transferencia de Bono<br/>
 {% endblock %}
 {% block content %}
     <p>
-        Te han enviado un bono de Fuego Austral. Para completar la transferencia y recibir tu bono,
-        necesitas crear una cuenta en nuestra plataforma.
+        Te han enviado un bono de Fuego Austral. Podes verlo entrado en el siguiente link:
     </p>
 
-    <p>
-        Crear una cuenta es muy fácil, solo haz click en el siguiente botón y sigue las instrucciones.
-    </p>
+    {% include 'emails/partials/btn.html' with label='Mis Bonos' href=my_tickets  domain=domain %}
 
-    {% include 'emails/partials/btn.html' with label='Crear cuenta' href=sign_up_link  domain=domain %}
-
-    <p>
-        Es importante que uses el mismo email al que te enviamos este mensaje <b>({{ destination_email }})</b>.
-    </p>
     <p>
     </p>
 
