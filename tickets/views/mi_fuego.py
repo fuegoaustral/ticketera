@@ -44,11 +44,24 @@ def my_tickets_view(request):
     has_assigned_tickets = any(ticket['is_owners'] is True for ticket in tickets_dto)
 
     is_volunteer = any(ticket['is_owners'] is True and (
-                ticket['volunteer_ranger'] or ticket['volunteer_transmutator'] or ticket['volunteer_umpalumpa']) for
+            ticket['volunteer_ranger'] or ticket['volunteer_transmutator'] or ticket['volunteer_umpalumpa']) for
                        ticket in tickets_dto)
 
     # Check if any ticket has a transfer pending
     has_transfer_pending = any(ticket['is_transfer_pending'] is True for ticket in tickets_dto)
+
+    transferred_tickets = NewTicketTransfer.objects.filter(tx_from=request.user, status='COMPLETED').all()
+
+    transferred_dto = []
+
+    for transfer in transferred_tickets:
+        transferred_dto.append({
+            'tx_to_email': transfer.tx_to_email,
+            'ticket_key': transfer.ticket.key,
+            'ticket_type': transfer.ticket.ticket_type.name,
+            'ticket_color': transfer.ticket.ticket_type.color,
+            'emoji': transfer.ticket.ticket_type.emoji,
+        })
 
     return render(request, 'mi_fuego/my_tickets/index.html', {
         'is_volunteer': is_volunteer,
@@ -56,5 +69,6 @@ def my_tickets_view(request):
         'has_unassigned_tickets': has_unassigned_tickets,
         'has_transfer_pending': has_transfer_pending,
         'tickets_dto': tickets_dto,
+        'transferred_dto': transferred_dto,
         'event': event
     })

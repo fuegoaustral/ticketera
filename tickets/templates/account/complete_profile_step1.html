@@ -8,11 +8,20 @@
             <form method="post" id="profile-form">
                 {% csrf_token %}
                 <div class="form-group d-flex flex-column w-100">
+                    
+                    <!-- Form-wide errors -->
+                    {% if form.non_field_errors %}
+                        <div class="text-danger mb-3">
+                            {% for error in form.non_field_errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
 
                     <!-- First Name -->
                     <label for="first_name">Nombre</label>
                     <input type="text" class="form-control" id="first_name" name="first_name"
-                           placeholder="Ingresa tu nombre">
+                           placeholder="Ingresa tu nombre" value="{{ form.first_name.value|default_if_none:'' }}">
                     {% if form.first_name.errors %}
                         <div class="text-danger">
                             {% for error in form.first_name.errors %}
@@ -24,7 +33,7 @@
                     <!-- Last Name -->
                     <label for="last_name" class="mt-3">Apellido</label>
                     <input type="text" class="form-control" id="last_name" name="last_name"
-                           placeholder="Ingresa tu apellido">
+                           placeholder="Ingresa tu apellido" value="{{ form.last_name.value|default_if_none:'' }}">
                     {% if form.last_name.errors %}
                         <div class="text-danger">
                             {% for error in form.last_name.errors %}
@@ -35,10 +44,10 @@
 
                     <!-- Document Type -->
                     <label for="document_type" class="mt-3">Tipo de documento</label>
-                    <select class="form-control" id="document_type" name="document_type" class="mt-3">
-                        <option value="DNI">DNI</option>
-                        <option value="PASSPORT">Pasaporte</option>
-                        <option value="OTHER">Otro</option>
+                    <select class="form-control" id="document_type" name="document_type">
+                        <option value="DNI" {% if form.document_type.value == 'DNI' %}selected{% endif %}>DNI</option>
+                        <option value="PASSPORT" {% if form.document_type.value == 'PASSPORT' %}selected{% endif %}>Pasaporte</option>
+                        <option value="OTHER" {% if form.document_type.value == 'OTHER' %}selected{% endif %}>Otro</option>
                     </select>
                     {% if form.document_type.errors %}
                         <div class="text-danger">
@@ -49,9 +58,9 @@
                     {% endif %}
 
                     <!-- Document Number -->
-                    <label for="document_number" class="mt-3">Numero de documento</label>
+                    <label for="document_number" class="mt-3">Número de documento</label>
                     <input type="text" class="form-control" id="document_number" name="document_number"
-                           placeholder="Ingresa tu numero de documento">
+                           placeholder="Ingresa tu número de documento" value="{{ form.document_number.value|default_if_none:'' }}">
                     {% if form.document_number.errors %}
                         <div class="text-danger">
                             {% for error in form.document_number.errors %}
@@ -61,7 +70,6 @@
                     {% endif %}
                     <button type="submit" class="btn btn-primary mt-3" id="submit-button">Continuar</button>
                 </div>
-
             </form>
         </div>
     </div>

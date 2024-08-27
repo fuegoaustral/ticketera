@@ -1,7 +1,10 @@
+from django.db import transaction
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 
 from tickets.forms import ProfileStep1Form, ProfileStep2Form
+from tickets.models import NewTicketTransfer, NewTicket
+from tickets.views import order
 
 
 @login_required
@@ -53,8 +56,35 @@ def complete_profile(request):
         return redirect('home')
 
 
+@login_required
 def profile_congrats(request):
-    return render(request, 'account/profile_congrats.html')
+    user = request.user
+    pending_transfers = NewTicketTransfer.objects.filter(tx_to_email=user.email, status='PENDING').select_related(
+        'ticket').all()
+
+    if pending_transfers.exists():
+        with transaction.atomic():
+            user_already_has_ticket = NewTicket.objects.filter(owner=user).exists()
+            for transfer in pending_transfers:
+                transfer.status = 'COMPLETED'
+                transfer.tx_to = user
+                transfer.save()
+
+                transfer.ticket.holder = user
+                transfer.ticket.volunteer_ranger = None
+                transfer.ticket.volunteer_transmutator = None
+                transfer.ticket.volunteer_umpalumpa = None
+                if user_already_has_ticket:
+                    transfer.ticket.owner = None
+                else:
+                    transfer.ticket.owner = user
+                    user_already_has_ticket = True
+
+                transfer.ticket.save()
+
+        return render(request, 'account/profile_congrats_with_tickets.html')
+    else:
+        return render(request, 'account/profile_congrats.html')
 
 
 @login_required
