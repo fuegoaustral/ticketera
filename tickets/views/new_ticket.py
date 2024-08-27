@@ -89,6 +89,14 @@ def transfer_ticket(request):
             new_ticket_transfer.save()
             ticket.save()
 
+        send_mail(
+            template_name='new_transfer_success',
+            recipient_list=[email],
+            context={
+                'my_tickets': reverse('my_tickets')
+            }
+        )
+
     return JsonResponse({'status': 'OK', 'destination_user_exists': destination_user_exists})
 
 
