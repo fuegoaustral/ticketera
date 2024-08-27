@@ -5,10 +5,12 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.validators import EmailValidator
 from django.db import transaction
+from django.urls import reverse
 
 from tickets.models import NewTicket, NewTicketTransfer
 from django.http import HttpResponseNotAllowed, HttpResponseForbidden, HttpResponse, HttpResponseBadRequest, \
     JsonResponse
+from utils.email import send_mail
 
 
 @login_required
@@ -44,7 +46,6 @@ def transfer_ticket(request):
         return HttpResponseBadRequest('')
 
     if destination_user_exists is False:
-
         new_ticket_transfer = NewTicketTransfer(
             ticket=ticket,
             tx_from=request.user,
@@ -53,6 +54,14 @@ def transfer_ticket(request):
         )
         new_ticket_transfer.save()
         # send email
+        send_mail(
+            template_name='new_transfer_no_account',
+            recipient_list=[email],
+            context={
+                'destination_email': email,
+                'sign_up_link': reverse('account_signup')
+            }
+        )
     else:
         with transaction.atomic():
             destination_user = User.objects.get(email=email)

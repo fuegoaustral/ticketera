@@ -86,6 +86,18 @@ class ProfileStep1Form(forms.ModelForm):
         cleaned_document_number = document_number.replace('.', '')
         return cleaned_document_number
 
+    def clean(self):
+        cleaned_data = super(ProfileStep1Form, self).clean()
+        document_type = cleaned_data.get('document_type')
+        document_number = self.clean_document_number()
+
+        # Check for duplicate document number and type
+        if Profile.objects.filter(document_type=document_type, document_number=document_number).exclude(
+                user=self.instance.user).exists():
+            raise forms.ValidationError("Otro usuario ya tiene este tipo de documento y número.")
+
+        return cleaned_data
+
     def save(self, commit=True):
         # Create a profile instance, but don't save it yet
         profile = super(ProfileStep1Form, self).save(commit=False)
@@ -129,8 +141,22 @@ class ProfileStep2Form(forms.ModelForm):
             return full_phone_number
         return self.cleaned_data['phone']
 
+    def clean(self):
+        cleaned_data = super(ProfileStep2Form, self).clean()
+        phone = cleaned_data.get('phone')
+
+        # Check for duplicate phone number
+        if Profile.objects.filter(phone=phone).exclude(user=self.instance.user).exists():
+            raise forms.ValidationError("Otro usuario ya tiene este número de teléfono.")
+
+        return cleaned_data
+
     def send_verification_code(self):
         phone = self.cleaned_data['phone']
+
+        if settings.ENV == 'local':
+            return '123456'
+
         client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
         verification = client.verify \
             .v2 \
@@ -142,6 +168,10 @@ class ProfileStep2Form(forms.ModelForm):
     def verify_code(self):
         phone = self.cleaned_data['phone']
         code = self.cleaned_data.get('code')
+
+        if settings.ENV == 'local':
+            return True
+
         client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
         verification_check = client.verify \
             .v2 \
@@ -150,11 +180,11 @@ class ProfileStep2Form(forms.ModelForm):
             .create(to=phone, code=code)
         return verification_check.status == 'approved'
 
+
 class CheckoutTicketSelectionForm(forms.Form):
     def __init__(self, *args, **kwargs):
         initial_data = kwargs.pop('initial', {})
         super(CheckoutTicketSelectionForm, self).__init__(*args, **kwargs)
-
 
         ticket_types = TicketType.objects.get_available_ticket_types_for_current_events()
 

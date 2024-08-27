@@ -23,6 +23,15 @@
                     <input type="tel" id="phone" name="phone_input" style="width: 100%"
                            value="{{ form.phone.value|default:profile.phone }}"
                            {% if code_sent %}disabled{% endif %}>  <!-- Disable if code sent -->
+
+                    {% if form.non_field_errors %}
+                        <div class="text-danger mb-3">
+                            {% for error in form.non_field_errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
                     {% if form.phone.errors %}
                         <div class="text-danger">
                             {% for error in form.phone.errors %}

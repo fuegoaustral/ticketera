@@ -7,7 +7,6 @@ from io import BytesIO
 import qrcode
 import logging
 
-from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
 from django.db import models, transaction
 from django.db.models import Count, Sum, Q, F
@@ -18,7 +17,6 @@ from django.core.validators import RegexValidator
 from django.utils import timezone
 
 from auditlog.registry import auditlog
-from PIL import Image
 
 from events.models import Event
 from utils.email import send_mail
@@ -50,7 +48,7 @@ class Coupon(BaseModel):
 class TicketTypeManager(models.Manager):
     # get all available ticket types for available events
     def get_available_ticket_types_for_current_events(self):
-        return  (self
+        return (self
                 .filter(event__active=True)
                 .filter(Q(date_from__lte=timezone.now()) | Q(date_from__isnull=True))
                 .filter(Q(date_to__gte=timezone.now()) | Q(date_to__isnull=True))
@@ -267,7 +265,7 @@ class Order(BaseModel):
         return f'Order #{self.pk}  {self.last_name} - {self.email} - {self.status} - {self.amount}'
 
 
-class NewTicket(models.Model):
+class NewTicket(BaseModel):
     key = models.UUIDField(default=uuid.uuid4, editable=False)
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     order = models.ForeignKey('Order', on_delete=models.CASCADE)
@@ -301,11 +299,12 @@ class NewTicket(models.Model):
                 ticket_type.ticket_count = ticket_type.ticket_count - 1
                 ticket_type.save()
 
+
     def __str__(self):
         return f'Ticket {self.key} - {self.ticket_type} - holder: {self.holder} - owner: {self.owner}'
 
 
-class NewTicketTransfer(models.Model):
+class NewTicketTransfer(BaseModel):
     ticket = models.ForeignKey(NewTicket, on_delete=models.CASCADE)
     tx_from = models.ForeignKey(User, related_name='transferred_tickets', null=True, blank=True,
                                 on_delete=models.CASCADE)

@@ -14,9 +14,42 @@
                 onclick="filterTickets('not-pending', this)">
             Sin Asignar
         </button>
+        <button type="button" id="btn-complete" class="btn btn-sm btn-outline-success"
+                onclick="filterTickets('complete', this)">
+            Transferencia Completa
+        </button>
     </div>
 </div>
 <div class="row" id="transfer-tickets">
+    {% for ticket in transferred_dto %}
+        <div class="col-lg-3 col-sm-12 mb-4 ticket-card complete">
+            <div class="shadow rounded border border-secondary p-3"
+                 style="background-color: #e9ecef;">
+                <div class="card-body">
+                    <div class="d-flex flex-column justify-content-between align-items-top">
+                        <div class="d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="text-start badge bg-success lh-sm">Transferencia completa<br>{{ ticket.tx_to_email }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="m-4 pt-2 border rounded shadow-sm bg-white">
+                            <div class="small fw-bold text-black">
+                                {{ event.name }}{{ ticket.emoji }}</div>
+                            <span class="badge"
+                                  style="background-color: #{{ ticket.ticket_color }}">{{ ticket.ticket_type }}</span>
+
+                            <div class="d-flex flex-column justify-content-center m-4">
+                                <img src="{% static 'img/logo_black.png' %}" alt="Fuego Austral"/>
+                                <p class="mb-0 small">Bono transferido</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
     {% for ticket in tickets_dto %}
         {% if not ticket.is_owners %}
             <div class="col-lg-3 col-sm-12 mb-4 ticket-card
@@ -245,6 +278,8 @@
                 ticket.style.display = 'block';
             } else if (filter === 'not-pending' && ticket.classList.contains('not-pending')) {
                 ticket.style.display = 'block';
+            } else if (filter === 'complete' && ticket.classList.contains('complete')) {
+                ticket.style.display = 'block';
             } else {
                 ticket.style.display = 'none';
             }
@@ -261,6 +296,9 @@
             } else if (button.id === 'btn-not-pending') {
                 button.classList.add('btn-outline-danger');
                 button.classList.remove('btn-danger');
+            } else if (button.id === 'btn-complete') {
+                button.classList.add('btn-outline-success');
+                button.classList.remove('btn-success');
             }
         });
 
@@ -273,6 +311,9 @@
         } else if (filter === 'not-pending') {
             btn.classList.remove('btn-outline-danger');
             btn.classList.add('btn-danger');
+        } else if (filter === 'complete') {
+            btn.classList.remove('btn-outline-success');
+            btn.classList.add('btn-success');
         }
     }
 </script>
