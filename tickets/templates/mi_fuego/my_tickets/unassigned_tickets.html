@@ -24,8 +24,8 @@
     {% for ticket in transferred_dto %}
         <div class="col-lg-3 col-sm-12 mb-4 ticket-card complete">
             <div class="shadow rounded border border-secondary p-3"
-                 style="background-color: #e9ecef;">
-                <div class="card-body">
+                 style="background-color: #e9ecef;min-height: 375px">
+                <div class="card-body ">
                     <div class="d-flex flex-column justify-content-between align-items-top">
                         <div class="d-flex flex-column">
                             <div class="d-flex justify-content-between align-items-center">
@@ -55,14 +55,14 @@
             <div class="col-lg-3 col-sm-12 mb-4 ticket-card
         {% if ticket.is_transfer_pending %}pending{% else %}not-pending{% endif %}">
                 <div class="shadow rounded border border-secondary p-3"
-                     style="background-color: #e9ecef;">
+                     style="background-color: #e9ecef;min-height: 375px">
                     <div class="card-body">
                         <div class="d-flex flex-column justify-content-between align-items-top">
                             <div class="d-flex flex-column">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
                                         {% if ticket.is_transfer_pending %}
-                                            <span class="text-start text-black badge bg-warning">Invitacion pendiente a <br><strong>{{ ticket.transferring_to }}</strong> </span>
+                                            <span class="text-start text-black badge bg-warning  lh-sm">Invitacion pendiente a <br><strong>{{ ticket.transferring_to }}</strong> </span>
                                         {% else %}
                                             <span class="badge bg-danger mb-2">Sin asignar</span>
                                         {% endif %}
