@@ -299,6 +299,27 @@ class NewTicket(BaseModel):
                 ticket_type.ticket_count = ticket_type.ticket_count - 1
                 ticket_type.save()
 
+    def get_dto(self, user):
+        transfer_pending = NewTicketTransfer.objects.filter(ticket=self, tx_from=user,
+                                                            status='PENDING').first()
+        return {
+            'key': self.key,
+            'order': self.order.key,
+            'ticket_type': self.ticket_type.name,
+            'ticket_color': self.ticket_type.color,
+            'emoji': self.ticket_type.emoji,
+            'price': self.ticket_type.price,
+            'is_transfer_pending': transfer_pending is not None,
+            'transferring_to': transfer_pending.tx_to_email if transfer_pending else None,
+            'is_owners': self.holder == self.owner,
+            'volunteer_ranger': self.volunteer_ranger,
+            'volunteer_transmutator': self.volunteer_transmutator,
+            'volunteer_umpalumpa': self.volunteer_umpalumpa,
+            'qr_code': self.generate_qr_code(),
+        }
+
+    def is_volunteer(self):
+        return self.volunteer_ranger or self.volunteer_transmutator or self.volunteer_umpalumpa
 
     def __str__(self):
         return f'Ticket {self.key} - {self.ticket_type} - holder: {self.holder} - owner: {self.owner}'

@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.validators import EmailValidator
 from django.db import transaction
+from django.shortcuts import redirect
 from django.urls import reverse
 
 from tickets.models import NewTicket, NewTicketTransfer
@@ -120,3 +121,69 @@ def cancel_ticket_transfer(request):
     ticket_transfer.save()
 
     return HttpResponse('OK')
+
+
+@login_required()
+def volunteer_ticket(request, ticket_key):
+    if request.method != 'POST':
+        return HttpResponseNotAllowed()
+
+    ticket = NewTicket.objects.get(key=ticket_key)
+    if ticket is None:
+        return HttpResponseBadRequest()
+
+    if not (ticket.holder == request.user and ticket.owner == request.user):
+        return HttpResponseForbidden()
+
+    request_body = json.loads(request.body)
+
+    ticket.volunteer_ranger = request_body['volunteer_ranger']
+    ticket.volunteer_transmutator = request_body['volunteer_transmutator']
+    ticket.volunteer_umpalumpa = request_body['volunteer_umpalumpa']
+
+    ticket.save()
+
+    return HttpResponse('OK')
+
+
+@login_required()
+def assign_ticket(request, ticket_key):
+    if request.method != 'GET':
+        return HttpResponseNotAllowed()
+
+    ticket = NewTicket.objects.get(key=ticket_key)
+    if ticket is None:
+        return HttpResponseBadRequest()
+
+    if not (ticket.holder == request.user and ticket.owner == None):
+        return HttpResponseForbidden()
+
+    if NewTicket.objects.filter(holder=request.user, owner=request.user).exists():
+        return HttpResponseBadRequest
+
+    ticket.owner = request.user
+    ticket.save()
+
+    return redirect(reverse('my_tickets'))
+
+
+@login_required()
+def unassign_ticket(request, ticket_key):
+    if request.method != 'GET':
+        return HttpResponseNotAllowed()
+
+    ticket = NewTicket.objects.get(key=ticket_key)
+    if ticket is None:
+        return HttpResponseBadRequest()
+
+    if not (ticket.holder == request.user and ticket.owner == request.user):
+        return HttpResponseForbidden()
+
+    ticket.volunteer_ranger = None
+    ticket.volunteer_transmutator = None
+    ticket.volunteer_umpalumpa = None
+    ticket.owner = None
+
+    ticket.save()
+
+    return redirect(reverse('my_tickets'))
