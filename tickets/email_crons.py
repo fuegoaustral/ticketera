@@ -32,6 +32,9 @@ def send_pending_actions_emails_for_event(current_event):
     logging.info(f"| {len(pending_transfers_recipient)} Tickets waiting for recipient to create an account")
     logging.info(f"| {total_unsent_tickets} Tickets waiting for the holder to share")
     logging.info(DASHES_LINE)
+    logging.info(
+        f"{fibonacci_impares(5)} are the fibonacci uneven numbers < 30, we will send pending action reminders, on days since the action MOD 30, that are on that sequence")
+    logging.info(DASHES_LINE)
 
     start_time = time.perf_counter()
     with (ThreadPoolExecutor() as executor):
@@ -61,7 +64,6 @@ def send_pending_actions_emails_for_event(current_event):
 
 
 def send_recipient_pending_transfers_reminder(transfer, current_event):
-    # TODO: Implement this
     if transfer.max_days_ago % 30 in fibonacci_impares(5):
         logging.info(
             f"sending a notification to the recipient {transfer.tx_to_email} to remember to create an account, you have a pending ticket transfer since {transfer.max_days_ago} days ago. You have time until {current_event.transfers_enabled_until.strftime('%d/%m')}")
@@ -202,11 +204,8 @@ def get_unsent_tickets(current_event):
 def fibonacci_impares(n, a=0, b=1, sequence=None):
     if sequence is None:
         sequence = []
-
     if len(sequence) >= n:
         return sequence
-
-    if a % 2 != 0 and a not in sequence:  # Verifica si el número es impar y no está duplicado
+    if a % 2 != 0 and a not in sequence:
         sequence.append(a)
-
     return fibonacci_impares(n, b, a + b, sequence)
