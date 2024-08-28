@@ -83,16 +83,15 @@
 
                             <div class="d-flex flex-row justify-content-end gap-2"
                                  style="min-width: 180px">
-                                {% if not my_ticket %}
-                                    <a class="btn btn-sm btn-success text-white text-decoration-none"
-                                        href="{% url 'assign_ticket' ticket.key %}">Asignarmelo</a>
-                                {% endif %}
-
                                 {% if ticket.is_transfer_pending %}
                                     <a class="btn btn-sm btn-danger text-white text-decoration-none"
                                        onclick="cancelTicketTransfer('{{ ticket.key }}')">Cancelar
                                         invitación</a>
                                 {% else %}
+                                    {% if not my_ticket %}
+                                        <a class="btn btn-sm btn-success text-white text-decoration-none"
+                                           href="{% url 'assign_ticket' ticket.key %}">Asignarmelo</a>
+                                    {% endif %}
                                     <button class=" btn btn-sm btn-warning text-decoration-none"
                                             data-bs-toggle="modal"
                                             data-bs-target="#transferModal"
