@@ -105,6 +105,8 @@ TEMPLATES = [
                 'utils.context_processors.app_url',
                 'utils.context_processors.donation_amount',
                 'utils.context_processors.chatwoot_token',
+                'utils.context_processors.env',
+                'utils.context_processors.chatwoot_identifier_hash',
             ],
         },
     },
@@ -296,3 +298,4 @@ ACCOUNT_DEFAULT_HTTP_PROTOCOL = (
 CSRF_TRUSTED_ORIGINS = [APP_URL]
 
 CHATWOOT_TOKEN = os.environ.get('CHATWOOT_TOKEN')
+CHATWOOT_IDENTITY_VALIDATION = os.environ.get('CHATWOOT_IDENTITY_VALIDATION')
