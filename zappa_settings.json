@@ -35,7 +35,7 @@
     "events": [
       {
         "function": "tickets.crons.ping",
-        "expression": "rate(1 minute)"
+        "expression": "cron(0 17 * * ? *)"
       }
     ]
   },
