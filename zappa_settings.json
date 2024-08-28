@@ -31,7 +31,13 @@
       }
     ],
     "domain": "dev.fuegoaustral.org",
-    "certificate_arn": "arn:aws:acm:us-east-1:251799394474:certificate/09f6bc34-2d5a-4172-a25a-2602f1b15fca"
+    "certificate_arn": "arn:aws:acm:us-east-1:251799394474:certificate/09f6bc34-2d5a-4172-a25a-2602f1b15fca",
+    "events": [
+      {
+        "function": "tickets.crons.ping",
+        "expression": "rate(1 minute)"
+      }
+    ]
   },
   "prod": {
     "aws_region": "us-east-1",
