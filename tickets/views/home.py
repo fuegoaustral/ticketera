@@ -1,7 +1,10 @@
 from django.http import HttpResponse
 from django.template import loader
+
+from tickets.crons import  send_pending_actions_emails
 from tickets.models import Coupon, TicketType
 from events.models import Event
+
 
 def home(request):
     context = {}
@@ -18,3 +21,9 @@ def home(request):
 
     template = loader.get_template('tickets/home.html')
     return HttpResponse(template.render(context, request))
+
+
+def test(request):
+    send_pending_actions_emails(None, None)
+
+    return HttpResponse('Test executed')
