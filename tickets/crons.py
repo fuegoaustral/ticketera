@@ -2,6 +2,7 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed, ALL_COMPLETED, wait
 
 from django.utils import timezone
+import logging
 
 from events.models import Event
 from tickets.models import NewTicketTransfer, NewTicket
@@ -10,19 +11,19 @@ DASHES_LINE = '-' * 120
 
 
 def send_pending_actions_emails(event, context):
-    print("Email cron job")
-    print("==============")
-    print("\n")
+    logging.info("Email cron job")
+    logging.info("==============")
+    logging.info("\n")
     # Your cron job logic here
 
     current_event = Event.objects.get(active=True)
     pending_transfers = get_pending_transfers()
     holder_summary, amount_tickets_not_shared_yet = get_unsent_tickets(current_event, pending_transfers)
 
-    print(DASHES_LINE)
-    print(f"| {len(pending_transfers)} Tickets waiting for recipient to create an account")
-    print(f"| {amount_tickets_not_shared_yet} Tickets waiting for the holder to share")
-    print(DASHES_LINE)
+    logging.info(DASHES_LINE)
+    logging.info(f"| {len(pending_transfers)} Tickets waiting for recipient to create an account")
+    logging.info(f"| {amount_tickets_not_shared_yet} Tickets waiting for the holder to share")
+    logging.info(DASHES_LINE)
 
     with ThreadPoolExecutor() as executor:
         transfer_futures = [executor.submit(send_pending_transfers_reminder_email, transfer) for transfer in
@@ -46,17 +47,17 @@ def send_pending_transfers_reminder_email(transfer):
 
 def send_unsent_tickets_reminder_email(holder, summary, current_event):
     if summary['highest_days'] % 14 in [1, 3, 8]:
-        print(
+        logging.info(
             f"sending a notification to the holder {holder} to remember to share the {summary['ticket_count']} tickets before {current_event.transfers_enabled_until}"
         )
 
 
 def send_recipient_pending_transfers_reminder(transfer):
-    print(f"sending a notification to the recipient {transfer.tx_to_email} to remember to create an account")
+    logging.info(f"sending a notification to the recipient {transfer.tx_to_email} to remember to create an account")
 
 
 def send_sende_pending_transfers_reminder(transfer):
-    print(
+    logging.info(
         f"sending a notification to the sender {transfer.tx_from.email} to remember to check with the recipient if they have created an account - Is the recipient's email correct?")
 
 
