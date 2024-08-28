@@ -50,7 +50,7 @@ urlpatterns = [
     path('mi-fuego/transfer-ticket/cancel-ticket-transfer', new_ticket.cancel_ticket_transfer,
          name='cancel_ticket_transfer'),
 
-
+    path('test/', home.test, name='test'),
 
 
 ]

@@ -34,7 +34,7 @@
     "certificate_arn": "arn:aws:acm:us-east-1:251799394474:certificate/09f6bc34-2d5a-4172-a25a-2602f1b15fca",
     "events": [
       {
-        "function": "tickets.crons.ping",
+        "function": "tickets.crons.send_pending_actions_emails",
         "expression": "cron(0 17 * * ? *)"
       }
     ]

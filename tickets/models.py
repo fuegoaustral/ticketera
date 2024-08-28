@@ -335,7 +335,7 @@ class NewTicketTransfer(BaseModel):
     status = models.CharField(max_length=10, choices=TRANSFER_STATUS, default='PENDING')
 
     def __str__(self):
-        return f'Transferencia de {self.tx_from} a {self.tx_to_email} {self.tx_to} - {self.ticket} - {self.status}'
+        return f'Transaction from {self.tx_from.email} to {self.tx_to_email}  - Ticket  {self.ticket.key} - {self.status} - Ceated {(timezone.now() - self.created_at).days} days ago'
 
 
 class TicketPerson(models.Model):
