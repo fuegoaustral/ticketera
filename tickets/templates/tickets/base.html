@@ -111,17 +111,16 @@
 
             })(document, "script");
 
-            const checkChatwootLoaded = setInterval(() => {
-                if ($chatwoot && $chatwoot.hasLoaded) {
-                    clearInterval(checkChatwootLoaded);
-                    $chatwoot.setUser({{ user.id }}, {
-                        email: '{{ user.email }}',
-                        name: '{{ user.first_name }} {{ user.last_name }}',
-                        phone_number: '{{ user.profile.phone }}',
 
-                    });
-                }
-            }, 100);
+            window.addEventListener("chatwoot:ready", function () {
+                console.log("Chatwoot is ready to use");
+                $chatwoot.setUser('{{ user.username }}', {
+                    email: '{{ user.email }}',
+                    name: '[{{ENV }}] - {{ user.first_name }} {{ user.last_name }}',
+                    phone_number: '{{ user.profile.phone }}',
+                    identifier_hash: '{{ CHATWOOT_IDENTIFIER_HASH }}'
+                });
+            });
 
         </script>
     {% endif %}
