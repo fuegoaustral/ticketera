@@ -51,7 +51,13 @@ def send_pending_actions_emails_for_event(current_event):
 
     wait(futures, return_when=ALL_COMPLETED)
 
-    logging.info(f"Elapsed time: {time.perf_counter() - start_time:.4f} seconds")
+    total_emails_sent = sum([future.result()[0] for future in futures])
+    total_sms_sent = sum([future.result()[1] for future in futures])
+
+    logging.info(DASHES_LINE)
+    logging.info(
+        f"Process time: {time.perf_counter() - start_time:.4f} seconds. Emails sent: {total_emails_sent}. SMS sent: {total_sms_sent}")
+    logging.info(DASHES_LINE)
 
 
 def send_recipient_pending_transfers_reminder(transfer, current_event):
@@ -59,17 +65,24 @@ def send_recipient_pending_transfers_reminder(transfer, current_event):
     if transfer.max_days_ago % 30 in fibonacci_impares(5):
         logging.info(
             f"sending a notification to the recipient {transfer.tx_to_email} to remember to create an account, you have a pending ticket transfer since {transfer.max_days_ago} days ago. You have time until {current_event.transfers_enabled_until.strftime('%d/%m')}")
+        return (1, 0);
+    return (0, 0);
 
 
 def send_sender_pending_transfers_reminder(transfer, current_event):
-    #TODO: Implement this
+    emails_sent = 0,
+    messages_sent = 0
     if transfer.max_days_ago % 30 in fibonacci_impares(5):
         logging.info(
             f"sending a notification to the sender {transfer.tx_from_email} to remember that tickets shared with {transfer.tx_to_emails}, were not accepted yet since {transfer.max_days_ago} days ago. Are you sure they are going to use them? Are the emails correct?. You have time until {current_event.transfers_enabled_until.strftime('%d/%m')}")
+        emails_sent = 1
 
     if transfer.max_days_ago == 2:
         logging.info(
             f"sending an SMS notification to the sender {transfer.tx_from_email} to remember that tickets shared with {transfer.tx_to_emails}, were not accepted yet since {transfer.max_days_ago} days ago. Are you sure they are going to use them? Are the emails correct?. You have time until {current_event.transfers_enabled_until.strftime('%d/%m')}")
+        messages_sent = 1
+
+    return (emails_sent, messages_sent)
 
 
 def send_unsent_tickets_reminder_email(unsent_ticket, current_event):
@@ -77,6 +90,7 @@ def send_unsent_tickets_reminder_email(unsent_ticket, current_event):
     if unsent_ticket.max_days_ago % 30 in fibonacci_impares(5):
         logging.info(
             f"sending a notification to the holder {unsent_ticket.email} to remember to share the tickets, you have {unsent_ticket.pending_to_share_tickets} pending tickets since {unsent_ticket.max_days_ago} days ago. You have time until {current_event.transfers_enabled_until.strftime('%d/%m')}")
+        return (1, 0);
 
 
 class PendingTransferReceiver:
