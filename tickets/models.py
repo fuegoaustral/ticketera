@@ -4,6 +4,7 @@ from decimal import Decimal
 import uuid
 from io import BytesIO
 
+import jsonfield
 import qrcode
 import logging
 
@@ -461,6 +462,15 @@ class Profile(models.Model):
 
     def __str__(self):
         return self.user.username
+
+
+class MessageIdempotency(models.Model):
+    email = models.EmailField()
+    hash = models.CharField(max_length=64, unique=True)
+    payload = jsonfield.JSONField()
+
+    def __str__(self):
+        return f"{self.email} - {self.hash}"
 
 
 auditlog.register(Coupon)

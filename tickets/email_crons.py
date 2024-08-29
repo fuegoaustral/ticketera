@@ -1,14 +1,16 @@
+import hashlib
 import random
 import time
 from collections import defaultdict, namedtuple
 from concurrent.futures import ThreadPoolExecutor, as_completed, ALL_COMPLETED, wait
-
+import json
+from django.core import serializers
 from django.db import connection
 from django.utils import timezone
 import logging
 
 from events.models import Event
-from tickets.models import NewTicketTransfer, NewTicket
+from tickets.models import NewTicketTransfer, NewTicket, MessageIdempotency
 
 DASHES_LINE = '-' * 120
 
@@ -65,40 +67,90 @@ def send_pending_actions_emails_for_event(current_event):
 
 def send_recipient_pending_transfers_reminder(transfer, current_event):
     if transfer.max_days_ago % 30 in fibonacci_impares(5):
-        logging.info(
-            f"sending a notification to the recipient {transfer.tx_to_email} to remember to create an account, you have a pending ticket transfer since {transfer.max_days_ago} days ago. You have time until {current_event.transfers_enabled_until.strftime('%d/%m')}")
-        return (1, 0);
-    return (0, 0);
+        action = f"sending a notification to the recipient {transfer.tx_to_email} to remember to create an account, you have a pending ticket transfer since {transfer.max_days_ago} days ago. You have time until {current_event.transfers_enabled_until.strftime('%d/%m')}"
+        if not MessageIdempotency.objects.filter(email=transfer.tx_to_email, hash=hash_string(action)).exists():
+            logging.info(action)
+            MessageIdempotency(
+                email=transfer.tx_to_email,
+                hash=hash_string(action),
+                payload=json.dumps(
+                    {
+                        'action': 'send_recipient_pending_transfers_reminder',
+                        'transfer': transfer.to_dict(),
+                        'event_id': current_event.id
+                    })).save()
+            return 1, 0
+    return 0, 0
 
 
 def send_sender_pending_transfers_reminder(transfer, current_event):
-    emails_sent = 0,
+    emails_sent = 0
     messages_sent = 0
     if transfer.max_days_ago % 30 in fibonacci_impares(5):
-        logging.info(
-            f"sending a notification to the sender {transfer.tx_from_email} to remember that tickets shared with {transfer.tx_to_emails}, were not accepted yet since {transfer.max_days_ago} days ago. Are you sure they are going to use them? Are the emails correct?. You have time until {current_event.transfers_enabled_until.strftime('%d/%m')}")
-        emails_sent = 1
+        action = f"sending a notification to the sender {transfer.tx_from_email} to remember that tickets shared with {transfer.tx_to_emails}, were not accepted yet since {transfer.max_days_ago} days ago. Are you sure they are going to use them? Are the emails correct?. You have time until {current_event.transfers_enabled_until.strftime('%d/%m')}"
+        if not MessageIdempotency.objects.filter(email=transfer.tx_from_email, hash=hash_string(action)).exists():
+            # TODO: send email here
+            logging.info(action)
+            MessageIdempotency(
+                email=transfer.tx_from_email,
+                hash=hash_string(action),
+                payload=json.dumps(
+                    {
+                        'action': 'send_sender_pending_transfers_reminder:email',
+                        'transfer': transfer.to_dict(),
+                        'event_id': current_event.id
+                    })).save()
+            emails_sent = 1
 
+    ## We only send SMS notifications for transfers that are 2 days old to be assertive but not overwhelming
     if transfer.max_days_ago == 2:
-        logging.info(
-            f"sending an SMS notification to the sender {transfer.tx_from_email} to remember that tickets shared with {transfer.tx_to_emails}, were not accepted yet since {transfer.max_days_ago} days ago. Are you sure they are going to use them? Are the emails correct?. You have time until {current_event.transfers_enabled_until.strftime('%d/%m')}")
-        messages_sent = 1
+        action = f"sending an SMS notification to the sender {transfer.tx_from_email} to remember that tickets shared with {transfer.tx_to_emails}, were not accepted yet since {transfer.max_days_ago} days ago. Are you sure they are going to use them? Are the emails correct?. You have time until {current_event.transfers_enabled_until.strftime('%d/%m')}"
+        if not MessageIdempotency.objects.filter(email=transfer.tx_from_email, hash=hash_string(action)).exists():
+            # TODO: send email here
+            logging.info(action)
+            MessageIdempotency(
+                email=transfer.tx_from_email,
+                hash=hash_string(action),
+                payload=json.dumps(
+                    {
+                        'action': 'send_sender_pending_transfers_reminder:sms',
+                        'transfer': transfer.to_dict(),
+                        'event_id': current_event.id
+                    })).save()
+            messages_sent = 1
 
-    return (emails_sent, messages_sent)
+    return emails_sent, messages_sent
 
 
 def send_unsent_tickets_reminder_email(unsent_ticket, current_event):
-    # TODO: Implement this
     if unsent_ticket.max_days_ago % 30 in fibonacci_impares(5):
-        logging.info(
-            f"sending a notification to the holder {unsent_ticket.email} to remember to share the tickets, you have {unsent_ticket.pending_to_share_tickets} pending tickets since {unsent_ticket.max_days_ago} days ago. You have time until {current_event.transfers_enabled_until.strftime('%d/%m')}")
-        return (1, 0);
+        action = f"sending a notification to the holder {unsent_ticket.email} to remember to share the tickets, you have {unsent_ticket.pending_to_share_tickets} pending tickets since {unsent_ticket.max_days_ago} days ago. You have time until {current_event.transfers_enabled_until.strftime('%d/%m')}"
+        if not MessageIdempotency.objects.filter(email=unsent_ticket.email, hash=hash_string(action)).exists():
+            # TODO: send email here
+            logging.info(action)
+            MessageIdempotency(
+                email=unsent_ticket.email,
+                hash=hash_string(action),
+                payload=json.dumps(
+                    {
+                        'action': 'send_unsent_tickets_reminder_email',
+                        'unsent_ticket': unsent_ticket.to_dict(),
+                        'event_id': current_event.id
+                    })).save()
+            return 1, 0
+    return 0, 0
 
 
 class PendingTransferReceiver:
     def __init__(self, tx_to_email, max_days_ago):
         self.tx_to_email = tx_to_email
         self.max_days_ago = max_days_ago
+
+    def to_dict(self):
+        return {
+            'tx_to_email': self.tx_to_email,
+            'max_days_ago': int(self.max_days_ago)
+        }
 
 
 def get_pending_transfers_recipients(event):
@@ -119,6 +171,13 @@ class PendingTransferSender:
         self.tx_from_email = tx_from_email
         self.tx_to_emails = tx_to_emails
         self.max_days_ago = max_days_ago
+
+    def to_dict(self):
+        return {
+            'tx_from_email': self.tx_from_email,
+            'tx_to_emails': self.tx_to_emails,
+            'max_days_ago': int(self.max_days_ago)
+        }
 
 
 def get_pending_transfers_sender(event):
@@ -170,6 +229,13 @@ class PendingTicketHolder:
         self.pending_to_share_tickets = pending_to_share_tickets
         self.max_days_ago = max_days_ago
 
+    def to_dict(self):
+        return {
+            'email': self.email,
+            'pending_to_share_tickets': int(self.pending_to_share_tickets),
+            'max_days_ago': int(self.max_days_ago)
+        }
+
 
 def get_unsent_tickets(current_event):
     with connection.cursor() as cursor:
@@ -209,3 +275,13 @@ def fibonacci_impares(n, a=0, b=1, sequence=None):
     if a % 2 != 0 and a not in sequence:
         sequence.append(a)
     return fibonacci_impares(n, b, a + b, sequence)
+
+
+def hash_string(string_to_hash):
+    hash_object = hashlib.sha256()
+
+    # Encode the string to bytes and update the hash object
+    hash_object.update(string_to_hash.encode('utf-8'))
+
+    # Get the hexadecimal representation of the hash
+    return hash_object.hexdigest()
