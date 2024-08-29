@@ -1,7 +1,7 @@
 from django.http import HttpResponse
 from django.template import loader
 
-from tickets.email_crons import  send_pending_actions_emails
+from tickets.email_crons import send_pending_actions_emails
 from tickets.models import Coupon, TicketType
 from events.models import Event
 
