@@ -45,12 +45,10 @@ urlpatterns = [
     path('mi-fuego/mis-bonos/<str:ticket_key>/assign', new_ticket.assign_ticket, name='assign_ticket'),
     path('mi-fuego/mis-bonos/<str:ticket_key>/unassign', new_ticket.unassign_ticket, name='unassign_ticket'),
 
-
     path('mi-fuego/transfer-ticket', new_ticket.transfer_ticket, name='transfer_ticket'),
     path('mi-fuego/transfer-ticket/cancel-ticket-transfer', new_ticket.cancel_ticket_transfer,
          name='cancel_ticket_transfer'),
 
-    path('test/', home.test, name='test'),
-
+    path('ping/', home.ping, name='ping'),
 
 ]

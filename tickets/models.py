@@ -1,23 +1,21 @@
 import base64
+import logging
+import uuid
 from datetime import datetime
 from decimal import Decimal
-import uuid
 from io import BytesIO
 
 import jsonfield
 import qrcode
-import logging
-
+from auditlog.registry import auditlog
+from django.conf import settings
+from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
+from django.core.validators import RegexValidator
 from django.db import models, transaction
 from django.db.models import Count, Sum, Q, F
-from django.conf import settings
 from django.urls import reverse
-from django.contrib.auth.models import User
-from django.core.validators import RegexValidator
 from django.utils import timezone
-
-from auditlog.registry import auditlog
 
 from events.models import Event
 from utils.email import send_mail
