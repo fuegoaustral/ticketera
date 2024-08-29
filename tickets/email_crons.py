@@ -150,33 +150,33 @@ def send_sender_pending_transfers_reminder(transfer, current_event):
         except Exception as e:
             logging.error(f"Error sending email to {transfer.tx_from_email}: {e}")
 
+    ## TODO Find a way to do this for free. Twillio charges periodically to first OWN a number.
     ## We only send SMS notifications for transfers that are 2 days old to be assertive but not overwhelming
-    if transfer.max_days_ago == 2:
-        try:
-            action = f"Hola, te escribe la matrix de Fuego Austral. Acordate que tenés  {len(transfer.tx_to_emails)}, bonos sin transferir. Es para avisarte que no cuelges, tenes tiempo hasta el {current_event.transfers_enabled_until.strftime('%d/%m')}"
-            if not MessageIdempotency.objects.filter(email=transfer.tx_from_email,
-                                                     hash=hash_string(transfer.tx_from_email)).exists():
-                # TODO: send SMS here
-                logging.info(action)
-                MessageIdempotency(
-                    email=transfer.tx_from_email,
-                    hash=hash_string(transfer.tx_from_email),
-                    # I hash like this cos I want to send only one SMS per sender.
-                    payload=json.dumps(
-                        {
-                            'action': 'send_sender_pending_transfers_reminder:sms',
-                            'transfer': transfer.to_dict(),
-                            'event_id': current_event.id
-                        })).save()
-                messages_sent = 1
-        except Exception as e:
-            logging.error(f"Error sending SMS to {transfer.tx_from_email}: {e}")
+    # if transfer.max_days_ago == 2:
+    #     try:
+    #         action = f"Hola, te escribe la matrix de Fuego Austral. Acordate que tenés  {len(transfer.tx_to_emails)}, bonos sin transferir. Es para avisarte que no cuelges, tenes tiempo hasta el {current_event.transfers_enabled_until.strftime('%d/%m')}"
+    #         if not MessageIdempotency.objects.filter(email=transfer.tx_from_email,
+    #                                                  hash=hash_string(transfer.tx_from_email)).exists():
+    #             logging.info(action)
+    #             MessageIdempotency(
+    #                 email=transfer.tx_from_email,
+    #                 hash=hash_string(transfer.tx_from_email),
+    #                 # I hash like this cos I want to send only one SMS per sender.
+    #                 payload=json.dumps(
+    #                     {
+    #                         'action': 'send_sender_pending_transfers_reminder:sms',
+    #                         'transfer': transfer.to_dict(),
+    #                         'event_id': current_event.id
+    #                     })).save()
+    #             messages_sent = 1
+    #     except Exception as e:
+    #         logging.error(f"Error sending SMS to {transfer.tx_from_email}: {e}")
 
     return emails_sent, messages_sent
 
 
 def send_unsent_tickets_reminder_email(unsent_ticket, current_event):
-    if unsent_ticket.max_days_ago - 1 % 30 in fibonacci_impares(5):
+    if unsent_ticket.max_days_ago % 30 in fibonacci_impares(5):
         try:
             action = f"sending a notification to the holder {unsent_ticket.email} to remember to share the tickets, you have {unsent_ticket.pending_to_share_tickets} pending tickets since {unsent_ticket.max_days_ago} days ago. You have time until {current_event.transfers_enabled_until.strftime('%d/%m')}"
             if not MessageIdempotency.objects.filter(email=unsent_ticket.email, hash=hash_string(action)).exists():
