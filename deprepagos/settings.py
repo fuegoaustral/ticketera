@@ -1,5 +1,5 @@
-from pathlib import Path
 import os
+from pathlib import Path
 
 import django
 from django.utils.encoding import smart_str
@@ -80,10 +80,9 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'auditlog.middleware.AuditlogMiddleware',
-
     "allauth.account.middleware.AccountMiddleware",
-
     'tickets.middleware.ProfileCompletionMiddleware',
+    'tickets.middleware.DeviceDetectionMiddleware'
 
 ]
 
@@ -218,7 +217,9 @@ EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 EMAIL_PORT = os.environ.get('EMAIL_PORT')
 EMAIL_USE_TLS = True
 
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'Fuego Austral <bonos@eventos.fuegoaustral.org>').replace('"', '').replace("'", '')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'Fuego Austral <bonos@eventos.fuegoaustral.org>').replace('"',
+                                                                                                                    '').replace(
+    "'", '')
 
 TEMPLATED_EMAIL_TEMPLATE_DIR = 'emails/'
 TEMPLATED_EMAIL_FILE_EXTENSION = 'html'

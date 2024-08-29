@@ -85,7 +85,7 @@
         </div>
     {% endif %}
     {% if my_ticket %}
-<div class="d-flex flex-column w-100 align-items-lg-center">
+        <div class="d-flex flex-column w-100 align-items-lg-center">
 
             <div class="col-lg-3 col-sm-12 col-md-6 mb-4">
                 <div class="rounded"
@@ -136,6 +136,16 @@
                             </div>
                         </div>
                     </div>
+                </div>
+                <div class="d-flex gap-2 mt-2 justify-content-center">
+                    {% if request.is_iphone %}
+                        <img src="{% static '/img/Add_to_Apple_Wallet_badge.svg' %}" width="160"/>
+                    {% elif request.is_android %}
+                        <img src="{% static '/img/Add_to_Google_Wallet_badge.svg' %}" width="160"/>
+                    {% else %}
+                        <img src="{% static '/img/Add_to_Apple_Wallet_badge.svg' %}" width="160"/>
+                        <img src="{% static '/img/Add_to_Google_Wallet_badge.svg' %}" width="160"/>
+                    {% endif %}
                 </div>
             </div>
 
