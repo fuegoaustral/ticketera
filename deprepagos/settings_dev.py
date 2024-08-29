@@ -1,6 +1,5 @@
 from deprepagos.settings import *
 
-ENV = 'dev'
 
 CSRF_TRUSTED_ORIGINS = ['dev.fuegoaustral.org']
 
