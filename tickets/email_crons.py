@@ -1,19 +1,24 @@
 import hashlib
+import random
 import time
+from collections import defaultdict, namedtuple
+from concurrent.futures import ThreadPoolExecutor, as_completed, ALL_COMPLETED, wait
 import json
-import logging
-from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
+from django.core import serializers
 from django.db import connection
+from django.utils import timezone
+import logging
+
 from events.models import Event
-from tickets.models import MessageIdempotency
+from tickets.models import NewTicketTransfer, NewTicket, MessageIdempotency
 
 DASHES_LINE = '-' * 120
 
 
 def send_pending_actions_emails(event, context):
     logging.info("Email cron job")
-    logging.info("==============\n")
-
+    logging.info("==============")
+    logging.info("\n")
     current_event = Event.objects.get(active=True)
     send_pending_actions_emails_for_event(current_event)
 
@@ -23,52 +28,36 @@ def send_pending_actions_emails_for_event(current_event):
     pending_transfers_sender = get_pending_transfers_sender(current_event)
     unsent_tickets = get_unsent_tickets(current_event)
 
-    total_unsent_tickets = sum(holder.pending_to_share_tickets for holder in unsent_tickets)
+    total_unsent_tickets = sum([holder.pending_to_share_tickets for holder in unsent_tickets])
 
-    log_pending_actions_summary(pending_transfers_recipient, total_unsent_tickets)
-
-    start_time = time.perf_counter()
-
-    with ThreadPoolExecutor() as executor:
-        futures = create_futures(executor, pending_transfers_sender, pending_transfers_recipient, unsent_tickets,
-                                 current_event)
-        wait(futures, return_when=ALL_COMPLETED)
-
-    log_execution_summary(futures, start_time)
-
-
-def create_futures(executor, pending_transfers_sender, pending_transfers_recipient, unsent_tickets, current_event):
-    sender_futures = [
-        executor.submit(send_sender_pending_transfers_reminder, transfer, current_event)
-        for transfer in pending_transfers_sender
-    ]
-
-    recipient_futures = [
-        executor.submit(send_recipient_pending_transfers_reminder, transfer, current_event)
-        for transfer in pending_transfers_recipient
-    ]
-
-    unsent_ticket_futures = [
-        executor.submit(send_unsent_tickets_reminder_email, ticket, current_event)
-        for ticket in unsent_tickets
-    ]
-
-    return sender_futures + recipient_futures + unsent_ticket_futures
-
-
-def log_pending_actions_summary(pending_transfers_recipient, total_unsent_tickets):
     logging.info(DASHES_LINE)
     logging.info(f"| {len(pending_transfers_recipient)} Tickets waiting for recipient to create an account")
     logging.info(f"| {total_unsent_tickets} Tickets waiting for the holder to share")
     logging.info(DASHES_LINE)
     logging.info(
-        f"{fibonacci_impares(5)} are the Fibonacci odd numbers < 30. We will send pending action reminders on days since the action MOD 30, that are on that sequence")
+        f"{fibonacci_impares(5)} are the fibonacci uneven numbers < 30, we will send pending action reminders, on days since the action MOD 30, that are on that sequence")
     logging.info(DASHES_LINE)
 
+    start_time = time.perf_counter()
+    with (ThreadPoolExecutor() as executor):
+        futures = [
+                      executor.submit(send_sender_pending_transfers_reminder, transfer, current_event)
+                      for transfer
+                      in pending_transfers_sender
+                  ] + [
+                      executor.submit(send_recipient_pending_transfers_reminder, transfer, current_event)
+                      for transfer
+                      in pending_transfers_recipient
+                  ] + [
+                      executor.submit(send_unsent_tickets_reminder_email, unsent_ticket, current_event)
+                      for unsent_ticket
+                      in unsent_tickets
+                  ]
 
-def log_execution_summary(futures, start_time):
-    total_emails_sent = sum(future.result()[0] for future in futures)
-    total_sms_sent = sum(future.result()[1] for future in futures)
+    wait(futures, return_when=ALL_COMPLETED)
+
+    total_emails_sent = sum([future.result()[0] for future in futures])
+    total_sms_sent = sum([future.result()[1] for future in futures])
 
     logging.info(DASHES_LINE)
     logging.info(
@@ -77,105 +66,79 @@ def log_execution_summary(futures, start_time):
 
 
 def send_recipient_pending_transfers_reminder(transfer, current_event):
-    if should_send_reminder(transfer.max_days_ago):
-        action = create_action_message(
-            "sending a notification to the recipient",
-            transfer.tx_to_email,
-            transfer.max_days_ago,
-            current_event.transfers_enabled_until
-        )
-
+    if transfer.max_days_ago % 30 in fibonacci_impares(5):
+        action = f"sending a notification to the recipient {transfer.tx_to_email} to remember to create an account, you have a pending ticket transfer since {transfer.max_days_ago} days ago. You have time until {current_event.transfers_enabled_until.strftime('%d/%m')}"
         if not MessageIdempotency.objects.filter(email=transfer.tx_to_email, hash=hash_string(action)).exists():
-            # TODO send email
-            log_and_save_message(action, 'send_recipient_pending_transfers_reminder', transfer, current_event)
+            logging.info(action)
+            MessageIdempotency(
+                email=transfer.tx_to_email,
+                hash=hash_string(action),
+                payload=json.dumps(
+                    {
+                        'action': 'send_recipient_pending_transfers_reminder',
+                        'transfer': transfer.to_dict(),
+                        'event_id': current_event.id
+                    })).save()
             return 1, 0
-
     return 0, 0
 
 
 def send_sender_pending_transfers_reminder(transfer, current_event):
-    emails_sent = send_email_reminder(transfer, current_event)
-    messages_sent = send_sms_reminder(transfer, current_event)
+    emails_sent = 0
+    messages_sent = 0
+    if transfer.max_days_ago % 30 in fibonacci_impares(5):
+        action = f"sending a notification to the sender {transfer.tx_from_email} to remember that tickets shared with {transfer.tx_to_emails}, were not accepted yet since {transfer.max_days_ago} days ago. Are you sure they are going to use them? Are the emails correct?. You have time until {current_event.transfers_enabled_until.strftime('%d/%m')}"
+        if not MessageIdempotency.objects.filter(email=transfer.tx_from_email, hash=hash_string(action)).exists():
+            # TODO: send email here
+            logging.info(action)
+            MessageIdempotency(
+                email=transfer.tx_from_email,
+                hash=hash_string(action),
+                payload=json.dumps(
+                    {
+                        'action': 'send_sender_pending_transfers_reminder:email',
+                        'transfer': transfer.to_dict(),
+                        'event_id': current_event.id
+                    })).save()
+            emails_sent = 1
+
+    ## We only send SMS notifications for transfers that are 2 days old to be assertive but not overwhelming
+    if transfer.max_days_ago == 2:
+        action = f"sending an SMS notification to the sender {transfer.tx_from_email} to remember that tickets shared with {transfer.tx_to_emails}, were not accepted yet since {transfer.max_days_ago} days ago. Are you sure they are going to use them? Are the emails correct?. You have time until {current_event.transfers_enabled_until.strftime('%d/%m')}"
+        if not MessageIdempotency.objects.filter(email=transfer.tx_from_email, hash=hash_string(action)).exists():
+            # TODO: send email here
+            logging.info(action)
+            MessageIdempotency(
+                email=transfer.tx_from_email,
+                hash=hash_string(action),
+                payload=json.dumps(
+                    {
+                        'action': 'send_sender_pending_transfers_reminder:sms',
+                        'transfer': transfer.to_dict(),
+                        'event_id': current_event.id
+                    })).save()
+            messages_sent = 1
+
     return emails_sent, messages_sent
 
 
 def send_unsent_tickets_reminder_email(unsent_ticket, current_event):
-    if should_send_reminder(unsent_ticket.max_days_ago):
-        action = create_action_message(
-            "sending a notification to the holder",
-            unsent_ticket.email,
-            unsent_ticket.max_days_ago,
-            current_event.transfers_enabled_until,
-            unsent_ticket.pending_to_share_tickets
-        )
-
+    if unsent_ticket.max_days_ago % 30 in fibonacci_impares(5):
+        action = f"sending a notification to the holder {unsent_ticket.email} to remember to share the tickets, you have {unsent_ticket.pending_to_share_tickets} pending tickets since {unsent_ticket.max_days_ago} days ago. You have time until {current_event.transfers_enabled_until.strftime('%d/%m')}"
         if not MessageIdempotency.objects.filter(email=unsent_ticket.email, hash=hash_string(action)).exists():
-            # TODO send email
-            log_and_save_message(action, 'send_unsent_tickets_reminder_email', unsent_ticket, current_event)
+            # TODO: send email here
+            logging.info(action)
+            MessageIdempotency(
+                email=unsent_ticket.email,
+                hash=hash_string(action),
+                payload=json.dumps(
+                    {
+                        'action': 'send_unsent_tickets_reminder_email',
+                        'unsent_ticket': unsent_ticket.to_dict(),
+                        'event_id': current_event.id
+                    })).save()
             return 1, 0
-
     return 0, 0
-
-
-def send_email_reminder(transfer, current_event):
-    if should_send_reminder(transfer.max_days_ago):
-        action = create_action_message(
-            "sending a notification to the sender",
-            transfer.tx_from_email,
-            transfer.max_days_ago,
-            current_event.transfers_enabled_until,
-            transfer.tx_to_emails
-        )
-
-        if not MessageIdempotency.objects.filter(email=transfer.tx_from_email, hash=hash_string(action)).exists():
-            # TODO send email
-            log_and_save_message(action, 'send_sender_pending_transfers_reminder:email', transfer, current_event)
-            return 1
-
-    return 0
-
-
-def send_sms_reminder(transfer, current_event):
-    if transfer.max_days_ago == 2:
-        action = create_action_message(
-            "sending an SMS notification to the sender",
-            transfer.tx_from_email,
-            transfer.max_days_ago,
-            current_event.transfers_enabled_until,
-            transfer.tx_to_emails
-        )
-
-        if not MessageIdempotency.objects.filter(email=transfer.tx_from_email, hash=hash_string(action)).exists():
-            # TODO send SMS
-            log_and_save_message(action, 'send_sender_pending_transfers_reminder:sms', transfer, current_event)
-            return 1
-
-    return 0
-
-
-def should_send_reminder(days_ago):
-    return days_ago % 30 in fibonacci_impares(5)
-
-
-def create_action_message(action_text, email, days_ago, transfers_enabled_until, additional_info=None):
-    additional_info_text = f" You have {additional_info} pending tickets since {days_ago} days ago." if additional_info else ""
-    return (
-        f"{action_text} {email} to remember to create an account.{additional_info_text} "
-        f"You have time until {transfers_enabled_until.strftime('%d/%m')}"
-    )
-
-
-def log_and_save_message(action, action_type, entity, current_event):
-    logging.info(action)
-    MessageIdempotency(
-        email=entity.email,
-        hash=hash_string(action),
-        payload=json.dumps({
-            'action': action_type,
-            'entity': entity.to_dict(),
-            'event_id': current_event.id
-        })
-    ).save()
 
 
 class PendingTransferReceiver:
@@ -184,29 +147,10 @@ class PendingTransferReceiver:
         self.max_days_ago = max_days_ago
 
     def to_dict(self):
-        return {'tx_to_email': self.tx_to_email, 'max_days_ago': int(self.max_days_ago)}
-
-
-class PendingTransferSender:
-    def __init__(self, tx_from_email, tx_to_emails, max_days_ago):
-        self.tx_from_email = tx_from_email
-        self.tx_to_emails = tx_to_emails
-        self.max_days_ago = max_days_ago
-
-    def to_dict(self):
-        return {'tx_from_email': self.tx_from_email, 'tx_to_emails': self.tx_to_emails,
-                'max_days_ago': int(self.max_days_ago)}
-
-
-class PendingTicketHolder:
-    def __init__(self, email, pending_to_share_tickets, max_days_ago):
-        self.email = email
-        self.pending_to_share_tickets = pending_to_share_tickets
-        self.max_days_ago = max_days_ago
-
-    def to_dict(self):
-        return {'email': self.email, 'pending_to_share_tickets': int(self.pending_to_share_tickets),
-                'max_days_ago': int(self.max_days_ago)}
+        return {
+            'tx_to_email': self.tx_to_email,
+            'max_days_ago': int(self.max_days_ago)
+        }
 
 
 def get_pending_transfers_recipients(event):
@@ -218,7 +162,22 @@ def get_pending_transfers_recipients(event):
             WHERE ntt.status = 'PENDING' and nt.event_id=%s
             GROUP BY ntt.tx_to_email
         """, [event.id])
+
         return [PendingTransferReceiver(*row) for row in cursor.fetchall()]
+
+
+class PendingTransferSender:
+    def __init__(self, tx_from_email, tx_to_emails, max_days_ago):
+        self.tx_from_email = tx_from_email
+        self.tx_to_emails = tx_to_emails
+        self.max_days_ago = max_days_ago
+
+    def to_dict(self):
+        return {
+            'tx_from_email': self.tx_from_email,
+            'tx_to_emails': self.tx_to_emails,
+            'max_days_ago': int(self.max_days_ago)
+        }
 
 
 def get_pending_transfers_sender(event):
@@ -243,30 +202,69 @@ def get_pending_transfers_sender(event):
             GROUP BY u.email
         """, [event.id])
 
-        return [PendingTransferSender(row[0], parse_emails(row[1]), row[2]) for row in cursor.fetchall()]
+        # Create TransferDetails objects for each row fetched
+        results = cursor.fetchall()
+
+        pending_transfers = []
+        for row in results:
+            tx_from_email = row[0]
+            tx_to_emails_raw = row[1]
+            max_days_ago = row[2]
+
+            # Convert tx_to_emails string to an array of dictionaries
+            tx_to_emails = []
+            for tx_email_with_count in tx_to_emails_raw.split(', '):
+                email, count = tx_email_with_count.rsplit(' (', 1)
+                count = int(count.rstrip(')'))
+                tx_to_emails.append({'tx_to_email': email, 'pending_tickets': count})
+
+            pending_transfers.append(PendingTransferSender(tx_from_email, tx_to_emails, max_days_ago))
+
+        return pending_transfers
 
 
-def parse_emails(tx_to_emails_raw):
-    emails = []
-    for email_with_count in tx_to_emails_raw.split(', '):
-        email, count = email_with_count.rsplit(' (', 1)
-        emails.append({'tx_to_email': email, 'pending_tickets': int(count.rstrip(')'))})
-    return emails
+class PendingTicketHolder:
+    def __init__(self, email, pending_to_share_tickets, max_days_ago):
+        self.email = email
+        self.pending_to_share_tickets = pending_to_share_tickets
+        self.max_days_ago = max_days_ago
+
+    def to_dict(self):
+        return {
+            'email': self.email,
+            'pending_to_share_tickets': int(self.pending_to_share_tickets),
+            'max_days_ago': int(self.max_days_ago)
+        }
 
 
 def get_unsent_tickets(current_event):
     with connection.cursor() as cursor:
         cursor.execute("""
-            SELECT email,
-                   COUNT(*) AS pending_to_share_tickets,
-                   MAX(EXTRACT(DAY FROM (NOW() - tickets_newticket.created_at))) AS max_days_ago
-            FROM tickets_newticket
-            INNER JOIN auth_user ON auth_user.id = tickets_newticket.holder_id
-            WHERE owner_id IS NULL AND event_id = %s
-            GROUP BY email
+                select email,
+                       count(*)                                                      as pending_to_share_tickets,
+                       max(EXTRACT(DAY FROM (NOW() - tickets_newticket.created_at))) as max_days_ago
+
+                from tickets_newticket
+
+                         inner join auth_user on auth_user.id = tickets_newticket.holder_id
+                where owner_id is null
+                  and event_id = %s
+                group by email
         """, [current_event.id])
 
-        return [PendingTicketHolder(*row) for row in cursor.fetchall()]
+        results = cursor.fetchall()
+
+        pending_ticket_holders = []
+        for row in results:
+            email = row[0]
+            pending_to_share_tickets = row[1]
+            max_days_ago = row[2]
+
+            # Create an instance of PendingTicketHolder for each row
+            pending_ticket_holder = PendingTicketHolder(email, pending_to_share_tickets, max_days_ago)
+            pending_ticket_holders.append(pending_ticket_holder)
+
+        return pending_ticket_holders
 
 
 def fibonacci_impares(n, a=0, b=1, sequence=None):
@@ -280,4 +278,10 @@ def fibonacci_impares(n, a=0, b=1, sequence=None):
 
 
 def hash_string(string_to_hash):
-    return hashlib.sha256(string_to_hash.encode('utf-8')).hexdigest()
+    hash_object = hashlib.sha256()
+
+    # Encode the string to bytes and update the hash object
+    hash_object.update(string_to_hash.encode('utf-8'))
+
+    # Get the hexadecimal representation of the hash
+    return hash_object.hexdigest()
