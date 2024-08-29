@@ -1,0 +1,50 @@
+{% extends 'emails/base.html' %}
+{% block subject %}🔔 Recordatorio: Tus bonos aún no han sido aceptados 🔔{% endblock %}
+{% block title %}
+    Recordatorio de Transferencia de Bonos<br/>
+{% endblock %}
+{% block content %}
+    <p>
+        ¡Hola! Queremos recordarte que los bonos que compartiste aún no han sido aceptados. Han pasado {{ transfer.max_days_ago }} días desde que realizaste la transferencia.
+    </p>
+
+    <p>
+        Aquí tienes el detalle de los bonos pendientes:
+    </p>
+
+    <ul>
+        {% for recipient in transfer.tx_to_emails %}
+            <li>
+               {{ listita_emojis|random }}  {{ recipient.tx_to_email }}: {{ recipient.pending_tickets }} bono(s) pendiente(s)
+            </li>
+        {% endfor %}
+    </ul>
+
+    <p>
+        Por favor, verifica si los destinatarios van a usar los bonos y si las direcciones de correo electrónico son correctas. Si necesitas hacer algún cambio, aún tienes tiempo.
+    </p>
+
+    {% include 'emails/partials/btn.html' with label='Mis Bonos' href=my_tickets  domain=domain %}
+
+    <p>
+        Tienes tiempo hasta el {{ current_event.transfers_enabled_until|date:"d/m" }} para asegurarte de que todo esté en orden y los bonos puedan ser disfrutados.
+    </p>
+    
+    <p>
+        Si necesitas asistencia o tienes alguna pregunta, no dudes en contactarnos a través de <a href="mailto:bonos@fuegoaustral.org">bonos@fuegoaustral.org</a> o chatear con nosotros directamente desde nuestra web.
+    </p>
+
+    <p>
+        ¡Asegurémonos de que todos puedan disfrutar de esta experiencia única!
+    </p>
+
+    <table style="width: 100%; max-width: 600px; border-collapse: collapse; margin: 0 auto; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px;">
+        <tr>
+            <td style="padding: 15px; color: #721c24; text-align: center; font-family: Arial, sans-serif; font-size: 16px;">
+                <p style="margin: 0; padding: 0; font-weight: bold;">
+                    LA REVENTA CON SOBREPRECIOS IMPLICARÁ LA CANCELACIÓN DEL BONO CONTRIBUCIÓN
+                </p>
+            </td>
+        </tr>
+    </table>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends 'emails/base.html' %}
+{% block subject %}🚨 ¡No olvides registrarte! Tienes un bono pendiente en Fuego Austral 🚨{% endblock %}
+{% block title %}
+    Recordatorio de Transferencia de Bono<br/>
+{% endblock %}
+{% block content %}
+    <p>
+        ¡Hola! Queremos recordarte que tienes un bono pendiente en Fuego Austral. La transferencia fue iniciada
+        hace {{ transfer.max_days_ago }} días y para poder recibir tu bono, es necesario que crees una cuenta en nuestra
+        plataforma.
+    </p>
+
+    <p>
+        Crear tu cuenta es muy sencillo. Solo haz clic en el botón de abajo y sigue las instrucciones.
+    </p>
+
+    {% include 'emails/partials/btn.html' with label='Crear cuenta' href=sign_up_link  domain=domain %}
+
+    <p>
+        Recuerda usar el mismo email al que te enviamos este mensaje <b>({{ transfer.tx_to_email }})</b> para completar
+        tu registro.
+    </p>
+
+    <p>
+        Tienes tiempo hasta el {{ current_event.transfers_enabled_until|date:"d/m" }} para finalizar este proceso y
+        recibir tu bono.
+    </p>
+
+    <p>
+        Si tienes alguna duda o inconveniente con tu bono, no dudes en contactarnos a través de <a
+            href="mailto:bonos@fuegoaustral.org">bonos@fuegoaustral.org</a> o chatear con nosotros directamente desde
+        nuestra web.
+    </p>
+
+    <p>
+        ¡La experiencia será tan especial como tú la hagas!
+    </p>
+{% endblock %}

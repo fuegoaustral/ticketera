@@ -1,9 +1,8 @@
 from django.http import HttpResponse
 from django.template import loader
 
-from tickets.email_crons import send_pending_actions_emails
-from tickets.models import Coupon, TicketType
 from events.models import Event
+from tickets.models import Coupon, TicketType
 
 
 def home(request):
@@ -23,7 +22,7 @@ def home(request):
     return HttpResponse(template.render(context, request))
 
 
-def test(request):
-    send_pending_actions_emails(None, None)
-
-    return HttpResponse('Test executed')
+def ping(request):
+    response = HttpResponse('pong 🏓')
+    response['x-depreheader'] = 'tu vieja'
+    return response
