@@ -5,7 +5,8 @@
 {% endblock %}
 {% block content %}
     <p>
-        ¡Hola! Queremos recordarte que los bonos que compartiste aún no han sido aceptados. Han pasado {{ transfer.max_days_ago }} días desde que realizaste la transferencia.
+        ¡Hola! Queremos recordarte que los bonos que compartiste aún no han sido aceptados. Han
+        pasado {{ transfer.max_days_ago }} días desde que realizaste la transferencia.
     </p>
 
     <p>
@@ -15,23 +16,28 @@
     <ul>
         {% for recipient in transfer.tx_to_emails %}
             <li>
-               {{ listita_emojis|random }}  {{ recipient.tx_to_email }}: {{ recipient.pending_tickets }} bono(s) pendiente(s)
+                {{ listita_emojis|random }} {{ recipient.tx_to_email }}: {{ recipient.pending_tickets }} bono(s)
+                pendiente(s)
             </li>
         {% endfor %}
     </ul>
 
     <p>
-        Por favor, verifica si los destinatarios van a usar los bonos y si las direcciones de correo electrónico son correctas. Si necesitas hacer algún cambio, aún tienes tiempo.
+        Por favor, verifica si los destinatarios van a usar los bonos y si las direcciones de correo electrónico son
+        correctas. Si necesitas hacer algún cambio, aún tienes tiempo.
     </p>
 
-    {% include 'emails/partials/btn.html' with label='Mis Bonos' href=my_tickets  domain=domain %}
+    {% include 'emails/partials/btn.html' with label='Mis Bonos' href='/mi-fuego/mis-bonos'  domain=domain %}
 
     <p>
-        Tienes tiempo hasta el {{ current_event.transfers_enabled_until|date:"d/m" }} para asegurarte de que todo esté en orden y los bonos puedan ser disfrutados.
+        Tienes tiempo hasta el {{ current_event.transfers_enabled_until|date:"d/m" }} para asegurarte de que todo esté
+        en orden y los bonos puedan ser disfrutados.
     </p>
-    
+
     <p>
-        Si necesitas asistencia o tienes alguna pregunta, no dudes en contactarnos a través de <a href="mailto:bonos@fuegoaustral.org">bonos@fuegoaustral.org</a> o chatear con nosotros directamente desde nuestra web.
+        Si necesitas asistencia o tienes alguna pregunta, no dudes en contactarnos a través de <a
+            href="mailto:bonos@fuegoaustral.org">bonos@fuegoaustral.org</a> o chatear con nosotros directamente desde
+        nuestra web.
     </p>
 
     <p>

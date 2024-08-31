@@ -44,6 +44,7 @@
             <!-- Event Selection Form -->
             <form method="post" class="form-inline">
                 {% csrf_token %}
+                <input type="hidden" name="action" id="action" value="event"/>
                 <div class="form-row">
                     <div class="form-group">
                         <label for="event" class="required">Evento:</label>
@@ -64,16 +65,9 @@
             <!-- Purchase and Donation Form -->
             <form method="post" class="form-horizontal" id="ticket-purchase-form">
                 {% csrf_token %}
+                <input type="hidden" name="action" id="action" value="order"/>
                 <!-- Display form errors -->
-                {% if form.errors %}
-                    <div class="errors">
-                        <ul>
-                            {% for error in form.non_field_errors %}
-                                <li>{{ error }}</li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                {% endif %}
+
 
                 <!-- Ticket quantity fields dynamically generated -->
                 <fieldset class="module aligned" style="margin-top:20px; ">
@@ -216,7 +210,7 @@
 
         document.getElementById('check-email').addEventListener('click', async function () {
             const email = document.getElementById('id_email').value;
-            
+
             if (!email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) === false) {
                 alert('Por favor ingrese un email');
                 return;
@@ -249,7 +243,7 @@
                     document.getElementById(`label_phone`).innerText = data.phone;
                     document.querySelector('.iti').style.display = "none";
                     document.getElementById('id_document_type').style.display = 'none';
-
+                    document.getElementById('phone').type = 'hidden';
 
                 } else if (response.status === 204) {
 
@@ -264,7 +258,7 @@
                     document.getElementById(`label_phone`).style.display = 'none';
                     document.getElementById(`label_phone`).innerText = '';
                     document.querySelector('.iti').style.display = "block";
-
+                    document.getElementById('phone').type = 'tel';
                     document.getElementById('id_document_type').style.display = 'block';
 
                 }
@@ -296,7 +290,13 @@
                 return;
             }
 
-            document.getElementById('id_phone').value = iti.getNumber();
+            if (document.getElementById(`id_first_name`).type != "hidden") {
+                document.getElementById('id_phone').value = iti.getNumber();
+            } else {
+                document.getElementById('id_phone').value = document.getElementById(`label_phone`).innerText
+
+
+            }
 
 
             console.log('Form submitted', event);
