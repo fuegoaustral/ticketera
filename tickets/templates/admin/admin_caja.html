@@ -1,0 +1,348 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/css/intlTelInput.css"
+          integrity="sha384-josBdHR9a6DDApvQzVz46RUq9U6/iPErv/hIpfkLHxxLLfPOhgvCWrrRi6Ufvbgf" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/js/intlTelInput.min.js"
+            integrity="sha384-6Z2vPsfhcSSIc6aQuBuj8XsgzVLnrlNXrlA/OfTiadr8Pcw3xfho2s4fxWX+beqn"
+            crossorigin="anonymous"></script>
+    <style>
+        .field-box {
+            display: flex !important;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-top: 8px; /* Adjust this value to set the desired gap */
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            max-width: 640px; /* Ensure a minimum width for form divs */
+            width: 100%;
+
+
+        }
+
+        .wrapper {
+            display: flex;
+            justify-content: center;
+
+            height: 100vh;
+        }
+
+    </style>
+
+{% endblock %}
+
+{% block content %}
+    <div class="wrapper">
+
+        <div class="container">
+            <h1>Emision directa de bonos</h1>
+            <!-- Event Selection Form -->
+            <form method="post" class="form-inline">
+                {% csrf_token %}
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="event" class="required">Evento:</label>
+                        <select name="event" id="event" class="vSelect" onchange="this.form.submit();"
+                                style="width: 100%;">
+                            <option value="">Select an event</option>
+                            {% for event in events %}
+                                <option value="{{ event.id }}"
+                                        {% if event.id == default_event.id %}selected{% endif %}>
+                                    {{ event.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Purchase and Donation Form -->
+            <form method="post" class="form-horizontal" id="ticket-purchase-form">
+                {% csrf_token %}
+                <!-- Display form errors -->
+                {% if form.errors %}
+                    <div class="errors">
+                        <ul>
+                            {% for error in form.non_field_errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+
+                <!-- Ticket quantity fields dynamically generated -->
+                <fieldset class="module aligned" style="margin-top:20px; ">
+
+
+                    <div class="form-row">
+                        <div class="field-box">
+                            <label for="id_order_type">Tipo de orden:</label>
+                            <select name="order_type" id="id_order_type" required>
+                                <option value="CASH_ONSITE">Compra en efectivo</option>
+                                <option value="ART">Arte</option>
+                                <option value="CAMPS">Camp</option>
+                                <option value="OTHER">Otros</option>
+
+
+                            </select>
+                        </div>
+                        <br/>
+                        <div class="form-row">
+                            <div class="field-box">
+                                <label for="id_email">Email:</label>
+                                <div>
+                                    <button type="button" id="check-email">Verificar</button>
+                                    <input type="email" name="email" id="id_email" placeholder="Email" required>
+
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <div id="tickets-section" style="display: none">
+                            <div class="form-row">
+                                <div class="field-box">
+                                    <label for="id_name">Nombre:</label>
+                                    <label id="label_first_name" style="display: none"></label>
+                                    <input type="text" name="first_name" id="id_first_name" placeholder="Nombre"
+                                           required>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="field-box">
+                                    <label for="id_last_name">Apellido:</label>
+                                    <label id="label_last_name" style="display: none"></label>
+                                    <input type="text" name="last_name" id="id_last_name" placeholder="Apellido"
+                                           required>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="field-box">
+                                    <label for="id_document_type">Tipo de documento:</label>
+                                    <label id="label_document_type" style="display: none"></label>
+                                    <select name="document_type" id="id_document_type" required>
+                                        <option value="DNI">DNI</option>
+                                        <option value="PASSPORT">Pasaporte</option>
+                                        <option value="OTHER">Otro</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="field-box">
+                                    <label for="id_document_number">Numero de documento:</label>
+                                    <label id="label_document_number" style="display: none"></label>
+                                    <input type="text" name="document_number" id="id_document_number"
+                                           placeholder="Numero de documento" required>
+                                </div>
+                                <div class="form-row">
+                                    <div class="field-box">
+                                        <label for="id_phone">Telefono:</label>
+                                        <label id="label_phone" style="display: none"></label>
+
+                                        <input type="tel" id="phone" name="phone_input" style="width: 100%" required>
+                                        <input type="hidden" id="id_phone" name="phone">
+                                    </div>
+                                </div>
+                                {% for ticket in ticket_types %}
+                                    <div class="form-row">
+                                        <div class="field-box">
+                                            <label for="ticket_quantity_{{ ticket.id }}">
+                                                {{ ticket.emoji }} {{ ticket.name }} - Quedan {{ ticket.ticket_count }}
+                                                bonos -
+                                                ${{ ticket.price|floatformat:2 }} c/u</label>
+
+                                            <input type="number" name="ticket_quantity_{{ ticket.id }}"
+                                                   id="ticket_quantity_{{ ticket.id }}"
+                                                   value="0" min="0" step="1" style="width: 50px;">
+
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                    </div>
+                </fieldset>
+                <div class="form-row">
+                    <div class="field-box"
+                         style="justify-content: end">
+                        <h2>
+                            <strong id="total-display">Total: $0.00</strong>
+                        </h2>
+                    </div>
+                </div>
+                <!-- Create button -->
+                <div class="submit-row" style="display:none; justify-content: center" id="emit-button">
+                    <button type="submit" class="default" id="comprar"
+                            style="
+                    background-color: #4CAF50;
+                    border: none;
+                    color: white;
+                    padding: 15px 32px;
+                    text-align: center;
+                    text-decoration: none;
+                    display: inline-block;
+                    font-size: 16px;
+                    margin: 4px 2px;
+                    cursor: pointer;">
+                        Emitir bonos
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script>
+
+        const input = document.querySelector("#phone");
+        const iti = window.intlTelInput(input, {
+            utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/js/utils.js",
+            initialCountry: "AR",
+            customPlaceholder: function (selectedCountryPlaceholder, selectedCountryData) {
+                if (selectedCountryData.iso2 === "ar") {
+                    return "11 1234 5678";
+                }
+                return selectedCountryPlaceholder;
+            },
+        });
+
+        if ("{{ show_congratulations }}" === "True") {
+            alert('Felicitaciones! La compra fue exitosa');
+        }
+
+        document.getElementById('check-email').addEventListener('click', async function () {
+            const email = document.getElementById('id_email').value;
+            
+            if (!email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) === false) {
+                alert('Por favor ingrese un email');
+                return;
+            }
+
+            try {
+                const response = await fetch('/admin/caja/email-has-account/', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        email
+                    }),
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    }
+                });
+
+
+                const fieldIds = ['first_name', 'last_name', 'document_type', 'document_number'];
+
+                if (response.status === 200) {
+                    const data = await response.json();
+                    fieldIds.forEach(id => {
+                        document.getElementById(`id_${id}`).value = data[id];
+                        document.getElementById(`id_${id}`).type = 'hidden';
+                        document.getElementById(`label_${id}`).innerText = data[id];
+                        document.getElementById(`label_${id}`).style.display = 'block';
+                    });
+                    document.getElementById(`label_phone`).style.display = 'block';
+                    document.getElementById(`label_phone`).innerText = data.phone;
+                    document.querySelector('.iti').style.display = "none";
+                    document.getElementById('id_document_type').style.display = 'none';
+
+
+                } else if (response.status === 204) {
+
+                    alert('El email ingresado no tiene una cuenta');
+
+                    fieldIds.forEach(id => {
+                        document.getElementById(`id_${id}`).value = '';
+                        document.getElementById(`id_${id}`).type = 'text';
+                        document.getElementById(`label_${id}`).innerText = '';
+                        document.getElementById(`label_${id}`).style.display = 'none';
+                    });
+                    document.getElementById(`label_phone`).style.display = 'none';
+                    document.getElementById(`label_phone`).innerText = '';
+                    document.querySelector('.iti').style.display = "block";
+
+                    document.getElementById('id_document_type').style.display = 'block';
+
+                }
+                document.getElementById('tickets-section').style.display = 'block';
+                document.getElementById('emit-button').style.display = 'block';
+            } catch (e) {
+                console.error(e);
+            }
+        });
+
+        //I want to intercept the form submission and make a get to the server, depending the resunt value show an alert or continue with the form submission
+
+        document.getElementById('ticket-purchase-form').addEventListener('submit', async function (event) {
+            event.preventDefault();
+            let total = 0;
+            document.querySelectorAll('input[name^="ticket_quantity_"]').forEach(function (input) {
+                const ticketId = input.name.split('_').pop(); // Extract the ID from the input name
+                const quantity = parseInt(input.value) || 0;
+                total += quantity;
+            });
+            if (total < 1) {
+                alert('Debe seleccionar al menos un bono');
+                return;
+            }
+
+
+            if (document.getElementById(`id_first_name`).type != "hidden" && !iti.isValidNumber()) {
+                alert('Por favor ingrese un telefono valido');
+                return;
+            }
+
+            document.getElementById('id_phone').value = iti.getNumber();
+
+
+            console.log('Form submitted', event);
+            const boton = document.getElementById('comprar')
+            boton.disabled = true;
+            boton.style.backgroundColor = 'gray';
+            boton.style.cursor = 'not-allowed';
+
+            try {
+
+                event.target.submit();
+            } catch (e) {
+                console.error(e);
+                boton.disabled = false;
+                boton.style.backgroundColor = '#4CAF50';
+                boton.style.cursor = 'pointer';
+            }
+        });
+
+        const ticketPrices = {
+            {% for ticket in ticket_types %}
+                '{{ ticket.id }}': parseFloat("{{ ticket.price|floatformat:2 }}".replaceAll(',', '.')),
+            {% endfor %}
+        };
+        const updateTotal = () => {
+            let total = 0;
+
+            // Sum the quantities of tickets by their price
+            document.querySelectorAll('input[name^="ticket_quantity_"]').forEach(function (input) {
+                const ticketId = input.name.split('_').pop(); // Extract the ID from the input name
+                const price = parseFloat(ticketPrices[ticketId]); // Ensure the price is parsed as a float
+                const quantity = parseInt(input.value) || 0;
+                total += price * quantity;
+            });
+
+            document.getElementById('total-display').innerText = 'Total: $' + total.toFixed(2);
+        };
+
+        // Attach event listeners to update total on change
+        document.querySelectorAll('input[name^="ticket_quantity_"]').forEach(function (input) {
+            input.addEventListener('change', updateTotal);
+
+        });
+
+        // Initialize the total on page load
+        updateTotal();
+
+    </script>
+{% endblock %}

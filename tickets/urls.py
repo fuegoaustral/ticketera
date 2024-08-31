@@ -49,6 +49,6 @@ urlpatterns = [
     path('mi-fuego/transfer-ticket/cancel-ticket-transfer', new_ticket.cancel_ticket_transfer,
          name='cancel_ticket_transfer'),
 
-    path('ping/', home.ping, name='ping'),
+    path('ping/', home.ping, name='ping')
 
 ]

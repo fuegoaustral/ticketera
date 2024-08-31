@@ -10,14 +10,17 @@
 
     <p><b>CONFIRMADA</b></p>
 
-    <p>Podes ver tus bonos entrando a <a href="{{ APP_URL }}/{% url 'my_tickets' %}">Mis Bonos</a></p>
+    <p>Podes ver tus bonos entrando a
 
-    {% if has_many_tickets %}
-        <p>Recorda que cada persona debe tener su bono en su cuenta. Si compraste mas de uno, debes transferiselo a la
-            persona
-            correspondiente.</p>
-        <p>Tenes tiempo hasta el <b>{{ event.transfers_enabled_until|date:"d/m" }}</b> para hacerlo.</p>
-    {% endif %}
+        {% include 'emails/partials/btn.html' with label='Mis Bonos' href=my_tickets  domain=domain %}
+
+        {% if has_many_tickets %}
+            <p>Recorda que cada persona debe tener su bono en su cuenta. Si compraste mas de uno, debes transferiselo a
+                la
+                persona
+                correspondiente.</p>
+            <p>Tenes tiempo hasta el <b>{{ event.transfers_enabled_until|date:"d/m" }}</b> para hacerlo.</p>
+        {% endif %}
 
 
     <p>Cualquier problema que tengas, escribinos a: <a href="mailto:bonos@fuegoaustral.org">bonos@fuegoaustral.org</a>,

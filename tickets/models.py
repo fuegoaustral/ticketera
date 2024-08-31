@@ -9,6 +9,7 @@ import jsonfield
 import qrcode
 from auditlog.registry import auditlog
 from django.conf import settings
+from django.contrib import admin
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
 from django.core.validators import RegexValidator
@@ -103,18 +104,6 @@ class TicketType(BaseModel):
 
     objects = TicketTypeManager()
 
-    # class Meta:
-    #     constraints = [
-    #         models.CheckConstraint(
-    #             name="%(app_label)s_%(class)s_price_or_price_with_coupon",
-    #             check=(
-    #                 models.Q(price__isnull=True, price_with_coupon__isnull=False)
-    #                 | models.Q(price__isnull=False, price_with_coupon__isnull=True)
-    #                 | models.Q(price__isnull=True, price_with_coupon__isnull=True)
-    #             ),
-    #         )
-    #     ]
-
     def get_corresponding_ticket_type(coupon: Coupon):
         return TicketType.objects \
             .annotate(confirmed_tickets=Count('order__ticket', filter=Q(order__status=Order.OrderStatus.CONFIRMED))) \
@@ -136,6 +125,20 @@ class OrderTicket(models.Model):
 
 
 class Order(BaseModel):
+    class OrderStatus(models.TextChoices):
+        PENDING = 'PENDING', 'Pendiente'
+        PROCESSING = 'PROCESSING', 'Procesando'
+        CONFIRMED = 'CONFIRMED', 'Confirmada'
+        ERROR = 'ERROR', 'Error'
+        REFUNDED = 'REFUNDED', 'Reembolsada'
+
+    class OrderType(models.TextChoices):
+        ONLINE_PURCHASE = 'ONLINE_PURCHASE', 'Compra Online'
+        CASH_ONSITE = 'CASH_ONSITE', 'Efectivo'
+        CAMPS = 'CAMPS', 'Camps'
+        ART = 'ART', 'Arte'
+        OTHER = 'OTHER', 'Otro'
+
     key = models.UUIDField(default=uuid.uuid4, editable=False)
 
     first_name = models.CharField(max_length=255)
@@ -160,17 +163,16 @@ class Order(BaseModel):
     event = models.ForeignKey(Event, null=True, blank=True, on_delete=models.RESTRICT)
     user = models.ForeignKey(User, null=True, blank=True, on_delete=models.RESTRICT)
 
-    class OrderStatus(models.TextChoices):
-        PENDING = 'PENDING', 'Pendiente'
-        PROCESSING = 'PROCESSING', 'Procesando'
-        CONFIRMED = 'CONFIRMED', 'Confirmada'
-        ERROR = 'ERROR', 'Error'
-        REFUNDED = 'REFUNDED', 'Reembolsada'
-
     status = models.CharField(
         max_length=20,
         choices=OrderStatus.choices,
         default=OrderStatus.PENDING
+    )
+
+    order_type = models.CharField(
+        max_length=20,
+        choices=OrderType.choices,
+        default=OrderType.ONLINE_PURCHASE
     )
 
     def total_ticket_types(self):
@@ -460,6 +462,12 @@ class Profile(models.Model):
 
     def __str__(self):
         return self.user.username
+
+
+class ProfileInline(admin.StackedInline):
+    model = Profile
+    can_delete = False
+    verbose_name_plural = 'profile'
 
 
 class MessageIdempotency(models.Model):

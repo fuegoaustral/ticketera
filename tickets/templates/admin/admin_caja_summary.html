@@ -1,0 +1,80 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+    <style>
+
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            max-width: 640px; /* Ensure a minimum width for form divs */
+            width: 100%;
+
+
+        }
+
+        .wrapper {
+            display: flex;
+            justify-content: center;
+
+            height: 100vh;
+        }
+
+    </style>
+
+{% endblock %}
+
+{% block content %}
+    <div class="wrapper">
+
+    <div class="container">
+
+        <table style="width: 100%; max-width: 600px; border-collapse: collapse; margin: 0 auto; background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px;">
+            <tr>
+                <td style="padding: 15px; background-color: #d4edda; color: #155724; text-align: center; font-family: Arial, sans-serif; font-size: 16px;">
+
+                    <p style="margin: 0; padding: 0; font-weight: bold;">
+                        BONOS EMITIDOS EXITOSAMENTE
+                    </p>
+                    {% if new_user %}
+                        <div>
+                            <p>Un usuario fue creado durante esta orden. Informarle a la persona que se le enviaron dos
+                                emails, la confirmacion de la orden, y un link para resetear su password </p>
+                            <p>
+                                Poder acceder a su cuenta debe usar: <b>{{ order.user.email }}</b>
+                            </p>
+                            <p>
+                                Si es una cuenta de gmail puede acceder directamente con google.
+                            </p>
+                            <p>
+                                desde su cuenta podra gestionar sus bonos, y transferirlos a otras personas.
+                            </p>
+                        </div>
+                    {% endif %}
+                </td>
+            </tr>
+        </table>
+        <h2>Resumen de siguiente orden <strong> {{ order.id }}</strong></h2>
+
+
+        <p>Nombre: {{ order.user.first_name }} {{ order.user.last_name }}</p>
+        <p>Email: {{ order.user.email }}</p>
+
+        <h2>Se han emitido los siguientes bonos:</h2>
+        <ul>
+            {% for ticket in tickets %}
+                <li>{{ ticket.ticket_type.name }} - {{ ticket.key }}</li>
+            {% endfor %}
+        </ul>
+        </br></br>
+        <p>El total de la orden es de ${{ order.amount }}</p>
+        </br></br>
+        <div>
+            <a href="{% url 'admin_caja_view' %}" class="btn btn-primary">Volver a la caja</a>
+        </div>
+
+    </div>
+
+
+{% endblock %}

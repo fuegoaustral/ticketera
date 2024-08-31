@@ -1,9 +1,10 @@
 from django import forms
-
-from .models import Order, Ticket, TicketTransfer, Profile, TicketType
-from events.models import Event
-from twilio.rest import Client
 from django.conf import settings
+from django.core.exceptions import ValidationError
+from twilio.rest import Client
+
+from events.models import Event
+from .models import Order, Ticket, TicketTransfer, Profile, TicketType
 
 
 class PersonForm(forms.ModelForm):
@@ -239,3 +240,87 @@ class CheckoutDonationsForm(forms.Form):
             initial=initial_data.get('donation_grant', 0),
             required=False
         )
+
+
+ORDER_REASON_CHOICES = [
+    (Order.OrderType.CASH_ONSITE, 'Pago en efectivo en el evento'),
+    (Order.OrderType.ART, 'Arte'),
+    (Order.OrderType.CAMPS, 'Camp'),
+    (Order.OrderType.OTHER, 'Otro'),
+
+]
+
+DOCUMENT_TYPE_CHOICES = [
+    ('DNI', 'DNI'),
+    ('PASSPORT', 'Passport'),
+    ('OTHER', 'Other'),
+]
+
+
+class TicketPurchaseForm(forms.Form):
+    order_type = forms.ChoiceField(
+        label='Tipo de orden',
+        choices=ORDER_REASON_CHOICES,
+        required=True
+    )
+    first_name = forms.CharField(label='Nombre', required=True,
+                                 widget=forms.TextInput(attrs={'class': 'form-control', 'style': 'width: 240px;'}))
+    last_name = forms.CharField(label='Apellido', required=True,
+                                widget=forms.TextInput(attrs={'class': 'form-control', 'style': 'width: 240px;'}))
+    document_type = forms.ChoiceField(label='Tipo de documento', required=True,
+                                      choices=DOCUMENT_TYPE_CHOICES,
+                                      widget=forms.Select(attrs={'class': 'form-control', 'style': 'width: 100px;'}))
+    document_number = forms.CharField(label='Número de documento', required=True, max_length=20,
+                                      widget=forms.TextInput(attrs={'class': 'form-control', 'style': 'width: 240px;'}))
+    phone = forms.CharField(label='Teléfono', required=True,
+                            widget=forms.TextInput(attrs={'class': 'form-control', 'style': 'width: 240px;'}))
+    email = forms.EmailField(label='Email', required=True,
+                             widget=forms.EmailInput(attrs={'class': 'form-control', 'style': 'width: 340px;'}))
+
+    # Dinámicamente añadimos campos de cantidad para cada tipo de ticket
+    def __init__(self, *args, **kwargs):
+        event = kwargs.pop('event', None)
+        super().__init__(*args, **kwargs)
+
+        if event:
+            ticket_types = TicketType.objects.filter(event=event)
+            for ticket in ticket_types:
+                self.fields[f'ticket_quantity_{ticket.id}'] = forms.IntegerField(
+                    label=f'Bonos tipo {ticket.emoji} {ticket.name}  - ${ticket.price} - Quedan: {ticket.ticket_count}',
+                    min_value=0,
+                    max_value=ticket.ticket_count,
+                    initial=0,
+                    required=False,
+                    widget=forms.NumberInput(
+                        attrs={'class': 'form-control', 'style': 'width: 80px; text-align: right;'})
+                )
+        self.fields = {
+            'order_type': self.fields['order_type'],
+            'email': self.fields['email'],
+            'first_name': self.fields['first_name'],
+            'last_name': self.fields['last_name'],
+            'document_type': self.fields['document_type'],
+            'document_number': self.fields['document_number'],
+            'phone': self.fields['phone'],
+            **{field_name: self.fields[field_name] for field_name in self.fields if
+               field_name.startswith('ticket_quantity_')},
+
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        ticket_fields = [key for key in self.fields if key.startswith('ticket_quantity_')]
+        total_tickets = 0
+        for field in ticket_fields:
+            ticket_id = field.split('_')[-1]
+            ticket = TicketType.objects.get(id=ticket_id)
+            ticket_quantity = cleaned_data.get(field, 0)
+            if ticket_quantity > ticket.ticket_count:
+                raise ValidationError(f'No hay suficientes tickets de tipo {ticket.name}.')
+            total_tickets += ticket_quantity
+
+        if total_tickets == 0:
+            raise ValidationError('Debe seleccionar al menos un ticket para continuar con la compra.')
+
+        return cleaned_data

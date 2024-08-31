@@ -21,7 +21,7 @@
             </div>
         {% endif %}
         <hr class="my-2" style="border-top: 1px solid">
-        {% if tickets_dto %}
+        {% if my_ticket or tickets_dto %}
             {% if my_ticket %}
                 {% include "./assigned_tickets.html" %}
             {% endif %}
