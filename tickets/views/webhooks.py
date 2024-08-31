@@ -1,15 +1,16 @@
-import hmac
 import hashlib
+import hmac
 import json
-import urllib
 import logging
+import urllib
 
+import mercadopago
+from django.conf import settings
 from django.db import transaction
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.conf import settings
+
 from tickets.models import Order, NewTicket, OrderTicket
-import mercadopago
 
 
 @csrf_exempt
@@ -145,7 +146,6 @@ def tickets_available(order):
             logging.info(f"Order {order.key} has more tickets than available")
             return False
 
-
         for order_ticket in OrderTicket.objects.filter(order=order).select_related('ticket_type').all():
             if order_ticket.quantity > order_ticket.ticket_type.ticket_count:
                 logging.info(
@@ -207,6 +207,8 @@ def mint_tickets(order):
 
             for ticket in new_minted_tickets:
                 logging.info(f"Minted {ticket}")
+
+        return new_minted_tickets
 
     except AttributeError as e:
         logging.error(f"Attribute error in minting tickets: {str(e)}")

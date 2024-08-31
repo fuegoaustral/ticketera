@@ -2,14 +2,14 @@ import uuid
 
 import mercadopago
 from django.conf import settings
+from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 
-from tickets.models import Event, TicketType, Order, OrderTicket
 from tickets.forms import CheckoutTicketSelectionForm, CheckoutDonationsForm
+from tickets.models import Event, TicketType, Order, OrderTicket
 from .utils import available_tickets_for_user
 
 
@@ -153,6 +153,7 @@ def order_summary(request):
                 donation_grant=donations.get('donation_grant', 0) * donation_amount,
                 event=event,
                 user=request.user,
+                order_type=Order.OrderType.ONLINE_PURCHASE,
             )
             order.save()
 
