@@ -1,5 +1,5 @@
 {% extends 'emails/base.html' %}
-{% block subject %}Tu orden para {{ event.name|safe }} ha sido confirmada{% endblock %}
+{% block subject %}🔥Tu orden para {{ event.name|safe }} ha sido confirmada🔥{% endblock %}
 {% block title %}
     ¡TODO EN ORDEN!
 {% endblock %}
@@ -12,7 +12,7 @@
 
     <p>Podes ver tus bonos entrando a
 
-        {% include 'emails/partials/btn.html' with label='Mis Bonos' href=my_tickets  domain=domain %}
+        {% include 'emails/partials/btn.html' with label='Mis Bonos' href='/mi-fuego/mis-bonos'  domain=domain %}
 
         {% if has_many_tickets %}
             <p>Recorda que cada persona debe tener su bono en su cuenta. Si compraste mas de uno, debes transferiselo a

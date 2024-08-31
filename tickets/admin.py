@@ -85,12 +85,14 @@ def admin_caja_view(request):
 
     if request.method == 'POST':
         selected_event_id = request.POST.get('event')
+        action = request.POST.get('action')
 
-        if selected_event_id:
+        print(action)
+        if action == "event" and selected_event_id:
             ticket_types = TicketType.objects.filter(event_id=selected_event_id)
             default_event = Event.objects.get(id=selected_event_id)
             form = TicketPurchaseForm(request.POST, event=default_event)
-        else:
+        elif action == "order":
             form = TicketPurchaseForm(request.POST, event=default_event)
             if form.is_valid():
                 total_amount = 0
