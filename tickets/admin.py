@@ -61,20 +61,21 @@ def email_has_account(request):
 
         user = User.objects.filter(email=email).first()
         if user:
-            return JsonResponse({
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'phone': user.profile.phone,
-                'document_type': user.profile.document_type,
-                'document_number': user.profile.document_number,
+            if user.profile.profile_completion == 'COMPLETE':
+                return JsonResponse({
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'phone': user.profile.phone,
+                    'document_type': user.profile.document_type,
+                    'document_number': user.profile.document_number,
 
-            })
+                })
+            return HttpResponse(status=206)
         else:
             return HttpResponse(status=204)
     return HttpResponse(status=405)
 
 
-# TODO mejorar esto que esta codeado con la pija
 @staff_member_required
 def admin_caja_view(request):
     events = Event.objects.all()
