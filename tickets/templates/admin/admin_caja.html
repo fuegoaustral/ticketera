@@ -72,33 +72,42 @@
                 <!-- Ticket quantity fields dynamically generated -->
                 <fieldset class="module aligned" style="margin-top:20px; ">
 
-
                     <div class="form-row">
                         <div class="field-box">
-                            <label for="id_order_type">Tipo de orden:</label>
-                            <select name="order_type" id="id_order_type" required>
-                                <option value="CASH_ONSITE">Compra en efectivo</option>
-                                <option value="ART">Arte</option>
-                                <option value="CAMPS">Camp</option>
-                                <option value="OTHER">Otros</option>
-
-
-                            </select>
+                            <label for="id_email">Email:</label>
+                            <input type="email" name="email" id="id_email" placeholder="Email" required
+                                   style="width: 240px">
                         </div>
-                        <br/>
+                    </div>
+                    <div class="form-row" style="display: flex!important;justify-content: end;">
+                        <button type="button" id="check-email"
+                                style="
+                                    margin-top: 8px;
+                                        background-color: #008CBA;
+                                        border: none;
+                                        color: white;
+                                        padding: 15px 32px;
+                                        text-align: center;
+                                        text-decoration: none;
+                            ">
+                            Verificar
+                        </button>
+                    </div>
+
+
+                    <div id="tickets-section" style="display: none">
                         <div class="form-row">
                             <div class="field-box">
-                                <label for="id_email">Email:</label>
-                                <div>
-                                    <button type="button" id="check-email">Verificar</button>
-                                    <input type="email" name="email" id="id_email" placeholder="Email" required>
+                                <label for="id_order_type">Tipo de orden:</label>
+                                <select name="order_type" id="id_order_type" required>
+                                    <option value="CASH_ONSITE">Compra en efectivo</option>
+                                    <option value="ART">Arte</option>
+                                    <option value="CAMPS">Camp</option>
+                                    <option value="OTHER">Otros</option>
 
-                                </div>
+
+                                </select>
                             </div>
-                        </div>
-
-
-                        <div id="tickets-section" style="display: none">
                             <div class="form-row">
                                 <div class="field-box">
                                     <label for="id_name">Nombre:</label>
@@ -261,6 +270,9 @@
                     document.getElementById('phone').type = 'tel';
                     document.getElementById('id_document_type').style.display = 'block';
 
+                } else if (response.status === 206) {
+                    alert('El email ingresado tiene una cuenta pero no tiene los datos completos. Debe completar el perfil antes de continuar');
+                    return;
                 }
                 document.getElementById('tickets-section').style.display = 'block';
                 document.getElementById('emit-button').style.display = 'block';
