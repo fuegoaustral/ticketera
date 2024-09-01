@@ -1,0 +1,109 @@
+{% load static %}
+
+{% block extrahead %}
+    <style>
+        .rainbow-border {
+            --borderWidth: 1px; /* Set border width to 1px */
+            position: relative;
+            overflow: hidden;
+            padding: 1rem;
+            z-index: 1; /* Ensure content is above the borders */
+        }
+
+        .rainbow-border:after {
+            content: '';
+            position: absolute;
+            top: calc(-1 * var(--borderWidth));
+            left: calc(-1 * var(--borderWidth));
+            height: calc(100% + var(--borderWidth) * 2);
+            width: calc(100% + var(--borderWidth) * 2);
+            background: linear-gradient(45deg,
+            #fd004c 16.66%,
+            #fe9000 33.33%,
+            #fff020 50%,
+            #3edf4b 66.66%,
+            #3363ff 83.33%,
+            #b102b7 100%);
+            border-radius: calc(5px + var(--borderWidth));
+            z-index: -1;
+            animation: animatedgradient 4s linear alternate infinite;
+            background-size: 400% 100%;
+        }
+
+        @keyframes animatedgradient {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .rainbow-border .card-body {
+
+            z-index: 1; /* Ensure content is above all borders */
+            padding: 1rem;
+            position: relative;
+        }
+    </style>
+
+{% endblock extrahead %}
+
+<div class="d-flex flex-column w-100 align-items-lg-center">
+
+    <div class="col-lg-3 col-sm-12 col-md-6 mb-4">
+        <div class="rounded"
+             style="border : 2px solid #000000;padding:6px;background-color: black;">
+            <div class="shadow rounded bg-black text-white rainbow-border"
+                 style="padding: 4px;">
+                <div class="card-body">
+                    <div class="d-flex flex-column justify-content-between align-items-top">
+                        <div class="d-flex ">
+                        </div>
+                        <div class="d-flex flex-column align-items-center justify-content-center">
+                            <img src="{% static 'img/logo.svg' %}" alt="Fuego Austral"
+                                 width="140"/>
+                        </div>
+                        <div class="m-2 pt-2 rounded shadow-sm bg-white"
+                             style="border: 2px solid black;">
+
+                            <div class="small fw-bold text-black text-center">
+                                {{ event.name }}{{ my_ticket.emoji }}</div>
+                            <div class="text-center">
+                                    <span class="badge"
+                                          style="background-color: #{{ my_ticket.ticket_color }}">{{ my_ticket.ticket_type }}</span>
+                            </div>
+                            <img src="data:image/png;base64,{{ my_ticket.qr_code }}"
+                                 style="  max-width: 100%; height: auto;" alt="QR Code">
+
+
+                            <div class="d-flex flex-row justify-content-center gap-2 align-items-center mb-2">
+                                {% if my_ticket.volunteer_transmutator %}
+                                    <span class="badge bg-success">Transmutator</span>
+                                {% endif %}
+                                {% if my_ticket.volunteer_ranger %}
+                                    <span class="badge" style="background-color: #735b59">Ranger</span>
+                                {% endif %}
+                                {% if my_ticket.volunteer_umpalumpa %}
+                                    <span class="badge bg-dark">CAOS</span>
+                                {% endif %}
+                            </div>
+
+                            <div class="small text-start fw-bold text-black pb-2 px-2"
+                                 style="font-size:10px">
+                                {{ user.profile.document_type }} {{ user.profile.document_number }}
+                                <br>
+                                {{ user.first_name }} {{ user.last_name }} <br>
+                                {{ my_ticket.key }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
