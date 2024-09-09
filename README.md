@@ -42,7 +42,7 @@ you set in the webhook creation.
 
 I recommend using
 a [cloudflare tunnel]('https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/get-started/create-remote-tunnel/'),
-or  [ngrok]('https://ngrok.com/), or similar to expose your local server to the internet.
+or [ngrok]('https://ngrok.com/), or similar to expose your local server to the internet.
 
 ### Login with Google
 
@@ -50,12 +50,6 @@ Create a project in Google Cloud Platform and enable the Google+ API. Then creat
 `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` with the values from the credentials.
 
 On the OAuth consent screen, set the authorized redirect URIs to `{your local env url}/accounts/google/login/callback/`
-
-
-
-
-
-
 
 ### Once you have the envs set up, you can run the following commands:
 
@@ -65,7 +59,6 @@ whoami # copy the output
 python manage.py createsuperuser # paste the output as username, leave email empty, and set some password
 deactivate # only if you want to deactivate the virtualenv
 ```
-
 
 For email testing use https://mailtrap.io/
 
@@ -83,14 +76,10 @@ deactivate # if you want to deactivate the virtualenv
 
 Just push to the `dev` branch and the pipeline will deploy to the dev environment.
 
-
 ### PROD
 
-Please don't push to the `main` branch directly. Create a PR and merge it on dev first. Then create a PR from dev to main.
+Please don't push to the `main` branch directly. Create a PR and merge it on `dev` first. Then create a PR from `dev` to `main`.
 
 `TODO ongoing: The pipeline will deploy to the prod environment.`
 
-IF for some horrible reason you need to push to main directly, PLEASE, make sure to backport the changes to dev afterwards.
-
-
-
+If for some horrible reason you need to push to `main` directly, PLEASE, make sure to backport the changes to `dev` afterwards.
