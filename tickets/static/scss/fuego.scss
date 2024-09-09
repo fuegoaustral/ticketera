@@ -901,20 +901,19 @@ a:hover, a:active {
 /*--------------------------------------------------------------
 ## Header and brand
 --------------------------------------------------------------*/
-@media screen and (min-width: 1200px) {
-	.container {
-
-	}
-}
-
 .site-header {
 	background: rgb(252, 0, 6) url('https://faticketera-zappa-prod.s3.amazonaws.com/img/hero.jpg') no-repeat top center;
-	background-size: 1680px;
 	height: 200px;
 }
 
 .site-header.hero {
+	background-size: cover;
 	height: 620px;
+}
+@media screen and (max-width:767px) {
+	.site-header.hero {
+		height: 300px;
+	}
 }
 
 .site-branding {
@@ -934,11 +933,6 @@ a:hover, a:active {
 }
 
 @media screen and (max-width:767px) {
-	.site-header.hero {
-		background-size: 767px;
-		height: 300px;
-	}
-
 	.whatis p {
 		font-size: 20px;
 		line-height: 1.8em;
