@@ -4,3 +4,4 @@ deprepagos/local_settings.py
 deprepagos/collected_static
 deprepagos/media
 *DS_Store
+dbs/

@@ -1,5 +1,7 @@
 from deprepagos.settings import *
 
+DEBUG=False
+
 CSRF_TRUSTED_ORIGINS = ['eventos.fuegoaustral.org']
 
 DEFAULT_FILE_STORAGE = 'django_s3_storage.storage.S3Storage'
@@ -25,3 +27,6 @@ MERCADOPAGO = {
     'PUBLIC_KEY': os.environ.get('MERCADOPAGO_PUBLIC_KEY'),
     'ACCESS_TOKEN': os.environ.get('MERCADOPAGO_ACCESS_TOKEN'),
 }
+
+# override development settings
+PIPELINE['PIPELINE_ENABLED'] = True
