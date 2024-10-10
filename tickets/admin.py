@@ -99,7 +99,9 @@ class TicketInline(admin.StackedInline):
 
 
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ('id', 'status', 'get_event', 'first_name', 'last_name', 'ticket_type_link', 'ticket_count', 'amount')
+    list_display = ('id', 'status', 'get_event', 'first_name', 'last_name',
+                    'ticket_type_link', 'ticket_count', 'amount',
+                    'donation_art', 'donation_venue', 'donation_grant')
     list_filter = ('ticket_type__event', 'status', 'ticket_type', )
     search_fields = ('first_name', 'last_name', 'ticket__first_name', 'ticket__last_name', )
     inlines = [TicketInline, ]
