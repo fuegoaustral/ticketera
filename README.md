@@ -1,5 +1,35 @@
 # Ticketera de FA
 
+## Development
+
+### Installation
+
+```sh
+# install PostgreSQL (v14.11 works perfectly) and Python<3.10 (v3.9.19 works perfectly)
+python3 -m venv venv # or `python -m venv venv` if you have python 3 as default
+source venv/bin/activate
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+cp deprepagos/local_settings.py.example deprepagos/local_settings.py
+whoami # copy the output
+open deprepagos/local_settings.py # and paste the output as `DB_USER` value
+createdb deprepagos_development
+python manage.py migrate
+whoami # copy the output
+python manage.py createsuperuser # paste the output as username, leave email empty, and set some password
+deactivate # only if you want to deactivate the virtualenv
+```
+
+For email testing use https://mailtrap.io/
+
+### Running
+
+```sh
+source venv/bin/activate # if not already activated from before
+python manage.py runserver
+deactivate # if you want to deactivate the virtualenv
+```
+
 ## Deploy
 
 The project is meant to be deployed in AWS Lambda. `django-zappa` handles the
