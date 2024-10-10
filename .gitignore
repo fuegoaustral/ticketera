@@ -5,4 +5,5 @@ deprepagos/collected_static
 deprepagos/media
 !deprepagos/media/events/heros/no-image.jpg
 *DS_Store
+dbs/
 venv/*
