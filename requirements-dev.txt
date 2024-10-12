@@ -1,2 +1,3 @@
 django-extensions
 zappa==0.55.0
+Werkzeug==2.2.2
