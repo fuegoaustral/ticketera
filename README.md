@@ -41,7 +41,7 @@ To deploy from a local dev environment follow these steps:
 1. Setup your personal AWS credentials as the `[default]` profile (needed by
    Zappa)
 
-2. Deploy with `zappa update dev` (or `prod`)
+2. Deploy with `zappa update dev` (or `zappa update prod`)
 
   > [!IMPORTANT]  
   > In OS X you need to use a Docker image to have the same linux environment
@@ -51,7 +51,7 @@ To deploy from a local dev environment follow these steps:
   > $ docker build . -t ticketera-zappashell
   > $ alias zappashell='docker run -ti -e AWS_PROFILE=default -v "$(pwd):/var/task" -v ~/.aws/:/root/.aws --rm ticketera-zappashell'
   > $ zappashell
-  > $ zappa update dev
+zappashell> zappa update dev
   > ```
 
 3. Update the static files to S3:
