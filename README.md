@@ -51,7 +51,7 @@ To deploy from a local dev environment follow these steps:
   > $ docker build . -t ticketera-zappashell
   > $ alias zappashell='docker run -ti -e AWS_PROFILE=default -v "$(pwd):/var/task" -v ~/.aws/:/root/.aws --rm ticketera-zappashell'
   > $ zappashell
-zappashell> zappa update dev
+  > zappashell> zappa update dev
   > ```
 
 3. Update the static files to S3:
