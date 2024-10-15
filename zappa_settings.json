@@ -6,7 +6,7 @@
     "runtime": "python3.9",
     "timeout_seconds": 30,
     "s3_bucket": "faticketera-zappa-dev",
-    "keep_warm": false,
+    "keep_warm": true,
     "vpc_config": {
       "SubnetIds": [
         "subnet-0d7a6e86d022b6ce5",
