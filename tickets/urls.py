@@ -1,6 +1,8 @@
 from django.urls import path
 
 from .views import home, order, ticket, profile, checkout, webhooks, new_ticket, mi_fuego
+from .views.mobile_app import post_login_jwt, post_refresh_token_jwt, get_secure_heartbeat, get_active_events, \
+    get_event_tickets, put_event_ticket
 
 urlpatterns = [
     path('', home.home, name='home'),
@@ -49,6 +51,15 @@ urlpatterns = [
     path('mi-fuego/transfer-ticket/cancel-ticket-transfer', new_ticket.cancel_ticket_transfer,
          name='cancel_ticket_transfer'),
 
+    # API for APP paths
+    path('api/login/', post_login_jwt, name='post_login_jwt'),
+    path('api/token/refresh/', post_refresh_token_jwt, name='post_refresh_token_jwt'),
+    path('api/heartbeat/', get_secure_heartbeat, name='get_secure_heartbeat'),
+    path('api/events', get_active_events, name='get_active_events'),
+    path('api/events/<int:event_id>/tickets', get_event_tickets, name='get_event_tickets'),
+    path('api/tickets/<str:ticket_key>', put_event_ticket, name='put_event_ticket'),
+
+    # PING
     path('ping/', home.ping, name='ping')
 
 ]
