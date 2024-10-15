@@ -155,7 +155,7 @@ class ProfileStep2Form(forms.ModelForm):
     def send_verification_code(self):
         phone = self.cleaned_data['phone']
 
-        if settings.ENV == 'local':
+        if settings.ENV == 'local' or settings.MOCK_PHONE_VERIFICATION:
             return '123456'
 
         client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
@@ -170,7 +170,7 @@ class ProfileStep2Form(forms.ModelForm):
         phone = self.cleaned_data['phone']
         code = self.cleaned_data.get('code')
 
-        if settings.ENV == 'local':
+        if settings.ENV == 'local' or settings.MOCK_PHONE_VERIFICATION:
             return True
 
         client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)

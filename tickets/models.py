@@ -188,11 +188,6 @@ class Order(BaseModel):
         super().__init__(*args, **kwargs)
         self._old_status = self.status
 
-    def save(self):
-        super(Order, self).save()
-        logging.info(f'Order {self.id} saved with status {self.status}')
-        logging.info(f'Old status was {self._old_status}')
-
     def send_confirmation_email(self):
 
         send_mail(
