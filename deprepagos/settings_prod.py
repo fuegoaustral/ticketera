@@ -17,3 +17,6 @@ AWS_S3_BUCKET_AUTH = False
 
 
 
+
+# override development settings
+PIPELINE['PIPELINE_ENABLED'] = True

@@ -77,9 +77,31 @@ deactivate # if you want to deactivate the virtualenv
 Just push to the `dev` branch and the pipeline will deploy to the dev environment.
 
 ### PROD
+  > [!IMPORTANT]  
+  > In OS X you need to use a Docker image to have the same linux environment
+  > as the one that runs in AWS Lambda to install the correct dependencies.
+  >
+  > ```
+  > $ docker build . -t ticketera-zappashell
+  > $ alias zappashell='docker run -ti -e AWS_PROFILE=default -v "$(pwd):/var/task" -v ~/.aws/:/root/.aws --rm ticketera-zappashell'
+  > $ zappashell
+  > zappashell> zappa update dev
+  > ```
 
 Please don't push to the `main` branch directly. Create a PR and merge it on `dev` first. Then create a PR from `dev` to `main`.
 
 `TODO ongoing: The pipeline will deploy to the prod environment.`
 
 If for some horrible reason you need to push to `main` directly, PLEASE, make sure to backport the changes to `dev` afterwards.
+3. Update the static files to S3:
+
+        $ python manage.py collectstatic --settings=deprepagos.settings_prod
+
+## Adding a new Event
+
+We have an [external Google
+doc](https://docs.google.com/document/d/1_8NBQMMYZ68ABRQs2Fy-BX296OZnTdzzGWp6yNr_KEU/edit)
+with instructions on how to create a new `Event` for the community members in
+charge of communication and design.
+
+When starting to prepare a new Event share this doc with the appropiate people.
