@@ -175,6 +175,8 @@ class Order(BaseModel):
         default=OrderType.ONLINE_PURCHASE
     )
 
+    notes = models.TextField(null=True, blank=True)
+
     def total_ticket_types(self):
         return self.order_tickets.count()
 
