@@ -13,38 +13,36 @@
             justify-content: space-between;
             align-items: center;
             width: 100%;
-            margin-top: 8px; /* Adjust this value to set the desired gap */
+            margin-top: 8px;
         }
 
         .container {
             display: flex;
             flex-direction: column;
-            max-width: 640px; /* Ensure a minimum width for form divs */
+            max-width: 640px;
             width: 100%;
-
-
         }
 
         .wrapper {
             display: flex;
             justify-content: center;
-
             height: 100vh;
         }
-
     </style>
-
 {% endblock %}
 
 {% block content %}
     <div class="wrapper">
-
         <div class="container">
             <h1>Emision directa de bonos</h1>
-            <!-- Event Selection Form -->
             <form method="post" class="form-inline">
                 {% csrf_token %}
                 <input type="hidden" name="action" id="action" value="event"/>
+                <div class="field-box">
+                    <label for="user_name"><strong>Operador emitiendo los bonos:</strong></label>
+                    <span id="user_name">{{ user.email }}</span>
+                </div>
+                <br/>
                 <div class="form-row">
                     <div class="form-group">
                         <label for="event" class="required">Evento:</label>
@@ -52,8 +50,7 @@
                                 style="width: 100%;">
                             <option value="">Select an event</option>
                             {% for event in events %}
-                                <option value="{{ event.id }}"
-                                        {% if event.id == default_event.id %}selected{% endif %}>
+                                <option value="{{ event.id }}" {% if event.id == default_event.id %}selected{% endif %}>
                                     {{ event.name }}
                                 </option>
                             {% endfor %}
@@ -62,16 +59,10 @@
                 </div>
             </form>
 
-            <!-- Purchase and Donation Form -->
             <form method="post" class="form-horizontal" id="ticket-purchase-form">
                 {% csrf_token %}
                 <input type="hidden" name="action" id="action" value="order"/>
-                <!-- Display form errors -->
-
-
-                <!-- Ticket quantity fields dynamically generated -->
                 <fieldset class="module aligned" style="margin-top:20px; ">
-
                     <div class="form-row">
                         <div class="field-box">
                             <label for="id_email">Email:</label>
@@ -81,19 +72,14 @@
                     </div>
                     <div class="form-row" style="display: flex!important;justify-content: end;">
                         <button type="button" id="check-email"
-                                style="
-                                    margin-top: 8px;
-                                        background-color: #008CBA;
-                                        border: none;
-                                        color: white;
-                                        padding: 15px 32px;
-                                        text-align: center;
-                                        text-decoration: none;
-                            ">
+                                style="margin-top: 8px; background-color: #008CBA; border: none; color: white; padding: 15px 32px; text-align: center; text-decoration: none;">
                             Verificar
                         </button>
+                        <button type="button" id="clear-form"
+                                style="margin-top: 8px; background-color: #FF5733; border: none; color: white; padding: 15px 32px; text-align: center; text-decoration: none; display: none;">
+                            Limpiar
+                        </button>
                     </div>
-
 
                     <div id="tickets-section" style="display: none">
                         <div class="form-row">
@@ -101,12 +87,16 @@
                                 <label for="id_order_type">Tipo de orden:</label>
                                 <select name="order_type" id="id_order_type" required>
                                     <option value="CASH_ONSITE">Compra en efectivo</option>
-                                    <option value="ART">Arte</option>
-                                    <option value="CAMPS">Camp</option>
+                                    <option value="ART">Pago Internacional</option>
+                                    <option value="CAMPS">Transferencia nacional</option>
                                     <option value="OTHER">Otros</option>
-
-
                                 </select>
+                            </div>
+                            <div class="form-row">
+                                <div class="field-box">
+                                    <textarea name="notes" id="id_notes" placeholder="Notas aquí..." rows="3"
+                                              style="width: 100%;"></textarea>
+                                </div>
                             </div>
                             <div class="form-row">
                                 <div class="field-box">
@@ -146,7 +136,6 @@
                                     <div class="field-box">
                                         <label for="id_phone">Telefono:</label>
                                         <label id="label_phone" style="display: none"></label>
-
                                         <input type="tel" id="phone" name="phone_input" style="width: 100%" required>
                                         <input type="hidden" id="id_phone" name="phone">
                                     </div>
@@ -156,51 +145,36 @@
                                         <div class="field-box">
                                             <label for="ticket_quantity_{{ ticket.id }}">
                                                 {{ ticket.emoji }} {{ ticket.name }} - Quedan {{ ticket.ticket_count }}
-                                                bonos -
-                                                ${{ ticket.price|floatformat:2 }} c/u</label>
-
+                                                bonos - ${{ ticket.price|floatformat:2 }} c/u
+                                            </label>
                                             <input type="number" name="ticket_quantity_{{ ticket.id }}"
-                                                   id="ticket_quantity_{{ ticket.id }}"
-                                                   value="0" min="0" step="1" style="width: 50px;">
-
+                                                   id="ticket_quantity_{{ ticket.id }}" value="0" min="0" step="1"
+                                                   style="width: 50px;">
                                         </div>
                                     </div>
                                 {% endfor %}
                             </div>
                         </div>
-
                     </div>
                 </fieldset>
                 <div class="form-row">
-                    <div class="field-box"
-                         style="justify-content: end">
+                    <div class="field-box" style="justify-content: end">
                         <h2>
                             <strong id="total-display">Total: $0.00</strong>
                         </h2>
                     </div>
                 </div>
-                <!-- Create button -->
                 <div class="submit-row" style="display:none; justify-content: center" id="emit-button">
                     <button type="submit" class="default" id="comprar"
-                            style="
-                    background-color: #4CAF50;
-                    border: none;
-                    color: white;
-                    padding: 15px 32px;
-                    text-align: center;
-                    text-decoration: none;
-                    display: inline-block;
-                    font-size: 16px;
-                    margin: 4px 2px;
-                    cursor: pointer;">
+                            style="background-color: #4CAF50; border: none; color: white; padding: 15px 32px; text-align: center; text-decoration: none; display: inline-block; font-size: 16px; margin: 4px 2px; cursor: pointer;">
                         Emitir bonos
                     </button>
                 </div>
             </form>
         </div>
     </div>
-    <script>
 
+    <script>
         const input = document.querySelector("#phone");
         const iti = window.intlTelInput(input, {
             utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/js/utils.js",
@@ -228,15 +202,12 @@
             try {
                 const response = await fetch('/admin/caja/email-has-account/', {
                     method: 'POST',
-                    body: JSON.stringify({
-                        email
-                    }),
+                    body: JSON.stringify({email}),
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': '{{ csrf_token }}',
                     }
                 });
-
 
                 const fieldIds = ['first_name', 'last_name', 'document_type', 'document_number'];
 
@@ -254,10 +225,12 @@
                     document.getElementById('id_document_type').style.display = 'none';
                     document.getElementById('phone').type = 'hidden';
 
+                    document.getElementById('id_email').setAttribute('readonly', true);
+
+                    document.getElementById('check-email').style.display = 'none';
+                    document.getElementById('clear-form').style.display = 'block';
                 } else if (response.status === 204) {
-
                     alert('El email ingresado no tiene una cuenta');
-
                     fieldIds.forEach(id => {
                         document.getElementById(`id_${id}`).value = '';
                         document.getElementById(`id_${id}`).type = 'text';
@@ -269,11 +242,14 @@
                     document.querySelector('.iti').style.display = "block";
                     document.getElementById('phone').type = 'tel';
                     document.getElementById('id_document_type').style.display = 'block';
-
+                    document.getElementById('id_email').setAttribute('readonly', true);
+                    document.getElementById('check-email').style.display = 'none';
+                    document.getElementById('clear-form').style.display = 'block';
                 } else if (response.status === 206) {
                     alert('El email ingresado tiene una cuenta pero no tiene los datos completos. Debe completar el perfil antes de continuar');
                     return;
                 }
+
                 document.getElementById('tickets-section').style.display = 'block';
                 document.getElementById('emit-button').style.display = 'block';
             } catch (e) {
@@ -281,13 +257,30 @@
             }
         });
 
-        //I want to intercept the form submission and make a get to the server, depending the resunt value show an alert or continue with the form submission
+        document.getElementById('clear-form').addEventListener('click', function () {
+            document.getElementById('id_email').setAttribute('readonly', false);
+            document.getElementById('id_email').value = '';
+
+
+            document.getElementById('check-email').style.display = 'block';
+            document.getElementById('clear-form').style.display = 'none';
+            document.getElementById('tickets-section').style.display = 'none';
+            document.getElementById('emit-button').style.display = 'none';
+
+            ['first_name', 'last_name', 'document_type', 'document_number'].forEach(id => {
+                document.getElementById(`id_${id}`).value = '';
+                document.getElementById(`id_${id}`).type = 'text';
+                document.getElementById(`label_${id}`).innerText = '';
+                document.getElementById(`label_${id}`).style.display = 'none';
+            });
+            document.getElementById('id_notes').value = '';
+        });
 
         document.getElementById('ticket-purchase-form').addEventListener('submit', async function (event) {
             event.preventDefault();
             let total = 0;
             document.querySelectorAll('input[name^="ticket_quantity_"]').forEach(function (input) {
-                const ticketId = input.name.split('_').pop(); // Extract the ID from the input name
+                const ticketId = input.name.split('_').pop();
                 const quantity = parseInt(input.value) || 0;
                 total += quantity;
             });
@@ -295,7 +288,6 @@
                 alert('Debe seleccionar al menos un bono');
                 return;
             }
-
 
             if (document.getElementById(`id_first_name`).type != "hidden" && !iti.isValidNumber()) {
                 alert('Por favor ingrese un telefono valido');
@@ -305,20 +297,15 @@
             if (document.getElementById(`id_first_name`).type != "hidden") {
                 document.getElementById('id_phone').value = iti.getNumber();
             } else {
-                document.getElementById('id_phone').value = document.getElementById(`label_phone`).innerText
-
-
+                document.getElementById('id_phone').value = document.getElementById(`label_phone`).innerText;
             }
 
-
-            console.log('Form submitted', event);
-            const boton = document.getElementById('comprar')
+            const boton = document.getElementById('comprar');
             boton.disabled = true;
             boton.style.backgroundColor = 'gray';
             boton.style.cursor = 'not-allowed';
 
             try {
-
                 event.target.submit();
             } catch (e) {
                 console.error(e);
@@ -333,28 +320,22 @@
                 '{{ ticket.id }}': parseFloat("{{ ticket.price|floatformat:2 }}".replaceAll(',', '.')),
             {% endfor %}
         };
+
         const updateTotal = () => {
             let total = 0;
-
-            // Sum the quantities of tickets by their price
             document.querySelectorAll('input[name^="ticket_quantity_"]').forEach(function (input) {
-                const ticketId = input.name.split('_').pop(); // Extract the ID from the input name
-                const price = parseFloat(ticketPrices[ticketId]); // Ensure the price is parsed as a float
+                const ticketId = input.name.split('_').pop();
+                const price = parseFloat(ticketPrices[ticketId]);
                 const quantity = parseInt(input.value) || 0;
                 total += price * quantity;
             });
-
             document.getElementById('total-display').innerText = 'Total: $' + total.toFixed(2);
         };
 
-        // Attach event listeners to update total on change
         document.querySelectorAll('input[name^="ticket_quantity_"]').forEach(function (input) {
             input.addEventListener('change', updateTotal);
-
         });
 
-        // Initialize the total on page load
         updateTotal();
-
     </script>
 {% endblock %}

@@ -277,6 +277,9 @@ class TicketPurchaseForm(forms.Form):
     email = forms.EmailField(label='Email', required=True,
                              widget=forms.EmailInput(attrs={'class': 'form-control', 'style': 'width: 340px;'}))
 
+    notes = forms.CharField(label='Notas', required=False, widget=forms.Textarea(
+        attrs={'class': 'form-control', 'style': 'width: 340px; height: 100px;'}))
+
     # Dinámicamente añadimos campos de cantidad para cada tipo de ticket
     def __init__(self, *args, **kwargs):
         event = kwargs.pop('event', None)
@@ -302,6 +305,7 @@ class TicketPurchaseForm(forms.Form):
             'document_type': self.fields['document_type'],
             'document_number': self.fields['document_number'],
             'phone': self.fields['phone'],
+            'notes': self.fields['notes'],
             **{field_name: self.fields[field_name] for field_name in self.fields if
                field_name.startswith('ticket_quantity_')},
 
