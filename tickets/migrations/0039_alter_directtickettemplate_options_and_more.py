@@ -4,9 +4,8 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('tickets', '0037_directtickettemplate'),
+        ('tickets', '0038_directtickettemplate'),
     ]
 
     operations = [
