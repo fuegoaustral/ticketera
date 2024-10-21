@@ -258,7 +258,7 @@
         });
 
         document.getElementById('clear-form').addEventListener('click', function () {
-            document.getElementById('id_email').setAttribute('readonly', false);
+            document.getElementById('id_email').removeAttribute('readonly');
             document.getElementById('id_email').value = '';
 
 
