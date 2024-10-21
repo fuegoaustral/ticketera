@@ -87,16 +87,10 @@
                                 <label for="id_order_type">Tipo de orden:</label>
                                 <select name="order_type" id="id_order_type" required>
                                     <option value="CASH_ONSITE">Compra en efectivo</option>
-                                    <option value="ART">Pago Internacional</option>
-                                    <option value="CAMPS">Transferencia nacional</option>
+                                    <option value="LOCAL_TRANSFER">Transferencia local</option>
+                                    <option value="INTERNATIONAL_TRANSFER">Transferencia internacional</option>
                                     <option value="OTHER">Otros</option>
                                 </select>
-                            </div>
-                            <div class="form-row">
-                                <div class="field-box">
-                                    <textarea name="notes" id="id_notes" placeholder="Notas aquí..." rows="3"
-                                              style="width: 100%;"></textarea>
-                                </div>
                             </div>
                             <div class="form-row">
                                 <div class="field-box">
@@ -140,6 +134,7 @@
                                         <input type="hidden" id="id_phone" name="phone">
                                     </div>
                                 </div>
+                            <br/>
                                 {% for ticket in ticket_types %}
                                     <div class="form-row">
                                         <div class="field-box">
@@ -153,6 +148,14 @@
                                         </div>
                                     </div>
                                 {% endfor %}
+                            </div>
+                        <br/>
+                        <br/>
+                            <div class="form-row">
+                                <div class="field-box">
+                                    <textarea name="notes" id="id_notes" placeholder="Notas aquí..." rows="3"
+                                              style="width: 100%;"></textarea>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -258,7 +261,7 @@
         });
 
         document.getElementById('clear-form').addEventListener('click', function () {
-            document.getElementById('id_email').setAttribute('readonly', false);
+            document.getElementById('id_email').removeAttribute('readonly');
             document.getElementById('id_email').value = '';
 
 
