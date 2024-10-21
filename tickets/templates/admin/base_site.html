@@ -1,5 +1,4 @@
 {% extends "admin/base.html" %}
-{% load i18n %}
 
 
 
@@ -14,8 +13,9 @@
 
 {% block nav-global %}
     <ul class="nav-global">
-        <li><a href="{% url 'admin:index' %}">{% trans 'Home' %}</a></li>
-        <li><a href="{% url 'admin_caja_view' %}">{% trans 'CAJA' %}</a></li> <!-- Your custom link -->
+        <li><a href="{% url 'admin:index' %}">Home</a></li>
+        <li><a href="{% url 'admin_caja_view' %}">EMISION DIRECTA DE BONOS - EFECTIVO / TRANSFERENCIAS</a>
+        </li> <!-- Your custom link -->
         <!-- Add more links if needed -->
     </ul>
 {% endblock %}

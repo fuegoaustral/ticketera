@@ -147,6 +147,7 @@ def admin_caja_view(request):
                                 extra_email_context=None
                             )
 
+                    notes = "Operador responsable: " + request.user.email + ' - ' + form.cleaned_data['notes']
                     order = Order(
                         first_name=user.first_name,
                         last_name=user.last_name,
@@ -160,7 +161,8 @@ def admin_caja_view(request):
                         order_type=form.cleaned_data['order_type'],
                         donation_art=0,
                         donation_venue=0,
-                        donation_grant=0
+                        donation_grant=0,
+                        notes=notes
                     )
                     order.save()
 
