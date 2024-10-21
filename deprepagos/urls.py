@@ -3,12 +3,15 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
 
-from tickets.admin import admin_caja_view, email_has_account, admin_caja_order_view
+from tickets.admin import admin_caja_view, email_has_account, admin_caja_order_view, admin_direct_tickets_view
 
 urlpatterns = [
     path('admin/caja/', admin_caja_view, name='admin_caja_view'),
+
     path('admin/caja/order/<str:order_key>/', admin_caja_order_view, name='admin_caja_order_view'),
     path('admin/caja/email-has-account/', email_has_account, name='email_has_account'),
+
+    path('admin/direct_tickets/', admin_direct_tickets_view, name='admin_direct_tickets_view'),
     path('admin/', admin.site.urls),
 
     path('', include('tickets.urls')),
