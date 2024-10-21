@@ -133,10 +133,10 @@ class Order(BaseModel):
         REFUNDED = 'REFUNDED', 'Reembolsada'
 
     class OrderType(models.TextChoices):
+        INTERNATIONAL_TRANSFER = 'INTERNATIONAL_TRANSFER', 'Transferencia Internacional'
+        LOCAL_TRANSFER = 'LOCAL_TRANSFER', 'Transferencia Local'
         ONLINE_PURCHASE = 'ONLINE_PURCHASE', 'Compra Online'
         CASH_ONSITE = 'CASH_ONSITE', 'Efectivo'
-        CAMPS = 'CAMPS', 'Camps'
-        ART = 'ART', 'Arte'
         OTHER = 'OTHER', 'Otro'
 
     key = models.UUIDField(default=uuid.uuid4, editable=False)
@@ -170,7 +170,7 @@ class Order(BaseModel):
     )
 
     order_type = models.CharField(
-        max_length=20,
+        max_length=32,
         choices=OrderType.choices,
         default=OrderType.ONLINE_PURCHASE
     )
