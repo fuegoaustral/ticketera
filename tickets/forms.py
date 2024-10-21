@@ -244,8 +244,8 @@ class CheckoutDonationsForm(forms.Form):
 
 ORDER_REASON_CHOICES = [
     (Order.OrderType.CASH_ONSITE, 'Pago en efectivo en el evento'),
-    (Order.OrderType.ART, 'Arte'),
-    (Order.OrderType.CAMPS, 'Camp'),
+    (Order.OrderType.INTERNATIONAL_TRANSFER, 'Transferencia internacional'),
+    (Order.OrderType.LOCAL_TRANSFER, 'Transferencia local'),
     (Order.OrderType.OTHER, 'Otro'),
 
 ]
