@@ -15,7 +15,10 @@
     <ul class="nav-global">
         <li><a href="{% url 'admin:index' %}">Home</a></li>
         <li><a href="{% url 'admin_caja_view' %}">EMISION DIRECTA DE BONOS - EFECTIVO / TRANSFERENCIAS</a>
-        </li> <!-- Your custom link -->
+        </li>
+        <li>
+            <a href="{% url 'admin_direct_tickets_view' %}">BONOS DIRIGIDOS - (CAMP / ARTE / VOLUNTARIOS)</a>
+        </li>
         <!-- Add more links if needed -->
     </ul>
 {% endblock %}

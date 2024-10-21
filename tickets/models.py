@@ -476,9 +476,36 @@ class MessageIdempotency(models.Model):
         return f"{self.email} - {self.hash}"
 
 
+class DirectTicketTemplateOriginChoices(models.TextChoices):
+    CAMP = 'CAMP', 'Camp'
+    VOLUNTEER = 'VOLUNTARIOS', 'Voluntarios'
+    ART = 'ARTE', 'Arte'
+
+
+class DirectTicketTemplate(models.Model):
+    origin = models.CharField(
+        max_length=20,
+        choices=DirectTicketTemplateOriginChoices.choices,
+        default=DirectTicketTemplateOriginChoices.CAMP,
+    )
+    name = models.CharField(max_length=255, help_text="Descripción y/o referencias")
+    amount = models.PositiveIntegerField()
+    event = models.ForeignKey(Event, on_delete=models.CASCADE)
+    used = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = "Bono dirigido"
+        verbose_name_plural = "Config Bonos dirigidos"
+
+    def __str__(self):
+        return f"{self.name} ({self.origin}) - {self.amount}"
+
+
 auditlog.register(Coupon)
 auditlog.register(TicketType)
 auditlog.register(Order)
 auditlog.register(Ticket)
 auditlog.register(NewTicket)
 auditlog.register(NewTicketTransfer)
+auditlog.register(TicketTransfer)
+auditlog.register(DirectTicketTemplate)
