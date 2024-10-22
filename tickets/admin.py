@@ -16,8 +16,9 @@ from django.urls import reverse
 
 from deprepagos import settings
 from events.models import Event
-from .forms import TicketPurchaseForm
-from .models import Profile, TicketType, Order, OrderTicket, NewTicket, NewTicketTransfer, DirectTicketTemplate
+from .forms import TicketPurchaseForm, DirectTicketPurchaseForm
+from .models import Profile, TicketType, Order, OrderTicket, NewTicket, NewTicketTransfer, DirectTicketTemplate, \
+    DirectTicketTemplateStatus
 from .views import webhooks
 
 admin.site.site_header = 'Bonos de Fuego Austral'
@@ -206,7 +207,10 @@ def admin_caja_view(request):
 def admin_direct_tickets_view(request):
     events = Event.objects.all()
     default_event = Event.objects.filter(active=True).first()
-    direct_tickets = DirectTicketTemplate.objects.filter(event_id=default_event.id) if default_event else None
+    direct_tickets = DirectTicketTemplate.objects.filter(event_id=default_event.id,
+                                                         status=DirectTicketTemplateStatus.AVAILABLE) if default_event else None
+    ticket_type = TicketType.objects.filter(event_id=default_event.id,
+                                            is_direct_type=True).first() if default_event else None
 
     form = TicketPurchaseForm(event=default_event)
 
@@ -216,15 +220,21 @@ def admin_direct_tickets_view(request):
 
         print(action)
         if action == "event" and selected_event_id:
-            ticket_types = TicketType.objects.filter(event_id=selected_event_id)
+            ticket_type = TicketType.objects.filter(event_id=selected_event_id,
+                                                    is_direct_type=True).first() if selected_event_id else None
             default_event = Event.objects.get(id=selected_event_id)
             form = TicketPurchaseForm(request.POST, event=default_event)
+            direct_tickets = DirectTicketTemplate.objects.filter(event_id=default_event.id,
+                                                                 status=DirectTicketTemplateStatus.AVAILABLE) if default_event else None
         elif action == "order":
-            form = TicketPurchaseForm(request.POST, event=default_event)
+            form = DirectTicketPurchaseForm(request.POST, event=default_event, direct_tickets=direct_tickets,
+                                            ticket_type=ticket_type)
             if form.is_valid():
-                ## TODO - Implementar la compra de bonos directos
-                pass
+                print(form.cleaned_data)
+                ## TODO: Implementar la lógica de compra de bonos directos
+
     context = {
+        'ticket_type': ticket_type,
         'events': events,
         'default_event': default_event,
         'direct_tickets': direct_tickets,

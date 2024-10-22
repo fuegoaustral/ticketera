@@ -104,6 +104,8 @@ class TicketType(BaseModel):
 
     objects = TicketTypeManager()
 
+    is_direct_type = models.BooleanField(default=False)
+
     def get_corresponding_ticket_type(coupon: Coupon):
         return TicketType.objects \
             .annotate(confirmed_tickets=Count('order__ticket', filter=Q(order__status=Order.OrderStatus.CONFIRMED))) \
@@ -482,6 +484,12 @@ class DirectTicketTemplateOriginChoices(models.TextChoices):
     ART = 'ARTE', 'Arte'
 
 
+class DirectTicketTemplateStatus(models.TextChoices):
+    AVAILABLE = 'AVAILABLE', 'Disponible'
+    PENDING = 'PENDING', 'Pendiente'
+    ASSIGNED = 'ASSIGNED', 'Asignados'
+
+
 class DirectTicketTemplate(models.Model):
     origin = models.CharField(
         max_length=20,
@@ -492,6 +500,8 @@ class DirectTicketTemplate(models.Model):
     amount = models.PositiveIntegerField()
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     used = models.BooleanField(default=False)
+    status = models.CharField(max_length=20, choices=DirectTicketTemplateStatus.choices,
+                              default=DirectTicketTemplateStatus.AVAILABLE)
 
     class Meta:
         verbose_name = "Bono dirigido"

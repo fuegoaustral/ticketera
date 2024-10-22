@@ -257,30 +257,31 @@ DOCUMENT_TYPE_CHOICES = [
 ]
 
 
-class TicketPurchaseForm(forms.Form):
-    order_type = forms.ChoiceField(
-        label='Tipo de orden',
-        choices=ORDER_REASON_CHOICES,
-        required=True
-    )
-    first_name = forms.CharField(label='Nombre', required=True,
-                                 widget=forms.TextInput(attrs={'class': 'form-control', 'style': 'width: 240px;'}))
-    last_name = forms.CharField(label='Apellido', required=True,
-                                widget=forms.TextInput(attrs={'class': 'form-control', 'style': 'width: 240px;'}))
-    document_type = forms.ChoiceField(label='Tipo de documento', required=True,
-                                      choices=DOCUMENT_TYPE_CHOICES,
-                                      widget=forms.Select(attrs={'class': 'form-control', 'style': 'width: 100px;'}))
-    document_number = forms.CharField(label='Número de documento', required=True, max_length=20,
-                                      widget=forms.TextInput(attrs={'class': 'form-control', 'style': 'width: 240px;'}))
-    phone = forms.CharField(label='Teléfono', required=True,
-                            widget=forms.TextInput(attrs={'class': 'form-control', 'style': 'width: 240px;'}))
-    email = forms.EmailField(label='Email', required=True,
-                             widget=forms.EmailInput(attrs={'class': 'form-control', 'style': 'width: 340px;'}))
+class BaseTicketForm(forms.Form):
+    first_name = forms.CharField(label='Nombre', required=True)
+    last_name = forms.CharField(label='Apellido', required=True)
+    document_type = forms.ChoiceField(label='Tipo de documento', required=True, choices=DOCUMENT_TYPE_CHOICES)
+    document_number = forms.CharField(label='Número de documento', required=True, max_length=20)
+    phone = forms.CharField(label='Teléfono', required=True)
+    email = forms.EmailField(label='Email', required=True)
+    notes = forms.CharField(label='Notas', required=False, widget=forms.Textarea(attrs={'rows': 3}))
 
-    notes = forms.CharField(label='Notas', required=False, widget=forms.Textarea(
-        attrs={'class': 'form-control', 'style': 'width: 340px; height: 100px;'}))
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Add common widget attributes if needed
+        self.fields['first_name'].widget.attrs.update({'placeholder': 'Nombre'})
+        self.fields['last_name'].widget.attrs.update({'placeholder': 'Apellido'})
+        self.fields['email'].widget.attrs.update({'placeholder': 'Email'})
+        self.fields['phone'].widget.attrs.update({'placeholder': 'Teléfono'})
 
-    # Dinámicamente añadimos campos de cantidad para cada tipo de ticket
+    def clean(self):
+        # Shared validation logic (if needed)
+        return super().clean()
+
+
+class TicketPurchaseForm(BaseTicketForm):
+    order_type = forms.ChoiceField(label='Tipo de orden', choices=ORDER_REASON_CHOICES, required=True)
+
     def __init__(self, *args, **kwargs):
         event = kwargs.pop('event', None)
         super().__init__(*args, **kwargs)
@@ -294,8 +295,6 @@ class TicketPurchaseForm(forms.Form):
                     max_value=ticket.ticket_count,
                     initial=0,
                     required=False,
-                    widget=forms.NumberInput(
-                        attrs={'class': 'form-control', 'style': 'width: 80px; text-align: right;'})
                 )
         self.fields = {
             'order_type': self.fields['order_type'],
@@ -308,12 +307,10 @@ class TicketPurchaseForm(forms.Form):
             'notes': self.fields['notes'],
             **{field_name: self.fields[field_name] for field_name in self.fields if
                field_name.startswith('ticket_quantity_')},
-
         }
 
     def clean(self):
         cleaned_data = super().clean()
-
         ticket_fields = [key for key in self.fields if key.startswith('ticket_quantity_')]
         total_tickets = 0
         for field in ticket_fields:
@@ -327,4 +324,48 @@ class TicketPurchaseForm(forms.Form):
         if total_tickets == 0:
             raise ValidationError('Debe seleccionar al menos un ticket para continuar con la compra.')
 
+        return cleaned_data
+
+
+class DirectTicketPurchaseForm(BaseTicketForm):
+    def __init__(self, *args, **kwargs):
+        direct_tickets = kwargs.pop('direct_tickets', None)
+        ticket_type = kwargs.pop('ticket_type', None)
+        event = kwargs.pop('event', None)
+        super().__init__(*args, **kwargs)
+
+        if direct_tickets and ticket_type:
+            for ticket in direct_tickets:
+                self.fields[f'ticket_checkbox_{ticket.id}'] = forms.BooleanField(
+                    label=f'{ticket.origin} - {ticket.name} - Max Bonos {ticket.amount}',
+                    required=False,
+                    widget=forms.CheckboxInput(attrs={'data-price': ticket_type.price, 'data-amount': ticket.amount})
+                )
+                self.fields[f'ticket_amount_{ticket.id}'] = forms.IntegerField(
+                    label='Cantidad',
+                    min_value=1,
+                    max_value=ticket.amount,
+                    initial=ticket.amount,
+                    required=False,
+                    widget=forms.NumberInput(attrs={'disabled': 'disabled'})
+                )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        selected_tickets = []
+
+        for key, value in cleaned_data.items():
+            if key.startswith('ticket_amount_'):
+                ticket_id = key.split('_')[-1]
+                checkbox_name = f'ticket_checkbox_{ticket_id}'
+                if cleaned_data.get(checkbox_name):
+                    selected_tickets.append({
+                        'ticket_id': ticket_id,
+                        'amount': value
+                    })
+
+        if not selected_tickets:
+            raise ValidationError('Debe seleccionar al menos un bono.')
+
+        self.cleaned_data['selected_tickets'] = selected_tickets
         return cleaned_data

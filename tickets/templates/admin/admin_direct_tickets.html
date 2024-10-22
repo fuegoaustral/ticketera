@@ -35,156 +35,179 @@
     <div class="wrapper">
         <div class="container">
             <h1>Bonos Dirigidos</h1>
-            <form method="post" class="form-inline">
-                {% csrf_token %}
-                <input type="hidden" name="action" id="action" value="event"/>
-                <div class="field-box">
-                    <label for="user_name"><strong>Operador emitiendo los bonos:</strong></label>
-                    <span id="user_name">{{ user.email }}</span>
-                </div>
-                <br/>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="event" class="required">Evento:</label>
-                        <select name="event" id="event" class="vSelect" onchange="this.form.submit();"
-                                style="width: 100%;">
-                            <option value="">Select an event</option>
-                            {% for event in events %}
-                                <option value="{{ event.id }}" {% if event.id == default_event.id %}selected{% endif %}>
-                                    {{ event.name }}
-                                </option>
-                            {% endfor %}
-                        </select>
+            {% if ticket_type %}
+                <form method="post" class="form-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" id="action" value="event"/>
+                    <div class="field-box">
+                        <label for="user_name"><strong>Operador emitiendo los bonos:</strong></label>
+                        <span id="user_name">{{ user.email }}</span>
                     </div>
-                </div>
-            </form>
-
-            <form method="post" class="form-horizontal" id="ticket-purchase-form">
-                {% csrf_token %}
-                <input type="hidden" name="action" id="action" value="order"/>
-                <fieldset class="module aligned" style="margin-top:20px; ">
+                    <br/>
                     <div class="form-row">
-                        <div class="field-box">
-                            <label for="id_email">Email:</label>
-                            <input type="email" name="email" id="id_email" placeholder="Email" required
-                                   style="width: 240px">
+                        <div class="form-group">
+                            <label for="event" class="required">Evento:</label>
+                            <select name="event" id="event" class="vSelect" onchange="this.form.submit();"
+                                    style="width: 100%;">
+                                <option value="">Select an event</option>
+                                {% for event in events %}
+                                    <option value="{{ event.id }}"
+                                            {% if event.id == default_event.id %}selected{% endif %}>
+                                        {{ event.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
                         </div>
                     </div>
-                    <div class="form-row" style="display: flex!important;justify-content: end;">
-                        <button type="button" id="check-email"
-                                style="margin-top: 8px; background-color: #008CBA; border: none; color: white; padding: 15px 32px; text-align: center; text-decoration: none;">
-                            Verificar
-                        </button>
-                        <button type="button" id="clear-form"
-                                style="margin-top: 8px; background-color: #FF5733; border: none; color: white; padding: 15px 32px; text-align: center; text-decoration: none; display: none;">
-                            Limpiar
-                        </button>
-                    </div>
+                </form>
 
-                    <div id="tickets-section" style="display: none">
+                <form method="post" class="form-horizontal" id="ticket-purchase-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" id="action" value="order"/>
+                    <fieldset class="module aligned" style="margin-top:20px; ">
                         <div class="form-row">
-                            <div class="form-row">
-                                <div class="field-box">
-                                    <label for="id_name">Nombre:</label>
-                                    <label id="label_first_name" style="display: none"></label>
-                                    <input type="text" name="first_name" id="id_first_name" placeholder="Nombre"
-                                           required>
-                                </div>
+                            <div class="field-box">
+                                <label for="id_email">Email:</label>
+                                <input type="email" name="email" id="id_email" placeholder="Email" required
+                                       style="width: 240px">
                             </div>
+                        </div>
+                        <div class="form-row" style="display: flex!important;justify-content: end;">
+                            <button type="button" id="check-email"
+                                    style="margin-top: 8px; background-color: #008CBA; border: none; color: white; padding: 15px 32px; text-align: center; text-decoration: none;">
+                                Verificar
+                            </button>
+                            <button type="button" id="clear-form"
+                                    style="margin-top: 8px; background-color: #FF5733; border: none; color: white; padding: 15px 32px; text-align: center; text-decoration: none; display: none;">
+                                Limpiar
+                            </button>
+                        </div>
+
+                        <div id="tickets-section" style="display: none">
                             <div class="form-row">
-                                <div class="field-box">
-                                    <label for="id_last_name">Apellido:</label>
-                                    <label id="label_last_name" style="display: none"></label>
-                                    <input type="text" name="last_name" id="id_last_name" placeholder="Apellido"
-                                           required>
-                                </div>
-                            </div>
-                            <div class="form-row">
-                                <div class="field-box">
-                                    <label for="id_document_type">Tipo de documento:</label>
-                                    <label id="label_document_type" style="display: none"></label>
-                                    <select name="document_type" id="id_document_type" required>
-                                        <option value="DNI">DNI</option>
-                                        <option value="PASSPORT">Pasaporte</option>
-                                        <option value="OTHER">Otro</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="form-row">
-                                <div class="field-box">
-                                    <label for="id_document_number">Numero de documento:</label>
-                                    <label id="label_document_number" style="display: none"></label>
-                                    <input type="text" name="document_number" id="id_document_number"
-                                           placeholder="Numero de documento" required>
+                                <div class="form-row">
+                                    <div class="field-box">
+                                        <label for="id_name">Nombre:</label>
+                                        <label id="label_first_name" style="display: none"></label>
+                                        <input type="text" name="first_name" id="id_first_name" placeholder="Nombre"
+                                               required>
+                                    </div>
                                 </div>
                                 <div class="form-row">
                                     <div class="field-box">
-                                        <label for="id_phone">Telefono:</label>
-                                        <label id="label_phone" style="display: none"></label>
-                                        <input type="tel" id="phone" name="phone_input" style="width: 100%" required>
-                                        <input type="hidden" id="id_phone" name="phone">
+                                        <label for="id_last_name">Apellido:</label>
+                                        <label id="label_last_name" style="display: none"></label>
+                                        <input type="text" name="last_name" id="id_last_name" placeholder="Apellido"
+                                               required>
                                     </div>
                                 </div>
-
-                                <br/>
-                                <br/>
-
-                                <h3>Asignar bonos dirigidos</h3>
-
-                                <!-- Filtrado y listado scrolleable de direct_tickets -->
                                 <div class="form-row">
                                     <div class="field-box">
-
-                                        <input type="text" id="ticket_filter" placeholder="Buscar..."
-                                               style="width: 100%;">
+                                        <label for="id_document_type">Tipo de documento:</label>
+                                        <label id="label_document_type" style="display: none"></label>
+                                        <select name="document_type" id="id_document_type" required>
+                                            <option value="DNI">DNI</option>
+                                            <option value="PASSPORT">Pasaporte</option>
+                                            <option value="OTHER">Otro</option>
+                                        </select>
                                     </div>
                                 </div>
+                                <div class="form-row">
+                                    <div class="field-box">
+                                        <label for="id_document_number">Numero de documento:</label>
+                                        <label id="label_document_number" style="display: none"></label>
+                                        <input type="text" name="document_number" id="id_document_number"
+                                               placeholder="Numero de documento" required>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="field-box">
+                                            <label for="id_phone">Telefono:</label>
+                                            <label id="label_phone" style="display: none"></label>
+                                            <input type="tel" id="phone" name="phone_input" style="width: 100%"
+                                                   required>
+                                            <input type="hidden" id="id_phone" name="phone">
+                                        </div>
+                                    </div>
 
-                                <div class="form-row"
-                                     style="max-height: 300px; overflow-y: scroll; border: 1px solid #ccc; padding: 8px;">
-                                    <div id="ticket-list">
-                                        {% for ticket in direct_tickets %}
-                                            <div class="form-row ticket-item" data-name="{{ ticket.name }}">
-                                                <div class="field-box">
-                                                    <label for="ticket_quantity_{{ ticket.id }}">
-                                                        {{ ticket.origin }} - {{ ticket.name }} -
-                                                        Bonos {{ ticket.amount }}
-                                                    </label>
-                                                    <input type="checkbox" name="ticket_checkbox_{{ ticket.id }}"
-                                                           id="ticket_checkbox_{{ ticket.id }}"
-                                                           class="ticket-checkbox">
+                                    <br/>
+                                    <br/>
+
+                                    <h3>Asignar bonos dirigidos - ${{ ticket_type.price }} c/u</h3>
+
+                                    <!-- Filtrado y listado scrolleable de direct_tickets -->
+                                    <div class="form-row">
+                                        <div class="field-box">
+
+                                            <input type="text" id="ticket_filter" placeholder="Buscar..."
+                                                   style="width: 100%;">
+                                        </div>
+                                    </div>
+
+                                    <div class="form-row"
+                                         style="max-height: 300px; overflow-y: scroll; border: 1px solid #ccc; padding: 8px;">
+                                        <div id="ticket-list">
+                                            {% for ticket in direct_tickets %}
+                                                <div class="form-row ticket-item" data-name="{{ ticket.name }}"
+                                                     style="align-items: center;">
+                                                    <div class="field-box">
+                                                        <!-- Align checkbox and label to the left -->
+                                                        <div style="display: flex; align-items: center;">
+                                                            <input type="checkbox"
+                                                                   name="ticket_checkbox_{{ ticket.id }}"
+                                                                   id="ticket_checkbox_{{ ticket.id }}"
+                                                                   class="ticket-checkbox"
+                                                                   data-price="{{ ticket_type.price }}"
+                                                                   data-amount="{{ ticket.amount }}"
+                                                                   style="margin-right: 10px;">
+                                                            <label for="ticket_checkbox_{{ ticket.id }}"
+                                                                   style="margin-right: 10px;">
+                                                                {{ ticket.origin }} - {{ ticket.name }} -
+                                                                Max Bonos {{ ticket.amount }}
+                                                            </label>
+                                                        </div>
+                                                        <!-- Number input for selecting amount, initially disabled -->
+                                                        <input type="number" id="ticket_amount_{{ ticket.id }}"
+                                                               name="ticket_amount_{{ ticket.id }}"
+                                                               class="ticket-amount" min="1" max="{{ ticket.amount }}"
+                                                               value="{{ ticket.amount }}"
+                                                               style="width: 80px; margin-left: 10px;" disabled>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        {% endfor %}
+                                            {% endfor %}
+                                        </div>
                                     </div>
-                                </div>
 
-                                <br/>
-                                <br/>
-                                <div class="form-row">
-                                    <div class="field-box">
+                                    <br/>
+                                    <br/>
+                                    <div class="form-row">
+                                        <div class="field-box">
                                     <textarea name="notes" id="id_notes" placeholder="Notas aquí..." rows="3"
                                               style="width: 100%;"></textarea>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                    </fieldset>
+                    <div class="form-row">
+                        <div class="field-box" style="justify-content: end">
+                            <h2>
+                                <strong id="total-display">Total: $0.00</strong>
+                            </h2>
+                        </div>
                     </div>
-                </fieldset>
-                <div class="form-row">
-                    <div class="field-box" style="justify-content: end">
-                        <h2>
-                            <strong id="total-display">Total: $0.00</strong>
-                        </h2>
+                    <div class="submit-row" style="display:none; justify-content: center" id="emit-button">
+                        <button type="submit" class="default" id="comprar"
+                                style="background-color: #4CAF50; border: none; color: white; padding: 15px 32px; text-align: center; text-decoration: none; display: inline-block; font-size: 16px; margin: 4px 2px; cursor: pointer;">
+                            Emitir bonos
+                        </button>
                     </div>
+                </form>
+            {% else %}
+                <div class="text-danger">
+                    El evento no tiene bonos dirigidos configurados o disponibles
                 </div>
-                <div class="submit-row" style="display:none; justify-content: center" id="emit-button">
-                    <button type="submit" class="default" id="comprar"
-                            style="background-color: #4CAF50; border: none; color: white; padding: 15px 32px; text-align: center; text-decoration: none; display: inline-block; font-size: 16px; margin: 4px 2px; cursor: pointer;">
-                        Emitir bonos
-                    </button>
-                </div>
-            </form>
+            {% endif %}
         </div>
     </div>
 
@@ -293,7 +316,7 @@
         document.getElementById('ticket-purchase-form').addEventListener('submit', async function (event) {
             event.preventDefault();
             let total = 0;
-            document.querySelectorAll('input[name^="ticket_quantity_"]').forEach(function (input) {
+            document.querySelectorAll('input[name^="ticket_amount_"]').forEach(function (input) {
                 const ticketId = input.name.split('_').pop();
                 const quantity = parseInt(input.value) || 0;
                 total += quantity;
@@ -337,20 +360,54 @@
 
         const updateTotal = () => {
             let total = 0;
-            document.querySelectorAll('input[name^="ticket_quantity_"]').forEach(function (input) {
-                const ticketId = input.name.split('_').pop();
-                const price = parseFloat(ticketPrices[ticketId]);
-                const quantity = parseInt(input.value) || 0;
-                total += price * quantity;
+
+            // Loop through each selected checkbox and calculate the total
+            document.querySelectorAll('.ticket-checkbox').forEach(function (checkbox) {
+                if (checkbox.checked) {
+                    const price = parseFloat(checkbox.getAttribute('data-price'));
+                    const ticketId = checkbox.id.split('_').pop();
+                    const amountInput = document.getElementById(`ticket_amount_${ticketId}`);
+                    const selectedAmount = parseInt(amountInput.value) || 0;
+                    total += price * selectedAmount;
+                }
             });
+
+            // Update the total display
             document.getElementById('total-display').innerText = 'Total: $' + total.toFixed(2);
         };
 
-        document.querySelectorAll('input[name^="ticket_quantity_"]').forEach(function (input) {
-            input.addEventListener('change', updateTotal);
+        // Add event listener to checkboxes to enable/disable number inputs and update total on change
+        document.querySelectorAll('.ticket-checkbox').forEach(function (checkbox) {
+            checkbox.addEventListener('change', function () {
+                const ticketId = checkbox.id.split('_').pop();
+                const amountInput = document.getElementById(`ticket_amount_${ticketId}`);
+
+                if (checkbox.checked) {
+                    amountInput.disabled = false;
+                    amountInput.style.backgroundColor = 'white';
+                    amountInput.style.color = 'black';
+                } else {
+                    amountInput.disabled = true;
+                    amountInput.value = amountInput.max;
+                    amountInput.style.backgroundColor = '';
+                    amountInput.style.color = '';
+                }
+
+                updateTotal(); // Update total when checkbox state changes
+            });
         });
 
-        updateTotal();
+        // Add event listener to number inputs to update total on amount change
+        document.querySelectorAll('.ticket-amount').forEach(function (input) {
+            input.addEventListener('input', function () {
+                const maxAmount = parseInt(input.max);
+                if (parseInt(input.value) > maxAmount) {
+                    input.value = maxAmount; // Restrict to max if exceeded
+                    alert('No puedes seleccionar más bonos de los permitidos');
+                }
+                updateTotal();
+            });
+        });
 
         // Filtrado de tickets y manejo de checados
         const filterInput = document.getElementById('ticket_filter');
