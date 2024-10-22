@@ -178,6 +178,8 @@ class Order(BaseModel):
     )
 
     notes = models.TextField(null=True, blank=True)
+    generated_by = models.ForeignKey(User, related_name='generated_by', null=True, blank=True,
+                                     on_delete=models.RESTRICT)
 
     def total_ticket_types(self):
         return self.order_tickets.count()
