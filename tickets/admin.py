@@ -16,8 +16,9 @@ from django.urls import reverse
 
 from deprepagos import settings
 from events.models import Event
-from .forms import TicketPurchaseForm
-from .models import Profile, TicketType, Order, OrderTicket, NewTicket, NewTicketTransfer
+from .forms import TicketPurchaseForm, DirectTicketPurchaseForm
+from .models import Profile, TicketType, Order, OrderTicket, NewTicket, NewTicketTransfer, DirectTicketTemplate, \
+    DirectTicketTemplateStatus
 from .views import webhooks
 
 admin.site.site_header = 'Bonos de Fuego Austral'
@@ -202,6 +203,46 @@ def admin_caja_view(request):
     return render(request, 'admin/admin_caja.html', context)
 
 
+@staff_member_required
+def admin_direct_tickets_view(request):
+    events = Event.objects.all()
+    default_event = Event.objects.filter(active=True).first()
+    direct_tickets = DirectTicketTemplate.objects.filter(event_id=default_event.id,
+                                                         status=DirectTicketTemplateStatus.AVAILABLE) if default_event else None
+    ticket_type = TicketType.objects.filter(event_id=default_event.id,
+                                            is_direct_type=True).first() if default_event else None
+
+    form = TicketPurchaseForm(event=default_event)
+
+    if request.method == 'POST':
+        selected_event_id = request.POST.get('event')
+        action = request.POST.get('action')
+
+        print(action)
+        if action == "event" and selected_event_id:
+            ticket_type = TicketType.objects.filter(event_id=selected_event_id,
+                                                    is_direct_type=True).first() if selected_event_id else None
+            default_event = Event.objects.get(id=selected_event_id)
+            form = TicketPurchaseForm(request.POST, event=default_event)
+            direct_tickets = DirectTicketTemplate.objects.filter(event_id=default_event.id,
+                                                                 status=DirectTicketTemplateStatus.AVAILABLE) if default_event else None
+        elif action == "order":
+            form = DirectTicketPurchaseForm(request.POST, event=default_event, direct_tickets=direct_tickets,
+                                            ticket_type=ticket_type)
+            if form.is_valid():
+                print(form.cleaned_data)
+                ## TODO: Implementar la lógica de compra de bonos directos
+
+    context = {
+        'ticket_type': ticket_type,
+        'events': events,
+        'default_event': default_event,
+        'direct_tickets': direct_tickets,
+        'form': form,
+    }
+    return render(request, 'admin/admin_direct_tickets.html', context)
+
+
 def admin_caja_order_view(request, order_key):
     new_user = request.GET.get('new_user', True)  # Default to True if not provided
     new_user = new_user in ['true', 'True', True]
@@ -214,6 +255,15 @@ def admin_caja_order_view(request, order_key):
         'tickets': tickets,
         'new_user': new_user,
     })
+
+
+@admin.register(DirectTicketTemplate)
+class DirectTicketTemplateAdmin(admin.ModelAdmin):
+    list_display = ['id', 'origin', 'name', 'amount', 'used', 'event']
+    list_editable = ['origin', 'name', 'amount', 'event']  # Campos que pueden ser editados directamente
+    list_display_links = ['id']  # El campo 'name' será el enlace a los detalles
+    list_filter = ['event__name']  # Filtro por evento
+    search_fields = ['event__name']  # Buscar por nombre y evento
 
 
 # Quitar el registro original y registrar el nuevo UserAdmin
