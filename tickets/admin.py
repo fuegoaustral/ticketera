@@ -160,7 +160,9 @@ def admin_caja_view(request):
                         order_type=form.cleaned_data['order_type'],
                         donation_art=0,
                         donation_venue=0,
-                        donation_grant=0
+                        donation_grant=0,
+                        notes=form.cleaned_data['notes'],
+                        generated_by=request.user
                     )
                     order.save()
 
