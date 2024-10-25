@@ -11,8 +11,9 @@ urlpatterns = [
     path('admin/caja/email-has-account/', email_has_account, name='email_has_account'),
     path('admin/', admin.site.urls),
 
+    path('mi-fuego/', include('allauth.urls')),
+    path('mi-fuego', include('account.urls')),
     path('', include('tickets.urls')),
-    path('accounts/', include('allauth.urls')),
 
 ]
 

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import home, order, ticket, profile, checkout, webhooks, new_ticket, mi_fuego
+from .views import home, order, ticket, checkout, webhooks, new_ticket
 
 urlpatterns = [
     path('', home.home, name='home'),
@@ -24,11 +24,6 @@ urlpatterns = [
          name='ticket_transfer_confirmation'),
     path('ticket/<str:transfer_key>/confirmed', ticket.ticket_transfer_confirmed, name='ticket_transfer_confirmed'),
 
-    # Profile related paths
-    path('complete-profile/', profile.complete_profile, name='complete_profile'),
-    path('accounts/verification-congrats/', profile.verification_congrats, name='verification_congrats'),
-    path('accounts/profile-congrats/', profile.profile_congrats, name='profile_congrats'),
-
     # Checkout related paths
     path('checkout/select-tickets', checkout.select_tickets, name='select_tickets'),
     path('checkout/select-donations', checkout.select_donations, name='select_donations'),
@@ -37,16 +32,13 @@ urlpatterns = [
     # Webhook related paths
     path('webhooks/mercadopago', webhooks.mercadopago_webhook, name='mercadopago_webhook'),
 
-    path('mi-fuego/', mi_fuego.my_fire_view, name='mi_fuego'),
-    path('mi-fuego/mis-bonos', mi_fuego.my_tickets_view, name='my_tickets'),
+    path('ticket/<str:ticket_key>/volunteer', new_ticket.volunteer_ticket, name='volunteer_ticket'),
 
-    path('mi-fuego/mis-bonos/<str:ticket_key>/volunteer', new_ticket.volunteer_ticket, name='volunteer_ticket'),
+    path('ticket/<str:ticket_key>/assign', new_ticket.assign_ticket, name='assign_ticket'),
+    path('ticket/<str:ticket_key>/unassign', new_ticket.unassign_ticket, name='unassign_ticket'),
 
-    path('mi-fuego/mis-bonos/<str:ticket_key>/assign', new_ticket.assign_ticket, name='assign_ticket'),
-    path('mi-fuego/mis-bonos/<str:ticket_key>/unassign', new_ticket.unassign_ticket, name='unassign_ticket'),
-
-    path('mi-fuego/transfer-ticket', new_ticket.transfer_ticket, name='transfer_ticket'),
-    path('mi-fuego/transfer-ticket/cancel-ticket-transfer', new_ticket.cancel_ticket_transfer,
+    path('ticket/transfer-ticket', new_ticket.transfer_ticket, name='transfer_ticket'),
+    path('ticket/transfer-ticket/cancel-ticket-transfer', new_ticket.cancel_ticket_transfer,
          name='cancel_ticket_transfer'),
 
     path('ping/', home.ping, name='ping')
