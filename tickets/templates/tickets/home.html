@@ -1,4 +1,5 @@
 {% extends 'tickets/base.html' %}
+{% load humanize %}
 
 {% block hero %}hero{% endblock %}
 
@@ -19,7 +20,7 @@
                         <i class="{{ ticket_type.emoji }}"></i>
                     </div>
                     <h2>{{ ticket_type.name }}</h2>
-                    <p class="text-small">${{ ticket_type.price }}</p>
+                    <p class="text-small">${{ ticket_type.price|intcomma }}</p>
                     <p class="text-small">{{ ticket_type.description }}</p>
 
                     {% load text_color %}
