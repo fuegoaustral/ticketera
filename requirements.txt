@@ -52,7 +52,6 @@ PyJWT==2.9.0
 pynliner==0.8.0
 pypng==0.20220715.0
 python-dateutil==2.9.0.post0
-python-dotenv==1.0.1
 python-slugify==8.0.4
 pytz==2021.3
 PyYAML==6.0.2
@@ -75,3 +74,4 @@ wsgi-request-logger==0.4.6
 yarl==1.9.4
 zappa==0.59.0
 zappa-django-utils==0.4.1
+python-dotenv>=1.0.1,<1.1
