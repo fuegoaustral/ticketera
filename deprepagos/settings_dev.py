@@ -5,7 +5,7 @@ MOCK_PHONE_VERIFICATION = True
 CSRF_TRUSTED_ORIGINS = ['dev.fuegoaustral.org']
 
 DEFAULT_FILE_STORAGE = 'django_s3_storage.storage.S3Storage'
-STATICFILES_STORAGE = 'deprepagos.storages.StaticS3PipelineManifestStorage'
+STATICFILES_STORAGE = 'django_s3_storage.storage.StaticS3Storage'
 
 AWS_STORAGE_BUCKET_NAME = 'faticketera-zappa-dev'
 AWS_QUERYSTRING_AUTH = False
