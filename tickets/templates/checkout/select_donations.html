@@ -119,8 +119,6 @@
     </style>
 
     <script type="text/javascript">
-        const donationAmount = {{ DONATION_AMOUNT }};
-
         function updateDonationQuantity(type, increment) {
             var quantityInput = document.getElementById('donation_' + type + '_quantity');
             var currentValue = parseInt(quantityInput.value);
@@ -139,7 +137,7 @@
             var venueQuantity = parseInt(document.getElementById('donation_venue_quantity').value);
             var grantQuantity = parseInt(document.getElementById('donation_grant_quantity').value);
 
-            total += (artQuantity + venueQuantity + grantQuantity) * donationAmount;
+            total += (artQuantity + venueQuantity + grantQuantity);
 
             document.getElementById('total_donations').innerText = '$' + total.toFixed(2);
         }
