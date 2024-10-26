@@ -26,7 +26,7 @@
                     <a
                             class="button btn"
                             style="background-color: #{{ ticket_type.color }}; color: {{ ticket_type.color|text_color }};"
-                            href="{% url 'select_tickets' %}?new"
+                            href="{% url 'select_tickets' %}?new&ticket_id={{ ticket_type.id }}"
                     >
                         Comprar
                     </a>
@@ -73,7 +73,7 @@
                 <p class="text-small">
                     <b>Toda creación de la comunidad en Fuego Austral o en La Sede requiere de mucho trabajo, procesos y
                         materiales.</b></br>
-                    Por eso, además de adquirir tu bono contribución de ingreso, podes colaborar con algunas de las
+                    Por eso, además de adquirir tu bono contribución de ingreso, podés colaborar con algunas de las
                     siguientes propuestas:
                 </p>
             </div>
