@@ -118,26 +118,24 @@ def order_summary(request):
                 "unit_price": float(price),
             })
 
-    donation_amount = settings.DONATION_AMOUNT
     donation_data = []
 
     for donation_type, donation_name in [('donation_art', 'Becas de Arte'), ('donation_venue', 'Donaciones a La Sede'),
                                          ('donation_grant', 'Beca Inclusión Radical')]:
-        quantity = donations.get(donation_type, 0)
-        subtotal = quantity * donation_amount
-        if quantity > 0:
-            total_amount += subtotal
+        donation_amount = donations.get(donation_type, 0)
+        if donation_amount > 0:
+            total_amount += donation_amount
             donation_data.append({
                 'id': donation_type,
                 'name': donation_name,
-                'quantity': quantity,
-                'subtotal': subtotal,
+                'quantity': 1,
+                'subtotal': donation_amount,
             })
             items.append({
                 "id": donation_type,
                 "title": donation_name,
-                "quantity": quantity,
-                "unit_price": float(donation_amount),
+                "quantity": 1,
+                "unit_price": donation_amount,
             })
 
     if request.method == 'POST':
@@ -160,9 +158,9 @@ def order_summary(request):
                 dni=request.user.profile.document_number,
                 amount=total_amount,
                 status=Order.OrderStatus.PENDING,
-                donation_art=donations.get('donation_art', 0) * donation_amount,
-                donation_venue=donations.get('donation_venue', 0) * donation_amount,
-                donation_grant=donations.get('donation_grant', 0) * donation_amount,
+                donation_art=donations.get('donation_art', 0),
+                donation_venue=donations.get('donation_venue', 0),
+                donation_grant=donations.get('donation_grant', 0),
                 event=event,
                 user=request.user,
                 order_type=Order.OrderType.ONLINE_PURCHASE,
