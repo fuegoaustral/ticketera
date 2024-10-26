@@ -33,9 +33,7 @@
                     {% for donation in donation_data %}
                         {% if donation.quantity > 0 %}
                             <tr>
-                                <td class="text-start">{{ donation.name }}</td>
-                                <td class="text-end">&nbsp;</td>
-                                <td class="text-center">&nbsp;</td>
+                                <td class="text-start" colspan="3">{{ donation.name }}</td>
                                 <td class="text-end">${{ donation.subtotal|floatformat:2 }}</td>
                             </tr>
                         {% endif %}
