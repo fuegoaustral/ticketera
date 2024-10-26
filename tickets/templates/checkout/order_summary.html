@@ -1,4 +1,5 @@
 {% extends "tickets/base.html" %}
+{% load humanize %}
 
 {% block content %}
     <div class="d-flex flex-column justify-content-center align-items-center flex-grow-1 my-5">
@@ -9,10 +10,10 @@
                 <table class="table table-striped">
                     <thead>
                     <tr>
-                        <th>Descripción</th>
-                        <th>Precio</th>
-                        <th>Cantidad</th>
-                        <th>Subtotal</th>
+                        <th class="text-start">Descripción</th>
+                        <th class="text-end">Precio</th>
+                        <th class="text-center">Cantidad</th>
+                        <th class="text-end">Subtotal</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -21,7 +22,7 @@
                             <tr>
                                 <td class="text-start">{{ ticket.name }}</td>
                                 <td class="text-end">${{ ticket.price|floatformat:2 }}</td>
-                                <td>{{ ticket.quantity }}</td>
+                                <td class="text-center">{{ ticket.quantity }}</td>
                                 <td class="text-end">${{ ticket.subtotal|floatformat:2 }}</td>
                             </tr>
                         {% endif %}
@@ -30,8 +31,8 @@
                         {% if donation.quantity > 0 %}
                             <tr>
                                 <td class="text-start">{{ donation.name }}</td>
-                                <td class="text-end">$1000.00</td>
-                                <td>{{ donation.quantity }}</td>
+                                <td class="text-end">&nbsp;</td>
+                                <td class="text-center">&nbsp;</td>
                                 <td class="text-end">${{ donation.subtotal|floatformat:2 }}</td>
                             </tr>
                         {% endif %}

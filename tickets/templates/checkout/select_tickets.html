@@ -19,6 +19,8 @@
             </div>
         {% else %}
 
+            {% load static %}
+            <link rel="stylesheet" href="{% static 'css/forms.css' %}">
             <div class="d-flex flex-column justify-content-center align-items-center flex-grow-1 my-5">
                 <div class="text-center p-4 bg-light border rounded shadow-sm">
                     <h2 class="mb-4">Bonos {{ event.name }}</h2>
@@ -30,6 +32,8 @@
                         Al finalizar la compra, podras transferir los bonos a otras personas.
                     </div>
                     <form method="post" action="{% url 'select_tickets' %}" class="d-flex flex-column">
+                        {% csrf_token %}
+
                         {% if form.errors %}
                             <div class="alert alert-danger">
                                 {% for field in form %}
@@ -43,52 +47,8 @@
                             </div>
                         {% endif %}
 
-                        {% csrf_token %}
-                        <style>
-                            .quantity-controls {
-                                display: flex;
-                                justify-content: flex-end;
-                                width: 100%;
-                            }
-                            .quantity-controls > * {
-                                width: 32px;
-                                height: 32px;
-                            }
-                            .quantity-controls button {
-                                border-radius: 0 !important;
-                            }
-                            .quantity-controls button:first-child {
-                                border-right: none !important;
-                            }
-                            .quantity-controls button:last-child {
-                                border-left: none !important;
-                            }
-                            .quantity-controls input {
-                                text-align: center;
-                                font-weight: 400;
-                                border-radius: 0 !important;
-                                width: 48px;
-                                /* hide arrows */
-                                -moz-appearance: textfield;
-                                -webkit-appearance: textfield;
-                                appearance: textfield;
-                            }
-                            .quantity-controls input::-webkit-inner-spin-button,
-                            .quantity-controls input::-webkit-outer-spin-button {
-                                -webkit-appearance: none;
-                                margin: 0;
-                            }
-                            /* Hide arrows for Firefox */
-                            .quantity-controls input {
-                                -moz-appearance: textfield; /* Change to textfield to remove arrows */
-                            }
-
-                            .table>:not(caption)>*>* {
-                                padding: 0.5rem 0.8rem !important;
-                            }
-                        </style>
                         <div class="table-responsive">
-                            <table class="table table-striped">
+                            <table class="table table-striped align-middle">
                                 <thead>
                                 <tr>
                                     <th class="text-start">Tipo de Bono</th>
@@ -103,8 +63,8 @@
                                             <span>{{ ticket.name }}</span><br>
                                             <span style="font-size: 0.85em; color: #666;">{{ ticket.description }}</span>
                                         </td>
-                                        <td class="text-end" style="vertical-align: middle;">${{ ticket.price|floatformat:2 }}</td>
-                                        <td class="text-end" style="vertical-align: middle;">
+                                        <td class="text-end align-middle">${{ ticket.price|floatformat:2 }}</td>
+                                        <td class="text-end align-middle">
                                             <span class="quantity-controls">
                                                 <button type="button" onclick="updateQuantity('{{ ticket.id }}', -1)">&minus;</button>
                                                 <input type="number" id="ticket_{{ ticket.id }}_quantity" name="{{ ticket.field_name }}"
@@ -121,7 +81,7 @@
 
                         <div class="d-flex form-group mt-4 justify-content-end font-weight-bold">
                             <label class="mx-2">Subtotal:</label>
-                            <span id="subtotal" class="fw-bold">$0.00</span>
+                            <span id="subtotal" class="fw-bold">$0</span>
                         </div>
 
                         <button type="submit" class="btn btn-primary align-self-end" id="continue-button" disabled>Continuar</button>
