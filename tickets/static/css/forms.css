@@ -42,3 +42,8 @@
 form .table > :not(caption) > * > * {
   padding: 0.5rem 0.8rem !important;
 }
+
+.btn-back {
+  background: #e6e6e6;
+  border-color: #ddd;
+}
