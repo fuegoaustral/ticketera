@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
 
+    'profile.apps.ProfileConfig',
     'tickets.apps.TicketsConfig',
     'events.apps.EventsConfig',
 ]
