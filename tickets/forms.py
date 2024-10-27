@@ -233,7 +233,7 @@ class CheckoutTicketSelectionForm(forms.Form):
                 {**ticket, 'quantity': cleaned_data.get(f'ticket_{ticket["id"]}_quantity', ticket['quantity'])}
                 for ticket in self.ticket_data
             ]
-            raise ValidationError(f'No hay suficientes bonos disponibles. Quedan {available_tickets} bonos.')
+            raise ValidationError(f'Superaste la máxima cantidad de bonos disponibles para esta compra: {available_tickets}.')
 
         # check if there's any ticket quantity greater than zero
         if all(cleaned_data.get(field, 0) == 0 for field in self.fields if field.startswith('ticket_')):
