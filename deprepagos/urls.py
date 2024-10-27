@@ -14,8 +14,9 @@ urlpatterns = [
     path('admin/direct_tickets/', admin_direct_tickets_view, name='admin_direct_tickets_view'),
     path('admin/', admin.site.urls),
 
+    path('mi-fuego/', include('allauth.urls')),
+    path('mi-fuego', include('account.urls')),
     path('', include('tickets.urls')),
-    path('accounts/', include('allauth.urls')),
 
 ]
 
