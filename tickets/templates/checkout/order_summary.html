@@ -24,9 +24,9 @@
                         {% if ticket.quantity > 0 %}
                             <tr>
                                 <td class="text-start">{{ ticket.name }}</td>
-                                <td class="text-end">${{ ticket.price|floatformat:2 }}</td>
+                                <td class="text-end">${{ ticket.price|floatformat|intcomma }}</td>
                                 <td class="text-center">{{ ticket.quantity }}</td>
-                                <td class="text-end">${{ ticket.subtotal|floatformat:2 }}</td>
+                                <td class="text-end">${{ ticket.subtotal|floatformat|intcomma }}</td>
                             </tr>
                         {% endif %}
                     {% endfor %}
@@ -34,7 +34,7 @@
                         {% if donation.quantity > 0 %}
                             <tr>
                                 <td class="text-start" colspan="3">{{ donation.name }}</td>
-                                <td class="text-end">${{ donation.subtotal|floatformat:2 }}</td>
+                                <td class="text-end">${{ donation.subtotal|floatformat|intcomma }}</td>
                             </tr>
                         {% endif %}
                     {% endfor %}
@@ -44,7 +44,7 @@
 
             <div class="d-flex form-group mt-4 justify-content-end font-weight-bold">
                 <label class="mx-2">Total:</label>
-                <span class="fw-bold">${{ total_amount|floatformat:2 }}</span>
+                <span class="fw-bold">${{ total_amount|floatformat|intcomma }}</span>
             </div>
 
             <form id="payment-form" method="post" action="{% url 'order_summary' %}">

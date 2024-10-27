@@ -24,7 +24,6 @@ django-allauth==64.0.0
 django-bootstrap-v5==1.0.7
 django-extensions==3.2.3
 django-inlinecss==0.3.0
-django-pipeline==2.0.7
 django-render-block==0.10
 django-s3-storage==0.15.0
 django-storages==1.14.4
