@@ -230,22 +230,24 @@ img.full-width {
   font-size: 2rem;
 }
 
-.list-group .list-group-item {
-  text-decoration: none;
-  padding: 2rem;
-}
+.list-group {
+  .list-group-item {
+    text-decoration: none;
+    padding: 2rem;
 
-.list-group .list-group-item p {
-  margin: 0;
-}
+    p {
+      margin: 0;
+    }
 
-.list-group .list-group-item .emoji {
-  margin-top: -1.5rem;
-  margin-right: -1rem;
-}
+    .emoji {
+      margin-top: -1.5rem;
+      margin-right: -1rem;
+    }
+  }
 
-.list-group     .card {
-  margin-bottom: 1rem;
+  .card {
+    margin-bottom: 1rem;
+  }
 }
 
 .form-group {
@@ -255,11 +257,11 @@ img.full-width {
 
 .ticket-form {
   margin: 1rem 0 2rem 0;
-}
 
-.ticket-form .delete-row {
-  color: #503c3a;
-  height: 2.5rem;
+  .delete-row {
+    color: #503c3a;
+    height: 2.5rem;
+  }
 }
 
 .form-control {
@@ -268,24 +270,24 @@ img.full-width {
   background-size: 16px;
   background-repeat: no-repeat;
   border: #eeeeee 1px solid;
-}
 
-.form-control::placeholder {
-  color: #999;
+  &::placeholder {
+    color: #999;
+  }
 }
 
 dl {
   display: flex;
   justify-content: between;
   margin-bottom: 0.5rem;
-}
 
-dl dt {
-  width: 6rem;
-}
+  dt {
+    width: 6rem;
+  }
 
-dl dd {
-  margin: 0 0 0 1rem;
+  dd {
+    margin: 0 0 0 1rem;
+  }
 }
 
 .btn.btn-submit,
