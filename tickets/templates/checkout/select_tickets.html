@@ -1,4 +1,5 @@
 {% extends "tickets/base.html" %}
+{% load humanize %}
 
 {% block content %}
 
@@ -103,7 +104,7 @@
                                             <span>{{ ticket.name }}</span><br>
                                             <span style="font-size: 0.85em; color: #666;">{{ ticket.description }}</span>
                                         </td>
-                                        <td class="text-end" style="vertical-align: middle;">${{ ticket.price|floatformat:2 }}</td>
+                                        <td class="text-end" style="vertical-align: middle;">${{ ticket.price|floatformat|intcomma }}</td>
                                         <td class="text-end" style="vertical-align: middle;">
                                             <span class="quantity-controls">
                                                 <button type="button" onclick="updateQuantity('{{ ticket.id }}', -1)">&minus;</button>
@@ -153,7 +154,6 @@
 
 
                     if (newValue >= 0 && newValue <= ticketsRemainingByType[ticketId]) {
-
                         quantityInput.value = newValue;
                         calculateSubtotal();
                         toggleContinueButton();
