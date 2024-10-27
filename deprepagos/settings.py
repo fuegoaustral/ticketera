@@ -15,6 +15,10 @@ from django.utils.encoding import force_str
 
 django.utils.encoding.force_text = force_str
 
+from dotenv import load_dotenv
+
+load_dotenv()  # take environment variables
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -56,7 +60,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.admin',
-    'pipeline',
     'bootstrap5',
     'django_inlinecss',
     'django_s3_storage',
@@ -174,33 +177,10 @@ STATIC_ROOT = os.path.join(PROJECT_ROOT, 'static')
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(PROJECT_ROOT, 'media')
 
-STATICFILES_STORAGE = 'pipeline.storage.PipelineManifestStorage'
 STATICFILES_FINDERS = (
     'django.contrib.staticfiles.finders.FileSystemFinder',
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-    'pipeline.finders.PipelineFinder',
 )
-
-PIPELINE = {
-    'PIPELINE_ENABLED': True,
-    'SHOW_ERRORS_INLINE': True,
-    'COMPILERS': (
-        'libsasscompiler.LibSassCompiler',
-    ),
-    'CSS_COMPRESSOR': 'pipeline.compressors.csshtmljsminify.CssHtmlJsMinifyCompressor',
-    'STYLESHEETS': {
-        'main': {
-            'source_filenames': (
-                'scss/fuego.scss',
-                'scss/global.scss',
-            ),
-            'output_filename': 'css/main.css',
-            'extra_context': {
-                'media': 'screen,projection',
-            },
-        },
-    },
-}
 
 MERCADOPAGO = {
     'PUBLIC_KEY': os.environ.get('MERCADOPAGO_PUBLIC_KEY'),

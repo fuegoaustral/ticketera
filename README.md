@@ -11,6 +11,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 pip install -r requirements-dev.txt
 cp deprepagos/local_settings.py.example deprepagos/local_settings.py
+cp .env.example .env
 createdb deprepagos_development
 ```
 
