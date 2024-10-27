@@ -56,11 +56,11 @@ AUTHENTICATION_BACKENDS = [
 INSTALLED_APPS = [
     'django.contrib.auth',
     'django.contrib.contenttypes',
+    'django.contrib.humanize',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.admin',
-    'pipeline',
     'bootstrap5',
     'django_inlinecss',
     'django_s3_storage',
@@ -71,6 +71,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
 
+    'profile.apps.ProfileConfig',
     'tickets.apps.TicketsConfig',
     'events.apps.EventsConfig',
 ]
@@ -178,33 +179,10 @@ STATIC_ROOT = os.path.join(PROJECT_ROOT, 'static')
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(PROJECT_ROOT, 'media')
 
-STATICFILES_STORAGE = 'pipeline.storage.PipelineManifestStorage'
 STATICFILES_FINDERS = (
     'django.contrib.staticfiles.finders.FileSystemFinder',
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-    'pipeline.finders.PipelineFinder',
 )
-
-PIPELINE = {
-    'PIPELINE_ENABLED': True,
-    'SHOW_ERRORS_INLINE': True,
-    'COMPILERS': (
-        'libsasscompiler.LibSassCompiler',
-    ),
-    'CSS_COMPRESSOR': 'pipeline.compressors.csshtmljsminify.CssHtmlJsMinifyCompressor',
-    'STYLESHEETS': {
-        'main': {
-            'source_filenames': (
-                'scss/fuego.scss',
-                'scss/global.scss',
-            ),
-            'output_filename': 'css/main.css',
-            'extra_context': {
-                'media': 'screen,projection',
-            },
-        },
-    },
-}
 
 MERCADOPAGO = {
     'PUBLIC_KEY': os.environ.get('MERCADOPAGO_PUBLIC_KEY'),

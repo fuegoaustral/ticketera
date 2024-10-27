@@ -1,6 +1,5 @@
 <!doctype html>
 {% load static %}
-{% load pipeline %}
 {% load account %}
 <html lang="es-AR" prefix="og: http://ogp.me/ns# fb: http://ogp.me/ns/fb#">
 <head>
@@ -18,8 +17,8 @@
         @import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@1,300&family=Rubik:wght@300;400&display=swap');
     </style>
 
-    <link rel="stylesheet" href="{% static 'scss/global.css' %}">
-    <link rel="stylesheet" href="{% static 'scss/fuego.css' %}">
+    <link rel="stylesheet" href="{% static 'css/global.css' %}">
+    <link rel="stylesheet" href="{% static 'css/fuego.css' %}">
 
     <!-- TODO move this shit to some other place  -->
     <style>
@@ -85,7 +84,7 @@
     </style>
     <!-- TODO move this shit to some other place  -->
 
-    <title>Fuego Austral &#8211; La experiencia será lo que hagamos de ella</title>
+    <title>{% block title %}{% endblock title %}Fuego Austral &#8211; La experiencia será lo que hagamos de ella</title>
 
 
     {% block extrahead %}{% endblock %}
@@ -136,14 +135,15 @@
         <div class="container">
             <div class="d-flex flex-row justify-content-end mt-4">
                 {% if user.is_authenticated %}
+                    <a class="btn btn-danger text-white mb-2 mx-2" href="{% url 'my_tickets' %}">
+                        Mis bonos
+                    </a>
                     {% if user.is_staff %}
-                        <a class="btn btn-success mx-2 btn-sm text-white text-decoration-none"
-                           href="{% url 'admin:index' %}">Admin | {{ user }}</a>
-
+                        <a class="btn btn-success mb-2 mx-2 text-white text-decoration-none" href="{% url 'admin:index' %}">
+                             Ver Admin
+                        </a>
                     {% endif %}
-                    <label class="text-white">{{ user.email }}</label>
-                    <label class="text-white  mx-2">|</label>
-                    <a href="{% url 'account_logout' %}" style="color: #ffffff;">Cerrar sesión</a>
+                    <a href="{% url 'account_logout' %}" class="btn btn-primary mb-2 mx-2 text-white">Cerrar sesión</a>
                 {% else %}
                     <a class="btn btn-primary mx-2 text-white text-decoration-none"
                        href="{% url 'account_login' %}">Iniciar sesión</a>
@@ -168,10 +168,6 @@
                         <div class="navbarNav collapse navbar-collapse justify-content-end bg-transparent text-lg-white z-3"
                              id="navbarNav">
                             <ul class="navbar-nav m-2">
-                                <li class="nav-item">
-                                    <a class="btn btn-danger text-white mb-2" href="{% url 'my_tickets' %}">Mis
-                                        bonos</a>
-                                </li>
                                 <li class="nav-item">
                                     <a class="nav-link"
                                        href="http://fuegoaustral.org/el-evento/">El Evento</a>
