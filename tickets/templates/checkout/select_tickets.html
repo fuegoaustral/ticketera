@@ -122,7 +122,7 @@
 
                         <div class="d-flex form-group mt-4 justify-content-end font-weight-bold">
                             <label class="mx-2">Subtotal:</label>
-                            <span id="subtotal" class="fw-bold">$0.00</span>
+                            <span id="subtotal" class="fw-bold">$0</span>
                         </div>
 
                         <button type="submit" class="btn btn-primary align-self-end" id="continue-button" disabled>Continuar</button>
@@ -154,11 +154,12 @@
 
 
                     if (newValue >= 0 && newValue <= ticketsRemainingByType[ticketId]) {
-                        quantityInput.value = newValue;
-                        calculateSubtotal();
-                        toggleContinueButton();
-                        if (totalQuantity + increment > maxTicketsPerOrder) {
+                        if (increment > 0 && totalQuantity + increment > maxTicketsPerOrder) {
                             alert('No puedes seleccionar más de ' + maxTicketsPerOrder + ' bonos en total.');
+                        } else {
+                            quantityInput.value = newValue;
+                            calculateSubtotal();
+                            toggleContinueButton();
                         }
                     } else if (newValue > ticketsRemainingByType[ticketId]) {
                         alert('No hay suficientes bonos disponibles para este tipo.');
