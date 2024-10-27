@@ -6,11 +6,10 @@ import urllib
 
 import mercadopago
 from django.conf import settings
-from django.db import transaction
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from tickets.models import Order, NewTicket, OrderTicket
+from tickets.models import Order, OrderTicket
 
 
 @csrf_exempt
@@ -97,7 +96,7 @@ def handle_payment_created(payload):
         logging.info(payment)
 
         if payment['status'] == 'approved':
-            process_order(payment)
+            order_approved(payment)
 
     except KeyError as e:
         logging.error(f"Missing key in payload: {str(e)}")
@@ -108,7 +107,7 @@ def handle_payment_created(payload):
         raise e
 
 
-def process_order(payment):
+def order_approved(payment):
     try:
         order = Order.objects.get(key=payment['external_reference'])
         if order.status != Order.OrderStatus.PENDING:
@@ -117,14 +116,6 @@ def process_order(payment):
 
         order.status = Order.OrderStatus.PROCESSING
         order.save()
-
-        if not tickets_available(order):
-            refund_payment(order, payment)
-            return
-
-        mint_tickets(order)
-
-        Order.objects.get(key=order.key).send_confirmation_email()
 
     except Order.DoesNotExist as e:
         logging.error(f"Order not found: {str(e)}")
@@ -136,84 +127,4 @@ def process_order(payment):
 
     except Exception as e:
         logging.error(f"Error processing order: {str(e)}")
-        raise e
-
-
-def tickets_available(order):
-    try:
-        tickets_remaining = order.event.tickets_remaining()
-        if tickets_remaining < order.total_order_tickets():
-            logging.info(f"Order {order.key} has more tickets than available")
-            return False
-
-        for order_ticket in OrderTicket.objects.filter(order=order).select_related('ticket_type').all():
-            if order_ticket.quantity > order_ticket.ticket_type.ticket_count:
-                logging.info(
-                    f"Order {order.key} has more tickets of type {order_ticket.ticket_type.name} than available")
-                return False
-
-        return True
-
-    except AttributeError as e:
-        logging.error(f"Attribute error in checking ticket availability: {str(e)}")
-        raise e
-
-    except Exception as e:
-        logging.error(f"Error checking ticket availability: {str(e)}")
-        raise e
-
-
-def refund_payment(order, payment):
-    try:
-        sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
-        sdk.payment().refund(payment['id'], {"reason": "Tickets not available"})
-        order.status = Order.OrderStatus.REFUNDED
-        order.save()
-
-    except Exception as e:
-        logging.error(f"Error processing refund: {str(e)}")
-        raise e
-
-
-def mint_tickets(order):
-    try:
-        user_already_has_ticket = NewTicket.objects.filter(owner=order.user).exists()
-        logging.info(f"user_already_has_ticket {user_already_has_ticket}")
-        order_has_more_than_one_ticket_type = order.total_ticket_types() > 1
-        logging.info(f"order_has_more_than_one_ticket_type {order_has_more_than_one_ticket_type}")
-
-        order_tickets = OrderTicket.objects.filter(order=order)
-
-        new_minted_tickets = []
-        with transaction.atomic():
-            for ticket in order_tickets:
-                for _ in range(ticket.quantity):
-                    new_ticket = NewTicket(
-                        holder=order.user,
-                        ticket_type=ticket.ticket_type,
-                        order=order,
-                        event=order.event,
-                    )
-
-                    if not user_already_has_ticket and not order_has_more_than_one_ticket_type:
-                        new_ticket.owner = order.user
-                        user_already_has_ticket = True
-
-                    new_ticket.save()
-                    new_minted_tickets.append(new_ticket)
-
-            order.status = Order.OrderStatus.CONFIRMED
-            order.save()
-
-            for ticket in new_minted_tickets:
-                logging.info(f"Minted {ticket}")
-
-        return new_minted_tickets
-
-    except AttributeError as e:
-        logging.error(f"Attribute error in minting tickets: {str(e)}")
-        raise e
-
-    except Exception as e:
-        logging.error(f"Error minting tickets: {str(e)}")
         raise e
