@@ -6,13 +6,13 @@ from .models import Event
 class EventAdmin(admin.ModelAdmin):
     list_display = ('name', 'active', 'start', 'end', 'max_tickets', ) # add: transfers active
     list_filter = ('active', )
-    search_fields = ('name', 'titke' )
+    search_fields = ('name', )
 
     fieldsets = [
         (
             None,
             {
-                'fields': ['active', 'name', 'has_volunteers', 'start', 'end', 'max_tickets', 'transfers_enabled_until', 'show_multiple_tickets', ]
+                'fields': ['active', 'name', 'start', 'end', 'max_tickets', 'transfers_enabled_until', 'show_multiple_tickets', 'has_volunteers', 'volunteers_enabled_until', ]
             },
         ),
         (

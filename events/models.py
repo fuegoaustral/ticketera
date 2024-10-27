@@ -16,6 +16,7 @@ class Event(BaseModel):
     max_tickets = models.IntegerField(blank=True, null=True)
     max_tickets_per_order = models.IntegerField(default=5)
     transfers_enabled_until = models.DateTimeField()
+    volunteers_enabled_until = models.DateTimeField(blank=True, null=True)
     show_multiple_tickets = models.BooleanField(default=False,
                                                 help_text="If unchecked, only the chepeast ticket will be shown.")
 
