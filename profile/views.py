@@ -4,8 +4,8 @@ from django.shortcuts import render, redirect
 from django.urls import reverse
 
 from events.models import Event
+from .forms import ProfileStep1Form, ProfileStep2Form
 from tickets.models import NewTicket, NewTicketTransfer
-from tickets.forms import ProfileStep1Form, ProfileStep2Form
 
 
 @login_required
