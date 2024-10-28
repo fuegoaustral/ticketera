@@ -31,13 +31,10 @@
       <div class="d-flex flex-row justify-content-between align-items-center">
         <ul class="nav d-flex flex-row gap-3">
           <li class="nav-item">
-            <a class="nav-link{% if nav_primary == "tickets" %} active{% endif %}">Bonos</a>
+            <a class="nav-link{% if nav_primary == "tickets" %} active{% endif %}" href="{% url "mi_fuego" %}">Bonos</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link">Donaciones</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link">Voluntariado</a>
+            <a class="nav-link{% if nav_primary == "volunteering" %} active{% endif %}" href="{% url 'volunteering' %}">Voluntariado</a>
           </li>
         </ul>
       </div>
@@ -45,6 +42,7 @@
   </div>
 
   {% if has_unassigned_tickets or has_transfer_pending %}
+  {% if event.transfer_period %}
     <div class="container-fluid">
       <div class="container">
         <div class="alert alert-danger">
@@ -54,16 +52,18 @@
           {% if has_transfer_pending %}
             {% if not has_unassigned_tickets %}bonos{% endif %}que todavía no fueron aceptados,
           {% endif %}acordate que <strong>
-            tenés tiempo para transferirlos hasta
+            tenés tiempo para transferirlos hasta el
             {{ event.transfers_enabled_until|date:'d/m' }}
           </strong>.
         </div>
       </div>
     </div>
   {% endif %}
+  {% endif %}
 
   <div class="container-fluid innercontent">
     <div class="container">
+      {% block innercontent %}
       <div class="row">
         <div class="col-sm-2">
           <ul class="nav d-flex flex-row">
@@ -80,6 +80,7 @@
           {% endblock truecontent %}
         </div>
       </div>
+      {% endblock innercontent %}
     </div>
   </div>
 

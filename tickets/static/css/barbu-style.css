@@ -42,9 +42,28 @@ h1 {
   line-height: 3.7rem;
 }
 
+fieldset {
+  padding: 0;
+}
+
 .alert {
   margin: 0;
   border: none;
+  text-align: left;
+}
+
+.alert-sm {
+  padding: 0.5rem;
+  font-size: 0.875rem;
+  border-radius: 0.25rem;
+  margin: 0 !important;
+}
+
+.alert-secondary {
+  background-color: #f3f4f5;
+}
+
+.text-left {
   text-align: left;
 }
 
@@ -259,20 +278,24 @@ dl {
         font-size: 0.75rem;
         text-align: center;
       }
+
       .btn {
         width: fit-content;
         padding: 0.5rem 0.75rem;
       }
+
       .notice {
         width: 100%;
         text-align: center;
-        color: #1E1E1E !important;
+        color: #1e1e1e !important;
         font-weight: 400;
+
         &.bg-success {
-          background-color: #E9F5F0 !important;
+          background-color: #e9f5f0 !important;
         }
+
         &.bg-warning {
-          background-color: #FCEBCC !important;
+          background-color: #fcebcc !important;
         }
       }
     }
@@ -283,13 +306,45 @@ dl {
   .modal-dialog {
     max-width: 700px;
   }
+
   .modal-content {
     padding: 2rem 3rem;
   }
+
   .modal-header {
     border-bottom: none;
   }
+
   .modal-footer {
     border-top: none;
+  }
+}
+
+.wrapper {
+  background-color: #f3f4f5;
+  padding: 5rem;
+  border-radius: 0.5rem;
+}
+
+.volunteering {
+  .card-body {
+    padding: 3rem 5rem;
+  }
+
+  .checkbox {
+    line-height: 1.25rem;
+  }
+
+  .volunteer-option {
+    &.border-bottom {
+      border-bottom: 1px solid #d9d9d9;
+    }
+    padding: 1rem 0;
+    .alert {
+      margin-top: .5rem !important;
+    }
+  }
+  label {
+    font-weight: 600;
   }
 }

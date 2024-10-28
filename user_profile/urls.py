@@ -7,6 +7,7 @@ from .views import (
     my_fire_view,
     my_ticket_view,
     transferable_tickets_view,
+    volunteering,
 )
 
 urlpatterns = [
@@ -21,4 +22,5 @@ urlpatterns = [
         transferable_tickets_view,
         name="transferable_tickets",
     ),
+    path("mis-bonos/volunteering/", volunteering, name="volunteering"),
 ]
