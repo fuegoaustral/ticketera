@@ -1,6 +1,7 @@
 from django.db import models
 from django.db.models import Count, Sum, Q
 from django.forms import ValidationError
+from django.utils import timezone
 
 from auditlog.registry import auditlog
 
@@ -65,6 +66,20 @@ class Event(BaseModel):
             return self.max_tickets - tickets_sold
         else:
             return 999999999  # extra high number (easy hack)
+
+    def volunteer_period(self):
+        if self.end < timezone.now():
+            return False
+        if self.volunteers_enabled_until and self.volunteers_enabled_until < timezone.now():
+            return False
+        return True
+
+    def transfer_period(self):
+        if self.end < timezone.now():
+            return False
+        if self.transfers_enabled_until and self.transfers_enabled_until < timezone.now():
+            return False
+        return True
 
 
 auditlog.register(Event)

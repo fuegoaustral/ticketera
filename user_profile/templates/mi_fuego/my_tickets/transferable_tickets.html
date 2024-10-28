@@ -35,24 +35,28 @@
               <img src="{% static 'img/logo_black.png' %}" alt="Fuego Austral" />
               <span class="badge">{{ ticket.ticket_type }}</span>
               <div class="d-flex flex-column gap-3 my-auto align-self-stretch align-items-center">
-              {% if ticket.is_transfer_pending %}
-                <span class="notice text-black badge bg-warning  lh-sm">Invitacion pendiente a
-                  <br>
-                  <strong>{{ ticket.transferring_to }}</strong></span>
-                <a class="btn btn-sm btn-danger text-white text-decoration-none"
-                   onclick="cancelTicketTransfer('{{ ticket.key }}')">Cancelar
-                invitación</a>
-              {% else %}
-                <button class="btn btn-sm text-decoration-none btn-secondary"
-                        data-bs-toggle="modal"
-                        data-bs-target="#transferModal"
-                        onclick="setTransferTicketId('{{ ticket.key }}')">Transferir</button>
-                {% if not my_ticket %}
-                  <a class="btn btn-sm btn-success text-white text-decoration-none"
-                     href="{% url 'assign_ticket' ticket.key %}">Asignarmelo</a>
+                {% if ticket.is_transfer_pending %}
+                  <span class="notice text-black badge bg-warning  lh-sm">Invitacion pendiente a
+                    <br>
+                    <strong>{{ ticket.transferring_to }}</strong></span>
+                  {% if event.transfer_period %}
+                    <a class="btn btn-sm btn-danger text-white text-decoration-none"
+                       onclick="cancelTicketTransfer('{{ ticket.key }}')">Cancelar
+                    invitación</a>
+                  {% endif %}
+                {% else %}
+                  {% if event.transfer_period %}
+                    <button class="btn btn-sm text-decoration-none btn-secondary"
+                            data-bs-toggle="modal"
+                            data-bs-target="#transferModal"
+                            onclick="setTransferTicketId('{{ ticket.key }}')">Transferir</button>
+                    {% if not my_ticket %}
+                      <a class="btn btn-sm btn-success text-white text-decoration-none"
+                         href="{% url 'assign_ticket' ticket.key %}">Asignarmelo</a>
+                    {% endif %}
+                  {% endif %}
                 {% endif %}
-              {% endif %}
-                </div>
+              </div>
             </div>
           </div>
         {% endfor %}
@@ -63,9 +67,9 @@
               <img src="{% static 'img/logo_black.png' %}" alt="Fuego Austral" />
               <span class="badge">{{ ticket.ticket_type }}</span>
               <div class="d-flex flex-column gap-3 my-auto align-self-stretch align-items-center">
-              <span class="notice badge bg-success lh-sm">Transferencia completa a
-                <br>
-              <strong>{{ ticket.tx_to_email }}</strong></span>
+                <span class="notice badge bg-success lh-sm">Transferencia completa a
+                  <br>
+                  <strong>{{ ticket.tx_to_email }}</strong></span>
               </div>
             </div>
           </div>
@@ -74,9 +78,7 @@
     </div>
     <div class="card-footer text-muted"></div>
   {% endif %}
-
-  <div
-   class="modal fade"
+  <div class="modal fade"
        id="transferModal"
        data-bs-backdrop="static"
        tabindex="-1"

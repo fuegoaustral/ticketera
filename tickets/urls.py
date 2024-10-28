@@ -37,8 +37,6 @@ urlpatterns = [
     # Webhook related paths
     path('webhooks/mercadopago', webhooks.mercadopago_webhook, name='mercadopago_webhook'),
 
-    path('ticket/<str:ticket_key>/volunteer', new_ticket.volunteer_ticket, name='volunteer_ticket'),
-
     path('ticket/<str:ticket_key>/assign', new_ticket.assign_ticket, name='assign_ticket'),
     path('ticket/<str:ticket_key>/unassign', new_ticket.unassign_ticket, name='unassign_ticket'),
 
