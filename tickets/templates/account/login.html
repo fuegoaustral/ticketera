@@ -5,15 +5,15 @@
 {% block content %}
     <div class="d-flex flex-column flex-grow-1 justify-content-center align-items-center pb-4">
         <div class="card p-4" style="max-width: 400px; width: 100%;">
-            <h2 class="text-center mb-4">Iniciar sesion</h2>
+            <h2 class="text-center mb-4">Iniciar sesión</h2>
             <div class="text-center mb-4">
-                No tenes cuenta? <a href="{% url 'account_signup' %}">Registrate</a>
+                No tenés cuenta? <a href="{% url 'account_signup' %}">Registrate</a>
             </div>
 
             <a href="{% provider_login_url 'google' %}" class="btn d-flex align-items-center justify-content-center"
                style="background-color: white; border: 1px solid #ccc; color: #333; text-decoration: none; transition: background-color 0.3s, border-color 0.3s, color 0.3s;"
-               onmouseover="this.style.backgroundColor='#f8f9fa';  this.style.color='#000';"
-               onmouseout="this.style.backgroundColor='white';  this.style.color='#333';">
+               onmouseover="this.style.backgroundColor='#f8f9fa'; this.style.color='#000';"
+               onmouseout="this.style.backgroundColor='white'; this.style.color='#333';">
                 <img src="{% static 'img/google.png' %}" alt="Google" class="me-2"
                      style="width: 20px; height: 20px;">
                 <span>Inicia sesión con Google</span>
@@ -35,26 +35,22 @@
 
                 <div class="form-group d-flex flex-column w-100">
                     <label for="id_login" class="mt-3">Email</label>
-                    <input type="email" class="form-control" id="id_login" name="login" placeholder="Enter your email"  required autocomplete="off">
+                    <input type="email" class="form-control" id="id_login" name="login" placeholder="Ingresa tu email" required autocomplete="off">
 
                     <label for="id_password" class="mt-3">Password</label>
                     <input type="password" class="form-control" id="id_password" name="password"
-                           placeholder="Enter your password" autocomplete="current-password" required>
+                           placeholder="Ingresa tu password" autocomplete="current-password" required>
 
                     {{ form.remember_me }}
                     {{ form.remember_me.label_tag }}
-                    
-                    <button type="submit" class="btn btn-primary mt-3" >Login</button>
-                </div>
 
-                
+                    <button type="submit" class="btn btn-primary mt-3">Login</button>
+                </div>
             </form>
 
-
             <div class="text-center mt-2">
-                <a href="{% url 'account_reset_password' %}">Olvidaste tu contraseña?</a>
+                <a href="{% url 'account_reset_password' %}">¿Olvidaste tu contraseña?</a>
             </div>
-
 
         </div>
     </div>

@@ -1,4 +1,5 @@
 {% extends "tickets/base.html" %}
+{% load humanize %}
 
 {% block content %}
     <div class="d-flex flex-column justify-content-center align-items-center flex-grow-1 my-5">
@@ -20,9 +21,9 @@
                         {% if ticket.quantity > 0 %}
                             <tr>
                                 <td class="text-start">{{ ticket.name }}</td>
-                                <td class="text-end">${{ ticket.price|floatformat:2 }}</td>
+                                <td class="text-end">${{ ticket.price|floatformat|intcomma }}</td>
                                 <td>{{ ticket.quantity }}</td>
-                                <td class="text-end">${{ ticket.subtotal|floatformat:2 }}</td>
+                                <td class="text-end">${{ ticket.subtotal|floatformat|intcomma }}</td>
                             </tr>
                         {% endif %}
                     {% endfor %}
@@ -32,7 +33,7 @@
                                 <td class="text-start">{{ donation.name }}</td>
                                 <td class="text-end">$1000.00</td>
                                 <td>{{ donation.quantity }}</td>
-                                <td class="text-end">${{ donation.subtotal|floatformat:2 }}</td>
+                                <td class="text-end">${{ donation.subtotal|floatformat|intcomma }}</td>
                             </tr>
                         {% endif %}
                     {% endfor %}
@@ -42,7 +43,7 @@
 
             <div class="d-flex form-group mt-4 justify-content-end font-weight-bold">
                 <label class="mx-2">Total:</label>
-                <span class="fw-bold">${{ total_amount|floatformat:2 }}</span>
+                <span class="fw-bold">${{ total_amount|floatformat|intcomma }}</span>
             </div>
 
             <form id="payment-form" method="post" action="{% url 'order_summary' %}">
