@@ -1,0 +1,295 @@
+* {
+  font-family: "Inter", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  font-size: 16px;
+  color: #1e1e1e !important;
+}
+
+body {
+  background-color: #fff;
+}
+
+.btn {
+  padding: 1rem 2rem;
+  border: 1px solid transparent;     /* New primary border color */
+}
+
+.btn-primary,
+.btn-primary:hover {
+  background-color: #289e6d; /* New primary background color */
+  border: 1px solid transparent;     /* New primary border color */
+  color: #fff !important;
+}
+
+.btn-secondary,
+.btn-secondary:hover {
+  background-color: #fff; /* New primary background color */
+  border: 1px solid #d9d9d9;     /* New primary border color */
+}
+
+.btn:hover {
+  /* background-color: #d9d9d9; New primary background color */
+  filter: brightness(85%);
+}
+
+h1 {
+  margin: 0 !important;
+  font-size: 2rem;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 3.7rem;
+}
+
+.alert {
+  margin: 0;
+  border: none;
+  text-align: left;
+}
+
+dl {
+  margin: 0;
+
+  dt {
+    font-weight: 400;
+    width: fit-content;
+  }
+
+  dd {
+    font-size: 1.5rem;
+    margin-left: 0;
+    width: fit-content;
+    margin-bottom: 2rem;
+  }
+}
+
+.subheader {
+  border-top: 1px #d9d9d9 solid;
+  border-bottom: 1px #d9d9d9 solid;
+
+  .container {
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+  }
+}
+
+.submenu {
+  border-bottom: 1px #d9d9d9 solid;
+  margin-bottom: 1.5rem;
+
+  ul.nav {
+    margin-left: 0;
+  }
+
+  .nav-link {
+    padding: 1rem;
+    border-bottom: 1px solid transparent;
+    color: #757575 !important;
+  }
+
+  .nav-link.active,
+  .nav-link:hover {
+    color: #1e1e1e !important;
+    border-bottom: 2px solid #289e6d;
+    text-decoration: none !important;
+  }
+}
+
+.innercontent {
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+
+  ul.nav {
+    margin-left: 0;
+  }
+
+  .nav-item {
+    width: 100%;
+  }
+
+  .nav-link {
+    width: 100%;
+    padding: 1rem;
+    text-align: left;
+  }
+
+  .nav-link.active {
+    background-color: #e9f5f0;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    color: #289e6d !important;
+  }
+
+  .nav-link:hover {
+    font-weight: 500;
+    text-decoration: none !important;
+  }
+
+  .alert {
+    margin-bottom: 3rem;
+  }
+}
+
+.truecontent {
+  padding: 5rem;
+  border-radius: 0.5rem;
+  background-color: #f3f4f5;
+}
+
+.qr {
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid #d9d9d9;
+
+  img {
+    width: 12.5rem;
+    height: 12.5rem;
+  }
+}
+
+.badge {
+  width: fit-content;
+  color: #289e6d !important;
+  background-color: #e9f5f0;
+  padding: 0.5rem;
+}
+
+.rainbow-border {
+  --borderWidth: 1px; /* Set border width to 1px */
+  position: relative;
+  overflow: hidden;
+  z-index: 1; /* Ensure content is above the borders */
+}
+
+.rainbow-border:after {
+  content: '';
+  position: absolute;
+  top: calc(-1 * var(--borderWidth));
+  left: calc(-1 * var(--borderWidth));
+  height: calc(100% + var(--borderWidth) * 2);
+  width: calc(100% + var(--borderWidth) * 2);
+  background: linear-gradient(45deg, #fd004c 16.66%, #fe9000 33.33%, #fff020 50%, #3edf4b 66.66%, #3363ff 83.33%, #b102b7 100%);
+  border-radius: calc(5px + var(--borderWidth));
+  z-index: -1;
+  animation: animatedgradient 20s linear alternate infinite;
+  background-size: 400% 100%;
+}
+
+@keyframes animatedgradient {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.rainbow-border .card-body {
+  z-index: 1; /* Ensure content is above all borders */
+  position: relative;
+}
+
+.rainbow-border {
+  .card {
+    border: none;
+  }
+
+  .card-header,
+  .card-footer {
+    padding: 2rem 3rem;
+    text-align: left;
+  }
+
+  .card-header {
+    background-color: #000;
+    color: #fff !important;
+    border: #000;
+    font-weight: 600;
+  }
+
+  .card-body {
+    padding: 2rem 3rem;
+  }
+}
+
+.empty-results {
+  padding: 3rem 5rem;
+}
+
+.mx-extra {
+  margin-left: 6rem;
+  margin-right: 6rem;
+}
+
+.transferable {
+  & > .card-header {
+    padding-top: 0;
+    padding-bottom: 0;
+
+    button {
+      padding: 1rem;
+      background: none;
+      border: 0;
+      border-bottom: 1px transparent solid;
+      border-radius: 0;
+      font-size: 1rem;
+
+      &.active {
+        border-bottom: 1px red solid;
+      }
+    }
+  }
+
+  & > .card-body {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+
+    .ticket-card {
+      .card-header {
+        padding: 0.75rem;
+        background-color: #000;
+        color: white !important;
+        font-size: 0.75rem;
+        text-align: center;
+      }
+      .btn {
+        width: fit-content;
+        padding: 0.5rem 0.75rem;
+      }
+      .notice {
+        width: 100%;
+        text-align: center;
+        color: #1E1E1E !important;
+        font-weight: 400;
+        &.bg-success {
+          background-color: #E9F5F0 !important;
+        }
+        &.bg-warning {
+          background-color: #FCEBCC !important;
+        }
+      }
+    }
+  }
+}
+
+.modal {
+  .modal-dialog {
+    max-width: 700px;
+  }
+  .modal-content {
+    padding: 2rem 3rem;
+  }
+  .modal-header {
+    border-bottom: none;
+  }
+  .modal-footer {
+    border-top: none;
+  }
+}

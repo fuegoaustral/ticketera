@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ("tickets", "0038_order_generated_by"),
     ]
-    database_operations = [migrations.AlterModelTable("Profile", "profile_profile")]
+    database_operations = [migrations.AlterModelTable("Profile", "user_profile_profile")]
 
     state_operations = [
         migrations.DeleteModel(

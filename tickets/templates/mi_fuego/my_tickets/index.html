@@ -1,45 +1,91 @@
-{% extends "../../tickets/base.html" %}
+{% extends '../../tickets/base.html' %}
 {% load static %}
 
-{% block content %}
-    <div class="text-center p-4 bg-light border rounded shadow-sm">
-        <h2 class="mb-4">Mis bonos para {{ event.name }}</h2>
-        {% if has_unassigned_tickets or has_transfer_pending %}
-            <div class="col-12">
-                <div class="alert alert-warning">
-                    Tenés
-                    {% if has_unassigned_tickets %}
-                        bonos sin asignar,{% if has_transfer_pending %} y{% endif %}
-                    {% endif %}
-                    {% if has_transfer_pending %}
-                        {% if not has_unassigned_tickets %}bonos{% endif %} que todavía no
-                        fueron aceptados,
-                    {% endif %}
-                    acordate que tenés tiempo para transferirlos hasta
-                    <strong>{{ event.transfers_enabled_until|date:"d/m" }}</strong>.
-                </div>
-            </div>
-        {% endif %}
-        <hr class="my-2" style="border-top: 1px solid">
-        {% if my_ticket or tickets_dto %}
-            {% if my_ticket %}
-                {% include "./assigned_tickets.html" %}
-            {% endif %}
-
-            {% if my_ticket and has_unassigned_tickets %}
-                <hr class="my-4" style="border-top: 1px solid">
-            {% endif %}
-
-            {% if has_unassigned_tickets or transferred_tickets %}
-                {% include "./unassigned_tickets.html" %}
-            {% endif %}
-
-
-
-
-        {% else %}
-            <div class="alert alert-info">No tenés bonos para este evento.</div>
-        {% endif %}
-    </div>
+{% block extrahead %}
+  <link rel="stylesheet" href="{% static 'css/barbu-style.css' %}" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet" />
+  <!--    
+  <style>
+    .subheader {
+        background: {{event.header_bg_color}};
+    }
+  </style>    -->
 {% endblock %}
 
+{% block full_content %}
+  <div class="container-fluid subheader">
+    <div class="container">
+      <div class="d-flex flex-row justify-content-between align-items-center">
+        <h1 class="">Mi Perfil</h1>
+        <div class="actions d-flex flex-row gap-3">
+            {% block actions %}
+            {% endblock actions %}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="container-fluid submenu">
+    <div class="container">
+      <div class="d-flex flex-row justify-content-between align-items-center">
+        <ul class="nav d-flex flex-row gap-3">
+          <li class="nav-item">
+            <a class="nav-link{% if nav_primary == "tickets" %} active{% endif %}">Bonos</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link">Donaciones</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link">Voluntariado</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  {% if has_unassigned_tickets or has_transfer_pending %}
+    <div class="container-fluid">
+      <div class="container">
+        <div class="alert alert-danger">
+          Tenés{% if has_unassigned_tickets %}
+            bonos sin asignar,{% if has_transfer_pending %} y{% endif %}
+          {% endif %}
+          {% if has_transfer_pending %}
+            {% if not has_unassigned_tickets %}bonos{% endif %}que todavía no fueron aceptados,
+          {% endif %}acordate que <strong>
+            tenés tiempo para transferirlos hasta
+            {{ event.transfers_enabled_until|date:'d/m' }}
+          </strong>.
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="container-fluid innercontent">
+    <div class="container">
+      <div class="row">
+        <div class="col-sm-2">
+          <ul class="nav d-flex flex-row">
+            <li class="nav-item">
+              <a class="nav-link{% if nav_secondary == "my_ticket" %} active{% endif %}" href="{% url 'my_ticket' %}">Mi Bono</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link{% if nav_secondary == "transferable_tickets" %} active{% endif %}" href="{% url 'transferable_tickets' %}">Bonos a transferir</a>
+            </li>
+          </ul>
+        </div>
+        <div class="col-sm-10">
+          {% block truecontent %}
+          {% endblock truecontent %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% comment %} <hr class="my-2" style="border-top: 1px solid" />
+  {% if my_ticket or tickets_dto %}
+  {% else %}
+    <div class="alert alert-info">No tenés bonos para este evento.</div>
+  {% endif %} {% endcomment %}
+{% endblock %}

@@ -1,0 +1,171 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% load static %}
+{% block truecontent %}
+  {% if not has_unassigned_tickets %}
+    <div class="truecontent">
+      <div class="card text-center mx-extra">
+        <div class="card-body d-flex justify-content-between flex-column align-items-center empty-results gap-4">
+          <h3>No tenés bonos transferibles</h3>
+          <a class="btn btn-primary">Comprar Bono</a>
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div class="card transferable text-start">
+      <div class="card-header filters" role="group" aria-label="Filtros">
+        <button type="button"
+                class="active"
+                data-filter="all"
+                onclick="filterTickets('all', this)">Todos</button>
+        <button type="button"
+                data-filter="pending"
+                onclick="filterTickets('pending', this)">Pendientes</button>
+        <button type="button"
+                data-filter="not-pending"
+                onclick="filterTickets('not-pending', this)">Sin Asignar</button>
+        <button type="button"
+                data-filter="complete"
+                onclick="filterTickets('complete', this)">Transferencia Completa</button>
+      </div>
+      <div class="card-body d-flex justify-content-between">
+        {% for ticket in tickets_dto %}
+          <div class="card ticket-card {% if ticket.is_transfer_pending %}pending{% else %}not-pending{% endif %}">
+            <div class="card-header">{{ event.name }}</div>
+            <div class="card-body d-flex flex-column align-items-center gap-3">
+              <img src="{% static 'img/logo_black.png' %}" alt="Fuego Austral" />
+              <span class="badge">{{ ticket.ticket_type }}</span>
+              <div class="d-flex flex-column gap-3 my-auto align-self-stretch align-items-center">
+              {% if ticket.is_transfer_pending %}
+                <span class="notice text-black badge bg-warning  lh-sm">Invitacion pendiente a
+                  <br>
+                  <strong>{{ ticket.transferring_to }}</strong></span>
+                <a class="btn btn-sm btn-danger text-white text-decoration-none"
+                   onclick="cancelTicketTransfer('{{ ticket.key }}')">Cancelar
+                invitación</a>
+              {% else %}
+                <button class="btn btn-sm text-decoration-none btn-secondary"
+                        data-bs-toggle="modal"
+                        data-bs-target="#transferModal"
+                        onclick="setTransferTicketId('{{ ticket.key }}')">Transferir</button>
+                {% if not my_ticket %}
+                  <a class="btn btn-sm btn-success text-white text-decoration-none"
+                     href="{% url 'assign_ticket' ticket.key %}">Asignarmelo</a>
+                {% endif %}
+              {% endif %}
+                </div>
+            </div>
+          </div>
+        {% endfor %}
+        {% for ticket in transferred_dto %}
+          <div class="card ticket-card complete">
+            <div class="card-header">{{ event.name }}</div>
+            <div class="card-body d-flex flex-column align-items-center gap-3">
+              <img src="{% static 'img/logo_black.png' %}" alt="Fuego Austral" />
+              <span class="badge">{{ ticket.ticket_type }}</span>
+              <div class="d-flex flex-column gap-3 my-auto align-self-stretch align-items-center">
+              <span class="notice badge bg-success lh-sm">Transferencia completa a
+                <br>
+              <strong>{{ ticket.tx_to_email }}</strong></span>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="card-footer text-muted"></div>
+  {% endif %}
+
+  <div
+   class="modal fade"
+       id="transferModal"
+       data-bs-backdrop="static"
+       tabindex="-1"
+       aria-labelledby="transferModalLabel"
+       aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header justify-content-center">
+          <h1 class="modal-title" id="transferModalLabel">Transferir Bono</h1>
+        </div>
+        <div class="modal-body">
+          <div id="transferForm">
+            <div class="alert alert-warning text-start" role="alert">
+              <strong>¡Atención!</strong>
+              Si el destinatario no tiene cuenta en FA, se enviara una invitacion pero la transferencia no
+              estara completa <strong>hasta que no se cree su cuenta.</strong>
+            </div>
+            <div class="mb-3 form-label text-start d-flex flex-column">
+              <label for="recipient-email" class="form-label">Correo Electrónico del Destinatario</label>
+              <input type="email"
+                     class="form-control"
+                     id="recipient-email"
+                     placeholder="nombre@ejemplo.com">
+              <div class="invalid-feedback">Por favor, ingresa un correo electrónico válido.</div>
+            </div>
+            <div class="modal-footer justify-content-center">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+              <button type="button" class="btn btn-primary" onclick="confirmTransfer()">Confirmar</button>
+            </div>
+          </div>
+          <div id="loadingSpinner"
+               class="flex-column justify-content-center align-items-center"
+               style="display: none">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="my-4">Enviando...</p>
+          </div>
+          <div id="transferSuccessMessage" style="display: none;">
+            <div class="alert alert-success">
+              <h5>¡Felicidades!</h5>
+              <p>El bono ha sido transferido con éxito.</p>
+              <button type="button" class="btn btn-primary" onclick="refreshPage()">Continuar</button>
+            </div>
+          </div>
+          <div id="transferPendingMessage" style="display: none;">
+            <div class="alert alert-warning">
+              <h5>¡Atencion!</h5>
+              <p class="mb-2">
+                Se envio una invitacion a
+                <strong id="invitation-email"></strong>.
+                Hasta que no se cree su cuenta, la
+                transferencia no estara completa.
+              </p>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="refreshPage()">Continuar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    function filterTickets(filter, btn) {
+        const tickets = document.querySelectorAll('.ticket-card');
+        const buttons = document.querySelectorAll('.filters button');
+        console.log(tickets);
+        console.log(buttons);
+
+        tickets.forEach(ticket => {
+            if (filter === 'all') {
+                ticket.style.display = 'block';
+            } else if (filter === 'pending' && ticket.classList.contains('pending')) {
+                ticket.style.display = 'block';
+            } else if (filter === 'not-pending' && ticket.classList.contains('not-pending')) {
+                ticket.style.display = 'block';
+            } else if (filter === 'complete' && ticket.classList.contains('complete')) {
+                ticket.style.display = 'block';
+            } else {
+                ticket.style.display = 'none';
+            }
+        });
+
+        buttons.forEach(button => {
+            // Reset all buttons to outlined style
+            console.log(filter, button.dataset.filter);
+            if (filter === button.dataset.filter) {
+                button.classList.add('active');
+            } else{
+                button.classList.remove('active');
+            }
+          });
+    }
+  </script>
+{% endblock truecontent %}
