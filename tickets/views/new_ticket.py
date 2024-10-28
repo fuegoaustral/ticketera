@@ -154,7 +154,7 @@ def assign_ticket(request, ticket_key):
     ticket.owner = request.user
     ticket.save()
 
-    return redirect(reverse('my_tickets'))
+    return redirect(reverse('my_ticket'))
 
 
 @login_required()
@@ -179,4 +179,4 @@ def unassign_ticket(request, ticket_key):
 
     ticket.save()
 
-    return redirect(reverse('my_tickets'))
+    return redirect(reverse('my_ticket'))

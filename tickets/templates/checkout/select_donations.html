@@ -90,19 +90,19 @@
                                     <span style="font-size: 0.85em; color: #666;">Para impulsar la creatividad en nuestra ciudad temporal.</span>
                                 </td>
                                 <td>
-                                    <span class="d-flex flex-row flex-wrap gap-1 justify-content-end">
+                                    <span class="d-flex flex-row flex-wrap flex-sm-nowrap gap-1 justify-content-end">
                                         <button type="button"
                                                 class="btn btn-donation btn-sm"
                                                 onclick="setDonationAmount('art', 5000)">$5.000</button>
-                                        <button type="button"
-                                                class="btn btn-donation btn-sm"
-                                                onclick="setDonationAmount('art', 10000)">$10.000</button>
                                         <button type="button"
                                                 class="btn btn-donation btn-sm"
                                                 onclick="setDonationAmount('art', 20000)">$20.000</button>
                                         <button type="button"
                                                 class="btn btn-donation btn-sm"
                                                 onclick="setDonationAmount('art', 50000)">$50.000</button>
+                                        <button type="button"
+                                                class="btn btn-donation btn-sm"
+                                                onclick="setDonationAmount('art', 120000)">$120.000</button>
                                         <span class="donation-input-wrapper">
                                             <input type="number"
                                                    min="0"
@@ -122,19 +122,19 @@
                                     <span style="font-size: 0.85em; color: #666;">Para ayudar a quienes necesitan una mano con su bono contribución.</span>
                                 </td>
                                 <td>
-                                    <span class="d-flex flex-row flex-wrap gap-1 justify-content-end">
+                                    <span class="d-flex flex-row flex-wrap flex-sm-nowrap gap-1 justify-content-end">
                                         <button type="button"
                                                 class="btn btn-donation btn-sm align-self-stretch"
                                                 onclick="setDonationAmount('grant', 5000)">$5.000</button>
-                                        <button type="button"
-                                                class="btn btn-donation btn-sm align-self-stretch"
-                                                onclick="setDonationAmount('grant', 10000)">$10.000</button>
                                         <button type="button"
                                                 class="btn btn-donation btn-sm align-self-stretch"
                                                 onclick="setDonationAmount('grant', 20000)">$20.000</button>
                                         <button type="button"
                                                 class="btn btn-donation btn-sm align-self-stretch"
                                                 onclick="setDonationAmount('grant', 50000)">$50.000</button>
+                                        <button type="button"
+                                                class="btn btn-donation btn-sm align-self-stretch"
+                                                onclick="setDonationAmount('grant', 120000)">$120.000</button>
                                         <span class="donation-input-wrapper">
                                             <input type="number"
                                                    min="0"
@@ -153,19 +153,19 @@
                                     <span style="font-size: 0.85em; color: #666;">Para mejorar el espacio donde nos encontramos todo el año.</span>
                                 </td>
                                 <td>
-                                    <span class="d-flex flex-row flex-wrap gap-1 justify-content-end">
+                                    <span class="d-flex flex-row flex-wrap flex-sm-nowrap gap-1 justify-content-end">
                                         <button type="button"
                                                 class="btn btn-donation btn-sm align-self-stretch"
                                                 onclick="setDonationAmount('venue', 5000)">$5.000</button>
-                                        <button type="button"
-                                                class="btn btn-donation btn-sm align-self-stretch"
-                                                onclick="setDonationAmount('venue', 10000)">$10.000</button>
                                         <button type="button"
                                                 class="btn btn-donation btn-sm align-self-stretch"
                                                 onclick="setDonationAmount('venue', 20000)">$20.000</button>
                                         <button type="button"
                                                 class="btn btn-donation btn-sm align-self-stretch"
                                                 onclick="setDonationAmount('venue', 50000)">$50.000</button>
+                                        <button type="button"
+                                                class="btn btn-donation btn-sm align-self-stretch"
+                                                onclick="setDonationAmount('venue', 120000)">$120.000</button>
                                         <span class="donation-input-wrapper">
                                             <input type="number"
                                                    min="0"
@@ -185,11 +185,10 @@
                     <span id="total_donations" class="fw-bold">$0.00</span>
                 </div>
                 <div class="d-flex justify-content-center gap-3">
-                    <a href="{% url 'select_tickets' %}"
-                       class="btn btn-light btn-back">Atras</a>
+                    <a href="{% url 'select_tickets' %}" class="btn btn-light btn-back">Atras</a>
                     <button type="submit" class="btn btn-primary">Continuar</button>
                 </div>
-                    <button type="submit" class="btn btn-link">Saltear este paso</button>
+                <button type="submit" class="btn btn-link">Saltear este paso</button>
             </form>
         </div>
     </div>
