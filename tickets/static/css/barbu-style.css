@@ -377,9 +377,17 @@ dl {
     padding: 1rem var(--form-extra-margin);
   }
 
-  input {
+  input:not(.phone-input), select {
     padding: 1rem !important;
+  }
+  .iti {
+    width: 100%;
+  }
+  .phone-input {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
     border-radius: 0.5rem;
+    width: 100%;
   }
 }
 
