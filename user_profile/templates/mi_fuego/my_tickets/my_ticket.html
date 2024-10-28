@@ -2,7 +2,7 @@
 {% load static %}
 {% block actions %}
   <button class="btn btn-secondary" id="unAssignTicket">Transferir mi bono</button>
-  <button class="btn btn-primary">Comprar Bonos</button>
+  <a class="btn btn-primary" href="{% url "select_tickets"%}">Comprar Bonos</a>
 {% endblock actions %}
 {% block truecontent %}
   {% if my_ticket %}

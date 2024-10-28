@@ -10,7 +10,6 @@ from django.urls import reverse
 
 from tickets.forms import CheckoutTicketSelectionForm, CheckoutDonationsForm
 from tickets.models import Event, TicketType, Order, OrderTicket
-from .utils import available_tickets_for_user
 
 
 @login_required
@@ -23,7 +22,7 @@ def select_tickets(request):
         else:
             event = Event.objects.get(active=True)
             tickets_remaining = event.tickets_remaining() or 0
-            available_tickets = available_tickets_for_user(request.user) or 0
+            available_tickets = event.max_tickets_per_order
             available_tickets = min(available_tickets, tickets_remaining)
             return render(request, 'checkout/select_tickets.html', {
                 'form': form,
@@ -34,10 +33,11 @@ def select_tickets(request):
 
     event = Event.objects.get(active=True)
     tickets_remaining = event.tickets_remaining() or 0
-    available_tickets = available_tickets_for_user(request.user) or 0
+    available_tickets = event.max_tickets_per_order
     available_tickets = min(available_tickets, tickets_remaining)
 
     initial_data = request.session.get('ticket_selection', {})
+
     if 'new' in request.GET or request.session.get('order_sid') is None:
         request.session['order_sid'] = str(uuid.uuid4())
         request.session['event_id'] = event.id
@@ -139,12 +139,11 @@ def order_summary(request):
             })
 
     if request.method == 'POST':
-        available_tickets = available_tickets_for_user(request.user)
         total_quantity = sum(item['quantity'] for item in ticket_data)
         remaining_event_tickets = event.tickets_remaining()
 
-        if total_quantity > available_tickets:
-            return HttpResponse('Ya compraste la cantidad máxima de tickets permitida.', status=400)
+        if total_quantity > event.max_tickets_per_order:
+            return HttpResponse('Superaste la cantidad máxima de tickets permitida.', status=401)
 
         if total_quantity > remaining_event_tickets:
             return HttpResponse('No hay suficientes tickets disponibles.', status=400)

@@ -4,33 +4,59 @@ from .models import Event
 
 
 class EventAdmin(admin.ModelAdmin):
-    list_display = ('name', 'active', 'start', 'end', 'max_tickets', ) # add: transfers active
-    list_filter = ('active', )
-    search_fields = ('name', )
+    list_display = (
+        "name",
+        "active",
+        "start",
+        "end",
+        "max_tickets",
+    )  # add: transfers active
+    list_filter = ("active",)
+    search_fields = ("name",)
 
     fieldsets = [
         (
             None,
             {
-                'fields': ['active', 'name', 'start', 'end', 'max_tickets', 'transfers_enabled_until', 'show_multiple_tickets', 'has_volunteers', 'volunteers_enabled_until', ]
+                "fields": [
+                    "active",
+                    "name",
+                    "start",
+                    "end",
+                    "max_tickets",
+                    "max_tickets_per_order",
+                    "transfers_enabled_until",
+                    "show_multiple_tickets",
+                    "has_volunteers",
+                    "volunteers_enabled_until",
+                ]
             },
         ),
         (
-            'Homepage',
+            "Homepage",
             {
-                'fields': ['header_image', 'header_bg_color', 'title', 'description', ]
+                "fields": [
+                    "header_image",
+                    "header_bg_color",
+                    "title",
+                    "description",
+                ]
             },
         ),
         (
-            'Buy Ticket Form',
+            "Buy Ticket Form",
             {
-                'fields': ['pre_ticket_form_info', ]
+                "fields": [
+                    "pre_ticket_form_info",
+                ]
             },
         ),
         (
-            'Email',
+            "Email",
             {
-                'fields': ['email_info', ]
+                "fields": [
+                    "email_info",
+                ]
             },
         ),
     ]

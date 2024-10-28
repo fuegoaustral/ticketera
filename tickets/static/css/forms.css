@@ -40,7 +40,7 @@
 }
 
 form .table > :not(caption) > * > * {
-  padding: 0.5rem 0.8rem !important;
+  padding: 1rem 2rem !important;
 }
 
 .btn-back {
