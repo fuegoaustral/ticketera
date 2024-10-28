@@ -450,13 +450,9 @@ dl {
   margin-bottom: 1rem;
 
   form {
-    --form-extra-margin: 2rem;
-    width: calc(100% + 2 * var(--form-extra-margin));
-    margin-left: calc(-1 * var(--form-extra-margin));
-    margin-right: calc(-1 * var(--form-extra-margin));
+    width: 100%;
     border-radius: 1.25rem;
-    border: 4px solid #14ae5c;
-    padding: 1rem var(--form-extra-margin);
+    padding: 1rem 0;
   }
 
   input:not(.phone-input),
