@@ -8,8 +8,8 @@
        href="{% url "mi_fuego" %}">Bonos</a>
   </li>
   <li class="nav-item">
-    <a class="nav-link{% if nav_primary == "volunteering" %} active{% endif %}"
-       href="{% url 'volunteering' %}">Voluntariado</a>
+    <a class="nav-link{% if nav_primary == "volunteering" %} active{% endif %}{% if not myticket %} disabled{% endif %}"
+       href="{% if myticket %}{% url 'volunteering' %}{% endif %}">Voluntariado</a>
   </li>
 {% endblock menu %}
 {% block alerts %}
