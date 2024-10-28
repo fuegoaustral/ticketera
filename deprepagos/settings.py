@@ -71,7 +71,8 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
 
-    'profile.apps.ProfileConfig',
+    'user_profile.apps.UserProfileConfig',
+
     'tickets.apps.TicketsConfig',
     'events.apps.EventsConfig',
 ]
@@ -284,7 +285,8 @@ SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
 SOCIALACCOUNT_LOGIN_ON_GET = True
 ACCOUNT_LOGOUT_ON_GET = True
 ACCOUNT_CONFIRM_EMAIL_ON_GET = True
-ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = APP_URL + '/accounts/verification-congrats/'
+ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
+ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = APP_URL + '/mi-fuego/verification-congrats/'
 ACCOUNT_DEFAULT_HTTP_PROTOCOL = (
     "http" if "localhost" in APP_URL or "127.0.0.1" in APP_URL else "https"
 )

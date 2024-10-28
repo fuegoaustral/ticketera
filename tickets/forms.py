@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 
 from events.models import Event
 from .models import Order, Ticket, TicketTransfer, TicketType
-from .views.utils import available_tickets_for_user
+
 
 class PersonForm(forms.ModelForm):
     first_name = forms.CharField(label='',
@@ -106,7 +106,7 @@ class CheckoutTicketSelectionForm(forms.Form):
         # check if any total selected tickets quantity is greater than available tickets
         event = Event.objects.get(active=True)
         tickets_remaining = event.tickets_remaining() or 0
-        available_tickets = available_tickets_for_user(self.user) or 0
+        available_tickets = event.max_tickets_per_order
         available_tickets = min(available_tickets, tickets_remaining)
         total_selected_tickets = sum(cleaned_data.get(field, 0) for field in self.fields if field.startswith('ticket_'))
         if total_selected_tickets > available_tickets:

@@ -1,0 +1,76 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% load static %}
+{% block actions %}
+  <button class="btn btn-secondary" id="unAssignTicket">Transferir mi bono</button>
+  <button class="btn btn-primary">Comprar Bonos</button>
+{% endblock actions %}
+{% block truecontent %}
+  {% if my_ticket %}
+    <div class="rainbow-border truecontent">
+      {% if not is_volunteer %}
+        <div class="alert alert-info text-start">
+          <div class="d-flex align-items-center gap-5">
+            <div>
+              Fuego Austral es un encuentro participativo y todos tenemos un talento para aportar a nuestra ciudad temporal. Te invitamos a sumarte al área en la que sabés que podés dar lo mejor de vos.
+            </div>
+            <div>
+              <a class="btn btn-sm btn-secondary text-decoration-none text-nowrap"
+                 href="{% url "volunteering" %}">Quiero ser voluntario</a>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+      <div class="card text-center">
+        <div class="card-header">{{ event.name }}</div>
+        <div class="card-body d-flex justify-content-between">
+          <div class="ticket-name">
+            <dl class="flex-column text-align-left">
+              <dt>Nombre(s)</dt>
+              <dd>
+                {{ user.first_name }}
+              </dd>
+              <dt>Apellido(s)</dt>
+              <dd>
+                {{ user.last_name }}
+              </dd>
+              <dt>{{ user.profile.document_type }}</dt>
+              <dd>
+                {{ user.profile.document_number }}
+              </dd>
+            </dl>
+          </div>
+          <div class="d-flex flex-column align-items-center justify-content-center gap-3">
+            <div class="qr">
+              <img src="data:image/png;base64,{{ my_ticket.qr_code }}"
+                   style="max-width: 100%;
+                          height: auto"
+                   alt="QR Code" />
+            </div>
+            <span class="badge">{{ my_ticket.ticket_type }}</span>
+          </div>
+        </div>
+        <div class="card-footer text-muted">
+          Código de bono
+          <br />
+          <strong>{{ my_ticket.key }}</strong>
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div class="truecontent">
+      <div class="card text-center mx-extra">
+        <div class="card-body d-flex justify-content-between flex-column align-items-center empty-results gap-4">
+          <h3>No tenés bono</h3>
+          <a class="btn btn-primary">Comprar Bono</a>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+  <script>
+    document.getElementById('unAssignTicket').addEventListener('click', async function () {
+      if (confirm('Si no vas a ir, desasigna tu bono para poder transferirselo a otra persona. ¿Estás seguro que no vas a ir?')) {
+        window.location.href = "{% url 'unassign_ticket' my_ticket.key %}"
+      }
+    })
+  </script>
+{% endblock truecontent %}
