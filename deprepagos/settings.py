@@ -56,6 +56,7 @@ AUTHENTICATION_BACKENDS = [
 INSTALLED_APPS = [
     'django.contrib.auth',
     'django.contrib.contenttypes',
+    'django.contrib.humanize',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
@@ -70,6 +71,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
 
+    'profile.apps.ProfileConfig',
     'tickets.apps.TicketsConfig',
     'events.apps.EventsConfig',
 ]

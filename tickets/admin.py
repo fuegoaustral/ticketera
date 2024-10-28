@@ -7,8 +7,6 @@ from allauth.account.models import EmailAddress
 from allauth.socialaccount.models import SocialApp, SocialAccount, SocialToken
 from django.contrib import admin
 from django.contrib.admin.views.decorators import staff_member_required
-from django.contrib.auth.admin import UserAdmin
-from django.contrib.auth.models import User, Group
 from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
@@ -23,35 +21,6 @@ from .models import Profile, TicketType, Order, OrderTicket, NewTicket, NewTicke
 from .views import webhooks
 
 admin.site.site_header = 'Bonos de Fuego Austral'
-
-
-class ProfileInline(admin.StackedInline):
-    model = Profile
-    can_delete = False
-    verbose_name_plural = 'profile'
-
-
-# Crea una nueva clase que extienda de LibraryUserAdmin
-class CustomUserAdmin(UserAdmin):
-    inlines = (ProfileInline,)
-    list_display = (
-        'is_staff', 'username', 'email', 'first_name', 'last_name', 'get_phone', 'get_document_type',
-        'get_document_number')
-
-    def get_phone(self, instance):
-        return instance.profile.phone
-
-    get_phone.short_description = 'Phone'
-
-    def get_document_type(self, instance):
-        return instance.profile.document_type
-
-    get_document_type.short_description = 'Document Type'
-
-    def get_document_number(self, instance):
-        return instance.profile.document_number
-
-    get_document_number.short_description = 'Document Number'
 
 
 @staff_member_required
