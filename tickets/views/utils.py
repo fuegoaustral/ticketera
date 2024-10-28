@@ -34,23 +34,3 @@ def _complete_order(order):
     order.save()
     logging.info('redirecting')
     return HttpResponseRedirect(order.get_resource_url())
-
-
-def available_tickets_for_user(user):
-    from tickets.models import Order
-
-    try:
-        event = Event.objects.get(active=True)
-    except Event.DoesNotExist:
-        return 0
-
-    # Sum the quantity of tickets in confirmed orders for this event and user
-    tickets_bought = (Order.objects
-                      .filter(email=user.email)
-                      .filter(order_tickets__ticket_type__event=event)
-                      .filter(status=Order.OrderStatus.CONFIRMED)
-                      .annotate(total_quantity=Sum('order_tickets__quantity'))
-                      .aggregate(tickets_bought=Sum('total_quantity'))
-                      )['tickets_bought'] or 0
-
-    return event.max_tickets_per_order - tickets_bought
