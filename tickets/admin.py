@@ -280,10 +280,13 @@ def admin_direct_tickets_buyer_view(request):
 
     if request.method == 'POST':
         user = User.objects.filter(email=email).first()
+        new_order_id = None
         if user is None:
-            direct_sales_new_user(email, template_tickets, order_type, notes, request.user)
+            new_order_id = direct_sales_new_user(email, template_tickets, order_type, notes, request.user)
         else:
-            direct_sales_existing_user(user, template_tickets, order_type, notes, request.user)
+            new_order_id = direct_sales_existing_user(user, template_tickets, order_type, notes, request.user)
+
+        return redirect('admin_direct_tickets_congrats_view', new_order_id=new_order_id)
 
     # if request.method == 'GET':
     return render(request, 'admin/admin_direct_tickets_buyer.html', {
@@ -297,10 +300,10 @@ def admin_direct_tickets_buyer_view(request):
 
 
 @staff_member_required
-def admin_direct_tickets_congrats_view(request):
-    direct_ticket_summary = request.session['direct_ticket_summary']
-    email = direct_ticket_summary.get('email')
-    return render(request, 'admin/admin_direct_tickets_congrats.html', {'email': email})
+def admin_direct_tickets_congrats_view(request, new_order_id):
+    tickets = NewTicket.objects.filter(order_id=new_order_id).all()
+    order = Order.objects.get(id=new_order_id)
+    return render(request, 'admin/admin_direct_tickets_congrats.html', {'tickets': tickets, 'order': order})
 
 
 def admin_caja_order_view(request, order_key):

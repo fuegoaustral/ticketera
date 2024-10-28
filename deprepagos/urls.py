@@ -14,7 +14,7 @@ urlpatterns = [
 
     path('admin/direct_tickets/', admin_direct_tickets_view, name='admin_direct_tickets_view'),
     path('admin/direct_tickets/buyer/', admin_direct_tickets_buyer_view, name='admin_direct_tickets_buyer_view'),
-    path('admin/direct_tickets/congrats/', admin_direct_tickets_congrats_view,
+    path('admin/direct_tickets/congrats/<int:new_order_id>/', admin_direct_tickets_congrats_view,
          name='admin_direct_tickets_congrats_view'),
 
     path('admin/', admin.site.urls),
