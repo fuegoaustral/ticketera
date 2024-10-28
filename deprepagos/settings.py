@@ -98,7 +98,7 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
-            os.path.join(BASE_DIR, 'tickets/templates'),
+            os.path.join(BASE_DIR, 'user_profile/templates'),
 
         ],
         'APP_DIRS': True,
@@ -110,7 +110,6 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'utils.context_processors.current_event',
                 'utils.context_processors.app_url',
-                'utils.context_processors.donation_amount',
                 'utils.context_processors.chatwoot_token',
                 'utils.context_processors.env',
                 'utils.context_processors.chatwoot_identifier_hash',
@@ -190,9 +189,6 @@ MERCADOPAGO = {
     'ACCESS_TOKEN': os.environ.get('MERCADOPAGO_ACCESS_TOKEN'),
     'WEBHOOK_SECRET': os.environ.get('MERCADOPAGO_WEBHOOK_SECRET')
 }
-
-# TODO move this into the event
-DONATION_AMOUNT = 1
 
 EMAIL_HOST = os.environ.get('EMAIL_HOST')
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')

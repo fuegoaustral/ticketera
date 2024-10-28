@@ -192,6 +192,7 @@ class NewTicketInline(admin.StackedInline):
 
 class OrderAdmin(admin.ModelAdmin):
     inlines = [NewTicketInline]
+    readonly_fields = ['key' ,]
 
 
 admin.site.register(Order, OrderAdmin)

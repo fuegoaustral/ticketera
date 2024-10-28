@@ -16,17 +16,21 @@ body {
   border: 1px solid transparent;     /* New primary border color */
 }
 
+.btn-sm {
+  padding: 0.25rem !important;
+}
+
 .btn-primary,
 .btn-primary:hover {
-  background-color: #289e6d; /* New primary background color */
-  border: 1px solid transparent;     /* New primary border color */
+  background-color: #289e6d;
+  border: 1px solid transparent;
   color: #fff !important;
 }
 
 .btn-secondary,
 .btn-secondary:hover {
-  background-color: #fff; /* New primary background color */
-  border: 1px solid #d9d9d9;     /* New primary border color */
+  background-color: #fff;
+  border: 1px solid #d9d9d9;
 }
 
 .btn:hover {
@@ -39,11 +43,45 @@ h1 {
   font-size: 2rem;
   font-style: normal;
   font-weight: 500;
+}
+
+.title h1 {
   line-height: 3.7rem;
 }
 
 fieldset {
   padding: 0;
+}
+
+dl {
+  margin: 0;
+
+  dt {
+    font-weight: 400;
+    width: fit-content;
+  }
+
+  dd {
+    font-size: 1.5rem;
+    margin-left: 0;
+    width: fit-content;
+    margin-bottom: 2rem;
+  }
+}
+
+.table-responsive {
+  table {
+    th {
+      background-color: #f3f4f5;
+      font-weight: 600;
+    }
+
+    th,
+    td {
+      padding: 1rem 2rem;
+    }
+    border: 1px solid #d9d9d9;
+  }
 }
 
 .alert {
@@ -63,24 +101,21 @@ fieldset {
   background-color: #f3f4f5;
 }
 
+.alert-info {
+  background-color: #d2dff9;
+}
+
+.text-primary {
+  color: #289e6d !important;
+}
+
 .text-left {
   text-align: left;
 }
 
-dl {
-  margin: 0;
-
-  dt {
-    font-weight: 400;
-    width: fit-content;
-  }
-
-  dd {
-    font-size: 1.5rem;
-    margin-left: 0;
-    width: fit-content;
-    margin-bottom: 2rem;
-  }
+.px-extra {
+  padding-left: 5rem !important;
+  padding-right: 5rem !important;
 }
 
 .subheader {
@@ -191,7 +226,7 @@ dl {
   background: linear-gradient(45deg, #fd004c 16.66%, #fe9000 33.33%, #fff020 50%, #3edf4b 66.66%, #3363ff 83.33%, #b102b7 100%);
   border-radius: calc(5px + var(--borderWidth));
   z-index: -1;
-  animation: animatedgradient 20s linear alternate infinite;
+  animation: animatedgradient 30s ease-in-out alternate infinite;
   background-size: 400% 100%;
 }
 
@@ -326,6 +361,36 @@ dl {
   border-radius: 0.5rem;
 }
 
+.account-wrapper > .container {
+  background-color: #f3f4f5;
+  padding: 5rem;
+  border-radius: 0 0 0.5rem 0.5rem;
+  margin-bottom: 1rem;
+
+  form {
+    --form-extra-margin: 2rem;
+    width: calc(100% + 2 * var(--form-extra-margin));
+    margin-left: calc(-1 * var(--form-extra-margin));
+    margin-right: calc(-1 * var(--form-extra-margin));
+    border-radius: 1.25rem;
+    border: 4px solid #14ae5c;
+    padding: 1rem var(--form-extra-margin);
+  }
+
+  input:not(.phone-input), select {
+    padding: 1rem !important;
+  }
+  .iti {
+    width: 100%;
+  }
+  .phone-input {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+    border-radius: 0.5rem;
+    width: 100%;
+  }
+}
+
 .volunteering {
   .card-body {
     padding: 3rem 5rem;
@@ -340,10 +405,12 @@ dl {
       border-bottom: 1px solid #d9d9d9;
     }
     padding: 1rem 0;
+
     .alert {
       margin-top: .5rem !important;
     }
   }
+
   label {
     font-weight: 600;
   }

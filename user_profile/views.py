@@ -168,7 +168,6 @@ def profile_congrats(request):
         return render(request, "account/profile_congrats.html")
 
 
-@login_required
 def verification_congrats(request):
     return render(request, "account/verification_congrats.html")
 

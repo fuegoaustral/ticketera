@@ -1,0 +1,18 @@
+{% extends '../tickets/barbu_base.html' %}
+{% load static %}
+{% block extrahead %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'css/forms.css' %}">
+{% endblock %}
+{% block page_title %}
+  Comprar bono
+{% endblock page_title %}
+{% block menu_container %}
+{% endblock menu_container %}
+{% block innercontent %}
+<div class="wrapper">
+{% block truecontent %}
+{% endblock truecontent %}
+</div>
+{% endblock innercontent %}
+
