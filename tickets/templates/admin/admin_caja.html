@@ -1,5 +1,6 @@
 {% extends "admin/base_site.html" %}
 {% load static %}
+{% load humanize %}
 
 {% block extrahead %}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/css/intlTelInput.css"
@@ -140,7 +141,7 @@
                                         <div class="field-box">
                                             <label for="ticket_quantity_{{ ticket.id }}">
                                                 {{ ticket.emoji }} {{ ticket.name }} - Quedan {{ ticket.ticket_count }}
-                                                bonos - ${{ ticket.price|floatformat:2 }} c/u
+                                                bonos - ${{ ticket.price|floatformat|intcomma }} c/u
                                             </label>
                                             <input type="number" name="ticket_quantity_{{ ticket.id }}"
                                                    id="ticket_quantity_{{ ticket.id }}" value="0" min="0" step="1"
