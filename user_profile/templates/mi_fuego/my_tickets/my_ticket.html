@@ -1,8 +1,10 @@
 {% extends 'mi_fuego/my_tickets/index.html' %}
 {% load static %}
 {% block actions %}
+  {% if my_ticket %}
   <button class="btn btn-secondary" id="unAssignTicket">Transferir mi bono</button>
-  <button class="btn btn-primary">Comprar Bonos</button>
+  {% endif %}
+  <a class="btn btn-primary" href="{% url "select_tickets"%}">Comprar Bonos</a>
 {% endblock actions %}
 {% block truecontent %}
   {% if my_ticket %}
@@ -61,11 +63,12 @@
       <div class="card text-center mx-extra">
         <div class="card-body d-flex justify-content-between flex-column align-items-center empty-results gap-4">
           <h3>No tenés bono</h3>
-          <a class="btn btn-primary">Comprar Bono</a>
+          <a class="btn btn-primary" href="{% url "select_tickets"%}">Comprar Bono</a>
         </div>
       </div>
     </div>
   {% endif %}
+  {% if my_ticket %}
   <script>
     document.getElementById('unAssignTicket').addEventListener('click', async function () {
       if (confirm('Si no vas a ir, desasigna tu bono para poder transferirselo a otra persona. ¿Estás seguro que no vas a ir?')) {
@@ -73,4 +76,5 @@
       }
     })
   </script>
+  {% endif %}
 {% endblock truecontent %}
