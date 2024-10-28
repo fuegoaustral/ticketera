@@ -192,6 +192,7 @@ class Order(BaseModel):
         self._old_status = self.status
 
     def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
         if self.status == Order.OrderStatus.PROCESSING and self._old_status != self.status:
             self._old_status = self.status
             mint_tickets(self)

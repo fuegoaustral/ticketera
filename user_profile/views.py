@@ -14,18 +14,29 @@ def my_fire_view(request):
 
 
 @login_required
-def my_tickets_view(request):
+def my_ticket_view(request):
     event = Event.objects.get(active=True)
     my_ticket = NewTicket.objects.filter(holder=request.user, event=event, owner=request.user).first()
-    tickets = NewTicket.objects.filter(holder=request.user, event=event, owner=None).all()
+
+    return render(request, 'mi_fuego/my_tickets/my_ticket.html', {
+        'is_volunteer': my_ticket.is_volunteer() if my_ticket else False,
+        'my_ticket': my_ticket.get_dto(user=request.user) if my_ticket else None,
+        'event': event,
+        'nav_primary': 'tickets',
+        'nav_secondary': 'my_ticket',
+    })
+
+
+@login_required
+def transferable_tickets_view(request):
+    event = Event.objects.get(active=True)
+    tickets = NewTicket.objects.filter(holder=request.user, event=event).exclude(owner=request.user).order_by('owner').all()
+    my_ticket = NewTicket.objects.filter(holder=request.user, event=event, owner=request.user).first()
 
     tickets_dto = []
 
     for ticket in tickets:
         tickets_dto.append(ticket.get_dto(user=request.user))
-
-    has_unassigned_tickets = any(ticket['is_owners'] is False for ticket in tickets_dto)
-    has_transfer_pending = any(ticket['is_transfer_pending'] is True for ticket in tickets_dto)
 
     transferred_tickets = NewTicketTransfer.objects.filter(tx_from=request.user, status='COMPLETED').all()
     transferred_dto = []
@@ -38,14 +49,13 @@ def my_tickets_view(request):
             'emoji': transfer.ticket.ticket_type.emoji,
         })
 
-    return render(request, 'mi_fuego/my_tickets/index.html', {
-        'is_volunteer': my_ticket.is_volunteer() if my_ticket else False,
-        'my_ticket': my_ticket.get_dto(user=request.user) if my_ticket else None,
-        'has_unassigned_tickets': has_unassigned_tickets,
-        'has_transfer_pending': has_transfer_pending,
+    return render(request, 'mi_fuego/my_tickets/transferable_tickets.html', {
+        'my_ticket': my_ticket,
         'tickets_dto': tickets_dto,
         'transferred_dto': transferred_dto,
-        'event': event
+        'event': event,
+        'nav_primary': 'tickets',
+        'nav_secondary': 'transferable_tickets',
     })
 
 
