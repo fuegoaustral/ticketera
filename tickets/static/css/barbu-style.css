@@ -31,10 +31,6 @@ header {
   .nav-link {
     color: #fff !important;
     padding: 0 1rem;
-    i {
-      margin-left: 0.5rem;
-      color: white !important;
-    }
   }
 
   .nav-link.btn-secondary {
