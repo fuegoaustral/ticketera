@@ -16,7 +16,7 @@ from deprepagos import settings
 from events.models import Event
 from utils.direct_sales import direct_sales_existing_user, direct_sales_new_user
 from .forms import TicketPurchaseForm
-from .models import Profile, TicketType, Order, OrderTicket, NewTicket, NewTicketTransfer, DirectTicketTemplate, \
+from .models import TicketType, Order, OrderTicket, NewTicket, NewTicketTransfer, DirectTicketTemplate, \
     DirectTicketTemplateStatus
 from .views import webhooks
 
@@ -298,14 +298,10 @@ class DirectTicketTemplateAdmin(admin.ModelAdmin):
     search_fields = ['event__name']  # Buscar por nombre y evento
 
 
-# Quitar el registro original y registrar el nuevo UserAdmin
-admin.site.unregister(User)
-admin.site.register(User, CustomUserAdmin)
 admin.site.unregister(SocialApp)
 admin.site.unregister(SocialAccount)
 admin.site.unregister(SocialToken)
 admin.site.unregister(EmailAddress)
-admin.site.unregister(Group)
 
 admin.site.register(Order)
 admin.site.register(TicketType)
