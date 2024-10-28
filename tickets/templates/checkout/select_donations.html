@@ -1,32 +1,28 @@
 {% extends "./base.html" %}
-
 {% block truecontent %}
-
-    <div class="d-flex flex-column justify-content-center align-items-center flex-grow-1 my-5">
-        <div class="text-center p-4 bg-light border rounded shadow-sm">
-            <h2 class="mb-4">Donaciones</h2>
-            <p class="text-start">Toda creación de la comunidad en Fuego Austral o en La Sede requiere de mucho trabajo,
-                procesos y
-                materiales. Por eso, además de adquirir tu bono contribución de ingreso, podes colaborar con algunas de
-                las
-                siguientes propuestas:</p>
-
-            <form method="post" action="{% url 'select_donations' %}">
+    <div class="card w-100">
+        <div class="card-body d-flex flex-column justify-content-center align-items-center w-100 p-5 px-extra">
+            <div>Paso 2 de 4</div>
+            <h1 class="mb-4">Donaciones</h1>
+            <div class="alert alert-info text-left w-100" role="alert">
+                Podés saltear este paso y donar cuando quieras desde la sección <u>“Donaciones”</u> en tu perfil.
+            </div>
+            <form method="post" action="{% url 'select_donations' %}" class="w-100">
                 {% csrf_token %}
-
                 {% if form.errors %}
                     <div class="alert alert-danger">
                         {% for field in form %}
                             {% for error in field.errors %}
-                                {{ field.label }}: {{ error }}<br>
+                                {{ field.label }}: {{ error }}
+                                <br>
                             {% endfor %}
                         {% endfor %}
                         {% for error in form.non_field_errors %}
-                            {{ error }}<br>
+                            {{ error }}
+                            <br>
                         {% endfor %}
                     </div>
                 {% endif %}
-
                 <style>
                     @media (max-width: 575px) {
                         form .table {
@@ -78,9 +74,8 @@
                         --bs-btn-disabled-border-color: #f8f9fa;
                     }
                 </style>
-
                 <div class="table-responsive">
-                    <table class="table table-striped align-middle">
+                    <table class="table table-hover align-middle">
                         <thead>
                             <tr>
                                 <th class="text-start">Tipo de Donación</th>
@@ -90,87 +85,94 @@
                         <tbody>
                             <tr>
                                 <td class="text-start align-middle">
-                                    <span>Becas de Arte</span><br>
-                                    <span style="font-size: 0.85em; color: #666;">
-                                        Para empujar la creatividad en nuestra ciudad temporal.
-                                    </span>
+                                    <span>Becas de Arte</span>
+                                    <br>
+                                    <span style="font-size: 0.85em; color: #666;">Para impulsar la creatividad en nuestra ciudad temporal.</span>
                                 </td>
                                 <td>
                                     <span class="d-flex flex-row flex-wrap gap-1 justify-content-end">
-                                        <button type="button" class="btn btn-donation btn-sm"
-                                                onclick="setDonationAmount('art', 5000)">$5.000
-                                        </button>
-                                        <button type="button" class="btn btn-donation btn-sm"
-                                                onclick="setDonationAmount('art', 10000)">$10.000
-                                        </button>
-                                        <button type="button" class="btn btn-donation btn-sm"
-                                                onclick="setDonationAmount('art', 20000)">$20.000
-                                        </button>
-                                        <button type="button" class="btn btn-donation btn-sm"
-                                                onclick="setDonationAmount('art', 50000)">$50.000
-                                        </button>
+                                        <button type="button"
+                                                class="btn btn-donation btn-sm"
+                                                onclick="setDonationAmount('art', 5000)">$5.000</button>
+                                        <button type="button"
+                                                class="btn btn-donation btn-sm"
+                                                onclick="setDonationAmount('art', 10000)">$10.000</button>
+                                        <button type="button"
+                                                class="btn btn-donation btn-sm"
+                                                onclick="setDonationAmount('art', 20000)">$20.000</button>
+                                        <button type="button"
+                                                class="btn btn-donation btn-sm"
+                                                onclick="setDonationAmount('art', 50000)">$50.000</button>
                                         <span class="donation-input-wrapper">
-                                            <input type="number" min="0" id="donation_art_amount"
-                                            name="donation_art" value="{{ form.donation_art.value|default:0 }}"
-                                            class="form-control text-end donation-input" oninput="calculateTotalDonations()">
+                                            <input type="number"
+                                                   min="0"
+                                                   id="donation_art_amount"
+                                                   name="donation_art"
+                                                   value="{{ form.donation_art.value|default:0 }}"
+                                                   class="form-control text-end donation-input"
+                                                   oninput="calculateTotalDonations()">
                                         </span>
                                     </span>
                                 </td>
                             </tr>
                             <tr>
                                 <td class="text-start align-middle">
-                                    <span>Beca Inclusión Radical</span><br>
-                                    <span style="font-size: 0.85em; color: #666;">
-                                        Para ayudar a quienes necesitan una mano con su bono contribución.
-                                    </span>
+                                    <span>Beca Inclusión Radical</span>
+                                    <br>
+                                    <span style="font-size: 0.85em; color: #666;">Para ayudar a quienes necesitan una mano con su bono contribución.</span>
                                 </td>
                                 <td>
                                     <span class="d-flex flex-row flex-wrap gap-1 justify-content-end">
-                                        <button type="button" class="btn btn-donation btn-sm align-self-stretch"
-                                                onclick="setDonationAmount('grant', 5000)">$5.000
-                                        </button>
-                                        <button type="button" class="btn btn-donation btn-sm align-self-stretch"
-                                                onclick="setDonationAmount('grant', 10000)">$10.000
-                                        </button>
-                                        <button type="button" class="btn btn-donation btn-sm align-self-stretch"
-                                                onclick="setDonationAmount('grant', 20000)">$20.000
-                                        </button>
-                                        <button type="button" class="btn btn-donation btn-sm align-self-stretch"
-                                                onclick="setDonationAmount('grant', 50000)">$50.000
-                                        </button>
+                                        <button type="button"
+                                                class="btn btn-donation btn-sm align-self-stretch"
+                                                onclick="setDonationAmount('grant', 5000)">$5.000</button>
+                                        <button type="button"
+                                                class="btn btn-donation btn-sm align-self-stretch"
+                                                onclick="setDonationAmount('grant', 10000)">$10.000</button>
+                                        <button type="button"
+                                                class="btn btn-donation btn-sm align-self-stretch"
+                                                onclick="setDonationAmount('grant', 20000)">$20.000</button>
+                                        <button type="button"
+                                                class="btn btn-donation btn-sm align-self-stretch"
+                                                onclick="setDonationAmount('grant', 50000)">$50.000</button>
                                         <span class="donation-input-wrapper">
-                                            <input type="number" min="0" id="donation_grant_amount"
-                                                name="donation_grant" value="{{ form.donation_grant.value|default:0 }}"
-                                                class="form-control text-end donation-input">
+                                            <input type="number"
+                                                   min="0"
+                                                   id="donation_grant_amount"
+                                                   name="donation_grant"
+                                                   value="{{ form.donation_grant.value|default:0 }}"
+                                                   class="form-control text-end donation-input">
                                         </span>
                                     </span>
                                 </td>
                             </tr>
                             <tr>
                                 <td class="text-start align-middle">
-                                    <span>Donaciones a La Sede</span><br>
-                                    <span style="font-size: 0.85em; color: #666;">
-                                        Para mejorar el espacio donde nos encontramos todo el año.
-                                    </span>
+                                    <span>Donaciones a La Sede</span>
+                                    <br>
+                                    <span style="font-size: 0.85em; color: #666;">Para mejorar el espacio donde nos encontramos todo el año.</span>
                                 </td>
                                 <td>
                                     <span class="d-flex flex-row flex-wrap gap-1 justify-content-end">
-                                        <button type="button" class="btn btn-donation btn-sm align-self-stretch"
-                                                onclick="setDonationAmount('venue', 5000)">$5.000
-                                        </button>
-                                        <button type="button" class="btn btn-donation btn-sm align-self-stretch"
-                                                onclick="setDonationAmount('venue', 10000)">$10.000
-                                        </button>
-                                        <button type="button" class="btn btn-donation btn-sm align-self-stretch"
-                                                onclick="setDonationAmount('venue', 20000)">$20.000
-                                        </button>
-                                        <button type="button" class="btn btn-donation btn-sm align-self-stretch"
-                                                onclick="setDonationAmount('venue', 50000)">$50.000
-                                        </button>
+                                        <button type="button"
+                                                class="btn btn-donation btn-sm align-self-stretch"
+                                                onclick="setDonationAmount('venue', 5000)">$5.000</button>
+                                        <button type="button"
+                                                class="btn btn-donation btn-sm align-self-stretch"
+                                                onclick="setDonationAmount('venue', 10000)">$10.000</button>
+                                        <button type="button"
+                                                class="btn btn-donation btn-sm align-self-stretch"
+                                                onclick="setDonationAmount('venue', 20000)">$20.000</button>
+                                        <button type="button"
+                                                class="btn btn-donation btn-sm align-self-stretch"
+                                                onclick="setDonationAmount('venue', 50000)">$50.000</button>
                                         <span class="donation-input-wrapper">
-                                            <input type="number" min="0" id="donation_venue_amount"
-                                                name="donation_venue" value="{{ form.donation_venue.value|default:0 }}"
-                                                class="form-control text-end donation-input">
+                                            <input type="number"
+                                                   min="0"
+                                                   id="donation_venue_amount"
+                                                   name="donation_venue"
+                                                   value="{{ form.donation_venue.value|default:0 }}"
+                                                   class="form-control text-end donation-input">
                                         </span>
                                     </span>
                                 </td>
@@ -178,24 +180,19 @@
                         </tbody>
                     </table>
                 </div>
-
                 <div class="d-flex form-group mt-4 justify-content-end font-weight-bold">
                     <label class="mx-2">Total Donaciones:</label>
                     <span id="total_donations" class="fw-bold">$0.00</span>
                 </div>
-
-                <div class="d-flex  {% if ticket_selection %}justify-content-between{% else %}justify-content-end{% endif %}">
-
-                    {% if ticket_selection %}
-                        <a href="{% url 'select_tickets' %}"
-                           class="btn btn-secondary btn-back text-white text-decoration-none">Atras</a>
-                    {% endif %}
-                    <button type="submit" class="btn btn-primary self-align-end">Continuar</button>
+                <div class="d-flex justify-content-center gap-3">
+                    <a href="{% url 'select_tickets' %}"
+                       class="btn btn-light btn-back">Atras</a>
+                    <button type="submit" class="btn btn-primary">Continuar</button>
                 </div>
+                    <button type="submit" class="btn btn-link">Saltear este paso</button>
             </form>
         </div>
     </div>
-
     <style>
         @media (max-width: 576px) {
             .btn-info {
@@ -208,7 +205,6 @@
             }
         }
     </style>
-
     <script type="text/javascript">
         function setDonationAmount(type, amount) {
             const amountInput = document.getElementById('donation_' + type + '_amount');

@@ -15,7 +15,7 @@
             <div class="card-body d-flex flex-column justify-content-center align-items-center w-100 p-5 px-extra">
                 <div>Paso 1 de 4</div>
                 <h1 class="mb-4">Bonos {{ event.name }}</h1>
-                <div class="alert alert-info" role="alert">
+                <div class="alert alert-info w-100 text-left" role="alert">
                     {% if event.max_tickets_per_order %}Podés comprar hasta <strong>{{ available_tickets }}</strong> bonos.{% endif %}
                     Al finalizar la compra, podras transferir los bonos a otras personas.
                 </div>
@@ -76,7 +76,6 @@
                     <div class="d-flex flex-column gap-3 form-group mt-4 align-items-end justify-content-end font-weight-bold">
                         <div>Precios expresados en <b>pesos argentinos</b></div>
                         <div><b>Subtotal Bonos</b> <span id="subtotal" class="fw-bold">$ 0</span></div>
-                        
                     </div>
                     <button type="submit"
                             class="btn btn-primary align-self-end"
