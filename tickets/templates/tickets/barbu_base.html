@@ -85,7 +85,7 @@
       </a>
       <ul class="nav d-flex flex-row">
         <li class="nav-item">
-          <a class="nav-link" href="https://fuegoaustral.org">fuegoaustral.org</a>
+          <a class="nav-link" href="https://fuegoaustral.org" target="_blank">fuegoaustral.org</a>
         </li>
         {% if request.user.is_authenticated %}
           <li class="nav-item dropdown show">
@@ -93,6 +93,7 @@
               {{ user.email }}
             </a>
             <div class="dropdown-menu" aria-labelledby="dropdownProfileButton">
+              <a class="dropdown-item" href="{% url "my_ticket" %}"><i class="fa-solid fa-user"></i> Mi perfil</a>
               <a class="dropdown-item" href="https://fuegoaustral.org/el-evento/10-principios/" target="_blank">10 principios</a>
               <a class="dropdown-item" href="https://fuegoaustral.org/faq/" target="_blank">Preguntas frecuentes</a>
               <a class="dropdown-item" href="https://fuegoaustral.org/prepararse/" target="_blank">Guía de supervivencia</a>
