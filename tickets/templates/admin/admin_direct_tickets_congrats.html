@@ -91,10 +91,22 @@
             <h1>Congrats de Bonos Dirigidos</h1>
 
 
-
             <div class="field-box">
-                <strong>Email:</strong> {{ email }}
+                <strong>Email:</strong> {{ order.email }}
             </div>
+
+        
+            <table class="summary-table">
+                <tr>
+                    <th>Ticket</th>
+
+                </tr>
+                {% for ticket in tickets %}
+                    <tr>
+                        <td>{{ ticket.key }}</td>
+
+                    </tr>
+                {% endfor %}
         </div>
     </div>
 

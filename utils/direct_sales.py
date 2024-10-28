@@ -56,6 +56,8 @@ def direct_sales_existing_user(user, template_tickets, order_type, notes, reques
         order.amount = emitted_tickets * ticket_type.price
         order.save()
 
+        return order.id
+
 
 def direct_sales_new_user(destination_email, template_tickets, order_type, notes, request_user):
     with transaction.atomic():
@@ -117,3 +119,4 @@ def direct_sales_new_user(destination_email, template_tickets, order_type, notes
                 'sign_up_link': reverse('account_signup')
             }
         )
+        return order.id
