@@ -26,41 +26,93 @@
 
                     <div class="alert alert-warning" role="alert">
                         {% if event.max_tickets_per_order %}
-                            Podes comprar hasta <strong>{{ available_tickets }}</strong> bonos.
+                            Podés comprar hasta <strong>{{ available_tickets }}</strong> bonos.
                         {% endif %}
                         Al finalizar la compra, podras transferir los bonos a otras personas.
                     </div>
-                    <form method="post" action="{% url 'select_tickets' %}">
+                    <form method="post" action="{% url 'select_tickets' %}" class="d-flex flex-column">
+                        {% if form.errors %}
+                            <div class="alert alert-danger">
+                                {% for field in form %}
+                                    {% for error in field.errors %}
+                                        {{ field.label }}: {{ error }}<br>
+                                    {% endfor %}
+                                {% endfor %}
+                                {% for error in form.non_field_errors %}
+                                    {{ error }}<br>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
                         {% csrf_token %}
+                        <style>
+                            .quantity-controls {
+                                display: flex;
+                                justify-content: flex-end;
+                                width: 100%;
+                            }
+                            .quantity-controls > * {
+                                width: 32px;
+                                height: 32px;
+                            }
+                            .quantity-controls button {
+                                border-radius: 0 !important;
+                            }
+                            .quantity-controls button:first-child {
+                                border-right: none !important;
+                            }
+                            .quantity-controls button:last-child {
+                                border-left: none !important;
+                            }
+                            .quantity-controls input {
+                                text-align: center;
+                                font-weight: 400;
+                                border-radius: 0 !important;
+                                width: 48px;
+                                /* hide arrows */
+                                -moz-appearance: textfield;
+                                -webkit-appearance: textfield;
+                                appearance: textfield;
+                            }
+                            .quantity-controls input::-webkit-inner-spin-button,
+                            .quantity-controls input::-webkit-outer-spin-button {
+                                -webkit-appearance: none;
+                                margin: 0;
+                            }
+                            /* Hide arrows for Firefox */
+                            .quantity-controls input {
+                                -moz-appearance: textfield; /* Change to textfield to remove arrows */
+                            }
+
+                            .table>:not(caption)>*>* {
+                                padding: 0.5rem 0.8rem !important;
+                            }
+                        </style>
                         <div class="table-responsive">
                             <table class="table table-striped">
                                 <thead>
                                 <tr>
-                                    <th>Tipo de Bono</th>
-                                    <th>Precio</th>
-                                    <th>Cantidad</th>
+                                    <th class="text-start">Tipo de Bono</th>
+                                    <th class="text-end">Precio</th>
+                                    <th class="text-end">Cantidad</th>
                                 </tr>
                                 </thead>
                                 <tbody>
                                 {% for ticket in ticket_data %}
                                     <tr>
-                                        <td class="text-start">{{ ticket.name }}
-                                            <br>
+                                        <td class="text-start">
+                                            <span>{{ ticket.name }}</span><br>
                                             <span style="font-size: 0.85em; color: #666;">{{ ticket.description }}</span>
                                         </td>
-                                        <td>${{ ticket.price|floatformat|intcomma }}</td>
-                                        <td>
-                                            <button type="button" class="btn btn-info"
-                                                    onclick="updateQuantity('{{ ticket.id }}', -1)">-
-                                            </button>
-                                            <input type="text" id="ticket_{{ ticket.id }}_quantity"
-                                                   name="{{ ticket.field_name }}" value="{{ ticket.initial_quantity }}"
-                                                   class="form-control d-inline-block mx-2 text-center"
-                                                   style="width: 50px;"
-                                                   readonly>
-                                            <button type="button" class="btn btn-info"
-                                                    onclick="updateQuantity('{{ ticket.id }}', 1)">+
-                                            </button>
+                                        <td class="text-end" style="vertical-align: middle;">${{ ticket.price|floatformat|intcomma }}</td>
+                                        <td class="text-end" style="vertical-align: middle;">
+                                            <span class="quantity-controls">
+                                                <button type="button" onclick="updateQuantity('{{ ticket.id }}', -1)">&minus;</button>
+                                                <input type="number" id="ticket_{{ ticket.id }}_quantity" name="{{ ticket.field_name }}"
+                                                    value="{{ ticket.quantity|default:0 }}" min="0" max="{{ available_tickets }}"
+                                                    oninput="this.value = Math.min(Math.max(parseInt(this.value), 0), {{ available_tickets }})">
+                                                <button type="button" onclick="updateQuantity('{{ ticket.id }}', 1)">&plus;</button>
+                                            </span>
                                         </td>
                                     </tr>
                                 {% endfor %}
@@ -70,10 +122,10 @@
 
                         <div class="d-flex form-group mt-4 justify-content-end font-weight-bold">
                             <label class="mx-2">Subtotal:</label>
-                            <span id="subtotal" class="fw-bold">$0.00</span>
+                            <span id="subtotal" class="fw-bold">$0</span>
                         </div>
 
-                        <button type="submit" class="btn btn-primary" id="continue-button" disabled>Continuar</button>
+                        <button type="submit" class="btn btn-primary align-self-end" id="continue-button" disabled>Continuar</button>
                     </form>
                 </div>
             </div>
@@ -102,14 +154,12 @@
 
 
                     if (newValue >= 0 && newValue <= ticketsRemainingByType[ticketId]) {
-
-                        if (totalQuantity + increment <= maxTicketsPerOrder) {
+                        if (increment > 0 && totalQuantity + increment > maxTicketsPerOrder) {
+                            alert('No puedes seleccionar más de ' + maxTicketsPerOrder + ' bonos en total.');
+                        } else {
                             quantityInput.value = newValue;
-                            ticketsRemainingByType[ticketId] -= increment;
                             calculateSubtotal();
                             toggleContinueButton();
-                        } else {
-                            alert('No puedes seleccionar más de ' + maxTicketsPerOrder + ' bonos en total.');
                         }
                     } else if (newValue > ticketsRemainingByType[ticketId]) {
                         alert('No hay suficientes bonos disponibles para este tipo.');
@@ -135,7 +185,7 @@
                         subtotal += quantity * price;
                     {% endfor %}
 
-                    document.getElementById('subtotal').innerText = '$' + subtotal.toFixed(2);
+                    document.getElementById('subtotal').innerText = '$' + subtotal.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
                 }
 
                 function toggleContinueButton() {
@@ -149,7 +199,6 @@
                     }
                 }
 
-                // Initialize subtotal calculation and button state on page load
                 document.addEventListener("DOMContentLoaded", function () {
                     calculateSubtotal();
                     toggleContinueButton();

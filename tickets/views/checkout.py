@@ -15,27 +15,39 @@ from .utils import available_tickets_for_user
 
 @login_required
 def select_tickets(request):
+    if request.method == 'POST':
+        form = CheckoutTicketSelectionForm(request.POST, user=request.user)
+        if form.is_valid():
+            request.session['ticket_selection'] = form.cleaned_data
+            return redirect('select_donations')
+        else:
+            event = Event.objects.get(active=True)
+            tickets_remaining = event.tickets_remaining() or 0
+            available_tickets = available_tickets_for_user(request.user) or 0
+            available_tickets = min(available_tickets, tickets_remaining)
+            return render(request, 'checkout/select_tickets.html', {
+                'form': form,
+                'ticket_data': form.ticket_data,
+                'available_tickets': available_tickets,
+                'tickets_remaining': tickets_remaining
+            })
+
     event = Event.objects.get(active=True)
     tickets_remaining = event.tickets_remaining() or 0
     available_tickets = available_tickets_for_user(request.user) or 0
+    available_tickets = min(available_tickets, tickets_remaining)
 
-    if available_tickets > tickets_remaining:
-        available_tickets = tickets_remaining
-
+    initial_data = request.session.get('ticket_selection', {})
     if 'new' in request.GET or request.session.get('order_sid') is None:
         request.session['order_sid'] = str(uuid.uuid4())
         request.session['event_id'] = event.id
         request.session.pop('ticket_selection', None)
         request.session.pop('donations', None)
+        ticket_id = request.GET.get('ticket_id')
+        if ticket_id:
+            initial_data[f'ticket_{ticket_id}_quantity'] = 1
 
-    if request.method == 'POST':
-        form = CheckoutTicketSelectionForm(request.POST)
-        if form.is_valid():
-            request.session['ticket_selection'] = form.cleaned_data
-            return redirect('select_donations')
-    else:
-        initial_data = request.session.get('ticket_selection', {})
-        form = CheckoutTicketSelectionForm(initial=initial_data)
+    form = CheckoutTicketSelectionForm(initial=initial_data)
 
     return render(request, 'checkout/select_tickets.html', {
         'form': form,
@@ -47,19 +59,19 @@ def select_tickets(request):
 
 @login_required
 def select_donations(request):
-    if 'new' in request.GET or request.session.get('order_sid') is None:
-        request.session['order_sid'] = str(uuid.uuid4())
-        request.session.pop('ticket_selection', None)
-        request.session.pop('donations', None)
-
     if request.method == 'POST':
         form = CheckoutDonationsForm(request.POST)
         if form.is_valid():
             request.session['donations'] = form.cleaned_data
             return redirect('order_summary')
-    else:
-        initial_data = request.session.get('donations', {})
-        form = CheckoutDonationsForm(initial=initial_data)
+
+    if 'new' in request.GET or request.session.get('order_sid') is None:
+        request.session['order_sid'] = str(uuid.uuid4())
+        request.session.pop('ticket_selection', None)
+        request.session.pop('donations', None)
+
+    initial_data = request.session.get('donations', {})
+    form = CheckoutDonationsForm(initial=initial_data)
 
     return render(request, 'checkout/select_donations.html', {
         'form': form,
@@ -131,12 +143,12 @@ def order_summary(request):
     if request.method == 'POST':
         available_tickets = available_tickets_for_user(request.user)
         total_quantity = sum(item['quantity'] for item in ticket_data)
-        remaiining_event_tickets = event.tickets_remaining()
+        remaining_event_tickets = event.tickets_remaining()
 
         if total_quantity > available_tickets:
             return HttpResponse('Ya compraste la cantidad máxima de tickets permitida.', status=400)
 
-        if total_quantity > remaiining_event_tickets:
+        if total_quantity > remaining_event_tickets:
             return HttpResponse('No hay suficientes tickets disponibles.', status=400)
 
         with transaction.atomic():
