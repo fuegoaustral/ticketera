@@ -273,7 +273,7 @@ class NewTicket(BaseModel):
     order = models.ForeignKey('Order', on_delete=models.CASCADE)
     ticket_type = models.ForeignKey('TicketType', on_delete=models.CASCADE)
     owner = models.ForeignKey(User, related_name='owned_tickets', null=True, blank=True, on_delete=models.SET_NULL)
-    holder = models.ForeignKey(User, related_name='held_tickets', on_delete=models.CASCADE)
+    holder = models.ForeignKey(User, related_name='held_tickets', null=True, blank=True, on_delete=models.CASCADE)
 
     volunteer_ranger = models.BooleanField('Rangers', null=True, blank=True, )
     volunteer_transmutator = models.BooleanField('Transmutadores', null=True, blank=True, )

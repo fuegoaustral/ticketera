@@ -3,7 +3,8 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
 
-from tickets.admin import admin_caja_view, email_has_account, admin_caja_order_view, admin_direct_tickets_view
+from tickets.admin import admin_caja_view, email_has_account, admin_caja_order_view, admin_direct_tickets_view, \
+    admin_direct_tickets_buyer_view, admin_direct_tickets_congrats_view
 
 urlpatterns = [
     path('admin/caja/', admin_caja_view, name='admin_caja_view'),
@@ -12,6 +13,10 @@ urlpatterns = [
     path('admin/caja/email-has-account/', email_has_account, name='email_has_account'),
 
     path('admin/direct_tickets/', admin_direct_tickets_view, name='admin_direct_tickets_view'),
+    path('admin/direct_tickets/buyer/', admin_direct_tickets_buyer_view, name='admin_direct_tickets_buyer_view'),
+    path('admin/direct_tickets/congrats/', admin_direct_tickets_congrats_view,
+         name='admin_direct_tickets_congrats_view'),
+
     path('admin/', admin.site.urls),
 
     path('mi-fuego/', include('allauth.urls')),

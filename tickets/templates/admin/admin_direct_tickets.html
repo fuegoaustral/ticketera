@@ -68,7 +68,7 @@
                         <div class="form-row">
                             <div class="field-box">
                                 <label for="id_email">Email:</label>
-                                <input type="email" name="email" id="id_email" placeholder="Email" required
+                                <input type="email" name="email" id="id_email" placeholder="Email"
                                        style="width: 240px">
                             </div>
                         </div>
@@ -84,13 +84,13 @@
                         </div>
 
                         <div id="tickets-section" style="display: none">
-                            <div class="form-row">
+                            <div id="user-data" style="display: none">
                                 <div class="form-row">
                                     <div class="field-box">
                                         <label for="id_name">Nombre:</label>
                                         <label id="label_first_name" style="display: none"></label>
                                         <input type="text" name="first_name" id="id_first_name" placeholder="Nombre"
-                                               required>
+                                        >
                                     </div>
                                 </div>
                                 <div class="form-row">
@@ -98,14 +98,14 @@
                                         <label for="id_last_name">Apellido:</label>
                                         <label id="label_last_name" style="display: none"></label>
                                         <input type="text" name="last_name" id="id_last_name" placeholder="Apellido"
-                                               required>
+                                        >
                                     </div>
                                 </div>
                                 <div class="form-row">
                                     <div class="field-box">
                                         <label for="id_document_type">Tipo de documento:</label>
                                         <label id="label_document_type" style="display: none"></label>
-                                        <select name="document_type" id="id_document_type" required>
+                                        <select name="document_type" id="id_document_type">
                                             <option value="DNI">DNI</option>
                                             <option value="PASSPORT">Pasaporte</option>
                                             <option value="OTHER">Otro</option>
@@ -117,77 +117,89 @@
                                         <label for="id_document_number">Numero de documento:</label>
                                         <label id="label_document_number" style="display: none"></label>
                                         <input type="text" name="document_number" id="id_document_number"
-                                               placeholder="Numero de documento" required>
+                                               placeholder="Numero de documento">
                                     </div>
                                     <div class="form-row">
                                         <div class="field-box">
                                             <label for="id_phone">Telefono:</label>
                                             <label id="label_phone" style="display: none"></label>
                                             <input type="tel" id="phone" name="phone_input" style="width: 100%"
-                                                   required>
+                                            >
                                             <input type="hidden" id="id_phone" name="phone">
                                         </div>
                                     </div>
-
-                                    <br/>
-                                    <br/>
-
-                                    <h3>Asignar bonos dirigidos - ${{ ticket_type.price }} c/u</h3>
-
-                                    <!-- Filtrado y listado scrolleable de direct_tickets -->
-                                    <div class="form-row">
-                                        <div class="field-box">
-
-                                            <input type="text" id="ticket_filter" placeholder="Buscar..."
-                                                   style="width: 100%;">
-                                        </div>
-                                    </div>
-
-                                    <div class="form-row"
-                                         style="max-height: 300px; overflow-y: scroll; border: 1px solid #ccc; padding: 8px;">
-                                        <div id="ticket-list">
-                                            {% for ticket in direct_tickets %}
-                                                <div class="form-row ticket-item" data-name="{{ ticket.name }}"
-                                                     style="align-items: center;">
-                                                    <div class="field-box">
-                                                        <!-- Align checkbox and label to the left -->
-                                                        <div style="display: flex; align-items: center;">
-                                                            <input type="checkbox"
-                                                                   name="ticket_checkbox_{{ ticket.id }}"
-                                                                   id="ticket_checkbox_{{ ticket.id }}"
-                                                                   class="ticket-checkbox"
-                                                                   data-price="{{ ticket_type.price }}"
-                                                                   data-amount="{{ ticket.amount }}"
-                                                                   style="margin-right: 10px;">
-                                                            <label for="ticket_checkbox_{{ ticket.id }}"
-                                                                   style="margin-right: 10px;">
-                                                                {{ ticket.origin }} - {{ ticket.name }} -
-                                                                Max Bonos {{ ticket.amount }}
-                                                            </label>
-                                                        </div>
-                                                        <!-- Number input for selecting amount, initially disabled -->
-                                                        <input type="number" id="ticket_amount_{{ ticket.id }}"
-                                                               name="ticket_amount_{{ ticket.id }}"
-                                                               class="ticket-amount" min="1" max="{{ ticket.amount }}"
-                                                               value="{{ ticket.amount }}"
-                                                               style="width: 80px; margin-left: 10px;" disabled>
-                                                    </div>
-                                                </div>
-                                            {% endfor %}
-                                        </div>
-                                    </div>
-
-                                    <br/>
-                                    <br/>
-                                    <div class="form-row">
-                                        <div class="field-box">
-                                    <textarea name="notes" id="id_notes" placeholder="Notas aquí..." rows="3"
-                                              style="width: 100%;"></textarea>
-                                        </div>
-                                    </div>
+                                </div>
+                                <br/>
+                                <br/>
+                            </div>
+                            <div class="form-row">
+                                <div class="field-box">
+                                    <label for="id_order_type">Tipo de orden:</label>
+                                    <select name="order_type" id="id_order_type" required>
+                                        <option value="CASH_ONSITE">Compra en efectivo</option>
+                                        <option value="LOCAL_TRANSFER">Transferencia local</option>
+                                        <option value="INTERNATIONAL_TRANSFER">Transferencia internacional</option>
+                                        <option value="OTHER">Otros</option>
+                                    </select>
                                 </div>
                             </div>
+                            <div class="form-row">
+                                <div class="field-box">
+                                    <textarea name="notes" id="id_notes" placeholder="Notas aquí..." rows="3"
+                                              style="width: 100%;"></textarea>
+                                </div>
+                            </div>
+                            <h3>Asignar bonos dirigidos - ${{ ticket_type.price }} c/u</h3>
+
+                            <!-- Filtrado y listado scrolleable de direct_tickets -->
+                            <div class="form-row">
+                                <div class="field-box">
+
+                                    <input type="text" id="ticket_filter" placeholder="Buscar..."
+                                           style="width: 100%;">
+                                </div>
+                            </div>
+
+                            <div class="form-row"
+                                 style="max-height: 300px; overflow-y: scroll; border: 1px solid #ccc; padding: 8px;">
+                                <div id="ticket-list">
+                                    {% for ticket in direct_tickets %}
+                                        <div class="form-row ticket-item" data-name="{{ ticket.name }}"
+                                             style="align-items: center;">
+                                            <div class="field-box">
+                                                <!-- Align checkbox and label to the left -->
+                                                <div style="display: flex; align-items: center;">
+                                                    <input type="checkbox"
+                                                           name="ticket_checkbox_{{ ticket.id }}"
+                                                           id="ticket_checkbox_{{ ticket.id }}"
+                                                           class="ticket-checkbox"
+                                                           data-price="{{ ticket_type.price }}"
+                                                           data-amount="{{ ticket.amount }}"
+                                                           style="margin-right: 10px;">
+                                                    <label for="ticket_checkbox_{{ ticket.id }}"
+                                                           style="margin-right: 10px;">
+                                                        {{ ticket.origin }} - {{ ticket.name }} -
+                                                        Max Bonos {{ ticket.amount }}
+                                                    </label>
+                                                </div>
+                                                <!-- Number input for selecting amount, initially disabled -->
+                                                <input type="number" id="ticket_amount_{{ ticket.id }}"
+                                                       name="ticket_amount_{{ ticket.id }}"
+                                                       class="ticket-amount" min="1" max="{{ ticket.amount }}"
+                                                       value="{{ ticket.amount }}"
+                                                       style="width: 80px; margin-left: 10px;" disabled>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <br/>
+                            <br/>
+
+
                         </div>
+
                     </fieldset>
                     <div class="form-row">
                         <div class="field-box" style="justify-content: end">
@@ -197,8 +209,10 @@
                         </div>
                     </div>
                     <div class="submit-row" style="display:none; justify-content: center" id="emit-button">
+
                         <button type="submit" class="default" id="comprar"
-                                style="background-color: #4CAF50; border: none; color: white; padding: 15px 32px; text-align: center; text-decoration: none; display: inline-block; font-size: 16px; margin: 4px 2px; cursor: pointer;">
+                                style="background-color: #4CAF50; border: none; color: white; padding: 15px 32px; text-align: center; text-decoration: none; display: inline-block; font-size: 16px; margin: 4px 2px; cursor: pointer;"
+                                disabled>
                             Emitir bonos
                         </button>
                     </div>
@@ -212,6 +226,12 @@
     </div>
 
     <script>
+        const boton = document.getElementById('comprar');
+
+        boton.disabled = true;
+        boton.style.backgroundColor = 'gray';
+        boton.style.cursor = 'not-allowed';
+
         const input = document.querySelector("#phone");
         const iti = window.intlTelInput(input, {
             utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/js/utils.js",
@@ -266,6 +286,7 @@
 
                     document.getElementById('check-email').style.display = 'none';
                     document.getElementById('clear-form').style.display = 'block';
+                    document.getElementById('user-data').style.display = 'block';
                 } else if (response.status === 204) {
                     alert('El email ingresado no tiene una cuenta');
                     fieldIds.forEach(id => {
@@ -282,6 +303,8 @@
                     document.getElementById('id_email').setAttribute('readonly', true);
                     document.getElementById('check-email').style.display = 'none';
                     document.getElementById('clear-form').style.display = 'block';
+                    document.getElementById('user-data').style.display = 'none';
+
                 } else if (response.status === 206) {
                     alert('El email ingresado tiene una cuenta pero no tiene los datos completos. Debe completar el perfil antes de continuar');
                     return;
@@ -295,22 +318,8 @@
         });
 
         document.getElementById('clear-form').addEventListener('click', function () {
-            document.getElementById('id_email').removeAttribute('readonly');
-            document.getElementById('id_email').value = '';
+            window.location.reload();
 
-
-            document.getElementById('check-email').style.display = 'block';
-            document.getElementById('clear-form').style.display = 'none';
-            document.getElementById('tickets-section').style.display = 'none';
-            document.getElementById('emit-button').style.display = 'none';
-
-            ['first_name', 'last_name', 'document_type', 'document_number'].forEach(id => {
-                document.getElementById(`id_${id}`).value = '';
-                document.getElementById(`id_${id}`).type = 'text';
-                document.getElementById(`label_${id}`).innerText = '';
-                document.getElementById(`label_${id}`).style.display = 'none';
-            });
-            document.getElementById('id_notes').value = '';
         });
 
         document.getElementById('ticket-purchase-form').addEventListener('submit', async function (event) {
@@ -326,18 +335,20 @@
                 return;
             }
 
-            if (document.getElementById(`id_first_name`).type != "hidden" && !iti.isValidNumber()) {
-                alert('Por favor ingrese un telefono valido');
-                return;
+            if (document.getElementById('user-data').style.display != 'none') {
+                if (document.getElementById(`id_first_name`).type != "hidden" && !iti.isValidNumber()) {
+                    alert('Por favor ingrese un telefono valido');
+                    return;
+                }
+
+                if (document.getElementById(`id_first_name`).type != "hidden") {
+                    document.getElementById('id_phone').value = iti.getNumber();
+                } else {
+                    document.getElementById('id_phone').value = document.getElementById(`label_phone`).innerText;
+                }
             }
 
-            if (document.getElementById(`id_first_name`).type != "hidden") {
-                document.getElementById('id_phone').value = iti.getNumber();
-            } else {
-                document.getElementById('id_phone').value = document.getElementById(`label_phone`).innerText;
-            }
 
-            const boton = document.getElementById('comprar');
             boton.disabled = true;
             boton.style.backgroundColor = 'gray';
             boton.style.cursor = 'not-allowed';
@@ -360,10 +371,11 @@
 
         const updateTotal = () => {
             let total = 0;
-
+            let buttonEnabled = false
             // Loop through each selected checkbox and calculate the total
             document.querySelectorAll('.ticket-checkbox').forEach(function (checkbox) {
                 if (checkbox.checked) {
+                    buttonEnabled = true
                     const price = parseFloat(checkbox.getAttribute('data-price'));
                     const ticketId = checkbox.id.split('_').pop();
                     const amountInput = document.getElementById(`ticket_amount_${ticketId}`);
@@ -371,6 +383,16 @@
                     total += price * selectedAmount;
                 }
             });
+
+            if (buttonEnabled) {
+                boton.disabled = false;
+                boton.style.backgroundColor = '#4CAF50';
+                boton.style.cursor = 'pointer';
+            } else {
+                boton.disabled = true;
+                boton.style.backgroundColor = 'gray';
+                boton.style.cursor = 'not-allowed';
+            }
 
             // Update the total display
             document.getElementById('total-display').innerText = 'Total: $' + total.toFixed(2);
