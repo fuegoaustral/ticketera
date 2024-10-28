@@ -185,7 +185,16 @@ def admin_caja_order_view(request, order_key):
     })
 
 
-admin.site.register(Order)
+class NewTicketInline(admin.StackedInline):
+    model = NewTicket
+    extra = 0
+
+
+class OrderAdmin(admin.ModelAdmin):
+    inlines = [NewTicketInline]
+
+
+admin.site.register(Order, OrderAdmin)
 admin.site.register(TicketType)
 admin.site.register(NewTicket)
 admin.site.register(NewTicketTransfer)
