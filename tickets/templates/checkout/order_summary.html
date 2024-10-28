@@ -2,6 +2,9 @@
 {% load humanize %}
 
 {% block content %}
+
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/forms.css' %}">
     <div class="d-flex flex-column justify-content-center align-items-center flex-grow-1 my-5">
         <div class="text-center p-4 bg-light border rounded shadow-sm">
             <h2 class="mb-4">Resumen de tu Pedido</h2>
@@ -10,10 +13,10 @@
                 <table class="table table-striped">
                     <thead>
                     <tr>
-                        <th>Descripción</th>
-                        <th>Precio</th>
-                        <th>Cantidad</th>
-                        <th>Subtotal</th>
+                        <th class="text-start">Descripción</th>
+                        <th class="text-end">Precio</th>
+                        <th class="text-center">Cantidad</th>
+                        <th class="text-end">Subtotal</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -22,7 +25,7 @@
                             <tr>
                                 <td class="text-start">{{ ticket.name }}</td>
                                 <td class="text-end">${{ ticket.price|floatformat|intcomma }}</td>
-                                <td>{{ ticket.quantity }}</td>
+                                <td class="text-center">{{ ticket.quantity }}</td>
                                 <td class="text-end">${{ ticket.subtotal|floatformat|intcomma }}</td>
                             </tr>
                         {% endif %}
@@ -30,9 +33,7 @@
                     {% for donation in donation_data %}
                         {% if donation.quantity > 0 %}
                             <tr>
-                                <td class="text-start">{{ donation.name }}</td>
-                                <td class="text-end">$1000.00</td>
-                                <td>{{ donation.quantity }}</td>
+                                <td class="text-start" colspan="3">{{ donation.name }}</td>
                                 <td class="text-end">${{ donation.subtotal|floatformat|intcomma }}</td>
                             </tr>
                         {% endif %}
@@ -49,7 +50,7 @@
             <form id="payment-form" method="post" action="{% url 'order_summary' %}">
                 {% csrf_token %}
                 <div class="d-flex justify-content-between">
-                    <a href="{% url 'select_donations' %}" class="btn btn-secondary text-white text-decoration-none">Atras</a>
+                    <a href="{% url 'select_donations' %}" class="btn btn-secondary btn-back text-white text-decoration-none">Atras</a>
                     <button type="submit" class="btn btn-primary" id="submit-button">Proceder al Pago</button>
                 </div>
             </form>
