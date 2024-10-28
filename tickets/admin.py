@@ -16,7 +16,8 @@ from django.urls import reverse
 
 from deprepagos import settings
 from events.models import Event
-from .forms import TicketPurchaseForm, DirectTicketPurchaseForm
+from utils.direct_sales import direct_sales_existing_user, direct_sales_new_user
+from .forms import TicketPurchaseForm
 from .models import Profile, TicketType, Order, OrderTicket, NewTicket, NewTicketTransfer, DirectTicketTemplate, \
     DirectTicketTemplateStatus
 from .views import webhooks
@@ -205,14 +206,13 @@ def admin_caja_view(request):
 
 @staff_member_required
 def admin_direct_tickets_view(request):
+    direct_ticket_summary = request.session.pop('direct_ticket_summary', {})
     events = Event.objects.all()
     default_event = Event.objects.filter(active=True).first()
     direct_tickets = DirectTicketTemplate.objects.filter(event_id=default_event.id,
                                                          status=DirectTicketTemplateStatus.AVAILABLE) if default_event else None
     ticket_type = TicketType.objects.filter(event_id=default_event.id,
                                             is_direct_type=True).first() if default_event else None
-
-    form = TicketPurchaseForm(event=default_event)
 
     if request.method == 'POST':
         selected_event_id = request.POST.get('event')
@@ -223,24 +223,84 @@ def admin_direct_tickets_view(request):
             ticket_type = TicketType.objects.filter(event_id=selected_event_id,
                                                     is_direct_type=True).first() if selected_event_id else None
             default_event = Event.objects.get(id=selected_event_id)
-            form = TicketPurchaseForm(request.POST, event=default_event)
+
             direct_tickets = DirectTicketTemplate.objects.filter(event_id=default_event.id,
                                                                  status=DirectTicketTemplateStatus.AVAILABLE) if default_event else None
         elif action == "order":
-            form = DirectTicketPurchaseForm(request.POST, event=default_event, direct_tickets=direct_tickets,
-                                            ticket_type=ticket_type)
-            if form.is_valid():
-                print(form.cleaned_data)
-                ## TODO: Implementar la lógica de compra de bonos directos
+
+            print(request.POST)
+
+            email = request.POST.get('email')
+            notes = request.POST.get('notes')
+            ticket_amounts = {int(k.split('_')[2]): int(v) for k, v in request.POST.items() if
+                              k.startswith('ticket_amount_')}
+
+            order_type = request.POST.get('order_type')
+
+            request.session['direct_ticket_summary'] = {
+                'email': email,
+                'notes': notes,
+                'ticket_amounts': ticket_amounts,
+                'order_type': order_type,
+            }
+            return redirect('admin_direct_tickets_buyer_view')
 
     context = {
         'ticket_type': ticket_type,
         'events': events,
         'default_event': default_event,
         'direct_tickets': direct_tickets,
-        'form': form,
     }
     return render(request, 'admin/admin_direct_tickets.html', context)
+
+
+@staff_member_required
+def admin_direct_tickets_buyer_view(request):
+    direct_ticket_summary = request.session['direct_ticket_summary']
+
+    email = direct_ticket_summary.get('email')
+    notes = direct_ticket_summary.get('notes')
+    ticket_amounts = direct_ticket_summary.get('ticket_amounts')
+    order_type = direct_ticket_summary.get('order_type')
+
+    user = User.objects.filter(email=email).first()
+
+    templates = DirectTicketTemplate.objects.filter(id__in=ticket_amounts.keys()).all()
+
+    template_tickets = []
+    for template in templates:
+        template_tickets.append({
+            'id': template.id,
+            'name': template.name,
+            'origin': template.origin,
+            'amount': ticket_amounts.get(str(template.id), 0),
+            'event_id': template.event.id
+
+        })
+
+    if request.method == 'POST':
+        user = User.objects.filter(email=email).first()
+        if user is None:
+            direct_sales_new_user(email, template_tickets, order_type, notes, request.user)
+        else:
+            direct_sales_existing_user(user, template_tickets, order_type, notes, request.user)
+
+    # if request.method == 'GET':
+    return render(request, 'admin/admin_direct_tickets_buyer.html', {
+        'user': user,
+        'email': email,
+        'tickets': template_tickets,
+        'notes': notes,
+        'order_type': order_type
+
+    })
+
+
+@staff_member_required
+def admin_direct_tickets_congrats_view(request):
+    direct_ticket_summary = request.session['direct_ticket_summary']
+    email = direct_ticket_summary.get('email')
+    return render(request, 'admin/admin_direct_tickets_congrats.html', {'email': email})
 
 
 def admin_caja_order_view(request, order_key):
