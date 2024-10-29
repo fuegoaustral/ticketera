@@ -1,0 +1,114 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/css/intlTelInput.css"
+          integrity="sha384-josBdHR9a6DDApvQzVz46RUq9U6/iPErv/hIpfkLHxxLLfPOhgvCWrrRi6Ufvbgf" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/js/intlTelInput.min.js"
+            integrity="sha384-6Z2vPsfhcSSIc6aQuBuj8XsgzVLnrlNXrlA/OfTiadr8Pcw3xfho2s4fxWX+beqn"
+            crossorigin="anonymous"></script>
+    <style>
+        .field-box {
+            display: flex !important;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            max-width: 640px;
+            width: 100%;
+        }
+
+        .wrapper {
+            display: flex;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .summary-table th, .summary-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .summary-table th {
+            background-color: #393838;
+            font-weight: bold;
+        }
+
+        .button-container {
+            display: flex;
+            width: 100%;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+
+        .confirm-button {
+            color: white;
+            padding: 15px 32px;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        /* Style for enabled confirm button */
+        .confirm-button:not([disabled]) {
+            background-color: #4CAF50;
+        }
+
+        /* Style for disabled confirm button */
+        .confirm-button[disabled] {
+            background-color: #b3b3b3;
+            cursor: not-allowed;
+        }
+
+        .back-button {
+            background-color: #0036ff;
+            color: white;
+            padding: 15px 32px;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            text-align: center;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="wrapper">
+        <div class="container">
+            <h1>Congrats de Bonos Dirigidos</h1>
+
+
+            <div class="field-box">
+                <strong>Email:</strong> {{ order.email }}
+            </div>
+
+        
+            <table class="summary-table">
+                <tr>
+                    <th>Ticket</th>
+
+                </tr>
+                {% for ticket in tickets %}
+                    <tr>
+                        <td>{{ ticket.key }}</td>
+
+                    </tr>
+                {% endfor %}
+        </div>
+    </div>
+
+
+{% endblock %}
