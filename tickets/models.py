@@ -16,10 +16,10 @@ from django.db.models import Count, Sum, Q, F
 from django.urls import reverse
 from django.utils import timezone
 
-from .processing import mint_tickets
 from events.models import Event
 from utils.email import send_mail
 from utils.models import BaseModel
+from .processing import mint_tickets
 
 
 class Coupon(BaseModel):
@@ -52,6 +52,7 @@ class TicketTypeManager(models.Manager):
                 .filter(Q(date_from__lte=timezone.now()) | Q(date_from__isnull=True))
                 .filter(Q(date_to__gte=timezone.now()) | Q(date_to__isnull=True))
                 .filter(Q(ticket_count__gt=0) | Q(ticket_count__isnull=True))
+                .filter(is_direct_type=False)
                 )
 
     def get_available(self, coupon, event):
@@ -102,6 +103,8 @@ class TicketType(BaseModel):
     ticket_count = models.IntegerField()
 
     objects = TicketTypeManager()
+
+    is_direct_type = models.BooleanField(default=False)
 
     def get_corresponding_ticket_type(coupon: Coupon):
         return TicketType.objects \
@@ -276,7 +279,7 @@ class NewTicket(BaseModel):
     order = models.ForeignKey('Order', on_delete=models.CASCADE)
     ticket_type = models.ForeignKey('TicketType', on_delete=models.CASCADE)
     owner = models.ForeignKey(User, related_name='owned_tickets', null=True, blank=True, on_delete=models.SET_NULL)
-    holder = models.ForeignKey(User, related_name='held_tickets', on_delete=models.CASCADE)
+    holder = models.ForeignKey(User, related_name='held_tickets', null=True, blank=True, on_delete=models.CASCADE)
 
     volunteer_ranger = models.BooleanField('Rangers', null=True, blank=True, )
     volunteer_transmutator = models.BooleanField('Transmutadores', null=True, blank=True, )
@@ -449,9 +452,43 @@ class MessageIdempotency(models.Model):
         return f"{self.email} - {self.hash}"
 
 
+class DirectTicketTemplateOriginChoices(models.TextChoices):
+    CAMP = 'CAMP', 'Camp'
+    VOLUNTEER = 'VOLUNTARIOS', 'Voluntarios'
+    ART = 'ARTE', 'Arte'
+
+
+class DirectTicketTemplateStatus(models.TextChoices):
+    AVAILABLE = 'AVAILABLE', 'Disponible'
+    PENDING = 'PENDING', 'Pendiente'
+    ASSIGNED = 'ASSIGNED', 'Asignados'
+
+
+class DirectTicketTemplate(models.Model):
+    origin = models.CharField(
+        max_length=20,
+        choices=DirectTicketTemplateOriginChoices.choices,
+        default=DirectTicketTemplateOriginChoices.CAMP,
+    )
+    name = models.CharField(max_length=255, help_text="Descripción y/o referencias")
+    amount = models.PositiveIntegerField()
+    event = models.ForeignKey(Event, on_delete=models.CASCADE)
+    status = models.CharField(max_length=20, choices=DirectTicketTemplateStatus.choices,
+                              default=DirectTicketTemplateStatus.AVAILABLE)
+
+    class Meta:
+        verbose_name = "Bono dirigido"
+        verbose_name_plural = "Config Bonos dirigidos"
+
+    def __str__(self):
+        return f"{self.name} ({self.origin}) - {self.amount}"
+
+
 auditlog.register(Coupon)
 auditlog.register(TicketType)
 auditlog.register(Order)
 auditlog.register(Ticket)
 auditlog.register(NewTicket)
 auditlog.register(NewTicketTransfer)
+auditlog.register(TicketTransfer)
+auditlog.register(DirectTicketTemplate)
