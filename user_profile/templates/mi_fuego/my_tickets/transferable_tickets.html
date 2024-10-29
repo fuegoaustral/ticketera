@@ -113,24 +113,24 @@
                class="flex-column justify-content-center align-items-center"
                style="display: none">
             <div class="spinner-border text-primary" role="status"></div>
-            <p class="my-4">Enviando...</p>
+            <div class="my-4">Enviando...</div>
           </div>
           <div id="transferSuccessMessage" style="display: none;">
             <div class="alert alert-success">
               <h5>¡Felicidades!</h5>
-              <p>El bono ha sido transferido con éxito.</p>
-              <button type="button" class="btn btn-primary" onclick="refreshPage()">Continuar</button>
+              <div>El bono ha sido transferido con éxito.</div>
             </div>
+              <button type="button" class="btn btn-primary" onclick="refreshPage()">Continuar</button>
           </div>
           <div id="transferPendingMessage" style="display: none;">
             <div class="alert alert-warning">
               <h5>¡Atencion!</h5>
-              <p class="mb-2">
+              <div class="mb-2">
                 Se envio una invitacion a
                 <strong id="invitation-email"></strong>.
                 Hasta que no se cree su cuenta, la
                 transferencia no estara completa.
-              </p>
+              </div>
             </div>
             <button type="button" class="btn btn-primary" onclick="refreshPage()">Continuar</button>
           </div>
@@ -139,6 +139,108 @@
     </div>
   </div>
   <script>
+    let currentTicketKey = null;
+
+    function setTransferTicketId(ticketId) {
+        currentTicketKey = ticketId;
+    }
+
+    function validateEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    }
+
+    async function confirmTransfer() {
+        const emailInput = document.getElementById('recipient-email');
+
+        const email = emailInput.value;
+
+        if (!validateEmail(email)) {
+            emailInput.classList.add('is-invalid');
+            return;
+        } else {
+            emailInput.classList.remove('is-invalid');
+        }
+
+        document.getElementById('transferForm').style.display = 'none';
+        document.getElementById('loadingSpinner').style.display = 'flex';
+
+        try {
+            const response = await fetch('{% url 'transfer_ticket' %}', {  // Replace with your actual server endpoint
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+
+                },
+                body: JSON.stringify({
+                    ticket_key: currentTicketKey,
+                    email: email
+                })
+            });
+
+            if (response.ok) {
+                document.getElementById('loadingSpinner').style.display = 'none';
+                const responseBody = await response.json()
+
+                if (responseBody.destination_user_exists) {
+                    document.getElementById('transferSuccessMessage').style.display = 'block';
+                } else {
+                    document.getElementById('invitation-email').innerHTML = email;
+                    document.getElementById('transferPendingMessage').style.display = 'block';
+                }
+            } else {
+                alert('Error en la transferencia. Por favor, inténtalo de nuevo.');
+                resetModal();
+            }
+        } catch (error) {
+            console.error('Error during fetch:', error);
+            alert('Error en la conexión. Por favor, inténtalo de nuevo.');
+            resetModal();
+        }
+    }
+
+    async function cancelTicketTransfer(ticketKey) {
+        if (!confirm('¿Estás seguro de que deseas cancelar la transferencia?')) {
+            return;
+        }
+        try {
+            const response = await fetch('{% url 'cancel_ticket_transfer' %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+
+                },
+                body: JSON.stringify({
+                    ticket_key: ticketKey
+                })
+            });
+
+            if (response.ok) {
+                refreshPage();
+            } else {
+                alert('Error al cancelar la transferencia. Por favor, inténtalo de nuevo.');
+            }
+        } catch (error) {
+            console.error('Error during fetch:', error);
+            alert('Error en la conexión. Por favor, inténtalo de nuevo.');
+        }
+    }
+
+    function refreshPage() {
+        location.reload();
+    }
+
+    function resetModal() {
+        document.getElementById('transferForm').style.display = 'block';
+        document.getElementById('loadingSpinner').style.display = 'none';
+        document.getElementById('transferSuccessMessage').style.display = 'none';
+        document.getElementById('transferPendingMessage').style.display = 'none';
+        document.getElementById('recipient-email').classList.remove('is-invalid');
+        document.getElementById('recipient-email').value = '';
+    }
+
     function filterTickets(filter, btn) {
         const tickets = document.querySelectorAll('.ticket-card');
         const buttons = document.querySelectorAll('.filters button');
