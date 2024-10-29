@@ -18,6 +18,11 @@ urlpatterns = [
     path('checkout/check-order-status/<uuid:order_key>', order.check_order_status, name='check_order_status'),
 
     # Ticket related paths
+
+    path('ticket/transfer-ticket', new_ticket.transfer_ticket, name='transfer_ticket'),
+    path('ticket/transfer-ticket/cancel-ticket-transfer', new_ticket.cancel_ticket_transfer,
+         name='cancel_ticket_transfer'),
+
     path('ticket/<str:ticket_key>', ticket.ticket_detail, name='ticket_detail'),
     path('ticket/<str:ticket_key>/transfer', ticket.ticket_transfer, name='ticket_transfer'),
     path('ticket/<str:ticket_key>/transfer/confirmation', ticket.ticket_transfer_confirmation,
@@ -32,14 +37,8 @@ urlpatterns = [
     # Webhook related paths
     path('webhooks/mercadopago', webhooks.mercadopago_webhook, name='mercadopago_webhook'),
 
-    path('ticket/<str:ticket_key>/volunteer', new_ticket.volunteer_ticket, name='volunteer_ticket'),
-
     path('ticket/<str:ticket_key>/assign', new_ticket.assign_ticket, name='assign_ticket'),
     path('ticket/<str:ticket_key>/unassign', new_ticket.unassign_ticket, name='unassign_ticket'),
-
-    path('ticket/transfer-ticket', new_ticket.transfer_ticket, name='transfer_ticket'),
-    path('ticket/transfer-ticket/cancel-ticket-transfer', new_ticket.cancel_ticket_transfer,
-         name='cancel_ticket_transfer'),
 
     path('ping/', home.ping, name='ping')
 

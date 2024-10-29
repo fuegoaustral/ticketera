@@ -71,7 +71,7 @@
 
         .nav-link:hover {
             color: white;
-            text-decoration: underline !important;
+            text-decoration: underline;
         }
 
         .nav-link:visited {
@@ -135,7 +135,7 @@
         <div class="container">
             <div class="d-flex flex-row justify-content-end mt-4">
                 {% if user.is_authenticated %}
-                    <a class="btn btn-danger text-white mb-2 mx-2" href="{% url 'my_tickets' %}">
+                    <a class="btn btn-danger text-white mb-2 mx-2" href="{% url 'my_ticket' %}">
                         Mis bonos
                     </a>
                     {% if user.is_staff %}
@@ -201,9 +201,11 @@
         </div>
     </div><!-- #masthead -->
 
+    {% block full_content %}
     <div class="site-main my-5 {% block container_type %}container{% endblock %} d-flex flex-column flex-grow-1">
         {% block content %}{% endblock %}
     </div>
+    {% endblock %}
 
     <footer class="site-footer">
         <div class="container">

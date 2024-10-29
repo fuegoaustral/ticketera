@@ -32,6 +32,8 @@ def transfer_ticket(request):
         return HttpResponseBadRequest('')
     if ticket.holder != request.user:
         return HttpResponseForbidden('Qué hacés pedazo de gato? Quedaste re escrachado logi')
+    if not ticket.event.transfer_period():
+        return HttpResponseBadRequest('')
 
     email_validator = EmailValidator()
     try:
@@ -92,9 +94,6 @@ def transfer_ticket(request):
         send_mail(
             template_name='new_transfer_success',
             recipient_list=[email],
-            context={
-                'my_tickets': reverse('my_tickets')
-            }
         )
 
     return JsonResponse({'status': 'OK', 'destination_user_exists': destination_user_exists})
@@ -120,6 +119,9 @@ def cancel_ticket_transfer(request):
     if ticket.holder != request.user:
         return HttpResponseForbidden('Qué hacés pedazo de gato? Quedaste re escrachado logi')
 
+    if not ticket.event.transfer_period():
+        return HttpResponseBadRequest('')
+
     ticket_transfer = NewTicketTransfer.objects.get(ticket=ticket, status='PENDING', tx_from=request.user)
 
     if ticket_transfer is None:
@@ -127,29 +129,6 @@ def cancel_ticket_transfer(request):
 
     ticket_transfer.status = 'CANCELLED'
     ticket_transfer.save()
-
-    return HttpResponse('OK')
-
-
-@login_required()
-def volunteer_ticket(request, ticket_key):
-    if request.method != 'POST':
-        return HttpResponseNotAllowed()
-
-    ticket = NewTicket.objects.get(key=ticket_key)
-    if ticket is None:
-        return HttpResponseBadRequest()
-
-    if not (ticket.holder == request.user and ticket.owner == request.user):
-        return HttpResponseForbidden()
-
-    request_body = json.loads(request.body)
-
-    ticket.volunteer_ranger = request_body['volunteer_ranger']
-    ticket.volunteer_transmutator = request_body['volunteer_transmutator']
-    ticket.volunteer_umpalumpa = request_body['volunteer_umpalumpa']
-
-    ticket.save()
 
     return HttpResponse('OK')
 
@@ -166,13 +145,16 @@ def assign_ticket(request, ticket_key):
     if not (ticket.holder == request.user and ticket.owner == None):
         return HttpResponseForbidden()
 
+    if not ticket.event.transfer_period():
+        return HttpResponseBadRequest('')
+
     if NewTicket.objects.filter(holder=request.user, owner=request.user).exists():
         return HttpResponseBadRequest
 
     ticket.owner = request.user
     ticket.save()
 
-    return redirect(reverse('my_tickets'))
+    return redirect(reverse('my_ticket'))
 
 
 @login_required()
@@ -187,6 +169,9 @@ def unassign_ticket(request, ticket_key):
     if not (ticket.holder == request.user and ticket.owner == request.user):
         return HttpResponseForbidden()
 
+    if not ticket.event.transfer_period():
+        return HttpResponseBadRequest('')
+
     ticket.volunteer_ranger = None
     ticket.volunteer_transmutator = None
     ticket.volunteer_umpalumpa = None
@@ -194,4 +179,4 @@ def unassign_ticket(request, ticket_key):
 
     ticket.save()
 
-    return redirect(reverse('my_tickets'))
+    return redirect(reverse('my_ticket'))

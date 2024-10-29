@@ -16,6 +16,7 @@ from django.db.models import Count, Sum, Q, F
 from django.urls import reverse
 from django.utils import timezone
 
+from .processing import mint_tickets
 from events.models import Event
 from utils.email import send_mail
 from utils.models import BaseModel
@@ -192,6 +193,12 @@ class Order(BaseModel):
         super().__init__(*args, **kwargs)
         self._old_status = self.status
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.status == Order.OrderStatus.PROCESSING and self._old_status != self.status:
+            self._old_status = self.status
+            mint_tickets(self)
+
     def send_confirmation_email(self):
 
         send_mail(
@@ -324,6 +331,9 @@ class NewTicket(BaseModel):
     def __str__(self):
         return f'Ticket {self.key} - {self.ticket_type} - holder: {self.holder} - owner: {self.owner}'
 
+    class Meta:
+        verbose_name = 'Ticket'
+
 
 class NewTicketTransfer(BaseModel):
     ticket = models.ForeignKey(NewTicket, on_delete=models.CASCADE)
@@ -336,6 +346,9 @@ class NewTicketTransfer(BaseModel):
 
     def __str__(self):
         return f'Transaction from {self.tx_from.email} to {self.tx_to_email}  - Ticket  {self.ticket.key} - {self.status} - Ceated {(timezone.now() - self.created_at).days} days ago'
+
+    class Meta:
+        verbose_name = 'Ticket transfer'
 
 
 class TicketPerson(models.Model):

@@ -66,6 +66,7 @@ class TransferForm(PersonForm):
 
 class CheckoutTicketSelectionForm(forms.Form):
     def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
         initial_data = kwargs.pop('initial', {})
         super(CheckoutTicketSelectionForm, self).__init__(*args, **kwargs)
 
@@ -93,11 +94,34 @@ class CheckoutTicketSelectionForm(forms.Form):
                     'description': ticket_type.description,
                     'price': ticket_type.price,
                     'field_name': field_name,
-                    'initial_quantity': initial_value,  # Pass the initial value to the template
+                    'quantity': initial_value,  # Pass the initial value to the template
                     'ticket_count': ticket_type.ticket_count
                 })
         else:
             self.ticket_data = []
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        # check if any total selected tickets quantity is greater than available tickets
+        event = Event.objects.get(active=True)
+        tickets_remaining = event.tickets_remaining() or 0
+        available_tickets = event.max_tickets_per_order
+        available_tickets = min(available_tickets, tickets_remaining)
+        total_selected_tickets = sum(cleaned_data.get(field, 0) for field in self.fields if field.startswith('ticket_'))
+        if total_selected_tickets > available_tickets:
+            # merge cleaned_data values with ticket_data quantity
+            self.ticket_data = [
+                {**ticket, 'quantity': cleaned_data.get(f'ticket_{ticket["id"]}_quantity', ticket['quantity'])}
+                for ticket in self.ticket_data
+            ]
+            raise ValidationError(f'Superaste la máxima cantidad de bonos disponibles para esta compra: {available_tickets}.')
+
+        # check if there's any ticket quantity greater than zero
+        if all(cleaned_data.get(field, 0) == 0 for field in self.fields if field.startswith('ticket_')):
+            raise ValidationError('Debe seleccionar al menos un ticket para continuar con la compra.')
+
+        return cleaned_data
 
 
 class CheckoutDonationsForm(forms.Form):
