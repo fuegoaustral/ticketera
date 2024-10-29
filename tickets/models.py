@@ -16,10 +16,10 @@ from django.db.models import Count, Sum, Q, F
 from django.urls import reverse
 from django.utils import timezone
 
-from .processing import mint_tickets
 from events.models import Event
 from utils.email import send_mail
 from utils.models import BaseModel
+from .processing import mint_tickets
 
 
 class Coupon(BaseModel):
@@ -472,7 +472,6 @@ class DirectTicketTemplate(models.Model):
     name = models.CharField(max_length=255, help_text="Descripción y/o referencias")
     amount = models.PositiveIntegerField()
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
-    used = models.BooleanField(default=False)
     status = models.CharField(max_length=20, choices=DirectTicketTemplateStatus.choices,
                               default=DirectTicketTemplateStatus.AVAILABLE)
 

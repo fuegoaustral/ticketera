@@ -395,7 +395,10 @@
             }
 
             // Update the total display
-            document.getElementById('total-display').innerText = 'Total: $' + total.toFixed(2);
+            document.getElementById('total-display').innerText = 'Total: $' + total.toLocaleString('es-AR', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2
+            });
         };
 
         // Add event listener to checkboxes to enable/disable number inputs and update total on change
