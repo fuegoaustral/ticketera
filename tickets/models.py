@@ -52,6 +52,7 @@ class TicketTypeManager(models.Manager):
                 .filter(Q(date_from__lte=timezone.now()) | Q(date_from__isnull=True))
                 .filter(Q(date_to__gte=timezone.now()) | Q(date_to__isnull=True))
                 .filter(Q(ticket_count__gt=0) | Q(ticket_count__isnull=True))
+                .filter(is_direct_type=False)
                 )
 
     def get_available(self, coupon, event):
