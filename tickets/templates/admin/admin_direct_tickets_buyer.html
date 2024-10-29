@@ -127,7 +127,7 @@
                 <strong>Notas:</strong> {{ notes }}
             </div>
 
-            <form class="button-container" method="post">
+            <form class="button-container" method="post" onsubmit="disableButton()">
                 {% csrf_token %}
                 <input type="hidden" value="confirm" name="action">
                 <a href="{% url 'admin_direct_tickets_view' %}" class="back-button">
@@ -145,7 +145,7 @@
             const confirmButton = document.getElementById("confirm_button");
             const originalEmail = "{{ email }}";
 
-            if (emailConfirmInput == null){
+            if (emailConfirmInput == null) {
                 confirmButton.disabled = false;
             }
             emailConfirmInput.addEventListener("input", function () {
@@ -156,5 +156,10 @@
                 }
             });
         });
+
+        function disableButton() {
+            const confirmButton = document.getElementById("confirm_button");
+            confirmButton.disabled = true;
+        }
     </script>
 {% endblock %}

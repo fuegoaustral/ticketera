@@ -31,8 +31,8 @@ def direct_sales_existing_user(user, template_tickets, order_type, notes, reques
         ticket_type = TicketType.objects.get(event_id=template_tickets[0]['event_id'],
                                              is_direct_type=True)
         emitted_tickets = 0
+        first_ticket = True
         for template_ticket in template_tickets:
-            print(template_ticket)
             if template_ticket['amount'] > 0:
                 for i in range(template_ticket['amount']):
                     new_ticket = NewTicket(
@@ -48,13 +48,18 @@ def direct_sales_existing_user(user, template_tickets, order_type, notes, reques
                     first_ticket = False
                     new_ticket.save()
                     emitted_tickets += 1
-                template = DirectTicketTemplate.objects.filter(id=template_ticket['id']).first()
-                template.used = True
+
+                template = DirectTicketTemplate.objects.get(id=template_ticket['id'])
                 template.status = DirectTicketTemplateStatus.ASSIGNED
                 template.save()
 
         order.amount = emitted_tickets * ticket_type.price
         order.save()
+
+        send_mail(
+            template_name='new_transfer_success',
+            recipient_list=[user.email],
+        )
 
         return order.id
 
@@ -103,8 +108,7 @@ def direct_sales_new_user(destination_email, template_tickets, order_type, notes
 
                     emitted_tickets += 1
 
-                template = DirectTicketTemplate.objects.filter(id=template_ticket['id']).first()
-                template.used = True
+                template = DirectTicketTemplate.objects.get(id=template_ticket['id'])
                 template.status = DirectTicketTemplateStatus.PENDING
                 template.save()
 

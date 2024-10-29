@@ -4,9 +4,9 @@ from urllib.parse import urlencode
 
 from allauth.account.forms import ResetPasswordForm
 from allauth.account.models import EmailAddress
-from allauth.socialaccount.models import SocialApp, SocialAccount, SocialToken
 from django.contrib import admin
 from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.models import User
 from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
@@ -176,8 +176,8 @@ def admin_caja_view(request):
 @staff_member_required
 def admin_direct_tickets_view(request):
     direct_ticket_summary = request.session.pop('direct_ticket_summary', {})
-    events = Event.objects.all()
-    default_event = Event.objects.filter(active=True).first()
+    events = Event.objects.filter(active=True).all()
+    default_event = events.first()
     direct_tickets = DirectTicketTemplate.objects.filter(event_id=default_event.id,
                                                          status=DirectTicketTemplateStatus.AVAILABLE) if default_event else None
     ticket_type = TicketType.objects.filter(event_id=default_event.id,
@@ -187,7 +187,6 @@ def admin_direct_tickets_view(request):
         selected_event_id = request.POST.get('event')
         action = request.POST.get('action')
 
-        print(action)
         if action == "event" and selected_event_id:
             ticket_type = TicketType.objects.filter(event_id=selected_event_id,
                                                     is_direct_type=True).first() if selected_event_id else None
@@ -196,8 +195,6 @@ def admin_direct_tickets_view(request):
             direct_tickets = DirectTicketTemplate.objects.filter(event_id=default_event.id,
                                                                  status=DirectTicketTemplateStatus.AVAILABLE) if default_event else None
         elif action == "order":
-
-            print(request.POST)
 
             email = request.POST.get('email')
             notes = request.POST.get('notes')
@@ -248,7 +245,6 @@ def admin_direct_tickets_buyer_view(request):
         })
 
     if request.method == 'POST':
-        user = User.objects.filter(email=email).first()
         new_order_id = None
         if user is None:
             new_order_id = direct_sales_new_user(email, template_tickets, order_type, notes, request.user)
@@ -257,15 +253,15 @@ def admin_direct_tickets_buyer_view(request):
 
         return redirect('admin_direct_tickets_congrats_view', new_order_id=new_order_id)
 
-    # if request.method == 'GET':
-    return render(request, 'admin/admin_direct_tickets_buyer.html', {
-        'user': user,
-        'email': email,
-        'tickets': template_tickets,
-        'notes': notes,
-        'order_type': order_type
+    elif request.method == 'GET':
+        return render(request, 'admin/admin_direct_tickets_buyer.html', {
+            'user': user,
+            'email': email,
+            'tickets': template_tickets,
+            'notes': notes,
+            'order_type': order_type
 
-    })
+        })
 
 
 @staff_member_required
@@ -296,15 +292,17 @@ class NewTicketInline(admin.StackedInline):
 
 class OrderAdmin(admin.ModelAdmin):
     inlines = [NewTicketInline]
-    readonly_fields = ['key' ,]
+    readonly_fields = ['key', ]
+
 
 @admin.register(DirectTicketTemplate)
 class DirectTicketTemplateAdmin(admin.ModelAdmin):
-    list_display = ['id', 'origin', 'name', 'amount', 'used', 'event']
+    list_display = ['id', 'origin', 'name', 'amount', 'status', 'event']
     list_editable = ['origin', 'name', 'amount', 'event']  # Campos que pueden ser editados directamente
     list_display_links = ['id']  # El campo 'name' será el enlace a los detalles
     list_filter = ['event__name']  # Filtro por evento
     search_fields = ['event__name']  # Buscar por nombre y evento
+
 
 admin.site.register(Order, OrderAdmin)
 admin.site.register(TicketType)
