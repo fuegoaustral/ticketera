@@ -71,7 +71,8 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
 
-    'profile.apps.ProfileConfig',
+    'user_profile.apps.UserProfileConfig',
+
     'tickets.apps.TicketsConfig',
     'events.apps.EventsConfig',
 ]
@@ -97,7 +98,7 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
-            os.path.join(BASE_DIR, 'tickets/templates'),
+            os.path.join(BASE_DIR, 'user_profile/templates'),
 
         ],
         'APP_DIRS': True,
@@ -109,7 +110,6 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'utils.context_processors.current_event',
                 'utils.context_processors.app_url',
-                'utils.context_processors.donation_amount',
                 'utils.context_processors.chatwoot_token',
                 'utils.context_processors.env',
                 'utils.context_processors.chatwoot_identifier_hash',
@@ -189,9 +189,6 @@ MERCADOPAGO = {
     'ACCESS_TOKEN': os.environ.get('MERCADOPAGO_ACCESS_TOKEN'),
     'WEBHOOK_SECRET': os.environ.get('MERCADOPAGO_WEBHOOK_SECRET')
 }
-
-# TODO move this into the event
-DONATION_AMOUNT = 1
 
 EMAIL_HOST = os.environ.get('EMAIL_HOST')
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
@@ -275,7 +272,8 @@ ACCOUNT_USERNAME_REQUIRED = False
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 
 # Login settings
-LOGIN_REDIRECT_URL = APP_URL
+LOGIN_REDIRECT_URL = 'mi_fuego'
+LOGIN_URL = '/mi-fuego/login/'
 ACCOUNT_LOGOUT_REDIRECT_URL = APP_URL
 ACCOUNT_AUTHENTICATION_METHOD = 'email'  # 'username_email', 'username'
 ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 3
@@ -284,7 +282,8 @@ SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
 SOCIALACCOUNT_LOGIN_ON_GET = True
 ACCOUNT_LOGOUT_ON_GET = True
 ACCOUNT_CONFIRM_EMAIL_ON_GET = True
-ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = APP_URL + '/accounts/verification-congrats/'
+ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
+ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = APP_URL + '/mi-fuego/verification-congrats/'
 ACCOUNT_DEFAULT_HTTP_PROTOCOL = (
     "http" if "localhost" in APP_URL or "127.0.0.1" in APP_URL else "https"
 )

@@ -289,6 +289,15 @@ def admin_caja_order_view(request, order_key):
     })
 
 
+class NewTicketInline(admin.StackedInline):
+    model = NewTicket
+    extra = 0
+
+
+class OrderAdmin(admin.ModelAdmin):
+    inlines = [NewTicketInline]
+    readonly_fields = ['key' ,]
+
 @admin.register(DirectTicketTemplate)
 class DirectTicketTemplateAdmin(admin.ModelAdmin):
     list_display = ['id', 'origin', 'name', 'amount', 'used', 'event']
@@ -297,13 +306,7 @@ class DirectTicketTemplateAdmin(admin.ModelAdmin):
     list_filter = ['event__name']  # Filtro por evento
     search_fields = ['event__name']  # Buscar por nombre y evento
 
-
-admin.site.unregister(SocialApp)
-admin.site.unregister(SocialAccount)
-admin.site.unregister(SocialToken)
-admin.site.unregister(EmailAddress)
-
-admin.site.register(Order)
+admin.site.register(Order, OrderAdmin)
 admin.site.register(TicketType)
 admin.site.register(NewTicket)
 admin.site.register(NewTicketTransfer)

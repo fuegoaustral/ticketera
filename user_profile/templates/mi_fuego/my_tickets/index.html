@@ -1,0 +1,49 @@
+{% extends '../../tickets/barbu_base.html' %}
+{% block page_title %}
+  Mi Perfil
+{% endblock page_title %}
+{% block menu %}
+  <li class="nav-item">
+    <a class="nav-link{% if nav_primary == "tickets" %} active{% endif %}"
+       href="{% url "mi_fuego" %}">Bonos</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link{% if nav_primary == "volunteering" %} active{% endif %}{% if not my_ticket %} disabled{% endif %}"
+       href="{% if my_ticket %}{% url 'volunteering' %}{% endif %}">Voluntariado</a>
+  </li>
+{% endblock menu %}
+{% block alerts %}
+  {% if has_unassigned_tickets or has_transfer_pending %}
+    {% if event.transfer_period %}
+      <div class="container-fluid">
+        <div class="container">
+          <div class="alert alert-danger">
+            Tenés
+            {% if has_unassigned_tickets %}
+              bonos sin asignar,
+              {% if has_transfer_pending %}y{% endif %}
+            {% endif %}
+            {% if has_transfer_pending %}
+              {% if not has_unassigned_tickets %}bonos{% endif %}
+              que todavía no fueron aceptados,
+            {% endif %}
+            acordate que <strong>
+            tenés tiempo para transferirlos hasta el
+            {{ event.transfers_enabled_until|date:'d/m' }}
+          </strong>.
+        </div>
+      </div>
+    </div>
+  {% endif %}
+{% endif %}
+{% endblock alerts %}
+{% block submenu %}
+  <li class="nav-item">
+    <a class="nav-link{% if nav_secondary == "my_ticket" %} active{% endif %}"
+       href="{% url 'my_ticket' %}">Mi Bono</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link{% if nav_secondary == "transferable_tickets" %} active{% endif %}"
+       href="{% url 'transferable_tickets' %}">Bonos a transferir</a>
+  </li>
+{% endblock submenu %}
