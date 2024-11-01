@@ -194,13 +194,6 @@ def order_summary(request):
                 "pending": settings.APP_URL + reverse("checkout_payment_callback", kwargs={'order_key': order.key}),
             },
             "auto_return": "approved",
-            "payment_methods": {
-                "excluded_payment_types": [
-                    {
-                        "id": "ticket"
-                    }
-                ],
-            },
             "statement_descriptor": event.name,
             "external_reference": str(order.key),
         }
