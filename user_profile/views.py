@@ -3,10 +3,11 @@ from django.db import transaction
 from django.http import Http404
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
+from django.utils import timezone
 
 from events.models import Event
-from .forms import ProfileStep1Form, ProfileStep2Form, VolunteeringForm
 from tickets.models import NewTicket, NewTicketTransfer
+from .forms import ProfileStep1Form, ProfileStep2Form, VolunteeringForm
 
 
 @login_required
@@ -30,6 +31,7 @@ def my_ticket_view(request):
             "event": event,
             "nav_primary": "tickets",
             "nav_secondary": "my_ticket",
+            'now': timezone.now(),
         },
     )
 
