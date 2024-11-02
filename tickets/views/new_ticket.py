@@ -5,12 +5,13 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.validators import EmailValidator
 from django.db import transaction
-from django.shortcuts import redirect
-from django.urls import reverse
-
-from tickets.models import NewTicket, NewTicketTransfer
 from django.http import HttpResponseNotAllowed, HttpResponseForbidden, HttpResponse, HttpResponseBadRequest, \
     JsonResponse
+from django.shortcuts import redirect
+from django.urls import reverse
+from django.utils import timezone
+
+from tickets.models import NewTicket, NewTicketTransfer
 from utils.email import send_mail
 
 
@@ -170,6 +171,9 @@ def unassign_ticket(request, ticket_key):
         return HttpResponseForbidden()
 
     if not ticket.event.transfer_period():
+        return HttpResponseBadRequest('')
+
+    if not ticket.event.transfers_enabled_until < timezone.now():
         return HttpResponseBadRequest('')
 
     ticket.volunteer_ranger = None

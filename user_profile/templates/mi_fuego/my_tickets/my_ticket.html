@@ -1,9 +1,9 @@
 {% extends 'mi_fuego/my_tickets/index.html' %}
 {% load static %}
 {% block actions %}
-  {% if my_ticket %}
-  <button class="btn btn-secondary" id="unAssignTicket">Transferir mi bono</button>
-  {% endif %}
+{% if my_ticket  and event.transfers_enabled_until >= now %}
+    <button class="btn btn-secondary" id="unAssignTicket">Transferir mi bono</button>
+{% endif %}
   <a class="btn btn-primary" href="{% url "select_tickets"%}">Comprar Bonos</a>
 {% endblock actions %}
 {% block truecontent %}
