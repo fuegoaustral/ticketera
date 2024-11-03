@@ -61,6 +61,9 @@ def direct_sales_existing_user(user, template_tickets, order_type, notes, reques
         send_mail(
             template_name='new_transfer_success',
             recipient_list=[user.email],
+            context={
+                'ticket_count': emitted_tickets,
+            }
         )
 
         return order.id
