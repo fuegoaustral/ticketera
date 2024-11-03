@@ -190,4 +190,3 @@ def unassign_ticket(request, ticket_key):
     ticket.save()
 
     return redirect(reverse('transferable_tickets'))
-
