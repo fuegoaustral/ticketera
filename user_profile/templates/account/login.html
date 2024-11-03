@@ -20,14 +20,10 @@
                                     height: 20px">
                         <span>Inicia sesión con Google</span>
                     </a>
-                    <div class="d-flex align-items-center w-100">
-                        <div class="flex-grow-1 border-top"
-                             style="border-color: #B2B2B2;
-                                    border-style: solid 1px"></div>
+                    <div class="d-flex align-items-center w-100 mb-3">
+                        <div class="flex-grow-1 border-top"></div>
                         <span class="mx-3">o</span>
-                        <div class="flex-grow-1 border-top"
-                             style="border-color: #B2B2B2;
-                                    border-style: solid 1px"></div>
+                        <div class="flex-grow-1 border-top"></div>
                     </div>
                     <form method="post" action="{% url 'account_login' %}" autocomplete="off">
                         {% csrf_token %}
@@ -53,7 +49,7 @@
                             {{ form.remember_me.label_tag }}
                             <button type="submit" class="btn btn-primary">Ingresar</button>
                         </div>
-                        <div class="text-center mt-2">
+                        <div class="text-center mt-3">
                             <a class="text-primary" href="{% url 'account_reset_password' %}">Olvidé mi contraseña</a>
                         </div>
                     </form>

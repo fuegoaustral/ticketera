@@ -13,75 +13,74 @@
 {% block innercontent %}
     <div class="row justify-content-center">
         <div class="col-md-7">
-            <div class="card text-center">
-                <div class="card-body d-flex justify-content-between flex-column align-items-center main-card-spacing gap-3">
-                    <div>Paso 2 de 3</div>
-                    <h1>Verificá tu teléfono</h1>
-                    <form method="post" id="profileForm">
-                        {% csrf_token %}
-                        <div class="form-group d-flex flex-column w-100 gap-3">
-                            {% if form.non_field_errors %}
-                                <div class="alert alert-danger" role="alert">
-                                    {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+            <div class="main-card d-flex justify-content-between flex-column align-items-center main-card-spacing gap-3">
+                <div>Paso 2 de 3</div>
+                <h1>Verificá tu teléfono</h1>
+                <form method="post" id="profileForm">
+                    {% csrf_token %}
+                    <div class="form-group d-flex flex-column w-100 gap-3">
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger" role="alert">
+                                {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                        <!-- Phone Input -->
+                        <label for="phone">
+                            <div class="mb-1"># de teléfono</div>
+                            <!-- Hidden input to store the full international phone number -->
+                            <input type="hidden" id="fullPhoneNumber" name="phone">
+                            <input type="tel"
+                                   id="phone"
+                                   class="phone-input form-control"
+                                   name="phone_input"
+                                   value="{{ form.phone.value|default:profile.phone }}"
+                                   {% if code_sent %}disabled{% endif %}>
+                            <div class="input-hint">
+                                Ingresá tu teléfono sin 0 ni 15. Por ejemplo: 11 030 3456
+                            </div>
+                            <!-- Disable if code sent -->
+                            {% if form.phone.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.phone.errors %}{{ error }}{% endfor %}
                                 </div>
                             {% endif %}
-                            <!-- Phone Input -->
-                            <label for="phone">
-                                Teléfono
-                                <br />
-                                <input type="tel"
-                                       id="phone"
-                                       class="phone-input"
-                                       name="phone_input"
-                                       style="width: 100%"
-                                       value="{{ form.phone.value|default:profile.phone }}"
-                                       {% if code_sent %}disabled{% endif %}>
-                                <!-- Disable if code sent -->
-                                {% if form.phone.errors %}
+                        </label>
+                        {% if code_sent %}
+                            <!-- Verification Code Input -->
+                            <label class="mt-3" for="code">
+                                <div class="mb-1">Código de verificación</div>
+                                <input type="text"
+                                       class="form-control"
+                                       id="code"
+                                       name="code"
+                                       placeholder="Ingresa el código"
+                                       value="{{ form.code.value|default:'' }}">
+                                {% if form.code.errors %}
                                     <div class="text-danger">
-                                        {% for error in form.phone.errors %}{{ error }}{% endfor %}
+                                        {% for error in form.code.errors %}{{ error }}{% endfor %}
                                     </div>
                                 {% endif %}
                             </label>
-                            {% if code_sent %}
-                                <!-- Verification Code Input -->
-                                <label class="mt-3" for="code">
-                                    Código de verificación
-                                    <input type="text"
-                                           class="form-control"
-                                           id="code"
-                                           name="code"
-                                           placeholder="Ingresa el código"
-                                           value="{{ form.code.value|default:'' }}">
-                                    {% if form.code.errors %}
-                                        <div class="text-danger">
-                                            {% for error in form.code.errors %}{{ error }}{% endfor %}
-                                        </div>
-                                    {% endif %}
-                                </label>
-                                {% if error_message %}<div class="text-danger mt-2">{{ error_message }}</div>{% endif %}
-                                <!-- Verify Code Button -->
-                                <input type="hidden" name="verify_code" value="1">
-                                <button id="verifyButton"
-                                        type="submit"
-                                        name="verify_code"
-                                        class="btn btn-primary mt-3">Verificar código</button>
-                                <div class="text-center mt-2">
-                                    <a href="#" onclick="resendCode()" class="text-primary">Reenviar código</a>
-                                </div>
-                            {% else %}
-                                <!-- Send Code Button -->
-                                <input type="hidden" name="send_code" value="1">
-                                <button id="sendButton"
-                                        type="submit"
-                                        name="send_code"
-                                        class="btn btn-primary">Enviar código de verificación</button>
-                            {% endif %}
-                            <!-- Hidden input to store the full international phone number -->
-                            <input type="hidden" id="fullPhoneNumber" name="phone">
-                        </div>
-                    </form>
-                </div>
+                            {% if error_message %}<div class="text-danger mt-2">{{ error_message }}</div>{% endif %}
+                            <!-- Verify Code Button -->
+                            <input type="hidden" name="verify_code" value="1">
+                            <button id="verifyButton"
+                                    type="submit"
+                                    name="verify_code"
+                                    class="btn btn-primary mt-3">Verificar código</button>
+                            <div class="text-center mt-2">
+                                <a href="#" onclick="resendCode()" class="text-primary">Reenviar código</a>
+                            </div>
+                        {% else %}
+                            <!-- Send Code Button -->
+                            <input type="hidden" name="send_code" value="1">
+                            <button id="sendButton"
+                                    type="submit"
+                                    name="send_code"
+                                    class="btn btn-primary mt-3">Enviar código de verificación</button>
+                        {% endif %}
+                    </div>
+                </form>
             </div>
         </div>
     </div>

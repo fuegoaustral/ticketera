@@ -16,18 +16,13 @@
                         <img src="{% static 'img/google.png' %}"
                              alt="Google"
                              class="me-2"
-                             style="width: 20px;
-                                    height: 20px">
+                             style="width: 20px; height: 20px">
                         <span>Registrate con Google</span>
                     </a>
-                    <div class="d-flex align-items-center w-100">
-                        <div class="flex-grow-1 border-top"
-                             style="border-color: #B2B2B2;
-                                    border-style: solid 1px"></div>
+                    <div class="d-flex align-items-center w-100 mb-3">
+                        <div class="flex-grow-1 border-top"></div>
                         <span class="mx-3">o</span>
-                        <div class="flex-grow-1 border-top"
-                             style="border-color: #B2B2B2;
-                                    border-style: solid 1px"></div>
+                        <div class="flex-grow-1 border-top"></div>
                     </div>
                     <form method="post" action="{% url 'account_signup' %}" autocomplete="off">
                         {% csrf_token %}

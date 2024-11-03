@@ -3,13 +3,11 @@
 {% block innercontent %}
     <div class="row justify-content-center">
         <div class="col-md-7">
-            <div class="card text-center">
-                <div class="card-body d-flex justify-content-between flex-column align-items-center main-card-spacing gap-3">
-                    <h1>¡Gracias por completar tu perfil! ❤️</h1>
-                    <div class="text-center mb-3">Con tu usuario podras acceder a tus bonos, y mucho más.</div>
-                    <div class="text-center">
-                        <a class="btn btn-primary" href="{% url 'my_ticket' %}">Ir a mi perfil</a>
-                    </div>
+            <div class="main-card d-flex flex-column main-card-spacing gap-3">
+                <h1 class="text-center" style="margin-bottom: 0">¡Gracias por completar tu perfil! ❤️</h1>
+                <div class="text-center mb-3">Con tu usuario podrás acceder a tus bonos, y mucho más.</div>
+                <div class="text-center">
+                    <a class="btn btn-primary" href="{% url 'my_ticket' %}">Ir a mi perfil</a>
                 </div>
             </div>
         </div>
