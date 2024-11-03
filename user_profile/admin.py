@@ -15,7 +15,7 @@ class ProfileInline(admin.StackedInline):
 class CustomUserAdmin(UserAdmin):
     inlines = (ProfileInline,)
     list_display = (
-        'is_staff', 'username', 'email', 'first_name', 'last_name', 'get_phone', 'get_document_type',
+        'email', 'is_staff', 'is_superuser', 'first_name', 'last_name', 'get_phone', 'get_document_type',
         'get_document_number')
 
     def get_phone(self, instance):

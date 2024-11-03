@@ -6,6 +6,7 @@ from allauth.account.forms import ResetPasswordForm
 from allauth.account.models import EmailAddress
 from django.contrib import admin
 from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import permission_required
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.http import HttpResponse, JsonResponse
@@ -26,6 +27,7 @@ admin.site.site_header = 'Bonos de Fuego Austral'
 
 
 @staff_member_required
+@permission_required("tickets.can_sell_tickets")
 def email_has_account(request):
     if request.method == 'POST':
 
@@ -50,6 +52,7 @@ def email_has_account(request):
 
 
 @staff_member_required
+@permission_required("tickets.can_sell_tickets")
 def admin_caja_view(request):
     events = Event.objects.all()
     default_event = Event.objects.filter(active=True).first()
@@ -176,6 +179,7 @@ def admin_caja_view(request):
 
 
 @staff_member_required
+@permission_required("tickets.can_sell_tickets")
 def admin_direct_tickets_view(request):
     direct_ticket_summary = request.session.pop('direct_ticket_summary', {})
     events = Event.objects.filter(active=True).all()
@@ -223,6 +227,7 @@ def admin_direct_tickets_view(request):
 
 
 @staff_member_required
+@permission_required("tickets.can_sell_tickets")
 def admin_direct_tickets_buyer_view(request):
     direct_ticket_summary = request.session['direct_ticket_summary']
 
@@ -267,6 +272,7 @@ def admin_direct_tickets_buyer_view(request):
 
 
 @staff_member_required
+@permission_required("tickets.can_sell_tickets")
 def admin_direct_tickets_congrats_view(request, new_order_id):
     tickets = NewTicket.objects.filter(order_id=new_order_id).all()
     order = Order.objects.get(id=new_order_id)
@@ -317,7 +323,6 @@ class DirectTicketTemplateResource(resources.ModelResource):
 class DirectTicketTemplateAdmin(ImportExportModelAdmin):
     resource_classes = [DirectTicketTemplateResource]
     list_display = ['id', 'origin', 'name', 'amount', 'status', 'event']
-    list_editable = ['origin', 'name', 'amount', 'event']  # Campos que pueden ser editados directamente
     list_display_links = ['id']  # El campo 'name' será el enlace a los detalles
     list_filter = ['event__name']  # Filtro por evento
     search_fields = ['event__name']  # Buscar por nombre y evento
@@ -329,7 +334,13 @@ class DirectTicketTemplateAdmin(ImportExportModelAdmin):
         return kwargs
 
 
+class TicketTypeAdmin(admin.ModelAdmin):
+    list_display = ['name', 'event', 'price', 'is_direct_type', 'ticket_count', 'date_from', 'date_to']
+    list_filter = ['event__name', 'is_direct_type']
+    search_fields = ['name', 'event__name']
+
+
 admin.site.register(Order, OrderAdmin)
-admin.site.register(TicketType)
+admin.site.register(TicketType, TicketTypeAdmin)
 admin.site.register(NewTicket)
 admin.site.register(NewTicketTransfer)
