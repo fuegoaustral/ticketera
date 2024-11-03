@@ -1,21 +1,20 @@
 {% extends 'emails/base.html' %}
-{% block subject %}🔥¡Te enviaron un bono de Fuego Austral!🔥 {% endblock %}
+{% block subject %}🔥¡Te enviaron un bono de Fuego Austral!🔥{% endblock %}
 {% block title %}
     Transferencia de Bono<br/>
 {% endblock %}
 {% block content %}
     <p>
-        Te han enviado un bono de Fuego Austral. Podes verlo entrado en el siguiente link:
+        Te han enviado {{ ticket_count }}
+        {% if ticket_count > 1 %}bonos{% else %}bono{% endif %}
+        de Fuego Austral. Podés verlo{% if ticket_count > 1 %}s{% endif %} entrando en el siguiente enlace:
     </p>
 
-    {% include 'emails/partials/btn.html' with label='Mis Bonos' href='/mi-fuego/mis-bonos'  domain=domain %}
+    {% include 'emails/partials/btn.html' with label='Mis Bonos' href='/mi-fuego/mis-bonos' domain=domain %}
 
     <p>
-    </p>
-
-    <p>
-        Cualquier problema que tengas con tu bono, podés escribirnos a <a href="mailto:bonos@fuegoaustral.org">bonos@fuegoaustral.org</a>
-        o chatearnos desde la web.
+        Cualquier problema que tengas con tu{% if ticket_count > 1 %}s bonos{% else %} bono{% endif %}, podés escribirnos a
+        <a href="mailto:bonos@fuegoaustral.org">bonos@fuegoaustral.org</a> o chatearnos desde la web.
     </p>
     <p>
         La experiencia será lo que hagamos de ella.

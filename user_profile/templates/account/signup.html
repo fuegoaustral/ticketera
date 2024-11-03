@@ -33,7 +33,7 @@
                                         {% for error in errors %}
                                             {{ field }}: {{ error }}
                                         {% endfor %}
-                                        {% if not forloop.last %}<br />{% endif %}
+                                        {% if not forloop.last %}<br/>{% endif %}
                                     {% endfor %}
                                 </div>
                             {% endif %}
@@ -67,10 +67,19 @@
         </div>
     </div>
     <script>
+        window.onload = function () {
+            const email = new URLSearchParams(window.location.search).get('email');
+            if (email) {
+                document.getElementById('id_email').value = email;
+            }
+        };
+
         document.getElementById('signup-form').addEventListener('submit', function () {
             var submitButton = document.getElementById('submit-button');
             submitButton.disabled = true;
             submitButton.innerHTML = 'Cargando...';
         });
+
+
     </script>
 {% endblock %}

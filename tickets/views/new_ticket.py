@@ -1,4 +1,5 @@
 import json
+from urllib.parse import urlencode
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
@@ -58,12 +59,14 @@ def transfer_ticket(request):
         )
         new_ticket_transfer.save()
         # send email
+
         send_mail(
             template_name='new_transfer_no_account',
             recipient_list=[email],
             context={
+                'ticket_count': 1,
                 'destination_email': email,
-                'sign_up_link': reverse('account_signup')
+                'sign_up_link': f"{reverse('account_signup')}?{urlencode({'email': email})}"
             }
         )
     else:
@@ -95,6 +98,9 @@ def transfer_ticket(request):
         send_mail(
             template_name='new_transfer_success',
             recipient_list=[email],
+            context={
+                'ticket_count': 1,
+            }
         )
 
     return JsonResponse({'status': 'OK', 'destination_user_exists': destination_user_exists})

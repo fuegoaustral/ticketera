@@ -1,3 +1,5 @@
+from urllib.parse import urlencode
+
 from django.db import transaction
 from django.urls import reverse
 
@@ -59,6 +61,9 @@ def direct_sales_existing_user(user, template_tickets, order_type, notes, reques
         send_mail(
             template_name='new_transfer_success',
             recipient_list=[user.email],
+            context={
+                'ticket_count': emitted_tickets,
+            }
         )
 
         return order.id
@@ -119,8 +124,9 @@ def direct_sales_new_user(destination_email, template_tickets, order_type, notes
             template_name='new_transfer_no_account',
             recipient_list=[destination_email],
             context={
+                'ticket_count': emitted_tickets,
                 'destination_email': destination_email,
-                'sign_up_link': reverse('account_signup')
+                'sign_up_link': f"{reverse('account_signup')}?{urlencode({'email': destination_email})}"
             }
         )
         return order.id
