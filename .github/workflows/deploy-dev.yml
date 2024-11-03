@@ -48,3 +48,8 @@ jobs:
         run: |
           source venv/bin/activate
           zappa manage dev migrate
+
+      - name: Run Collectstatic
+        run: |
+          source venv/bin/activate
+          zappa manage dev collectstatic --noinput
