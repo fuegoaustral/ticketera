@@ -1,64 +1,61 @@
-* {
-  font-family: "Inter", sans-serif;
-  font-optical-sizing: auto;
-  font-weight: 400;
-  font-style: normal;
-  font-size: 16px;
-  color: #1e1e1e;
-}
-a,
-a:visited {
-  color: #1e1e1e;
+:root {
+  --text-color: #1e1e1e;
 }
 
 body {
-  background-color: #fff;
+  font-family: "Inter", sans-serif;
+  color: var(--text-color);
+}
+
+img {
+  max-width: 100%;
+  object-fit: cover;
 }
 
 header,
 footer {
   background: #1d0402;
-  padding: 2.5rem 5rem !important;
+  padding: 40px 80px;
+}
+header.container {
+  padding: 40px 80px;
 }
 
-header {
+.logo {
+  color: #fff !important;
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.nav-link {
+  color: #fff !important;
+  padding: 0 1rem;
+}
+
+.nav-link.btn-secondary {
+  color: #1e1e1e !important;
+  padding: 1rem 2rem;
+}
+
+.nav-item {
   display: flex;
-  gap: 0.625rem;
+  align-items: center;
+}
 
-  .logo {
-    color: #fff !important;
-    font-size: 1.25rem;
-    font-weight: 600;
-    text-decoration: none;
-  }
-
-  .nav-link {
-    color: #fff !important;
-    padding: 0 1rem;
-  }
-
-  .nav-link.btn-secondary {
-    color: #1e1e1e !important;
-    padding: 1rem 2rem;
-  }
-
-  .nav-item {
-    display: flex;
-    align-items: center;
-  }
-
-  .nav-item:not(.no-border):not(:first-child) .nav-link {
-    border-left: 1px solid #fff;
-  }
+.nav-item:not(.no-border):not(:first-child) .nav-link {
+  border-left: 1px solid #fff;
 }
 
 .hero {
+  display: block;
   padding: 0;
 }
 
 .home-section {
   margin-top: 6rem;
   margin-bottom: 6rem;
+
   h1 {
     font-size: 4rem;
     text-align: left;
@@ -66,6 +63,10 @@ header {
   ul {
     margin: 0;
   }
+}
+
+.rich-text a {
+  color: var(--text-color);
 }
 
 .donation-section {
@@ -76,12 +77,12 @@ header {
   margin-bottom: 2rem;
 }
 
-.donation-section-title {
+.section-title {
   font-weight: 600;
   font-size: 24px;
 }
 
-.donation-section-text {
+.section-text {
   font-size: 20px;
 }
 
