@@ -166,6 +166,7 @@ def assign_ticket(request, ticket_key):
 
 @login_required()
 def unassign_ticket(request, ticket_key):
+
     if request.method != 'GET':
         return HttpResponseNotAllowed()
 
@@ -179,7 +180,7 @@ def unassign_ticket(request, ticket_key):
     if not ticket.event.transfer_period():
         return HttpResponseBadRequest('')
 
-    if not ticket.event.transfers_enabled_until < timezone.now():
+    if ticket.event.transfers_enabled_until < timezone.now():
         return HttpResponseBadRequest('')
 
     ticket.volunteer_ranger = None
@@ -189,4 +190,5 @@ def unassign_ticket(request, ticket_key):
 
     ticket.save()
 
-    return redirect(reverse('my_ticket'))
+    return redirect(reverse('transferable_tickets'))
+
