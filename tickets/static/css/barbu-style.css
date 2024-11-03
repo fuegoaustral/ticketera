@@ -4,7 +4,11 @@
   font-weight: 400;
   font-style: normal;
   font-size: 16px;
-  color: #1e1e1e !important;
+  color: #1e1e1e;
+}
+a,
+a:visited {
+  color: #1e1e1e;
 }
 
 body {
@@ -72,6 +76,15 @@ header {
   margin-bottom: 2rem;
 }
 
+.donation-section-title {
+  font-weight: 600;
+  font-size: 24px;
+}
+
+.donation-section-text {
+  font-size: 20px;
+}
+
 footer {
   margin-top: 4rem;
   border-radius: 2rem;
@@ -93,6 +106,10 @@ footer {
 .btn {
   padding: 1rem 2rem;
   border: 1px solid transparent; /* New primary border color */
+  color: #1e1e1e;
+}
+.btn:hover {
+  color: #1e1e1e;
 }
 
 .btn-sm {
