@@ -1,11 +1,33 @@
 :root {
   --text-color: #1e1e1e;
+  --bs-emphasis-color: var(--text-color);
   --bs-border-radius: 0.5rem;
   --bs-border-color: #b2b2b2;
+  --primary-color: #289e6d;
+  --primary-color-lighter: #33b37d;
+}
+.btn-primary {
+  --bs-btn-bg: var(--primary-color);
+  --bs-btn-border-color: var(--primary-color);
+  --bs-btn-hover-bg: var(--primary-color-lighter);
+  --bs-btn-hover-border-color: var(--primary-color-lighter);
+  --bs-btn-disabled-bg: var(--primary-color-lighter);
+  --bs-btn-disabled-border-color: var(--primary-color-lighter);
+  --bs-btn-active-border-color: var(--primary-color-lighter);
+  --bs-btn-active-bg: var(--primary-color-lighter);
+}
+.btn-secondary {
+  --bs-btn-border-color: #d9d9d9;
+  --bs-btn-hover-bg: #eee;
+  --bs-btn-bg: #fff;
 }
 
 body {
   font-family: "Inter", sans-serif;
+  color: var(--text-color);
+}
+
+input {
   color: var(--text-color);
 }
 
@@ -125,10 +147,11 @@ footer a {
 
 .btn {
   padding: 1rem 2rem;
-  border: 1px solid transparent; /* New primary border color */
+  border: 1px solid var(--bs-btn-border-color); /* New primary border color */
   color: #1e1e1e;
   height: 52px;
   line-height: 1;
+  transition: all 0.3s ease;
 }
 .btn:hover {
   color: #1e1e1e;
@@ -140,19 +163,16 @@ footer a {
 
 .btn-primary,
 .btn-primary:hover {
-  background-color: #289e6d;
   border: 1px solid transparent;
   color: #fff !important;
 }
 
 .btn-secondary,
 .btn-secondary:hover {
-  background-color: #fff;
   border: 1px solid #d9d9d9;
 }
 
 .btn:hover {
-  /* background-color: #d9d9d9; New primary background color */
   filter: brightness(85%);
 }
 .btn-google {
@@ -163,6 +183,11 @@ footer a {
 .btn-google:hover {
   filter: none;
   background-color: #e5e5e5;
+}
+.btn-link {
+  padding: 0;
+  height: initial;
+  text-underline-offset: 0.125rem;
 }
 
 h1 {
@@ -198,6 +223,10 @@ dl {
 
 .table-responsive {
   table {
+    tr {
+      height: 51px;
+      line-height: 1;
+    }
     th {
       background-color: #f3f4f5;
       font-weight: 600;
@@ -322,7 +351,7 @@ dl {
   }
 
   .alert {
-    margin-bottom: 3rem;
+    margin-bottom: 2rem;
   }
 }
 
@@ -562,4 +591,9 @@ dl {
   font-size: 0.75rem;
   opacity: 0.75;
   margin-top: 0.25rem;
+}
+
+.card-title {
+  margin-top: 1rem;
+  margin-bottom: 2rem;
 }

@@ -1,6 +1,7 @@
 .quantity-controls {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   width: 100%;
 }
 .quantity-controls > * {
@@ -8,19 +9,21 @@
   height: 32px;
 }
 .quantity-controls button {
-  border-radius: 0 !important;
+  font-size: 1.25rem;
+  border: none;
+  background: transparent;
+  color: #b3b3b3;
 }
-.quantity-controls button:first-child {
-  border-right: none !important;
+.quantity-controls button:hover {
+  color: #1d0402;
 }
-.quantity-controls button:last-child {
-  border-left: none !important;
-}
+
 .quantity-controls input {
+  border: 1px solid #d9d9d9;
   text-align: center;
   font-weight: 400;
-  border-radius: 0 !important;
-  width: 48px;
+  border-radius: 4px;
+  width: 28px;
   /* hide arrows */
   -moz-appearance: textfield;
   -webkit-appearance: textfield;
@@ -41,9 +44,4 @@
 
 form .table > :not(caption) > * > * {
   padding: 1rem 2rem !important;
-}
-
-.btn-back {
-  background: #e6e6e6;
-  border-color: #ddd;
 }
