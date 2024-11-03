@@ -3,88 +3,86 @@
 {% block innercontent %}
     <div class="row justify-content-center">
         <div class="col-md-7">
-            <div class="card text-center">
-                <div class="card-body d-flex justify-content-between flex-column align-items-center empty-results gap-3">
-                    <div>Paso 1 de 3</div>
-                    <h1>Completa tu perfil</h1>
-                    <form method="post" id="profile-form">
-                        {% csrf_token %}
-                        <div class="form-group d-flex flex-column w-100 gap-3">
-                            {% if form.non_field_errors %}
-                                <div class="alert alert-danger role="alert">
-                                    {% for error in form.non_field_errors %}{{ error }}{% endfor %}
-                                </div>
-                            {% endif %}
-                            <!-- First Name -->
-                            <label for="first_name">
-                                Nombre
-                                <input type="text"
-                                       class="form-control"
-                                       id="first_name"
-                                       name="first_name"
-                                       placeholder="Ingresa tu nombre"
-                                       value="{{ form.first_name.value|default_if_none:'' }}">
-                            {% if form.first_name.errors %}
-                                <div class="text-danger">
-                                    {% for error in form.first_name.errors %}{{ error }}{% endfor %}
-                                </div>
-                            {% endif %}
-                            </label>
-                            <!-- Last Name -->
-                            <label for="last_name" class="mt-3">
-                                Apellido
-                                <input type="text"
-                                       class="form-control"
-                                       id="last_name"
-                                       name="last_name"
-                                       placeholder="Ingresa tu apellido"
-                                       value="{{ form.last_name.value|default_if_none:'' }}">
-                            {% if form.last_name.errors %}
-                                <div class="text-danger">
-                                    {% for error in form.last_name.errors %}{{ error }}{% endfor %}
-                                </div>
-                            {% endif %}
-                            </label>
-                            <!-- Document Type -->
-                            <label for="document_type" class="mt-3">
-                                Tipo de documento
-                                <select class="form-select" id="document_type" name="document_type">
-                                    <option value="DNI"
-                                            {% if form.document_type.value == 'DNI' %}selected{% endif %}>DNI</option>
-                                    <option value="PASSPORT"
-                                            {% if form.document_type.value == 'PASSPORT' %}selected{% endif %}>
-                                        Pasaporte
-                                    </option>
-                                    <option value="OTHER"
-                                            {% if form.document_type.value == 'OTHER' %}selected{% endif %}>
-                                        Otro
-                                    </option>
-                                </select>
-                            {% if form.document_type.errors %}
-                                <div class="text-danger">
-                                    {% for error in form.document_type.errors %}{{ error }}{% endfor %}
-                                </div>
-                            {% endif %}
-                            </label>
-                            <!-- Document Number -->
-                            <label for="document_number" class="mt-3">
-                                Número de documento
-                                <input type="text"
-                                       class="form-control"
-                                       id="document_number"
-                                       name="document_number"
-                                       placeholder="Ingresa tu número de documento"
-                                       value="{{ form.document_number.value|default_if_none:'' }}">
-                            {% if form.document_number.errors %}
-                                <div class="text-danger">
-                                    {% for error in form.document_number.errors %}{{ error }}{% endfor %}
-                                </div>
-                            {% endif %}
-                            </label>
-                            <button type="submit" class="btn btn-primary">Siguiente</button>
-                        </div>
-                    </form>
-                </div>
+            <div class="main-card d-flex justify-content-between flex-column align-items-center main-card-spacing gap-3">
+                <div>Paso 1 de 3</div>
+                <h1>Completa tu perfil</h1>
+                <form method="post" id="profile-form">
+                    {% csrf_token %}
+                    <div class="form-group d-flex flex-column w-100 gap-3">
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger role="alert">
+                                {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                        <!-- First Name -->
+                        <label for="first_name">
+                            <div class="mb-1">Nombre/s</div>
+                            <input type="text"
+                                   class="form-control"
+                                   id="first_name"
+                                   name="first_name"
+                                   placeholder="Ingresa tu nombre"
+                                   value="{{ form.first_name.value|default_if_none:'' }}">
+                        {% if form.first_name.errors %}
+                            <div class="text-danger">
+                                {% for error in form.first_name.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                        </label>
+                        <!-- Last Name -->
+                        <label for="last_name">
+                            <div class="mb-1">Apellido/s</div>
+                            <input type="text"
+                                   class="form-control"
+                                   id="last_name"
+                                   name="last_name"
+                                   placeholder="Ingresa tu apellido"
+                                   value="{{ form.last_name.value|default_if_none:'' }}">
+                        {% if form.last_name.errors %}
+                            <div class="text-danger">
+                                {% for error in form.last_name.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                        </label>
+                        <!-- Document Type -->
+                        <label for="document_type">
+                            <div class="mb-1">Tipo de documento</div>
+                            <select class="form-select" id="document_type" name="document_type">
+                                <option value="DNI"
+                                        {% if form.document_type.value == 'DNI' %}selected{% endif %}>DNI</option>
+                                <option value="PASSPORT"
+                                        {% if form.document_type.value == 'PASSPORT' %}selected{% endif %}>
+                                    Pasaporte
+                                </option>
+                                <option value="OTHER"
+                                        {% if form.document_type.value == 'OTHER' %}selected{% endif %}>
+                                    Otro
+                                </option>
+                            </select>
+                        {% if form.document_type.errors %}
+                            <div class="text-danger">
+                                {% for error in form.document_type.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                        </label>
+                        <!-- Document Number -->
+                        <label for="document_number">
+                            <div class="mb-1">Número de documento</div>
+                            <input type="text"
+                                   class="form-control"
+                                   id="document_number"
+                                   name="document_number"
+                                   placeholder="Ingresa tu número de documento"
+                                   value="{{ form.document_number.value|default_if_none:'' }}">
+                        {% if form.document_number.errors %}
+                            <div class="text-danger">
+                                {% for error in form.document_number.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                        </label>
+                        <button type="submit" class="btn btn-primary">Siguiente</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
