@@ -2,7 +2,7 @@
 {% block truecontent %}
     <div class="truecontent">
         <div class="card text-center mx-extra">
-            <div class="card-body d-flex justify-content-between flex-column align-items-center empty-results gap-4"
+            <div class="card-body d-flex justify-content-between flex-column align-items-center main-card-spacing gap-4"
                  id="loading-section">
                 <h3>Procesando tu pago...</h3>
                 <div>Estamos verificando el estado de tu pago. Por favor, espera un momento.</div>
@@ -10,7 +10,7 @@
                     <span class="sr-only">Loading...</span>
                 </div>
             </div>
-            <div class="card-body d-flex justify-content-between flex-column align-items-center empty-results gap-4"
+            <div class="card-body d-flex justify-content-between flex-column align-items-center main-card-spacing gap-4"
                  id="success-section"
                  style="display: none !important;">
                 <h3>¡Pago Completado con éxito!</h3>
@@ -22,7 +22,7 @@
                 <a href="{% url 'my_ticket' %}"
                    class="btn btn-primary mt-4 text-white text-decoration-none">Ir a Bonos</a>
             </div>
-            <div class="card-body d-flex justify-content-between flex-column align-items-center empty-results gap-4"
+            <div class="card-body d-flex justify-content-between flex-column align-items-center main-card-spacing gap-4"
                  id="refunded-section"
                  style="display: none !important;">
                 <h3>Pago Devuelto</h3>
