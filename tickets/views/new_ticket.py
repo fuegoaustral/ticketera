@@ -166,7 +166,6 @@ def assign_ticket(request, ticket_key):
 
 @login_required()
 def unassign_ticket(request, ticket_key):
-
     if request.method != 'GET':
         return HttpResponseNotAllowed()
 
