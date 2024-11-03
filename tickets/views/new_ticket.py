@@ -98,6 +98,9 @@ def transfer_ticket(request):
         send_mail(
             template_name='new_transfer_success',
             recipient_list=[email],
+            context={
+                'ticket_count': 1,
+            }
         )
 
     return JsonResponse({'status': 'OK', 'destination_user_exists': destination_user_exists})
