@@ -5,7 +5,8 @@
 {% endblock %}
 {% block content %}
     <p>
-        Te han enviado {{ ticket_count }} bono(s) de Fuego Austral. Para completar la transferencia y recibir tu(s) bono,
+        Te han enviado {{ ticket_count }} {% if ticket_count > 1 %}bonos{% else %}bono{% endif %}  de Fuego Austral.
+        Para completar la transferencia y recibir tu{% if ticket_count > 1 %}s bonos{% else %} bono{% endif %},
         necesitas crear una cuenta en nuestra plataforma.
     </p>
 
@@ -22,7 +23,7 @@
     </p>
 
     <p>
-        Cualquier problema que tengas con tu(s) bono(s), podés escribirnos a <a href="mailto:bonos@fuegoaustral.org">bonos@fuegoaustral.org</a>
+        Cualquier problema que tengas con tu{% if ticket_count > 1 %}s bonos{% else %} bono{% endif %}, podés escribirnos a <a href="mailto:bonos@fuegoaustral.org">bonos@fuegoaustral.org</a>
         o chatearnos desde la web.
     </p>
     <p>
