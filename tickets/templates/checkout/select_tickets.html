@@ -17,7 +17,7 @@
                 <h1 class="mb-4">Bonos {{ event.name }}</h1>
                 <div class="alert alert-info w-100 text-left" role="alert">
                     {% if event.max_tickets_per_order %}Podés comprar hasta <strong>{{ available_tickets }}</strong> bonos.{% endif %}
-                    Al finalizar la compra, podras transferir los bonos a otras personas.
+                    Al finalizar la compra, podrás transferir los bonos a otras personas.
                 </div>
                 <form method="post"
                       action="{% url 'select_tickets' %}"
