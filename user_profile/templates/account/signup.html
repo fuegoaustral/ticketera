@@ -12,14 +12,7 @@
                         <a href="{% url 'account_login' %}" class="text-primary">Inicia sesión</a>
                     </div>
                     <a href="{% provider_login_url 'google' %}"
-                       class="btn btn-light w-100 d-flex align-items-center justify-content-center"
-                       style="background-color: white;
-                              border: 1px solid #ccc;
-                              color: #333;
-                              text-decoration: none;
-                              transition: background-color 0.3s, border-color 0.3s, color 0.3s"
-                       onmouseover="this.style.backgroundColor='#f8f9fa'; this.style.color='#000';"
-                       onmouseout="this.style.backgroundColor='white'; this.style.color='#333';">
+                       class="btn btn-google w-100 d-flex align-items-center justify-content-center">
                         <img src="{% static 'img/google.png' %}"
                              alt="Google"
                              class="me-2"
