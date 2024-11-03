@@ -4,7 +4,7 @@
 {% if my_ticket  and event.transfers_enabled_until >= now %}
     <button class="btn btn-secondary" id="unAssignTicket">Transferir mi bono</button>
 {% endif %}
-  <a class="btn btn-primary" href="{% url "select_tickets"%}">Comprar Bonos</a>
+  <a class="btn btn-primary" href="{% url "select_tickets"%}">Comprar Bono</a>
 {% endblock actions %}
 {% block truecontent %}
   {% if my_ticket %}
@@ -16,7 +16,7 @@
               Fuego Austral es un encuentro participativo y todos tenemos un talento para aportar a nuestra ciudad temporal. Te invitamos a sumarte al área en la que sabés que podés dar lo mejor de vos.
             </div>
             <div>
-              <a class="btn btn-sm btn-secondary text-decoration-none text-nowrap"
+              <a class="btn btn-sm btn-secondary text-nowrap"
                  href="{% url "volunteering" %}">Quiero ser voluntario</a>
             </div>
           </div>
