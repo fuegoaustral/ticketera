@@ -13,7 +13,7 @@ body {
 
 header,
 footer {
-  background: linear-gradient(324deg, #671604 8.13%, #4c0f03 20.2%, #380901 33.19%, #290500 48.05%, #200200 65.69%, #1e0200 92.62%);
+  background: #1d0402;
   padding: 2.5rem 5rem !important;
 }
 
