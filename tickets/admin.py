@@ -11,6 +11,8 @@ from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
+from import_export import resources
+from import_export.admin import ImportExportModelAdmin
 
 from deprepagos import settings
 from events.models import Event
@@ -295,13 +297,36 @@ class OrderAdmin(admin.ModelAdmin):
     readonly_fields = ['key', ]
 
 
+class DirectTicketTemplateResource(resources.ModelResource):
+
+    class Meta:
+        model = DirectTicketTemplate
+        fields = ['origin', 'name', 'amount']
+        exclude = ('id')
+        force_init_instance = True
+
+    def __init__(self, *args, event, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.event = event
+
+    def before_save_instance(self, instance, row, **kwargs):
+        instance.event = self.event
+
+
 @admin.register(DirectTicketTemplate)
-class DirectTicketTemplateAdmin(admin.ModelAdmin):
+class DirectTicketTemplateAdmin(ImportExportModelAdmin):
+    resource_classes = [DirectTicketTemplateResource]
     list_display = ['id', 'origin', 'name', 'amount', 'status', 'event']
     list_editable = ['origin', 'name', 'amount', 'event']  # Campos que pueden ser editados directamente
     list_display_links = ['id']  # El campo 'name' será el enlace a los detalles
     list_filter = ['event__name']  # Filtro por evento
     search_fields = ['event__name']  # Buscar por nombre y evento
+
+    def get_import_resource_kwargs(self, request, *args, **kwargs):
+        kwargs = super().get_resource_kwargs(request, *args, **kwargs)
+        event = Event.objects.filter(active=True).first()
+        kwargs.update({"event": event})
+        return kwargs
 
 
 admin.site.register(Order, OrderAdmin)
