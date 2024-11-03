@@ -181,6 +181,11 @@ class Order(BaseModel):
     generated_by = models.ForeignKey(User, related_name='generated_by', null=True, blank=True,
                                      on_delete=models.RESTRICT)
 
+    class Meta:
+        permissions = [
+            ("can_sell_tickets", "Can sell tickets in Caja"),
+        ]
+
     def total_ticket_types(self):
         return self.order_tickets.count()
 
@@ -479,6 +484,9 @@ class DirectTicketTemplate(models.Model):
     class Meta:
         verbose_name = "Bono dirigido"
         verbose_name_plural = "Config Bonos dirigidos"
+        permissions = [
+            ("admin_volunteers", "Can admin Volunteers"),
+        ]
 
     def __str__(self):
         return f"{self.name} ({self.origin}) - {self.amount}"
