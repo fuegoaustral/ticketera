@@ -52,4 +52,4 @@ jobs:
       - name: Run Collectstatic
         run: |
           source venv/bin/activate
-          zappa manage dev collectstatic --noinput
+          zappa manage dev "collectstatic --noinput"
