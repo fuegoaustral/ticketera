@@ -1,5 +1,7 @@
 :root {
   --text-color: #1e1e1e;
+  --bs-border-radius: 0.5rem;
+  --bs-border-color: #b2b2b2;
 }
 
 body {
@@ -546,4 +548,8 @@ dl {
   label {
     font-weight: 600;
   }
+}
+
+.form-control {
+  line-height: 1;
 }
