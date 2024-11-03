@@ -20,6 +20,7 @@
   --bs-btn-border-color: #d9d9d9;
   --bs-btn-hover-bg: #eee;
   --bs-btn-bg: #fff;
+  background-color: var(--bs-btn-bg);
 }
 
 body {
@@ -74,7 +75,6 @@ footer.container {
 }
 
 .nav-link.btn-secondary {
-  color: #1e1e1e !important;
   padding: 1rem 2rem;
 }
 
