@@ -57,25 +57,28 @@ footer.container {
 .nav-item {
   height: 100%;
 }
-.nav-link {
-  display: inline-flex;
-  align-items: center;
-  height: 100%;
-  color: #fff;
-  padding: 0 1rem;
-}
-.nav-link:focus,
-.nav-link:hover {
-  color: #fff;
-}
+header {
+  .nav-link {
+    display: inline-flex;
+    align-items: center;
+    height: 100%;
+    color: #fff;
+    padding: 0 1rem;
+  }
+  .nav-link:focus,
+  .nav-link:hover {
+    color: #fff;
+  }
 
-.nav-item:not(.no-border):not(:first-child):before {
-  content: "|";
-  color: #fff;
-}
+  .nav-item:not(.no-border):not(:first-child):before {
+    content: "|";
+    color: #fff;
+  }
 
-.nav-link.btn-secondary {
-  padding: 1rem 2rem;
+  .nav-link.btn-secondary {
+    padding: 1rem 2rem;
+    color: #1E1E1E;
+  }
 }
 
 .hero {
@@ -149,7 +152,6 @@ footer a {
   padding: 1rem 2rem;
   border: 1px solid var(--bs-btn-border-color); /* New primary border color */
   color: #1e1e1e;
-  height: 52px;
   line-height: 1;
   transition: all 0.3s ease;
 }
@@ -336,6 +338,7 @@ dl {
     width: 100%;
     padding: 1rem;
     text-align: left;
+    color: #1E1E1E !important;
   }
 
   .nav-link.active {
@@ -457,7 +460,7 @@ dl {
     padding-bottom: 0;
 
     button {
-      padding: 1rem;
+      padding: 1rem !important;
       background: none;
       border: 0;
       border-bottom: 1px transparent solid;
@@ -486,7 +489,7 @@ dl {
 
       .btn {
         width: fit-content;
-        padding: 0.5rem 0.75rem;
+        padding: 0.5rem 0.75rem !important;
       }
 
       .notice {
