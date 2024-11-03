@@ -70,6 +70,7 @@ INSTALLED_APPS = [
 
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
+    'import_export',
 
     'user_profile.apps.UserProfileConfig',
 
