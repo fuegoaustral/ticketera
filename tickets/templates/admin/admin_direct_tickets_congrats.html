@@ -8,6 +8,9 @@
             integrity="sha384-6Z2vPsfhcSSIc6aQuBuj8XsgzVLnrlNXrlA/OfTiadr8Pcw3xfho2s4fxWX+beqn"
             crossorigin="anonymous"></script>
     <style>
+        h2 {
+            margin-bottom: 2rem;
+        }
         .field-box {
             display: flex !important;
             justify-content: space-between;
@@ -88,25 +91,32 @@
 {% block content %}
     <div class="wrapper">
         <div class="container">
-            <h1>Congrats de Bonos Dirigidos</h1>
+            <h1>¡Compraste tu/s bono/s dirigido/s!</h1>
 
+            <h2>Vas a recibir un email para crearte un usuario y gestionar tus bonos</h2>
 
             <div class="field-box">
                 <strong>Email:</strong> {{ order.email }}
             </div>
 
-        
             <table class="summary-table">
                 <tr>
                     <th>Ticket</th>
+                    <th>Evento</th>
 
                 </tr>
                 {% for ticket in tickets %}
                     <tr>
                         <td>{{ ticket.key }}</td>
+                        <td>{{ ticket.event }}</td>
 
                     </tr>
                 {% endfor %}
+                <tr>
+                    <th>Total</th>
+                    <td>{{ tickets.count }}</td>
+
+                </tr>
         </div>
     </div>
 
