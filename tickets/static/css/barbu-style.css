@@ -65,7 +65,7 @@ header {
 }
 
 .donation-section {
-  background-color: #F3F4F5;
+  background-color: #f3f4f5;
   border-radius: 2rem;
   padding: 3rem 5rem;
   margin-top: 2rem;
@@ -75,7 +75,8 @@ header {
 footer {
   margin-top: 4rem;
   border-radius: 2rem;
-  div, a {
+  div,
+  a {
     color: #fff !important;
   }
   .social-icon {
@@ -91,7 +92,7 @@ footer {
 
 .btn {
   padding: 1rem 2rem;
-  border: 1px solid transparent;     /* New primary border color */
+  border: 1px solid transparent; /* New primary border color */
 }
 
 .btn-sm {
@@ -299,7 +300,7 @@ dl {
 }
 
 .rainbow-border:after {
-  content: '';
+  content: "";
   position: absolute;
   top: calc(-1 * var(--borderWidth));
   left: calc(-1 * var(--borderWidth));
@@ -488,7 +489,7 @@ dl {
     padding: 1rem 0;
 
     .alert {
-      margin-top: .5rem !important;
+      margin-top: 0.5rem !important;
     }
   }
 
