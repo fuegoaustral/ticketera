@@ -63,7 +63,10 @@ header {
     align-items: center;
     height: 100%;
     color: #fff;
-    padding: 0 1rem;
+    padding: 0.5rem;
+    @media (min-width: 992px) {
+      padding: 0.5rem 1rem;
+    }
   }
   .nav-link:focus,
   .nav-link:hover {
@@ -87,9 +90,16 @@ header {
 }
 
 .home-section {
-  margin-top: 6rem;
-  margin-bottom: 6rem;
+  margin-top: 3rem;
+  margin-bottom: 3rem;
+  padding: 0 3rem;
 
+  @media (min-width: 992px) {
+    margin-top: 6rem;
+    margin-bottom: 6rem;
+  }
+}
+.home-section {
   h1 {
     font-size: 4rem;
     text-align: left;
@@ -102,17 +112,11 @@ header {
 .heading {
   font-size: 4rem;
   font-weight: 600;
+  line-height: 1;
+  margin-bottom: 1.5rem;
 }
 .rich-text a {
   color: var(--text-color);
-}
-
-.donation-section {
-  background-color: #f3f4f5;
-  border-radius: 2rem;
-  padding: 3rem 5rem;
-  margin-top: 2rem;
-  margin-bottom: 2rem;
 }
 
 .section-title {
