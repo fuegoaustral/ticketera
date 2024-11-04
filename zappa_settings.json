@@ -1,5 +1,6 @@
 {
   "dev": {
+    "slim_handler": true,
     "aws_region": "us-east-1",
     "django_settings": "deprepagos.settings_dev",
     "project_name": "deprepagos",
@@ -40,12 +41,14 @@
     ]
   },
   "prod": {
+    "slim_handler": true,
     "aws_region": "us-east-1",
     "django_settings": "deprepagos.settings_prod",
     "project_name": "deprepagos",
     "runtime": "python3.9",
     "timeout_seconds": 30,
     "s3_bucket": "faticketera-zappa-prod",
+    "keep_warm": true,
     "vpc_config": {
       "SubnetIds": [
         "subnet-0130a8113f5e1feb7",
