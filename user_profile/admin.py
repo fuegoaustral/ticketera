@@ -5,6 +5,9 @@ from django.contrib.auth.models import User
 from .models import Profile
 
 
+User.__str__ = lambda self: f'{self.first_name} {self.last_name} ({self.email})'
+
+
 class ProfileInline(admin.StackedInline):
     model = Profile
     can_delete = False

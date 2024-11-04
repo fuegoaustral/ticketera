@@ -340,7 +340,35 @@ class TicketTypeAdmin(admin.ModelAdmin):
     search_fields = ['name', 'event__name']
 
 
+class NewTicketAdmin(admin.ModelAdmin):
+    list_display = ['owner', 'ticket_type', 'holder', 'order_id', 'event', 'created_at']
+    list_filter = ['event__name', 'ticket_type__name', 'order__status']
+    search_fields = [
+        'holder__first_name',
+        'holder__last_name',
+        'holder__email',
+        'owner__first_name',
+        'owner__last_name',
+        'owner__email',
+        'key',
+    ]
+
+
+class NewTicketInline(admin.StackedInline):
+    model = NewTicket
+    extra = 0
+    readonly_fields = ['key']
+
+
+class OrderAdmin(admin.ModelAdmin):
+    list_display = ['id', 'first_name', 'last_name', 'email', 'phone', 'dni', 'amount', 'status', 'event', 'order_type', 'created_at']
+    list_filter = ['event', 'status', 'order_type']
+    search_fields = ['key', 'first_name', 'last_name', 'email', 'phone', 'dni']
+    inlines = [NewTicketInline]
+    readonly_fields = ['key']
+
+
 admin.site.register(Order, OrderAdmin)
 admin.site.register(TicketType, TicketTypeAdmin)
-admin.site.register(NewTicket)
+admin.site.register(NewTicket, NewTicketAdmin)
 admin.site.register(NewTicketTransfer)
