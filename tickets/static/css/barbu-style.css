@@ -41,15 +41,12 @@ header,
 footer {
   background: #1d0402;
 
-  padding: 40px 1rem !important;
-  @media (min-width: 576px) {
-    padding: 40px 1rem !important;
-  }
+  padding: 2rem 1rem !important;
   @media (min-width: 768px) {
-    padding: 40px 2rem !important;
+    padding: 2.5rem 2rem !important;
   }
   @media (min-width: 992px) {
-    padding: 40px 80px !important;
+    padding: 2.5rem 5rem !important;
   }
 }
 
@@ -96,11 +93,21 @@ footer {
 }
 
 .home-section {
-  margin-top: 3rem;
-  margin-bottom: 3rem;
-  padding: 0 3rem;
-
+  padding: 0 1rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  @media (min-width: 576px) {
+    padding: 0 1rem;
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+  }
+  @media (min-width: 768px) {
+    padding: 0 2rem;
+    margin-top: 3rem;
+    margin-bottom: 3rem;
+  }
   @media (min-width: 992px) {
+    padding: 0 3rem;
     margin-top: 6rem;
     margin-bottom: 6rem;
   }
@@ -116,10 +123,17 @@ footer {
 }
 
 .heading {
-  font-size: 4rem;
   font-weight: 600;
   line-height: 1;
   margin-bottom: 1.5rem;
+
+  font-size: 2rem;
+  @media (min-width: 576px) {
+    font-size: 3rem;
+  }
+  @media (min-width: 768px) {
+    font-size: 4rem;
+  }
 }
 .rich-text a {
   color: var(--text-color);
@@ -127,16 +141,34 @@ footer {
 
 .section-title {
   font-weight: 600;
-  font-size: 24px;
+
+  font-size: 18px;
+  @media (min-width: 576px) {
+    font-size: 21px;
+  }
+  @media (min-width: 768px) {
+    font-size: 24px;
+  }
 }
 
 .section-text {
-  font-size: 20px;
+  font-size: 16px;
+  @media (min-width: 576px) {
+    font-size: 18px;
+  }
+  @media (min-width: 768px) {
+    font-size: 21px;
+  }
 }
 
 footer {
-  margin-top: 4rem;
-  border-radius: 2rem;
+  margin-top: 2rem;
+  @media (min-width: 768px) {
+    margin-top: 4rem;
+  }
+  @media (min-width: 1400px) {
+    border-radius: 2rem;
+  }
 }
 footer div,
 footer a {
@@ -144,10 +176,14 @@ footer a {
 }
 .social-icon {
   text-align: center;
-  padding: 1rem;
   background-color: #fff;
   border-radius: 0.5rem;
   line-height: 0;
+
+  padding: 0.35rem;
+  @media (min-width: 768px) {
+    padding: 1rem;
+  }
 }
 .social-icon:focus,
 .social-icon:hover {
