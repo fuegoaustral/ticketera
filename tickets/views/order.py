@@ -1,49 +1,25 @@
-from datetime import datetime
+import logging
 
-import mercadopago, logging
-
-from django.conf import settings
-from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest
-from django.template import loader
 from django.forms import modelformset_factory, BaseModelFormSet
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse, HttpResponseForbidden, HttpResponseBadRequest
+from django.template import loader
 from django.urls import reverse
-from django.utils.timezone import now
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
+import mercadopago
+from django.conf import settings
 
-from .models import Coupon, Order, TicketType, Ticket, TicketTransfer
-from .forms import OrderForm, TicketForm, TransferForm
 from events.models import Event
+from tickets.models import Order, TicketType, OrderTicket, Coupon, Ticket
+from tickets.forms import OrderForm, CheckoutTicketSelectionForm, CheckoutDonationsForm, TicketForm
 
-
-def home(request):
-
-    try:
-        event = Event.objects.get(active=True)
-    except Event.DoesNotExist:
-        event = None
-
-    context = {}
-
-    if event:
-        coupon = Coupon.objects.filter(token=request.GET.get('coupon'), ticket_type__event=event).first()
-
-        ticket_types = TicketType.objects.get_available(coupon, event)
-
-        context.update({
-            'coupon': coupon,
-            'ticket_types': ticket_types
-        })
-
-    template = loader.get_template('tickets/home.html')
-    return HttpResponse(template.render(context, request))
-
+from .utils import is_order_valid, _complete_order
 
 class BaseTicketFormset(BaseModelFormSet):
     def __init__(self, *args, **kwargs):
         super(BaseTicketFormset, self).__init__(*args, **kwargs)
         self.queryset = Ticket.objects.none()
-
-
 def order(request, ticket_type_id):
     try:
         event = Event.objects.get(active=True)
@@ -51,19 +27,15 @@ def order(request, ticket_type_id):
         return HttpResponse('Lo sentimos, este link es inválido.', status=404)
 
     coupon = Coupon.objects.filter(token=request.GET.get('coupon')).first()
-
     ticket_types = TicketType.objects.get_available(coupon, event)
 
-    # we need to iterate over because after slicing we cannot filter
     for ticket_type in ticket_types:
         if ticket_type.pk == ticket_type_id:
             break
     if ticket_type.pk != ticket_type_id:
         return HttpResponse('Lo sentimos, este link es inválido.', status=404)
 
-    # get available tickets from coupon/type
     max_tickets = min(ticket_type.available_tickets, coupon.tickets_remaining() if coupon else 5, event.tickets_remaining())
-
     order_form = OrderForm(request.POST or None)
     TicketsFormSet = modelformset_factory(Ticket, formset=BaseTicketFormset, form=TicketForm,
                                           max_num=max_tickets, validate_max=True, min_num=1, validate_min=True,
@@ -79,7 +51,7 @@ def order(request, ticket_type_id):
             order.coupon = coupon
             tickets = tickets_formset.save(commit=False)
             price = ticket_type.price_with_coupon if order.coupon else ticket_type.price
-            order.amount = len(tickets) * price # + donations
+            order.amount = len(tickets) * price
             order.amount += order.donation_art or 0
             order.amount += order.donation_grant or 0
             order.amount += order.donation_venue or 0
@@ -90,10 +62,6 @@ def order(request, ticket_type_id):
                 ticket.save()
 
             return HttpResponseRedirect(redirect_to=reverse('order_detail', kwargs={'order_key': order.key}))
-
-    else:
-        order_form = OrderForm()
-        tickets_formset = TicketsFormSet()
 
     template = loader.get_template('tickets/order_new.html')
     context = {
@@ -106,31 +74,7 @@ def order(request, ticket_type_id):
 
     return HttpResponse(template.render(context, request))
 
-
-def is_order_valid(order):
-    num_tickets = order.ticket_set.count()
-
-    ticket_types = TicketType.objects.get_available(order.coupon, order.ticket_type.event)
-
-    try:
-        # use the get_available method that annotates the queryset with available_tickets
-        ticket_type = ticket_types.get(pk=order.ticket_type.pk)
-    except TicketType.DoesNotExist:
-        return False
-
-    if ticket_type.available_tickets < num_tickets:
-        return False
-
-    if order.coupon and order.coupon.tickets_remaining() < num_tickets:
-        return False
-
-    if ticket_type.event.tickets_remaining() < num_tickets:
-        return False
-    return True
-
-
 def order_detail(request, order_key):
-
     order = Order.objects.get(key=order_key)
     logging.info('got order')
 
@@ -159,88 +103,6 @@ def order_detail(request, order_key):
 
     return HttpResponse(rendered_template)
 
-
-def ticket_detail(request, ticket_key):
-
-    ticket = Ticket.objects.get(key=ticket_key)
-
-    template = loader.get_template('tickets/ticket_detail.html')
-    context = {
-        'ticket': ticket,
-        'event': ticket.order.ticket_type.event,
-    }
-
-    return HttpResponse(template.render(context, request))
-
-
-def ticket_transfer(request, ticket_key):
-    ticket = Ticket.objects.select_related('order__ticket_type__event').get(key=ticket_key)
-
-    if ticket.order.ticket_type.event.transfers_enabled_until < now():
-        template = loader.get_template('tickets/ticket_transfer_expired.html')
-        return HttpResponse(template.render({'ticket': ticket}, request))
-
-
-    if request.method == 'POST':
-        form = TransferForm(request.POST)
-        if form.is_valid():
-            transfer = form.save(commit=False)
-            transfer.ticket = ticket
-            transfer.volunteer_ranger = False
-            transfer.volunteer_transmutator = False
-            transfer.volunteer_umpalumpa = False
-            transfer.save()
-            transfer.send_email()
-
-            return HttpResponseRedirect(reverse('ticket_transfer_confirmation', args=[ticket.key]))
-    else:
-        form = TransferForm()
-
-    template = loader.get_template('tickets/ticket_transfer.html')
-    context = {
-        'ticket': ticket,
-        'event': ticket.order.ticket_type.event,
-        'form': form,
-    }
-
-    return HttpResponse(template.render(context, request))
-
-
-def ticket_transfer_confirmation(request, ticket_key):
-
-    ticket = Ticket.objects.get(key=ticket_key)
-
-    template = loader.get_template('tickets/ticket_transfer_confirmation.html')
-    context = {
-        'ticket': ticket,
-    }
-
-    return HttpResponse(template.render(context, request))
-
-
-def ticket_transfer_confirmed(request, transfer_key):
-
-    transfer = TicketTransfer.objects.get(key=transfer_key)
-
-    transfer.transfer()
-
-    template = loader.get_template('tickets/ticket_transfer_confirmed.html')
-    context = {
-        'transfer': transfer,
-    }
-
-    return HttpResponse(template.render(context, request))
-
-
-def _complete_order(order):
-    logging.info('completing order')
-    order.status = Order.OrderStatus.CONFIRMED
-    logging.info('saving order')
-    order.save()
-    logging.info('redirecting')
-    return HttpResponseRedirect(order.get_resource_url())
-
-
 def free_order_confirmation(request, order_key):
     order = Order.objects.get(key=order_key)
 
@@ -252,27 +114,23 @@ def free_order_confirmation(request, order_key):
 
     return _complete_order(order)
 
-
 def payment_success(request, order_key):
     order = Order.objects.get(key=order_key)
     order.response = request.GET
     return HttpResponseRedirect(order.get_resource_url())
 
-
 def payment_failure(request):
     return HttpResponse('PAYMENT FAILURE')
-
 
 def payment_pending(request):
     return HttpResponse('PAYMENT PENDING')
 
 @csrf_exempt
 def payment_notification(request):
-
     if request.GET['topic'] == 'payment':
         sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
         payment = sdk.payment().get(request.GET.get('id'))['response']
-        
+
         merchant_order = sdk.merchant_order().get(payment['order']['id'])['response']
 
         order = Order.objects.get(id=int(merchant_order['external_reference']))
@@ -290,3 +148,23 @@ def payment_notification(request):
 
     return HttpResponse('Notified!')
 
+@login_required
+def check_order_status(request, order_key):
+    order = Order.objects.get(key=order_key)
+    if order.email != request.user.email:
+        return HttpResponseForbidden('Forbidden')
+    return JsonResponse({"status": order.status})
+
+@login_required
+def checkout_payment_callback(request, order_key):
+    request.session.pop('ticket_selection', None)
+    request.session.pop('donations', None)
+    request.session.pop('order_sid', None)
+
+    order = Order.objects.get(key=order_key)
+    if order.email != request.user.email:
+        return HttpResponseForbidden('Forbidden')
+
+    return render(request, 'checkout/payment_callback.html', {
+        'order_key': order_key,
+    })

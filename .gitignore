@@ -7,3 +7,4 @@ deprepagos/media
 *DS_Store
 dbs/
 venv/*
+.env

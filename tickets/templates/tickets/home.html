@@ -1,114 +1,92 @@
-{% extends 'tickets/base.html' %}
-
-{% block hero %}hero{% endblock %}
-
-{% block container_type %}container-fluid{% endblock %}
-
-{% block content %}
-
-    {% if event.active %}
-        <div class="event-description">
-            {{ event.description|safe }}
-        </div>
-
-        <div class="boxes white-bg pb-7">
-
-            {% for ticket_type in ticket_types %}
-
-                <div class="box">
-                    <div class="icon">
-                        <i class="{{ ticket_type.emoji }}"></i>
-                    </div>
-                    <h2>{{ ticket_type.name }}</h2>
-                    <p class="text-small">{{ ticket_type.description }}</p>
-                    {% load text_color %}
-                    <a
-                        class="button"
-                        style="background-color: #{{ ticket_type.color }}; color: {{ ticket_type.color|text_color }}"
-                        href="{% url 'order' ticket_type_id=ticket_type.id %}{% if coupon %}?coupon={{ coupon.token }}{% endif %}"
-                    >
-                        Comprar
-                    </a>
+{% extends 'tickets/barbu_base.html' %}
+{% load humanize %}
+{% block full_content %}
+    {% if event %}
+        <a href="{% url "select_tickets" %}" class="container-xxl hero">
+            <img src="{{ event.header_image.url }}" alt="{{ event.name }}" />
+        </a>
+        <div class="container-xxl home-section">
+            <div class="row d-flex justify-content-center">
+                <div class="col-xl-5">
+                    <h2 class="heading">
+                        Sobre
+                        <br />
+                        el evento
+                    </h2>
                 </div>
-
-                {% empty %}
-
-                <div class="box">
-                    <div class="icon">
-                        <i class="fa-solid fa-heart-crack"></i>
-                    </div>
-                    <h2>Lo sentimos</h2>
-                    <p class="text-small">No hay bonos disponibles en este momento.</p>
-                </div>
-
-            {% endfor %}
-        </div>
-
-    {% else %}
-    <div class="section">
-        <div class="boxes">
-            <div class="box white-bg">
-                <div class="icon">
-                    <i class="fa-solid fa-heart-crack"></i>
-                </div>
-                <h2>Lo sentimos</h2>
-                <p class="text-small">No hay bonos disponibles en este momento.</p>
+                <div class="col-xl-5 rich-text">{{ event.description|safe }}</div>
             </div>
         </div>
-    </div>
+        <div class="container hr">
+            <hr />
+        </div>
     {% endif %}
-
-
-
-
-
-    <div class="section">
-
-        <div class="two-columns">
-            <div class="column">
-                <h1>Donaciones</h1>
+    <div class="container-xxl home-section">
+        <div class="row d-flex justify-content-center">
+            <div class="col-lg-5">
+                <h2 class="heading">Donaciones</h2>
             </div>
-            <div class="column">
-                <p class="text-small">
-                <b>Toda creación de la comunidad en Fuego Austral o en La Sede requiere de mucho trabajo, procesos y materiales.</b></br>
-                Por eso, además de adquirir tu bono contribución de ingreso, podes colaborar con algunas de las siguientes propuestas:
-                </p>
+            <div class="col-lg-5">
+                <div class="section-title mb-3">
+                    Toda creación de la comunidad en Fuego Austral o en La Sede
+                    requiere de mucho trabajo, procesos y materiales.
+                </div>
+                <div class="section-text">
+                    Por eso, además de adquirir tu bono contribución de ingreso,
+                    podés colaborar con tu donación para impulsar la
+                    creatividad, ayudar a quienes necesiten una mano con su bono
+                    contribución, para mejorar el espacio donde nos encontramos
+                    todo el año, y más.
+                </div>
             </div>
         </div>
-
-        <div class="boxes">
-
-            <div class="box white-bg ">
-                <div class="icon">
-                    <i class="fa-solid fa-palette"></i>
-                </div>
-                <h2>Becas de Arte</h2>
-                <p class="text-small">Para impulsar la creatividad en nuestra ciudad temporal.</p>
-                <a class="button text-white" href="https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=2c9380847dbdc0a1017dbe5bcec20059" class="btn btn-primary text-white text-decoration-none mb-4" target="_blank">Donar</a>
-            </div>
-
-            <div class="box white-bg ">
-                <div class="icon">
-                    <i class="fa-solid fa-users"></i>
-                </div>
-                <h2>Inclusión Radical</h2>
-                <p class="text-small">Para ayudar a quienes necesitan una mano con su bono contribución.</p>
-                <a class="button text-white" href="https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=2c9380847db896ff017dbe5d2afd030a" class="btn btn-primary text-white text-decoration-none mb-4" target="_blank">Donar</a>
-            </div>
-
-
-            <div class="box white-bg ">
-                <div class="icon">
-                    <i class="fa-solid fa-house"></i>
-
-                </div>
-                <h2>La Sede</h2>
-                <p class="text-small">Para mejorar el espacio donde nos encontramos todo el año.</p>
-                <a class="button text-white" href="https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=2c9380847dbdc0a1017dbe5e16a1005c" class="btn btn-primary text-white text-decoration-none mb-4" target="_blank">Donar</a>
-            </div>
-
-        </div>
-
     </div>
+    <style>
+        .donation-section {
+            background-color: #f3f4f5;
+            border-radius: 2rem;
+            margin-top: 2rem;
+            margin-bottom: 2rem;
+            padding: 2rem 3rem;
 
+            @media (min-width: 992px) {
+                padding: 3rem 5rem;
+            }
+        }
+    </style>
+    <div class="container-xxl home-section donations">
+        <div class="donation-section d-flex gap-3 flex-row justify-content-between align-items-center">
+            <div>
+                <div class="section-title">Becas de Arte</div>
+                <div class="section-text">Para impulsar la creatividad en nuestra ciudad temporal.</div>
+            </div>
+            <div>
+                <a href="https://donaronline.org/asociacion-civil-fuego-austral/becas-de-arte-fuego-austral-2025"
+                   target="_blank"
+                   class="btn btn-secondary">Quiero impulsar la creatividad</a>
+            </div>
+        </div>
+        <div class="donation-section d-flex gap-3 flex-row justify-content-between align-items-center">
+            <div>
+                <div class="section-title">Inclusión Radical</div>
+                <div class="section-text">Para ayudar a quienes necesitan una mano con su bono contribución.</div>
+            </div>
+            <div>
+                <a href="https://donaronline.org/asociacion-civil-fuego-austral/becas-de-inclusion-radical-para-fuego-austral-2025-kairos"
+                   target="_blank"
+                   class="btn btn-secondary">Quiero dar una mano</a>
+            </div>
+        </div>
+        <div class="donation-section d-flex gap-3 flex-row justify-content-between align-items-center">
+            <div>
+                <div class="section-title">La Sede</div>
+                <div class="section-text">Para mejorar el espacio donde nos encontramos todo el año.</div>
+            </div>
+            <div>
+                <a href="https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=2c9380847dbdc0a1017dbe5e16a1005c"
+                   target="_blank"
+                   class="btn btn-secondary">Quiero mejorar el espacio comunal</a>
+            </div>
+        </div>
+    </div>
 {% endblock %}

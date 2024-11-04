@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+{% load static %}
+{% load account %}
+<html lang="es-AR" prefix="og: http://ogp.me/ns# fb: http://ogp.me/ns/fb#">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="profile" href="https://gmpg.org/xfn/11">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+          rel="stylesheet"
+          integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+          crossorigin="anonymous">
+    <link rel="icon" href="{% static 'img/favicon.png' %}" type="image/png">
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.6.0/css/all.min.css"
+          integrity="sha384-h/hnnw1Bi4nbpD6kE7nYfCXzovi622sY5WBxww8ARKwpdLj5kUWjRuyiXaD1U2JT"
+          crossorigin="anonymous">
+    <link rel="stylesheet" href="{% static 'css/barbu-style.css' %}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap"
+          rel="stylesheet" />
+    <!-- <style> .subheader { background: {{event.header_bg_color}}; } </style>    -->
+    <title>
+      {% block title %}
+      {% endblock title %}
+    Fuego Austral &#8211; La experiencia será lo que hagamos de ella</title>
+    {% block extrahead %}{% endblock %}
+    {% if user.is_authenticated and user.profile.profile_completion == 'COMPLETE' %}
+      <script>
+            (function (d, t) {
+                window.chatwootSettings = {
+                    locale: 'es', // Language to be set
+                };
+                const BASE_URL = "https://app.chatwoot.com";
+                const g = d.createElement(t), s = d.getElementsByTagName(t)[0];
+                g.src = BASE_URL + "/packs/js/sdk.js";
+                g.defer = true;
+                g.async = true;
+                s.parentNode.insertBefore(g, s);
+                g.onload = function () {
+                    window.chatwootSDK.run({
+                        websiteToken: '{{ CHATWOOT_TOKEN }}',
+                        baseUrl: BASE_URL
+                    })
+                }
+
+            })(document, "script");
+
+
+            window.addEventListener("chatwoot:ready", function () {
+                console.log("Chatwoot is ready to use");
+                $chatwoot.setUser('{{ user.username }}', {
+                    email: '{{ user.email }}',
+                    name: '[{{ENV }}] - {{ user.first_name }} {{ user.last_name }}',
+                    phone_number: '{{ user.profile.phone }}',
+                    identifier_hash: '{{ CHATWOOT_IDENTIFIER_HASH }}'
+                });
+            });
+
+      </script>
+    {% endif %}
+  </head>
+  <body>
+    <header class="container-xxl d-flex justify-content-between">
+      <a href="/" class="logo d-flex align-items-center gap-3">
+        <svg width="48"
+             height="49"
+             viewBox="0 0 48 49"
+             fill="none"
+             xmlns="http://www.w3.org/2000/svg">
+          <mask id="mask0_41_1237" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="48" height="49">
+          <rect y="0.5" width="48" height="48" fill="#D9D9D9" />
+          </mask>
+          <g mask="url(#mask0_41_1237)">
+          <path d="M24.0999 28.5461H24.098C22.2663 28.5461 20.7803 27.0598 20.7803 25.2276C20.7803 23.3961 22.2663 21.9089 24.098 21.9089H24.0999C25.9317 21.9099 27.4167 23.3961 27.4167 25.2276C27.4167 27.0598 25.9317 28.5461 24.0999 28.5461ZM30.7372 21.9089V18.5905H27.4186V15.2715H24.0999H20.7803V18.5905H17.4607V21.9089H14.1421V25.2276V28.547H17.4607V31.8647H20.7803V35.1853H24.0999H27.4186V31.8647H30.7372V28.547H34.0559V25.2276V21.9089H30.7372Z" fill="white" />
+          <path d="M10.5992 7.07482C10.5992 7.07482 10.9 20.8707 12.2657 34.2834C12.2657 34.2834 18.8741 38.7346 20.7999 39.8673C20.7999 39.8673 21.4614 44.8686 21.7284 59.6545L16.321 62.3183C16.321 62.3183 18.0368 79.2153 18.8383 88.7484C18.8383 88.7484 18.3964 89.3145 15.9883 88.7484C15.9883 88.7484 12.1931 73.426 11.0692 59.3691C11.0692 59.3691 13.8207 57.406 17.9149 55.7327C17.9149 55.7327 16.7106 47.0245 16.7106 44.6008C16.7106 44.6008 10.2964 40.4259 6.72773 37.6824C6.72773 37.6824 4.4876 29.4119 3 7.07482C3 7.07482 6.21701 5.78147 10.5992 7.07482Z" fill="white" />
+          <path d="M37.5993 7.07482C37.5993 7.07482 37.2996 20.8707 35.9341 34.2834C35.9341 34.2834 29.3267 38.7346 27.3983 39.8673C27.3983 39.8673 26.7389 44.8686 26.4697 59.6545L31.8799 62.3183C31.8799 62.3183 30.164 79.2153 29.3604 88.7484C29.3604 88.7484 29.8025 89.3145 32.2106 88.7484C32.2106 88.7484 36.0055 73.426 37.1304 59.3691C37.1304 59.3691 34.3789 57.406 30.2852 55.7327C30.2852 55.7327 31.489 47.0245 31.489 44.6008C31.489 44.6008 37.9031 40.4259 41.4706 37.6824C41.4706 37.6824 43.7104 29.4119 45.1982 7.07482C45.1982 7.07482 41.9823 5.78147 37.5993 7.07482Z" fill="white" />
+          </g>
+        </svg>
+        EVENTOS
+      </a>
+      <ul class="nav d-flex flex-row align-items-center">
+        <li class="nav-item">
+          <a class="nav-link" href="https://fuegoaustral.org" target="_blank">fuegoaustral.org</a>
+        </li>
+        {% if request.user.is_authenticated %}
+          <li class="nav-item dropdown show">
+            <a class="nav-link dropdown-toggle" href="#" id="dropdownProfileButton" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              {{ user.email }}
+            </a>
+            <div class="dropdown-menu" aria-labelledby="dropdownProfileButton">
+              <a class="dropdown-item" href="{% url "my_ticket" %}"><i class="fa-solid fa-user"></i> Mi perfil</a>
+              <a class="dropdown-item" href="https://fuegoaustral.org/el-evento/10-principios/" target="_blank">10 principios</a>
+              <a class="dropdown-item" href="https://fuegoaustral.org/faq/" target="_blank">Preguntas frecuentes</a>
+              <a class="dropdown-item" href="https://fuegoaustral.org/prepararse/" target="_blank">Guía de supervivencia</a>
+              <a class="dropdown-item text-danger" href="{% url "account_logout" %}"><i class="fa-solid fa-power-off text-danger"></i> Cerrar sesión</a>
+            </div>
+          </li>
+        {% else %}
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'account_login' %}">Iniciar Sesión</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'account_signup' %}">Registrarse</a>
+          </li>
+        {% endif %}
+        <li class="nav-item no-border">
+          <a class="nav-link btn btn-secondary"
+             href="https://donaronline.org/asociacion-civil-fuego-austral/becas-de-arte-fuego-austral-2025"
+             target="_blank">Quiero Donar</a>
+        </li>
+      </header>
+      {% block full_content %}
+        <div class="container-fluid subheader">
+          <div class="container">
+            <div class="d-flex flex-row justify-content-between align-items-center">
+              <h1 class="title">
+                {% block page_title %}
+                  Mi Perfil
+                {% endblock page_title %}
+              </h1>
+              <div class="actions d-flex flex-row gap-3">
+                {% block actions %}
+                {% endblock actions %}
+              </div>
+            </div>
+          </div>
+        </div>
+        {% block menu_container %}
+          <div class="container-fluid submenu">
+            <div class="container">
+              <div class="d-flex flex-row justify-content-between align-items-center">
+                <ul class="nav d-flex flex-row gap-3">
+                  {% block menu %}
+                  {% endblock menu %}
+                </ul>
+              </div>
+            </div>
+          </div>
+        {% endblock menu_container %}
+        {% block alerts %}
+        {% endblock alerts %}
+        <div class="container-fluid innercontent">
+          <div class="container">
+            {% block innercontent %}
+              <div class="row">
+                <div class="col-sm-2">
+                  <ul class="nav d-flex flex-row">
+                    {% block submenu %}
+                    {% endblock submenu %}
+                  </ul>
+                </div>
+                <div class="col-sm-10">
+                  {% block truecontent %}
+                  {% endblock truecontent %}
+                </div>
+              </div>
+            {% endblock innercontent %}
+          </div>
+        </div>
+      {% endblock full_content %}
+      <footer class="container d-flex justify-content-between align-items-center">
+        <svg width="199"
+             height="120"
+             viewBox="0 0 199 120"
+             fill="none"
+             xmlns="http://www.w3.org/2000/svg">
+          <path d="M93.7945 32.0671H93.7917C91.1274 32.0671 88.966 29.9053 88.966 27.2402C88.966 24.5762 91.1274 22.413 93.7917 22.413H93.7945C96.4588 22.4144 98.6189 24.5762 98.6189 27.2402C98.6189 29.9053 96.4588 32.0671 93.7945 32.0671ZM103.449 22.413V17.5862H98.6216V12.7587H93.7945H88.966V17.5862H84.1375V22.413H79.3104V27.2402V32.0684H84.1375V36.8942H88.966V41.7242H93.7945H98.6216V36.8942H103.449V32.0684H108.276V27.2402V22.413H103.449Z" fill="white" />
+          <path d="M74.1569 0.836107C74.1569 0.836107 74.5943 20.9029 76.5809 40.4122C76.5809 40.4122 86.1931 46.8866 88.9942 48.5343C88.9942 48.5343 89.9564 55.8088 90.3448 77.3156L82.4795 81.1902C82.4795 81.1902 84.9751 105.768 86.141 119.634C86.141 119.634 85.4982 120.457 81.9955 119.634C81.9955 119.634 76.4753 97.3468 74.8404 76.9006C74.8404 76.9006 78.8427 74.0451 84.7979 71.6112C84.7979 71.6112 83.0462 58.9448 83.0462 55.4193C83.0462 55.4193 73.7164 49.3468 68.5256 45.3563C68.5256 45.3563 65.2672 33.3264 63.1035 0.836107C63.1035 0.836107 67.7827 -1.04513 74.1569 0.836107Z" fill="white" />
+          <path d="M113.43 0.836107C113.43 0.836107 112.994 20.9029 111.008 40.4122C111.008 40.4122 101.397 46.8866 98.592 48.5343C98.592 48.5343 97.6329 55.8088 97.2414 77.3156L105.111 81.1902C105.111 81.1902 102.615 105.768 101.446 119.634C101.446 119.634 102.089 120.457 105.592 119.634C105.592 119.634 111.112 97.3468 112.748 76.9006C112.748 76.9006 108.746 74.0451 102.791 71.6112C102.791 71.6112 104.542 58.9448 104.542 55.4193C104.542 55.4193 113.872 49.3468 119.061 45.3563C119.061 45.3563 122.319 33.3264 124.483 0.836107C124.483 0.836107 119.805 -1.04513 113.43 0.836107Z" fill="white" />
+          <path d="M198.621 73.2978H109.685L112.821 75.1724H198.621V73.2978ZM198.621 51.3793H113.871L111.013 53.2549H198.621V51.3793ZM77.3606 73.2978H0.0110406V75.1724H74.3476L77.3606 73.2978ZM73.7048 51.3793H0.0110406V53.2549H76.3497L73.7048 51.3793ZM190.754 70.7696V56.0485H192.986V68.8794H198.605V70.7696H190.754ZM182.122 60.4503L180.576 64.5151H183.775L182.122 60.4503ZM186.139 70.7696L184.466 66.4265H180.017L178.344 70.7696H175.981L182.195 55.3743L188.503 70.7696H186.139ZM168.761 57.9786H166.583V62.8663H168.78C171.254 62.8663 171.887 61.462 171.887 60.2804C171.887 59.0845 171.33 57.9786 168.761 57.9786ZM172.39 70.7696L166.583 64.2543V70.7696H164.353V56.0485H169.319C171.887 56.0485 174.12 57.3781 174.12 60.2262C174.12 62.7364 172.445 64.5349 169.673 64.5349L175.421 70.7696H172.39ZM157.989 57.9786V70.7696H155.755V57.9786H151.643V56.0485H162.1V57.9786H157.989ZM145.857 70.9391C144.499 70.9391 143.213 70.7338 141.503 69.4226L142.712 67.8478C144.07 68.8596 144.908 69.0107 146.042 69.0107C147.401 69.0107 148.277 68.2809 148.277 67.0052C148.277 66.0316 147.55 65.2445 147.01 64.9628L144.367 63.5787C142.749 62.7364 141.706 61.6114 141.706 59.6629C141.706 57.3427 143.549 55.8231 146.098 55.8231C147.68 55.8231 148.517 56.0853 149.913 57.0019L148.834 58.6525C148.126 57.9981 147.104 57.6789 146.098 57.6789C144.927 57.6789 143.921 58.2405 143.921 59.5333C143.921 61.0313 145.037 61.519 145.521 61.7625L147.977 63.0157C149.281 63.6912 150.508 64.8697 150.508 66.82C150.508 68.9363 149.001 70.9391 145.857 70.9391ZM133.018 70.979C128.777 70.979 126.728 68.036 126.728 64.7971V56.0485H128.961V64.1202C128.961 67.1934 130.561 68.9738 133.037 68.9738C135.511 68.9738 136.943 67.1934 136.943 64.1202V56.0485H139.177V64.7971C139.177 67.8478 137.261 70.979 133.018 70.979ZM119.158 60.4503L117.611 64.5151H120.811L119.158 60.4503ZM123.176 70.7696L121.501 66.4265H117.054L115.38 70.7696H113.015L119.231 55.3743L125.538 70.7696H123.176ZM67.336 57.8657C64.4717 57.8657 62.1642 60.2061 62.1642 63.4644C62.1642 66.4619 64.4717 69.0864 67.336 69.0864C70.1455 69.0864 72.4917 66.4619 72.4917 63.4644C72.4917 60.2061 70.1455 57.8657 67.336 57.8657ZM67.336 71.0717C63.0943 71.0717 59.8377 67.7735 59.8377 63.4644C59.8377 59.1787 63.0943 55.8786 67.336 55.8786C71.5612 55.8786 74.8164 59.1787 74.8164 63.4644C74.8164 67.7735 71.5612 71.0717 67.336 71.0717ZM49.6986 71.0134C45.3251 71.0134 42.2185 67.9232 42.2185 63.4106C42.2185 59.0845 45.5486 55.9172 49.8459 55.9172C52.3224 55.9172 54.0893 56.8151 55.5222 58.1651L54.0524 59.683C53.3078 58.9119 51.9115 57.8838 49.6986 57.8838C46.5906 57.8838 44.4684 60.2634 44.4684 63.4106C44.4684 66.82 47.0001 69.0676 49.8656 69.0676C51.5962 69.0676 53.7539 68.2226 54.2932 65.9572H49.7341V64.1598H56.6576C56.638 68.3935 53.4013 71.0134 49.6986 71.0134ZM30.2715 70.7908V56.0683H38.72V57.9786H32.5055V62.3043H38.4778V64.2143H32.5055V68.8794H39.2041V70.7908H30.2715ZM18.5138 70.979C14.2718 70.979 12.2248 68.036 12.2248 64.7971V56.0485H14.456V64.1202C14.456 67.1934 16.0573 68.9738 18.5307 68.9738C21.0059 68.9738 22.4388 67.1934 22.4388 64.1202V56.0485H24.6731V64.7971C24.6731 67.8478 22.7559 70.979 18.5138 70.979ZM2.23436 57.9786V62.3043H8.20633V64.2143H2.23436V70.7696H0V56.0485H8.44715V57.9786H2.23436Z" fill="white" />
+        </svg>
+        <div class="text-right d-flex flex-column">
+          <div class="d-flex flew-row gap-3 justify-content-end mb-3">
+            <a href="https://www.facebook.com/FuegoAustral/" target="_blank" class="social-icon">
+              <i class="fa-brands fa-facebook" style="color: #316FF6"></i>
+            </a>
+            <a href="https://x.com/fuegoaustral" target="_blank" class="social-icon">
+              <svg width="300" height="271" viewBox="0 0 300 271" xmlns="http://www.w3.org/2000/svg">
+                <path d="m236 0h46l-101 115 118 156h-92.6l-72.5-94.8-83 94.8h-46l107-123-113-148h94.9l65.5 86.6zm-16.1 244h25.5l-165-218h-27.4z"/>
+              </svg>
+            </a>
+            <a href="https://www.instagram.com/fuegoaustral/" target="_blank" class="social-icon">
+              <i class="fa-brands fa-instagram" style="color: #D62976"></i>
+            </a>
+          </div>
+          <div>
+            Fuego Austral Asociación Civil
+            <br />
+            <a href="mailto:contacto@fuegoaustral.org" target="_blank">contacto@fuegoaustral.org</a>
+          </div>
+        </div>
+      </footer>
+      <div class="pt-3"></div>
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+              integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+              crossorigin="anonymous"></script>
+    </body>
+  </html>

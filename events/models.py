@@ -1,6 +1,7 @@
 from django.db import models
 from django.db.models import Count, Sum, Q
 from django.forms import ValidationError
+from django.utils import timezone
 
 from auditlog.registry import auditlog
 
@@ -14,12 +15,16 @@ class Event(BaseModel):
     start = models.DateTimeField()
     end = models.DateTimeField()
     max_tickets = models.IntegerField(blank=True, null=True)
+    max_tickets_per_order = models.IntegerField(default=5)
     transfers_enabled_until = models.DateTimeField()
-    show_multiple_tickets = models.BooleanField(default=False, help_text="If unchecked, only the chepeast ticket will be shown.")
+    volunteers_enabled_until = models.DateTimeField(blank=True, null=True)
+    show_multiple_tickets = models.BooleanField(default=False,
+                                                help_text="If unchecked, only the chepeast ticket will be shown.")
 
     # homepage
     header_image = models.ImageField(upload_to='events/heros', help_text=u"Dimensions: 1666px x 500px")
-    header_bg_color = models.CharField(max_length=7, help_text='e.g. "#fc0006". The color of the background to fill on bigger screens.')
+    header_bg_color = models.CharField(max_length=7,
+                                       help_text='e.g. "#fc0006". The color of the background to fill on bigger screens.')
     title = models.TextField()
     description = models.TextField()
 
@@ -42,22 +47,39 @@ class Event(BaseModel):
             qs = Event.objects.exclude(pk=self.pk).filter(active=True)
             if qs.exists():
                 raise ValidationError({
-                    'active': ValidationError('Only one event can be active at the same time. Please set the other events as inactive before saving.', code='not_unique'),
+                    'active': ValidationError(
+                        'Only one event can be active at the same time. Please set the other events as inactive before saving.',
+                        code='not_unique'),
                 })
         return super().clean(*args, **kwargs)
 
     def tickets_remaining(self):
         from tickets.models import Order
+
         if self.max_tickets:
             tickets_sold = (Order.objects
-                .filter(ticket_type__event=self)
-                .filter(status=Order.OrderStatus.CONFIRMED)
-                .annotate(num_tickets=Count('ticket'))
-                .aggregate(tickets_sold=Sum('num_tickets')
-            ))['tickets_sold'] or 0
+                            .filter(order_tickets__ticket_type__event=self)
+                            .filter(status=Order.OrderStatus.CONFIRMED)
+                            .annotate(num_tickets=Sum('order_tickets__quantity'))
+                            .aggregate(tickets_sold=Sum('num_tickets'))
+                            )['tickets_sold'] or 0
             return self.max_tickets - tickets_sold
         else:
             return 999999999  # extra high number (easy hack)
+
+    def volunteer_period(self):
+        if self.end < timezone.now():
+            return False
+        if self.volunteers_enabled_until and self.volunteers_enabled_until < timezone.now():
+            return False
+        return True
+
+    def transfer_period(self):
+        if self.end < timezone.now():
+            return False
+        if self.transfers_enabled_until and self.transfers_enabled_until < timezone.now():
+            return False
+        return True
 
 
 auditlog.register(Event)

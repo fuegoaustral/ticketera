@@ -1,0 +1,28 @@
+{% extends "admin/base.html" %}
+
+
+
+
+{% block title %}
+    {{ title }} | {{ site_title|default:_('Django site admin') }}
+{% endblock %}
+
+{% block branding %}
+    <h1 id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a></h1>
+{% endblock %}
+
+{% block nav-global %}
+    <ul class="nav-global">
+        <li><a href="{% url 'admin:index' %}">Home</a></li>
+
+        {% if perms.tickets.can_sell_tickets %}
+        <li>
+            <a href="{% url 'admin_caja_view' %}">EMISION DIRECTA DE BONOS - EFECTIVO / TRANSFERENCIAS</a>
+        </li>
+        <li>
+            <a href="{% url 'admin_direct_tickets_view' %}">BONOS DIRIGIDOS - (CAMP / ARTE / VOLUNTARIOS)</a>
+        </li>
+        {% endif %}
+        <!-- Add more links if needed -->
+    </ul>
+{% endblock %}
