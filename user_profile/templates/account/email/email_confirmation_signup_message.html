@@ -1,0 +1,13 @@
+{% extends './base.html' %}
+
+{% block title %}
+    Confirmar email
+{% endblock %}
+
+{% block content %}
+    Hola
+    <p><a href="{{ activate_url }}" target="_blank">Hace clic aca para confirmar tu email</a></p>
+
+    <p>Si no ves el link copia y pega el siguiente link en tu navegador:</p>
+    {{ activate_url }}
+{% endblock %}

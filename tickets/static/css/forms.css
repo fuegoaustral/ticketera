@@ -1,0 +1,47 @@
+.quantity-controls {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  width: 100%;
+}
+.quantity-controls > * {
+  width: 32px;
+  height: 32px;
+}
+.quantity-controls button {
+  font-size: 1.25rem;
+  border: none;
+  background: transparent;
+  color: #b3b3b3;
+}
+.quantity-controls button:hover {
+  color: #1d0402;
+}
+
+.quantity-controls input {
+  border: 1px solid #d9d9d9;
+  text-align: center;
+  font-weight: 400;
+  border-radius: 4px;
+  width: 28px;
+  /* hide arrows */
+  -moz-appearance: textfield;
+  -webkit-appearance: textfield;
+  appearance: textfield;
+}
+.quantity-controls input::-webkit-inner-spin-button,
+.quantity-controls input::-webkit-outer-spin-button,
+.donation-input::-webkit-inner-spin-button,
+.donation-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+/* Hide arrows for Firefox */
+.quantity-controls input,
+.donation-input {
+  -moz-appearance: textfield; /* Change to textfield to remove arrows */
+}
+
+form .table > :not(caption) > * > * {
+  padding: 1rem 2rem !important;
+}

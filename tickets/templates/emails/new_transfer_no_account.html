@@ -1,0 +1,42 @@
+{% extends 'emails/base.html' %}
+{% block subject %}🔥¡Te enviaron un bono de Fuego Austral, no cuelges en registrarte!🔥 {% endblock %}
+{% block title %}
+    Transferencia de Bono<br/>
+{% endblock %}
+{% block content %}
+    <p>
+        Te han enviado {{ ticket_count }} {% if ticket_count > 1 %}bonos{% else %}bono{% endif %}  de Fuego Austral.
+        Para completar la transferencia y recibir tu{% if ticket_count > 1 %}s bonos{% else %} bono{% endif %},
+        necesitas crear una cuenta en nuestra plataforma.
+    </p>
+
+    <p>
+        Crear una cuenta es muy fácil, solo haz click en el siguiente botón y sigue las instrucciones.
+    </p>
+
+    {% include 'emails/partials/btn.html' with label='Crear cuenta' href=sign_up_link  domain=domain %}
+
+    <p>
+        Es importante que uses el mismo email al que te enviamos este mensaje <b>({{ destination_email }})</b>.
+    </p>
+    <p>
+    </p>
+
+    <p>
+        Cualquier problema que tengas con tu{% if ticket_count > 1 %}s bonos{% else %} bono{% endif %}, podés escribirnos a <a href="mailto:bonos@fuegoaustral.org">bonos@fuegoaustral.org</a>
+        o chatearnos desde la web.
+    </p>
+    <p>
+        La experiencia será lo que hagamos de ella.
+    </p>
+
+    <table style="width: 100%; max-width: 600px; border-collapse: collapse; margin: 0 auto; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px;">
+        <tr>
+            <td style="padding: 15px; color: #721c24; text-align: center; font-family: Arial, sans-serif; font-size: 16px;">
+                <p style="margin: 0; padding: 0; font-weight: bold;">
+                    LA REVENTA CON SOBREPRECIOS IMPLICARÁ LA CANCELACIÓN DEL BONO CONTRIBUCIÓN
+                </p>
+            </td>
+        </tr>
+    </table>
+{% endblock %}

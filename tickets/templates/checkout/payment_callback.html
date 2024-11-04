@@ -1,0 +1,64 @@
+{% extends "./base.html" %}
+{% block truecontent %}
+    <div class="truecontent">
+        <div class="card text-center mx-extra">
+            <div class="card-body d-flex justify-content-between flex-column align-items-center main-card-spacing gap-3"
+                 id="loading-section">
+                <h1>Procesando tu pago...</h1>
+                <div>Estamos verificando el estado de tu pago. Por favor, espera un momento.</div>
+                <div class="spinner-border text-primary" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>
+            </div>
+            <div class="card-body d-flex justify-content-between flex-column align-items-center main-card-spacing gap-3"
+                 id="success-section"
+                 style="display: none !important;">
+                <h1>¡Pago Completado con éxito!</h1>
+                <div>
+                    Tu pago ha sido procesado correctamente y tus bonos han sido emitidos.
+                    <br>
+                    Podes encontrarlos en la sección “Bonos” en tu perfil.
+                </div>
+                <a href="{% url 'my_ticket' %}"
+                   class="btn btn-primary mt-3 text-white text-decoration-none">Ir a Bonos</a>
+            </div>
+            <div class="card-body d-flex justify-content-between flex-column align-items-center main-card-spacing gap-3"
+                 id="refunded-section"
+                 style="display: none !important;">
+                <h1>Pago Devuelto</h1>
+                <div>
+                    Se agotaron los bonos y tu pago fue devuelto.
+                    <br>
+                    Estate atento a las novedades de la comunidad para el JORTEO.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+        function checkOrderStatus() {
+            fetch("{% url 'check_order_status' order_key=order_key %}")
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === "CONFIRMED") {
+                        document.getElementById('loading-section').style = 'display: none !important';
+                        console.log('here')
+                        console.log(document.getElementById('loading-section').style.display)
+                        document.getElementById('success-section').style.display = 'block';
+                    } else if (data.status === "REFUNDED") {
+                        document.getElementById('loading-section').style = 'display: none !important';
+                        document.getElementById('refunded-section').style.display = 'block';
+                    } else {
+                        // If status is still pending, check again after 5 seconds
+                        setTimeout(checkOrderStatus, 5000);
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            // Perform the first check immediately
+            checkOrderStatus();
+        });
+</script>
+{% endblock %}
