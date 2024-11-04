@@ -35,6 +35,7 @@ class ProfileStep1Form(forms.ModelForm):
 
         # Check for duplicate document number and type
         if (
+            document_number and
             Profile.objects.filter(
                 document_type=document_type, document_number=document_number
             )
