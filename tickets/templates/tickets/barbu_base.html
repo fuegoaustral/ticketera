@@ -79,16 +79,16 @@
           <path d="M37.5993 7.07482C37.5993 7.07482 37.2996 20.8707 35.9341 34.2834C35.9341 34.2834 29.3267 38.7346 27.3983 39.8673C27.3983 39.8673 26.7389 44.8686 26.4697 59.6545L31.8799 62.3183C31.8799 62.3183 30.164 79.2153 29.3604 88.7484C29.3604 88.7484 29.8025 89.3145 32.2106 88.7484C32.2106 88.7484 36.0055 73.426 37.1304 59.3691C37.1304 59.3691 34.3789 57.406 30.2852 55.7327C30.2852 55.7327 31.489 47.0245 31.489 44.6008C31.489 44.6008 37.9031 40.4259 41.4706 37.6824C41.4706 37.6824 43.7104 29.4119 45.1982 7.07482C45.1982 7.07482 41.9823 5.78147 37.5993 7.07482Z" fill="white" />
           </g>
         </svg>
-        EVENTOS
+        <div class="d-none d-sm-block">EVENTOS</div>
       </a>
-      <ul class="nav d-flex flex-row align-items-center">
-        <li class="nav-item">
+      <ul class="nav d-flex flex-row align-items-center flex-nowrap">
+        <li class="nav-item d-none d-md-block">
           <a class="nav-link" href="https://fuegoaustral.org" target="_blank">fuegoaustral.org</a>
         </li>
         {% if request.user.is_authenticated %}
           <li class="nav-item dropdown show">
             <a class="nav-link dropdown-toggle" href="#" id="dropdownProfileButton" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-              {{ user.email }}
+              Mi cuenta
             </a>
             <div class="dropdown-menu" aria-labelledby="dropdownProfileButton">
               <a class="dropdown-item" href="{% url "my_ticket" %}"><i class="fa-solid fa-user"></i> Mi perfil</a>
@@ -106,7 +106,7 @@
             <a class="nav-link" href="{% url 'account_signup' %}">Registrarse</a>
           </li>
         {% endif %}
-        <li class="nav-item no-border">
+        <li class="nav-item d-none d-sm-block">
           <a class="nav-link btn btn-secondary"
              href="https://donaronline.org/asociacion-civil-fuego-austral/becas-de-arte-fuego-austral-2025"
              target="_blank">Quiero Donar</a>

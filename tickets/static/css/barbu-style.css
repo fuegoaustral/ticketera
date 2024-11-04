@@ -40,11 +40,17 @@ img {
 header,
 footer {
   background: #1d0402;
-  padding: 40px 80px;
-}
-header.container,
-footer.container {
-  padding: 40px 80px;
+
+  padding: 40px 1rem !important;
+  @media (min-width: 576px) {
+    padding: 40px 1rem !important;
+  }
+  @media (min-width: 768px) {
+    padding: 40px 2rem !important;
+  }
+  @media (min-width: 992px) {
+    padding: 40px 80px !important;
+  }
 }
 
 .logo {
@@ -55,34 +61,33 @@ footer.container {
 }
 
 .nav-item {
+  position: relative;
   height: 100%;
+  white-space: nowrap;
 }
 
-header {
-  .nav-link {
-    display: inline-flex;
-    align-items: center;
-    height: 100%;
-    color: #fff;
-    padding: 0.5rem;
-    @media (min-width: 992px) {
-      padding: 0.5rem 1rem;
-    }
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  color: #fff;
+  padding: 0.5rem;
+  @media (min-width: 992px) {
+    padding: 0.5rem 1rem;
   }
-  .nav-link:focus,
-  .nav-link:hover {
-    color: #fff;
-  }
+}
+.nav-link:focus,
+.nav-link:hover {
+  color: #fff;
+}
 
-  .nav-item:not(.no-border):not(:first-child):before {
-    content: "|";
-    color: #fff;
-  }
-
-  .nav-link.btn-secondary {
-    padding: 1rem 2rem;
-    color: #1E1E1E;
-  }
+.nav-item:first-child:before {
+  content: "|";
+  color: #fff;
+  position: absolute;
+  top: 50%;
+  right: -2px;
+  transform: translateY(-50%);
 }
 
 .hero {
@@ -154,11 +159,15 @@ footer a {
 }
 
 .btn {
-  padding: 1rem 2rem;
   border: 1px solid var(--bs-btn-border-color); /* New primary border color */
   color: #1e1e1e;
   line-height: 1.125;
   transition: all 0.3s ease;
+  padding: 0.75rem 1rem;
+
+  @media (min-width: 992px) {
+    padding: 1rem 2rem;
+  }
 }
 .btn:hover {
   color: #1e1e1e;
@@ -338,7 +347,7 @@ dl {
     width: 100%;
     padding: 1rem;
     text-align: left;
-    color: #1E1E1E !important;
+    color: #1e1e1e !important;
   }
 
   .nav-link.active {
