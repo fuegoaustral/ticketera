@@ -57,6 +57,7 @@ footer.container {
 .nav-item {
   height: 100%;
 }
+
 header {
   .nav-link {
     display: inline-flex;
@@ -156,7 +157,7 @@ footer a {
   padding: 1rem 2rem;
   border: 1px solid var(--bs-btn-border-color); /* New primary border color */
   color: #1e1e1e;
-  line-height: 1;
+  line-height: 1.125;
   transition: all 0.3s ease;
 }
 .btn:hover {
@@ -171,11 +172,6 @@ footer a {
 .btn-primary:hover {
   border: 1px solid transparent;
   color: #fff !important;
-}
-
-.btn-secondary,
-.btn-secondary:hover {
-  border: 1px solid #d9d9d9;
 }
 
 .btn:hover {
