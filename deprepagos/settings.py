@@ -243,7 +243,17 @@ LOGGING = {
         'level': 'DEBUG',
     },
     'loggers': {
-        '': {
+        'botocore': {
+            'level': 'ERROR',  # Change to ERROR to reduce logs
+            'handlers': ['console'],
+            'propagate': False,
+        },
+        's3transfer': {
+            'level': 'ERROR',  # Change to ERROR to reduce logs
+            'handlers': ['console'],
+            'propagate': False,
+        },
+        'zappa': {
             'handlers': ['console'],
             'level': os.getenv('DJANGO_LOG_LEVEL', 'DEBUG'),
             'propagate': False,

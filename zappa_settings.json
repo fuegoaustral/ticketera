@@ -1,5 +1,6 @@
 {
   "dev": {
+    "alias": "dev",
     "slim_handler": true,
     "aws_region": "us-east-1",
     "django_settings": "deprepagos.settings_dev",
@@ -41,6 +42,7 @@
     ]
   },
   "prod": {
+    "alias": "prod",
     "slim_handler": true,
     "aws_region": "us-east-1",
     "django_settings": "deprepagos.settings_prod",

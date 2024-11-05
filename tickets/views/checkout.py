@@ -3,7 +3,6 @@ import uuid
 import mercadopago
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.db import transaction
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render, redirect
 from django.urls import reverse
@@ -148,36 +147,35 @@ def order_summary(request):
         if total_quantity > remaining_event_tickets:
             return HttpResponse('No hay suficientes tickets disponibles.', status=400)
 
-        with transaction.atomic():
-            order = Order(
-                first_name=request.user.first_name,
-                last_name=request.user.last_name,
-                email=request.user.email,
-                phone=request.user.profile.phone,
-                dni=request.user.profile.document_number,
-                amount=total_amount,
-                status=Order.OrderStatus.PENDING,
-                donation_art=donations.get('donation_art', 0),
-                donation_venue=donations.get('donation_venue', 0),
-                donation_grant=donations.get('donation_grant', 0),
-                event=event,
-                user=request.user,
-                order_type=Order.OrderType.ONLINE_PURCHASE,
-            )
-            order.save()
+        order = Order(
+            first_name=request.user.first_name,
+            last_name=request.user.last_name,
+            email=request.user.email,
+            phone=request.user.profile.phone,
+            dni=request.user.profile.document_number,
+            amount=total_amount,
+            status=Order.OrderStatus.PENDING,
+            donation_art=donations.get('donation_art', 0),
+            donation_venue=donations.get('donation_venue', 0),
+            donation_grant=donations.get('donation_grant', 0),
+            event=event,
+            user=request.user,
+            order_type=Order.OrderType.ONLINE_PURCHASE,
+        )
+        order.save()
 
-            if ticket_types.exists():
-                order_tickets = [
-                    OrderTicket(
-                        order=order,
-                        ticket_type=ticket_type,
-                        quantity=quantity
-                    )
-                    for ticket_type in ticket_types
-                    if (quantity := ticket_selection.get(f'ticket_{ticket_type.id}_quantity', 0)) > 0
-                ]
-                if order_tickets:
-                    OrderTicket.objects.bulk_create(order_tickets)
+        if ticket_types.exists():
+            order_tickets = [
+                OrderTicket(
+                    order=order,
+                    ticket_type=ticket_type,
+                    quantity=quantity
+                )
+                for ticket_type in ticket_types
+                if (quantity := ticket_selection.get(f'ticket_{ticket_type.id}_quantity', 0)) > 0
+            ]
+            if order_tickets:
+                OrderTicket.objects.bulk_create(order_tickets)
 
         preference_data = {
             "items": items,
