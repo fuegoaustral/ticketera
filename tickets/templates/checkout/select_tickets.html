@@ -13,74 +13,86 @@
     {% else %}
         <div class="card w-100">
             <div class="card-body d-flex flex-column justify-content-center align-items-center w-100 p-5 px-extra">
+                {% if ticket_data %}
                 <div>Paso 1 de 4</div>
+                {% endif %}
                 <h1 class="card-title">Bonos {{ event.name }}</h1>
+                {% if ticket_data %}
                 <div class="alert alert-info w-100" role="alert">
                     {% if event.max_tickets_per_order %}Podés comprar hasta <strong>{{ available_tickets }} bonos</strong>.{% endif %}
                     Al finalizar la compra, podrás transferir los bonos a otras personas.
                 </div>
-                <form method="post"
-                      action="{% url 'select_tickets' %}"
-                      class="w-100 d-flex flex-column">
-                    {% csrf_token %}
-                    {% if form.errors %}
-                        <div class="alert alert-danger">
-                            {% for field in form %}
-                                {% for error in field.errors %}
-                                    {{ field.label }}: {{ error }}
+                    <form method="post"
+                          action="{% url 'select_tickets' %}"
+                          class="w-100 d-flex flex-column">
+                        {% csrf_token %}
+                        {% if form.errors %}
+                            <div class="alert alert-danger">
+                                {% for field in form %}
+                                    {% for error in field.errors %}
+                                        {{ field.label }}: {{ error }}
+                                        <br>
+                                    {% endfor %}
+                                {% endfor %}
+                                {% for error in form.non_field_errors %}
+                                    {{ error }}
                                     <br>
                                 {% endfor %}
-                            {% endfor %}
-                            {% for error in form.non_field_errors %}
-                                {{ error }}
-                                <br>
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                    <div class="table-responsive">
-                        <table class="table align-middle">
-                            <thead>
-                                <tr>
-                                    <th class="text-start">Tipo de Bono</th>
-                                    <th class="text-end">Precio</th>
-                                    <th class="text-end">Cantidad</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for ticket in ticket_data %}
+                            </div>
+                        {% endif %}
+                        <div class="table-responsive">
+                            <table class="table align-middle">
+                                <thead>
                                     <tr>
-                                        <td class="text-start">
-                                            <div>{{ ticket.name }}</div>
-                                            <span style="font-size: 0.85em; color: #666;">{{ ticket.description }}</span>
-                                        </td>
-                                        <td class="text-end align-middle">${{ ticket.price|floatformat|intcomma }}</td>
-                                        <td class="text-end align-middle">
-                                            <span class="quantity-controls">
-                                                <button type="button" onclick="updateQuantity('{{ ticket.id }}', -1)">&minus;</button>
-                                                <input type="number"
-                                                       id="ticket_{{ ticket.id }}_quantity"
-                                                       name="{{ ticket.field_name }}"
-                                                       value="{{ ticket.quantity|default:0 }}"
-                                                       min="0"
-                                                       max="{{ available_tickets }}"
-                                                       oninput="this.value = Math.min(Math.max(parseInt(this.value), 0), {{ available_tickets }})">
-                                                <button type="button" onclick="updateQuantity('{{ ticket.id }}', 1)">&plus;</button>
-                                            </span>
-                                        </td>
+                                        <th class="text-start">Tipo de Bono</th>
+                                        <th class="text-end">Precio</th>
+                                        <th class="text-end">Cantidad</th>
                                     </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="d-flex flex-column gap-2 form-group align-items-end my-3">
-                        <div>Precios expresados en <b>pesos argentinos</b></div>
-                        <div><b>Subtotal Bonos</b> <span id="subtotal">$0</span></div>
-                    </div>
-                    <button type="submit"
-                            class="btn btn-primary align-self-center mt-3"
-                            id="continue-button"
-                            disabled>Continuar</button>
-                </form>
+                                </thead>
+                                <tbody>
+                                    {% for ticket in ticket_data %}
+                                        <tr>
+                                            <td class="text-start">
+                                                <div>{{ ticket.name }}</div>
+                                                <span style="font-size: 0.85em; color: #666;">{{ ticket.description }}</span>
+                                            </td>
+                                            <td class="text-end align-middle">${{ ticket.price|floatformat|intcomma }}</td>
+                                            <td class="text-end align-middle">
+                                                <span class="quantity-controls">
+                                                    <button type="button" onclick="updateQuantity('{{ ticket.id }}', -1)">&minus;</button>
+                                                    <input type="number"
+                                                           id="ticket_{{ ticket.id }}_quantity"
+                                                           name="{{ ticket.field_name }}"
+                                                           value="{{ ticket.quantity|default:0 }}"
+                                                           min="0"
+                                                           max="{{ available_tickets }}"
+                                                           oninput="this.value = Math.min(Math.max(parseInt(this.value), 0), {{ available_tickets }})">
+                                                    <button type="button" onclick="updateQuantity('{{ ticket.id }}', 1)">&plus;</button>
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="d-flex flex-column gap-2 form-group align-items-end my-3">
+                            <div>
+                                Precios expresados en <b>pesos argentinos</b>
+                            </div>
+                            <div>
+                                <b>Subtotal Bonos</b> <span id="subtotal">$0</span>
+                            </div>
+                        </div>
+                        <button type="submit"
+                                class="btn btn-primary align-self-center mt-3"
+                                id="continue-button"
+                                disabled>Continuar</button>
+                    </form>
+                {% else %}
+                <div class="alert alert-danger w-100" role="alert">
+                    No hay tickets a la venta disponibles en este momento.
+                </div>
+                {% endif %}
             </div>
         </div>
         <script type="text/javascript">
