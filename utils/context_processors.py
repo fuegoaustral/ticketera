@@ -37,6 +37,7 @@ def current_event(request):
                 "has_unassigned_tickets": has_unassigned_tickets,
                 "has_transfer_pending": has_transfer_pending,
                 "has_available_tickets": TicketType.objects.get_available_ticket_types_for_current_events().exists(),
+                "holding_tickets": len(tickets)
             }
         )
     return context
