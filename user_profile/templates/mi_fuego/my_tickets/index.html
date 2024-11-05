@@ -44,6 +44,6 @@
   </li>
   <li class="nav-item">
     <a class="nav-link{% if nav_secondary == "transferable_tickets" %} active{% endif %}"
-       href="{% url 'transferable_tickets' %}">Bonos a transferir</a>
+       href="{% url 'transferable_tickets' %}">Bonos a transferir {% if holding_tickets > 0 %}({{ holding_tickets }}){% endif %}</a>
   </li>
 {% endblock submenu %}
