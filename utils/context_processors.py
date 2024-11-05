@@ -3,7 +3,7 @@ import hmac
 
 from deprepagos import settings
 from events.models import Event
-from tickets.models import NewTicket
+from tickets.models import NewTicket, TicketType
 
 
 def current_event(request):
@@ -36,6 +36,7 @@ def current_event(request):
             {
                 "has_unassigned_tickets": has_unassigned_tickets,
                 "has_transfer_pending": has_transfer_pending,
+                "has_available_tickets": TicketType.objects.get_available_ticket_types_for_current_events().exists(),
             }
         )
     return context
