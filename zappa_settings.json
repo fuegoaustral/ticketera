@@ -53,10 +53,7 @@
     "keep_warm": true,
     "vpc_config": {
       "SubnetIds": [
-        "subnet-0130a8113f5e1feb7",
-        "subnet-0ec9b01ef200e3fd8",
         "subnet-0ca111a1082be3412",
-        "subnet-087803ad71197bfd6",
         "subnet-09df22997bd332147",
         "subnet-0c0872c4d05ed309d"
       ],
