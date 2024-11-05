@@ -4,7 +4,9 @@
 {% if my_ticket  and event.transfers_enabled_until >= now %}
     <button class="btn btn-secondary" id="unAssignTicket">Transferir mi bono</button>
 {% endif %}
-  <a class="btn btn-primary" href="{% url "select_tickets"%}">Comprar Bono</a>
+{% if has_available_tickets %}
+  <a class="btn btn-primary" href="{% url "select_tickets" %}">Comprar Bono</a>
+{% endif %}
 {% endblock actions %}
 {% block truecontent %}
   {% if my_ticket %}
@@ -63,7 +65,9 @@
       <div class="card text-center mx-extra">
         <div class="card-body d-flex justify-content-between flex-column align-items-center main-card-spacing gap-4">
           <h3>No tenés bono</h3>
-          <a class="btn btn-primary" href="{% url "select_tickets"%}">Comprar Bono</a>
+          {% if has_available_tickets %}
+          <a class="btn btn-primary" href="{% url "select_tickets" %}">Comprar Bono</a>
+          {% endif %}
         </div>
       </div>
     </div>
