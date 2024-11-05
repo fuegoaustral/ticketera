@@ -5,7 +5,6 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.validators import EmailValidator
-from django.db import transaction
 from django.http import HttpResponseNotAllowed, HttpResponseForbidden, HttpResponse, HttpResponseBadRequest, \
     JsonResponse
 from django.shortcuts import redirect
@@ -70,30 +69,30 @@ def transfer_ticket(request):
             }
         )
     else:
-        with transaction.atomic():
-            destination_user = User.objects.get(email=email)
-            destination_user_already_has_ticket = NewTicket.objects.filter(owner=destination_user).exists()
 
-            new_ticket_transfer = NewTicketTransfer(
-                ticket=ticket,
-                tx_from=request.user,
-                tx_to=destination_user,
-                tx_to_email=destination_user.email,
-                status='COMPLETED'
-            )
+        destination_user = User.objects.get(email=email)
+        destination_user_already_has_ticket = NewTicket.objects.filter(owner=destination_user).exists()
 
-            ticket.holder = destination_user
-            if destination_user_already_has_ticket:
-                ticket.owner = None
-            else:
-                ticket.owner = destination_user
+        new_ticket_transfer = NewTicketTransfer(
+            ticket=ticket,
+            tx_from=request.user,
+            tx_to=destination_user,
+            tx_to_email=destination_user.email,
+            status='COMPLETED'
+        )
 
-            ticket.volunteer_ranger = None
-            ticket.volunteer_transmutator = None
-            ticket.volunteer_umpalumpa = None
+        ticket.holder = destination_user
+        if destination_user_already_has_ticket:
+            ticket.owner = None
+        else:
+            ticket.owner = destination_user
 
-            new_ticket_transfer.save()
-            ticket.save()
+        ticket.volunteer_ranger = None
+        ticket.volunteer_transmutator = None
+        ticket.volunteer_umpalumpa = None
+
+        new_ticket_transfer.save()
+        ticket.save()
 
         send_mail(
             template_name='new_transfer_success',
