@@ -44,18 +44,33 @@
     <style>
         .donation-section {
             background-color: #f3f4f5;
-            border-radius: 2rem;
-            margin-top: 2rem;
-            margin-bottom: 2rem;
-            padding: 2rem 3rem;
 
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+            @media (min-width: 768px) {
+                margin-top: 2rem;
+                margin-bottom: 2rem;
+            }
+
+            border-radius: 1rem;
+            @media (min-width: 768px) {
+                border-radius: 2rem;
+            }
+
+            padding: 1rem;
+            @media (min-width: 576px) {
+                padding: 1rem 2rem;
+            }
+            @media (min-width: 768px) {
+                padding: 2rem 3rem;
+            }
             @media (min-width: 992px) {
                 padding: 3rem 5rem;
             }
         }
     </style>
-    <div class="container-xxl home-section donations">
-        <div class="donation-section d-flex gap-3 flex-row justify-content-between align-items-center">
+    <div class="home-section">
+        <div class="container-xxl donation-section d-flex gap-3 flex-row justify-content-between align-items-center">
             <div>
                 <div class="section-title">Becas de Arte</div>
                 <div class="section-text">Para impulsar la creatividad en nuestra ciudad temporal.</div>
@@ -66,7 +81,7 @@
                    class="btn btn-secondary">Quiero impulsar la creatividad</a>
             </div>
         </div>
-        <div class="donation-section d-flex gap-3 flex-row justify-content-between align-items-center">
+        <div class="container-xxl donation-section d-flex gap-3 flex-row justify-content-between align-items-center">
             <div>
                 <div class="section-title">Inclusión Radical</div>
                 <div class="section-text">Para ayudar a quienes necesitan una mano con su bono contribución.</div>
@@ -77,7 +92,7 @@
                    class="btn btn-secondary">Quiero dar una mano</a>
             </div>
         </div>
-        <div class="donation-section d-flex gap-3 flex-row justify-content-between align-items-center">
+        <div class="container-xxl donation-section d-flex gap-3 flex-row justify-content-between align-items-center">
             <div>
                 <div class="section-title">La Sede</div>
                 <div class="section-text">Para mejorar el espacio donde nos encontramos todo el año.</div>
