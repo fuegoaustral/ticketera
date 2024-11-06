@@ -8,6 +8,7 @@ from django.contrib import admin
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import permission_required
 from django.contrib.auth.models import User
+from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
@@ -87,86 +88,86 @@ def admin_caja_view(request):
 
                 user = User.objects.filter(email=form.cleaned_data['email']).first()
                 new_user = False
+                with transaction.atomic():
+                    if not user:
+                        new_user = True
+                        user = User.objects.create_user(
+                            username=str(uuid.uuid4()),
+                            email=form.cleaned_data['email'],
+                            first_name=form.cleaned_data['first_name'],
+                            last_name=form.cleaned_data['last_name'],
+                        )
+                        user.profile.phone = form.cleaned_data['phone']
+                        user.profile.document_type = form.cleaned_data['document_type']
+                        user.profile.document_number = form.cleaned_data['document_number']
+                        user.profile.profile_completion = 'COMPLETE'
+                        user.save()
 
-                if not user:
-                    new_user = True
-                    user = User.objects.create_user(
-                        username=str(uuid.uuid4()),
-                        email=form.cleaned_data['email'],
-                        first_name=form.cleaned_data['first_name'],
-                        last_name=form.cleaned_data['last_name'],
-                    )
-                    user.profile.phone = form.cleaned_data['phone']
-                    user.profile.document_type = form.cleaned_data['document_type']
-                    user.profile.document_number = form.cleaned_data['document_number']
-                    user.profile.profile_completion = 'COMPLETE'
-                    user.save()
-
-                    EmailAddress.objects.create(
-                        user=user,
-                        email=form.cleaned_data['email'],
-                        verified=True,
-                        primary=True
-                    )
-
-                    reset_form = ResetPasswordForm(data={'email': user.email})
-
-                    if reset_form.is_valid():
-                        reset_form.save(
-                            subject_template_name='account/email/password_reset_subject.txt',
-                            email_template_name='account/email/password_reset_email.html',
-                            from_email=settings.DEFAULT_FROM_EMAIL,
-                            request=None,  # Not needed in this context
-                            use_https=False,  # Use True if your site uses HTTPS
-                            html_email_template_name=None,
-                            extra_email_context=None
+                        EmailAddress.objects.create(
+                            user=user,
+                            email=form.cleaned_data['email'],
+                            verified=True,
+                            primary=True
                         )
 
-                order = Order(
-                    first_name=user.first_name,
-                    last_name=user.last_name,
-                    email=user.email,
-                    phone=user.profile.phone,
-                    dni=user.profile.document_number,
-                    amount=total_amount,
-                    status=Order.OrderStatus.CONFIRMED,
-                    event=default_event,
-                    user=user,
-                    order_type=form.cleaned_data['order_type'],
-                    donation_art=0,
-                    donation_venue=0,
-                    donation_grant=0,
-                    notes=form.cleaned_data['notes'],
-                    generated_by=request.user
-                )
-                order.save()
+                        reset_form = ResetPasswordForm(data={'email': user.email})
 
-                order_tickets = [
-                    OrderTicket(
-                        order=order,
-                        ticket_type=ticket_type,
-                        quantity=quantity
+                        if reset_form.is_valid():
+                            reset_form.save(
+                                subject_template_name='account/email/password_reset_subject.txt',
+                                email_template_name='account/email/password_reset_email.html',
+                                from_email=settings.DEFAULT_FROM_EMAIL,
+                                request=None,  # Not needed in this context
+                                use_https=False,  # Use True if your site uses HTTPS
+                                html_email_template_name=None,
+                                extra_email_context=None
+                            )
+
+                    order = Order(
+                        first_name=user.first_name,
+                        last_name=user.last_name,
+                        email=user.email,
+                        phone=user.profile.phone,
+                        dni=user.profile.document_number,
+                        amount=total_amount,
+                        status=Order.OrderStatus.CONFIRMED,
+                        event=default_event,
+                        user=user,
+                        order_type=form.cleaned_data['order_type'],
+                        donation_art=0,
+                        donation_venue=0,
+                        donation_grant=0,
+                        notes=form.cleaned_data['notes'],
+                        generated_by=request.user
                     )
-                    for ticket_quantity in tickets_quantity
-                    if (ticket_type := ticket_quantity['ticket_type']) and (
-                        quantity := ticket_quantity['quantity']) > 0
-                ]
-                if order_tickets:
-                    OrderTicket.objects.bulk_create(order_tickets)
+                    order.save()
 
-                new_minted_tickets = webhooks.mint_tickets(order)
-                Order.objects.get(key=order.key).send_confirmation_email()
+                    order_tickets = [
+                        OrderTicket(
+                            order=order,
+                            ticket_type=ticket_type,
+                            quantity=quantity
+                        )
+                        for ticket_quantity in tickets_quantity
+                        if (ticket_type := ticket_quantity['ticket_type']) and (
+                            quantity := ticket_quantity['quantity']) > 0
+                    ]
+                    if order_tickets:
+                        OrderTicket.objects.bulk_create(order_tickets)
 
-                # Build the base URL
-                base_url = reverse('admin_caja_order_view', args=[order.key])
+                    new_minted_tickets = webhooks.mint_tickets(order)
+                    Order.objects.get(key=order.key).send_confirmation_email()
 
-                # Define query parameters
-                query_params = {'new_user': new_user}
+                    # Build the base URL
+                    base_url = reverse('admin_caja_order_view', args=[order.key])
 
-                # Construct the full URL with query parameters
-                url = f"{base_url}?{urlencode(query_params)}"
+                    # Define query parameters
+                    query_params = {'new_user': new_user}
 
-                return redirect(url)
+                    # Construct the full URL with query parameters
+                    url = f"{base_url}?{urlencode(query_params)}"
+
+                    return redirect(url)
 
     context = {
         'events': events,
@@ -303,6 +304,7 @@ class OrderAdmin(admin.ModelAdmin):
 
 
 class DirectTicketTemplateResource(resources.ModelResource):
+
     class Meta:
         model = DirectTicketTemplate
         fields = ['origin', 'name', 'amount']
@@ -359,8 +361,7 @@ class NewTicketInline(admin.StackedInline):
 
 
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ['id', 'first_name', 'last_name', 'email', 'phone', 'dni', 'amount', 'status', 'event', 'order_type',
-                    'created_at']
+    list_display = ['id', 'first_name', 'last_name', 'email', 'phone', 'dni', 'amount', 'status', 'event', 'order_type', 'created_at']
     list_filter = ['event', 'status', 'order_type']
     search_fields = ['key', 'first_name', 'last_name', 'email', 'phone', 'dni']
     inlines = [NewTicketInline]

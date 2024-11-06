@@ -1,5 +1,7 @@
 import logging
 
+from django.db import transaction
+
 
 def mint_tickets(order):
 
@@ -13,27 +15,28 @@ def mint_tickets(order):
         order_tickets = OrderTicket.objects.filter(order=order)
 
         new_minted_tickets = []
-        for ticket in order_tickets:
-            for _ in range(ticket.quantity):
-                new_ticket = NewTicket(
-                    holder=order.user,
-                    ticket_type=ticket.ticket_type,
-                    order=order,
-                    event=order.event,
-                )
+        with transaction.atomic():
+            for ticket in order_tickets:
+                for _ in range(ticket.quantity):
+                    new_ticket = NewTicket(
+                        holder=order.user,
+                        ticket_type=ticket.ticket_type,
+                        order=order,
+                        event=order.event,
+                    )
 
-                if not user_already_has_ticket and not order_has_more_than_one_ticket_type:
-                    new_ticket.owner = order.user
-                    user_already_has_ticket = True
+                    if not user_already_has_ticket and not order_has_more_than_one_ticket_type:
+                        new_ticket.owner = order.user
+                        user_already_has_ticket = True
 
-                new_ticket.save()
-                new_minted_tickets.append(new_ticket)
+                    new_ticket.save()
+                    new_minted_tickets.append(new_ticket)
 
-        order.status = Order.OrderStatus.CONFIRMED
-        order.save()
+            order.status = Order.OrderStatus.CONFIRMED
+            order.save()
 
-        for ticket in new_minted_tickets:
-            logging.info(f"Minted {ticket}")
+            for ticket in new_minted_tickets:
+                logging.info(f"Minted {ticket}")
 
 
         order.send_confirmation_email()
