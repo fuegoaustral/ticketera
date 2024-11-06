@@ -1,4 +1,5 @@
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.http import Http404
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
@@ -145,23 +146,24 @@ def profile_congrats(request):
     )
 
     if pending_transfers.exists():
-        user_already_has_ticket = NewTicket.objects.filter(owner=user).exists()
-        for transfer in pending_transfers:
-            transfer.status = "COMPLETED"
-            transfer.tx_to = user
-            transfer.save()
+        with transaction.atomic():
+            user_already_has_ticket = NewTicket.objects.filter(owner=user).exists()
+            for transfer in pending_transfers:
+                transfer.status = "COMPLETED"
+                transfer.tx_to = user
+                transfer.save()
 
-            transfer.ticket.holder = user
-            transfer.ticket.volunteer_ranger = None
-            transfer.ticket.volunteer_transmutator = None
-            transfer.ticket.volunteer_umpalumpa = None
-            if user_already_has_ticket:
-                transfer.ticket.owner = None
-            else:
-                transfer.ticket.owner = user
-                user_already_has_ticket = True
+                transfer.ticket.holder = user
+                transfer.ticket.volunteer_ranger = None
+                transfer.ticket.volunteer_transmutator = None
+                transfer.ticket.volunteer_umpalumpa = None
+                if user_already_has_ticket:
+                    transfer.ticket.owner = None
+                else:
+                    transfer.ticket.owner = user
+                    user_already_has_ticket = True
 
-            transfer.ticket.save()
+                transfer.ticket.save()
 
         return render(request, "account/profile_congrats_with_tickets.html")
     else:
