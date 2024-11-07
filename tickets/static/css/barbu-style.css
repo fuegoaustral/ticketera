@@ -40,7 +40,7 @@ img {
 }
 
 .container-fluid > .container {
-  @media (max-width: 768px) {
+  @media (max-width: 767px) {
     padding: 0 !important;
     margin-top: 1rem !important;
     margin-bottom: 1rem !important;
@@ -450,7 +450,7 @@ dl {
 }
 
 .truecontent {
-  padding: .5rem;
+  padding: 0.5rem;
   border-radius: 0.5rem;
   background-color: #f3f4f5;
 
@@ -541,10 +541,10 @@ dl {
 }
 
 .main-card-spacing {
-  padding: 3rem 5rem;
+  padding: 1.5rem 1rem !important;
 
-  @media (max-width: 768px) {
-    padding: 0.5rem !important;
+  @media (min-width: 768px) {
+    padding: 3rem 5rem;
   }
 }
 
@@ -636,7 +636,7 @@ dl {
   padding: 5rem;
   border-radius: 0.5rem;
 
-  @media (max-width: 768px) {
+  @media (max-width: 767px) {
     padding: 0 !important;
   }
 }
@@ -672,7 +672,7 @@ dl {
   .card-body {
     padding: 3rem 5rem;
 
-    @media (max-width: 768px) {
+    @media (max-width: 767px) {
       padding: 0.5rem !important;
     }
   }
