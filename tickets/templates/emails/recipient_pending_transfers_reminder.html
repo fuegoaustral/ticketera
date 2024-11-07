@@ -1,12 +1,12 @@
 {% extends 'emails/base.html' %}
-{% block subject %}🚨 ¡No olvides registrarte! Tienes un bono pendiente en Fuego Austral 🚨{% endblock %}
+{% block subject %}🚨 ¡No olvides registrarte! Tienes {{ transfer.count }} bono{% if transfer.count > 1 %}s{% endif %} pendiente{% if transfer.count > 1 %}s{% endif %} en Fuego Austral 🚨{% endblock %}
 {% block title %}
     Recordatorio de Transferencia de Bono<br/>
 {% endblock %}
 {% block content %}
     <p>
-        ¡Hola! Queremos recordarte que tienes un bono pendiente en Fuego Austral. La transferencia fue iniciada
-        hace {{ transfer.max_days_ago }} días y para poder recibir tu bono, es necesario que crees una cuenta en nuestra
+        ¡Hola! Queremos recordarte que tienes {{ transfer.count }} bono{% if transfer.count > 1 %}s{% endif %} pendiente{% if transfer.count > 1 %}s{% endif %} en Fuego Austral. La transferencia fue iniciada
+        hace {{ transfer.max_days_ago }} día{% if transfer.max_days_ago > 1 %}s{% endif %} y para poder recibir tu bono{% if transfer.count > 1 %}s{% endif %}, es necesario que crees una cuenta en nuestra
         plataforma.
     </p>
 
