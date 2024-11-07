@@ -16,7 +16,7 @@ class LoggerMiddleware:
         start_time = time.time()
 
         # Log standard request information
-        logger.info(f"----------------------Request {request_uuid} started----------------------")
+        logger.info(f"------------Request {request_uuid} started------------")
         logger.info(f"Request method: {request.method}")
         logger.info(f"Request path: {request.path}")
         logger.info(f"Client IP: {request.META.get('REMOTE_ADDR')}")
@@ -32,6 +32,6 @@ class LoggerMiddleware:
         logger.info(f"Response status code: {response.status_code}")
         response_body_size = len(response.content) if hasattr(response, 'content') else 0
         logger.info(f"Response body size: {response_body_size} bytes")
-        logger.info(f"----------------------Request {request_uuid} ended----------------------")
+        logger.info(f"------------Request {request_uuid} ended------------")
 
         return response
