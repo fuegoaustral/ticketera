@@ -177,6 +177,7 @@ def verification_congrats(request):
 @login_required
 def volunteering(request):
     ticket = get_object_or_404(NewTicket, holder=request.user, owner=request.user)
+    show_congrats = False
 
     if request.method == "POST":
         if ticket.event.volunteer_period() is False:
@@ -184,7 +185,15 @@ def volunteering(request):
         form = VolunteeringForm(request.POST, instance=ticket)
         if form.is_valid():
             form.save()
+            show_congrats = True
     else:
         form = VolunteeringForm(instance=ticket)
 
-    return render(request, "mi_fuego/my_tickets/volunteering.html", {"form": form, "nav_primary": "volunteering"})
+    return render(
+        request, 
+        "mi_fuego/my_tickets/volunteering.html",
+        {
+            "form": form,
+            "show_congrats": show_congrats,
+        }
+    )
