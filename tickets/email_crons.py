@@ -74,6 +74,7 @@ def send_recipient_pending_transfers_reminder(transfer, current_event):
                     context={
                         'transfer': transfer,
                         'current_event': current_event,
+                        'sign_up_link': f"{reverse('account_signup')}?{urlencode({'email': transfer.tx_to_email})}"
 
                     }
                 )
@@ -220,7 +221,7 @@ class PendingTransferReceiver:
 def get_pending_transfers_recipients(event):
     with connection.cursor() as cursor:
         cursor.execute("""
-            SELECT ntt.tx_to_email, MAX(EXTRACT(DAY FROM (NOW() - ntt.created_at))) as max_days_ago
+            SELECT ntt.tx_to_email, MAX(EXTRACT(DAY FROM (NOW() - ntt.created_at))) as max_days_ago, COUNT(ntt.id) as count
             FROM tickets_newtickettransfer ntt
             INNER JOIN tickets_newticket nt ON nt.id = ntt.ticket_id
             WHERE ntt.status = 'PENDING' and nt.event_id=%s
