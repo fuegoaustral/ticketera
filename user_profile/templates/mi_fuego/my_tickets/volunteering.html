@@ -6,6 +6,11 @@
             <div class="card-body d-flex justify-content-between flex-column align-items-center">
                 <h1>Quiero ser Voluntario</h1>
                 <div>Seleccioná tu(s) rol(es)</div>
+                 {% if show_congrats %}
+                    <div class="alert alert-success w-100 my-4">
+                        Te postulaste correctamente como voluntario. Luego de la revisión de tu postulación, te enviaremos un correo con la confirmación.
+                    </div>
+                {% endif %}
                 {% if event.volunteer_period %}
                     {% if event.volunteers_enabled_until %}
                         <div class="alert alert-info w-100 my-4">
