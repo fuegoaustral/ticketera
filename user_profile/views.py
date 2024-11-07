@@ -1,4 +1,5 @@
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.http import Http404
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
@@ -145,23 +146,24 @@ def profile_congrats(request):
     )
 
     if pending_transfers.exists():
-        user_already_has_ticket = NewTicket.objects.filter(owner=user).exists()
-        for transfer in pending_transfers:
-            transfer.status = "COMPLETED"
-            transfer.tx_to = user
-            transfer.save()
+        with transaction.atomic():
+            user_already_has_ticket = NewTicket.objects.filter(owner=user).exists()
+            for transfer in pending_transfers:
+                transfer.status = "COMPLETED"
+                transfer.tx_to = user
+                transfer.save()
 
-            transfer.ticket.holder = user
-            transfer.ticket.volunteer_ranger = None
-            transfer.ticket.volunteer_transmutator = None
-            transfer.ticket.volunteer_umpalumpa = None
-            if user_already_has_ticket:
-                transfer.ticket.owner = None
-            else:
-                transfer.ticket.owner = user
-                user_already_has_ticket = True
+                transfer.ticket.holder = user
+                transfer.ticket.volunteer_ranger = None
+                transfer.ticket.volunteer_transmutator = None
+                transfer.ticket.volunteer_umpalumpa = None
+                if user_already_has_ticket:
+                    transfer.ticket.owner = None
+                else:
+                    transfer.ticket.owner = user
+                    user_already_has_ticket = True
 
-            transfer.ticket.save()
+                transfer.ticket.save()
 
         return render(request, "account/profile_congrats_with_tickets.html")
     else:
@@ -175,6 +177,7 @@ def verification_congrats(request):
 @login_required
 def volunteering(request):
     ticket = get_object_or_404(NewTicket, holder=request.user, owner=request.user)
+    show_congrats = False
 
     if request.method == "POST":
         if ticket.event.volunteer_period() is False:
@@ -182,7 +185,15 @@ def volunteering(request):
         form = VolunteeringForm(request.POST, instance=ticket)
         if form.is_valid():
             form.save()
+            show_congrats = True
     else:
         form = VolunteeringForm(instance=ticket)
 
-    return render(request, "mi_fuego/my_tickets/volunteering.html", {"form": form, "nav_primary": "volunteering"})
+    return render(
+        request, 
+        "mi_fuego/my_tickets/volunteering.html",
+        {
+            "form": form,
+            "show_congrats": show_congrats,
+        }
+    )

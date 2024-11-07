@@ -30,9 +30,10 @@ SECRET_KEY = 'django-insecure-s$(*=)6^h$p=d6e4tpv#-s7_hg&cl!vc@yzas371ubj=+ks&cc
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+print(f'DEBUG: {DEBUG}')
 
 ENV = os.environ.get('ENV', 'local')
-
+print(f'ENV: {ENV}')
 ALLOWED_HOSTS = [
     '127.0.0.1',
     'localhost',
@@ -40,8 +41,10 @@ ALLOWED_HOSTS = [
     'eventos.fuegoaustral.org',
     os.environ.get('EXTRA_HOST')
 ]
+print(f'ALLOWED_HOSTS: {ALLOWED_HOSTS}')
 
 APP_URL = os.environ.get('APP_URL', 'http://localhost:8000')
+print(f'APP_URL: {APP_URL}')
 
 # Application definition
 AUTHENTICATION_BACKENDS = [
@@ -79,6 +82,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'utils.loggerMiddleware.LoggerMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -135,6 +139,7 @@ DATABASES = {
         'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
+print(f'DATABASE HOST: {DATABASES["default"]["HOST"]}')
 
 # Password validation
 # https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators

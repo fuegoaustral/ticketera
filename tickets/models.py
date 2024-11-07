@@ -11,7 +11,7 @@ from auditlog.registry import auditlog
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Count, Sum, Q, F
 from django.urls import reverse
 from django.utils import timezone
@@ -303,13 +303,14 @@ class NewTicket(BaseModel):
         return img_data_base64
 
     def save(self):
-        is_new = self.pk is None
-        super(NewTicket, self).save()
+        with transaction.atomic():
+            is_new = self.pk is None
+            super(NewTicket, self).save()
 
-        if is_new:
-            ticket_type = TicketType.objects.get(id=self.ticket_type.id)
-            ticket_type.ticket_count = ticket_type.ticket_count - 1
-            ticket_type.save()
+            if is_new:
+                ticket_type = TicketType.objects.get(id=self.ticket_type.id)
+                ticket_type.ticket_count = ticket_type.ticket_count - 1
+                ticket_type.save()
 
     def get_dto(self, user):
         transfer_pending = NewTicketTransfer.objects.filter(ticket=self, tx_from=user,
