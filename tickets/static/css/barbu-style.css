@@ -50,12 +50,14 @@ img {
 header,
 footer {
   background: #1d0402;
-  padding: 2rem 1rem !important;
+  padding: 1rem !important;
 
+  @media (min-width: 576px) {
+    padding: 2rem 1rem !important;
+  }
   @media (min-width: 768px) {
     padding: 2.5rem 2rem !important;
   }
-
   @media (min-width: 992px) {
     padding: 2.5rem 5rem !important;
   }
