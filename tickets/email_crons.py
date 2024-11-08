@@ -3,8 +3,10 @@ import json
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, ALL_COMPLETED, wait
+from urllib.parse import urlencode
 
 from django.db import connection
+from django.urls import reverse
 
 from events.models import Event
 from tickets.models import MessageIdempotency
@@ -207,14 +209,16 @@ def send_unsent_tickets_reminder_email(unsent_ticket, current_event):
 
 
 class PendingTransferReceiver:
-    def __init__(self, tx_to_email, max_days_ago):
+    def __init__(self, tx_to_email, max_days_ago, count):
         self.tx_to_email = tx_to_email
         self.max_days_ago = max_days_ago
+        self.count = count
 
     def to_dict(self):
         return {
             'tx_to_email': self.tx_to_email,
-            'max_days_ago': int(self.max_days_ago)
+            'max_days_ago': int(self.max_days_ago),
+            'count': int(self.count)
         }
 
 
