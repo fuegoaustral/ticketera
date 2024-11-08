@@ -1,36 +1,74 @@
 # Ticketera de FA
 
-## Development
+## Development - local
 
-### Installation
+### Requirements
+
+- install PostgreSQL (v14.11 works perfectly)
+- Python<3.10 (v3.9.19 works perfectly)
+
+### Setup environment
+
+#### Env variables
+
+Set env variables in **.env** file. You can use **.env.example** as template to copy from.
+```sh
+cp .env.example .env
+```
+
+#### Python
+
+1. Create python virtual environment and start it
 
 ```sh
-# install PostgreSQL (v14.11 works perfectly) and Python<3.10 (v3.9.19 works perfectly)
-python3 -m venv venv # or `python -m venv venv` if you have python 3 as default
+python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
-cp deprepagos/local_settings.py.example deprepagos/local_settings.py
-cp .env.example .env
-createdb deprepagos_development
 ```
 
-## Set envs.
+Note: you can quit virtual environment by running deactivate 
 
-You can copy the values from dev environment.
-
-### DB
-
-Use your recently created local DB
-
-```
-DB_DATABASE
-DB_HOST
-DB_PORT
-DB_USER
+```sh
+(venv)$ deactivate
 ```
 
-### MercadoPago
+2. Install python dependencies
+
+```sh
+(venv)$ pip install -r requirements.txt
+(venv)$ pip install -r requirements-dev.txt
+```
+
+3. Copy local settings
+```sh
+(venv)$ cp deprepagos/local_settings.py.example deprepagos/local_settings.py
+```
+
+#### Local DB
+
+1. Start postgresql server
+```sh
+brew services start postgresql #for mac
+```
+
+2. Create db
+
+```sh
+(venv)$ createdb deprepagos_development
+```
+
+3. Apply db updates
+
+```sh
+(venv)$ python manage.py migrate
+```
+
+4. Create Django admin user
+
+```sh
+(venv)$ python manage.py createsuperuser # provide username, leave email empty, and set some password. You can use whoami in mac to get a username
+```
+
+#### Setup MercadoPago
 
 Create a SELLER TEST USER in MercadoPago and set the following
 envs. [Instructions here]('https://www.mercadopago.com.ar/developers/es/docs/your-integrations/test/accounts')
@@ -45,30 +83,24 @@ I recommend using
 a [cloudflare tunnel]('https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/get-started/create-remote-tunnel/'),
 or [ngrok]('https://ngrok.com/), or similar to expose your local server to the internet.
 
-### Login with Google
+#### Setup Google authentication
 
 Create a project in Google Cloud Platform and enable the Google+ API. Then create OAuth 2.0 credentials and set the envs
 `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` with the values from the credentials.
 
 On the OAuth consent screen, set the authorized redirect URIs to `{your local env url}/accounts/google/login/callback/`
 
-### Once you have the envs set up, you can run the following commands:
-
-```sh
-python manage.py migrate
-whoami # copy the output
-python manage.py createsuperuser # paste the output as username, leave email empty, and set some password
-deactivate # only if you want to deactivate the virtualenv
-```
+#### Setup email testing
 
 For email testing use https://mailtrap.io/
 
-### Running
+1. Create an account
+2. Get HOST, PORT, USERNAME and PASSWORD from Email Testing > Inboxes > SMTP
+
+### Run environment
 
 ```sh
-source venv/bin/activate # if not already activated from before
-python manage.py runserver
-deactivate # if you want to deactivate the virtualenv
+(venv)$ python manage.py runserver
 ```
 
 ## Deploy
