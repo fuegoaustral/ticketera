@@ -11,7 +11,7 @@
 
 #### Env variables
 
-Set env variables in **.env** file. You can use **.env.example** as template to copy from.
+Set env variables in `.env` file. You can use `.env.example` as template to copy from.
 ```sh
 cp .env.example .env
 ```
