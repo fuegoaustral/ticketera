@@ -40,22 +40,22 @@ img {
 }
 
 .container-fluid > .container {
-  @media (max-width: 767px) {
+  @media (max-width: 575px) {
     padding: 0 !important;
-    margin-top: 1rem !important;
-    margin-bottom: 1rem !important;
   }
 }
 
 header,
 footer {
   background: #1d0402;
-  padding: 2rem 1rem !important;
+  padding: 1rem !important;
 
+  @media (min-width: 576px) {
+    padding: 2rem 1rem !important;
+  }
   @media (min-width: 768px) {
     padding: 2.5rem 2rem !important;
   }
-
   @media (min-width: 992px) {
     padding: 2.5rem 5rem !important;
   }
@@ -393,8 +393,13 @@ dl {
   background: #f3f4f5;
 }
 .subheader .container {
-  padding-top: 3rem !important;
-  padding-bottom: 3rem !important;
+  padding-top: 1rem !important;
+  padding-bottom: 1rem !important;
+
+  @media (min-width: 768px) {
+    padding-top: 3rem !important;
+    padding-bottom: 3rem !important;
+  }
 }
 
 .submenu {
@@ -404,13 +409,17 @@ dl {
   ul.nav {
     margin-left: 0;
   }
+}
+.submenu .nav-link {
+  border-bottom: 1px solid transparent;
+  color: #757575 !important;
 
-  .nav-link {
+  padding: 0.75rem;
+  @media (min-width: 768px) {
     padding: 1rem;
-    border-bottom: 1px solid transparent;
-    color: #757575 !important;
   }
-
+}
+.submenu {
   .nav-link.active,
   .nav-link:hover {
     color: #1e1e1e !important;
@@ -515,6 +524,14 @@ dl {
 
   100% {
     background-position: 0% 50%;
+  }
+}
+
+.card {
+  border-width: 0;
+
+  @media (min-width: 576px) {
+    border-width: var(--bs-card-border-width);
   }
 }
 
