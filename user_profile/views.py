@@ -140,7 +140,7 @@ def complete_profile(request):
 def profile_congrats(request):
     user = request.user
     pending_transfers = (
-        NewTicketTransfer.objects.filter(tx_to_email=user.email, status="PENDING")
+        NewTicketTransfer.objects.filter(tx_to_email__iexact=user.email, status="PENDING")
         .select_related("ticket")
         .all()
     )
