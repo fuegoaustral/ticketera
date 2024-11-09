@@ -26,7 +26,8 @@ def transfer_ticket(request):
     if 'email' not in request_body or 'ticket_key' not in request_body:
         return HttpResponseBadRequest('')
 
-    email = request_body['email']
+    email_param = request_body['email']
+    email = email_param.lower()
     ticket_key = request_body['ticket_key']
 
     ticket = NewTicket.objects.get(key=ticket_key)

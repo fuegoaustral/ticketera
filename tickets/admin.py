@@ -32,7 +32,8 @@ def email_has_account(request):
     if request.method == 'POST':
 
         data = json.loads(request.body)
-        email = data.get('email')
+        email_param = data.get('email')
+        email_param.lower()
 
         user = User.objects.filter(email=email).first()
         if user:
@@ -93,7 +94,7 @@ def admin_caja_view(request):
                         new_user = True
                         user = User.objects.create_user(
                             username=str(uuid.uuid4()),
-                            email=form.cleaned_data['email'],
+                            email=form.cleaned_data['email'].lower(),
                             first_name=form.cleaned_data['first_name'],
                             last_name=form.cleaned_data['last_name'],
                         )
@@ -105,12 +106,12 @@ def admin_caja_view(request):
 
                         EmailAddress.objects.create(
                             user=user,
-                            email=form.cleaned_data['email'],
+                            email=form.cleaned_data['email'].lower(),
                             verified=True,
                             primary=True
                         )
 
-                        reset_form = ResetPasswordForm(data={'email': user.email})
+                        reset_form = ResetPasswordForm(data={'email': user.email.lower()})
 
                         if reset_form.is_valid():
                             reset_form.save(
@@ -126,7 +127,7 @@ def admin_caja_view(request):
                     order = Order(
                         first_name=user.first_name,
                         last_name=user.last_name,
-                        email=user.email,
+                        email=user.email.lower(),
                         phone=user.profile.phone,
                         dni=user.profile.document_number,
                         amount=total_amount,
@@ -202,7 +203,7 @@ def admin_direct_tickets_view(request):
                                                                  status=DirectTicketTemplateStatus.AVAILABLE) if default_event else None
         elif action == "order":
 
-            email = request.POST.get('email')
+            email = request.POST.get('email').lower()
             notes = request.POST.get('notes')
             ticket_amounts = {int(k.split('_')[2]): int(v) for k, v in request.POST.items() if
                               k.startswith('ticket_amount_')}
@@ -231,7 +232,7 @@ def admin_direct_tickets_view(request):
 def admin_direct_tickets_buyer_view(request):
     direct_ticket_summary = request.session['direct_ticket_summary']
 
-    email = direct_ticket_summary.get('email')
+    email = direct_ticket_summary.get('email').lower()
     notes = direct_ticket_summary.get('notes')
     ticket_amounts = direct_ticket_summary.get('ticket_amounts')
     order_type = direct_ticket_summary.get('order_type')
@@ -254,7 +255,7 @@ def admin_direct_tickets_buyer_view(request):
     if request.method == 'POST':
         new_order_id = None
         if user is None:
-            new_order_id = direct_sales_new_user(email, template_tickets, order_type, notes, request.user)
+            new_order_id = direct_sales_new_user(email.lower(), template_tickets, order_type, notes, request.user)
         else:
             new_order_id = direct_sales_existing_user(user, template_tickets, order_type, notes, request.user)
 
