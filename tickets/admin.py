@@ -324,9 +324,9 @@ class DirectTicketTemplateResource(resources.ModelResource):
 class DirectTicketTemplateAdmin(ImportExportModelAdmin):
     resource_classes = [DirectTicketTemplateResource]
     list_display = ['id', 'origin', 'name', 'amount', 'status', 'event']
-    list_display_links = ['id']  # El campo 'name' será el enlace a los detalles
-    list_filter = ['event__name']  # Filtro por evento
-    search_fields = ['event__name']  # Buscar por nombre y evento
+    list_display_links = ['id']
+    list_filter = ['event__name', 'origin']
+    search_fields = ['event__name', 'name']
 
     def get_import_resource_kwargs(self, request, *args, **kwargs):
         kwargs = super().get_resource_kwargs(request, *args, **kwargs)

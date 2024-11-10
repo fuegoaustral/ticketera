@@ -480,6 +480,9 @@ class DirectTicketTemplate(BaseModel):
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     status = models.CharField(max_length=20, choices=DirectTicketTemplateStatus.choices,
                               default=DirectTicketTemplateStatus.AVAILABLE)
+    amount_used = models.PositiveIntegerField(null=True, blank=True)
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, null=True, blank=True)
+
 
     class Meta:
         verbose_name = "Bono dirigido"
