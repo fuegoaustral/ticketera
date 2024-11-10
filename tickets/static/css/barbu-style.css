@@ -274,6 +274,19 @@ footer a {
   background-color: #e5e5e5;
 }
 
+.btn-danger {
+  background-color: #fff;
+  border-color: #ff4d4f;
+  color: #ff4d4f;
+}
+
+.btn-danger:hover {
+  background-color: #fff;
+  border-color: #ff787b;
+  color: #ff787b;
+}
+
+
 .btn-link {
   padding: 0;
   height: initial;
@@ -509,7 +522,7 @@ dl {
   background: linear-gradient(45deg, #fd004c 16.66%, #fe9000 33.33%, #fff020 50%, #3edf4b 66.66%, #3363ff 83.33%, #b102b7 100%);
   border-radius: calc(5px + var(--borderWidth));
   z-index: -1;
-  animation: animatedgradient 30s ease-in-out alternate infinite;
+  animation: animatedgradient 10s ease-in-out alternate infinite;
   background-size: 400% 100%;
 }
 
