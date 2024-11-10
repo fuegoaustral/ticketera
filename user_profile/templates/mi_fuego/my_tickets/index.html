@@ -18,23 +18,29 @@
             <div class="container-fluid">
                 <div class="container">
 
-                        <a style="text-decoration: none" href="{% url 'transferable_tickets' %}">
-                        <div class="alert alert-danger" style="text-decoration: underline">
-                            Tenés
-                            {% if has_unassigned_tickets %}
-                                bonos sin asignar,
-                                {% if has_transfer_pending %}y{% endif %}
-                            {% endif %}
-                            {% if has_transfer_pending %}
-                                {% if not has_unassigned_tickets %}bonos{% endif %}
-                                que todavía no fueron aceptados,
-                            {% endif %}
-                            acordate que <strong>
-                            tenés tiempo para transferirlos hasta el
-                            {{ event.transfers_enabled_until|date:'d/m' }}
-                        </strong>. Hacé click acá para transferirlos.
+                    <div class="alert alert-danger text-start mt-2">
+                        <div class="d-flex align-items-center gap-5 flex-wrap flex-sm-nowrap justify-content-between">
+                            <div>
+                                Tenés
+                                {% if has_unassigned_tickets %}
+                                    bonos sin asignar,
+                                    {% if has_transfer_pending %}y{% endif %}
+                                {% endif %}
+                                {% if has_transfer_pending %}
+                                    {% if not has_unassigned_tickets %}bonos{% endif %}
+                                    que todavía no fueron aceptados,
+                                {% endif %}
+                                acordate que <strong>
+                                tenés tiempo para transferirlos hasta el
+                                {{ event.transfers_enabled_until|date:'d/m' }}
+                            </strong>.
+                            </div>
+                            <div>
+                                <a class="btn btn-secondary text-nowrap"
+                                   href="{% url "transferable_tickets" %}">Bonos a transferir</a>
+                            </div>
                         </div>
-                        </a>
+                    </div>
 
                 </div>
             </div>
