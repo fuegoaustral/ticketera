@@ -53,6 +53,8 @@ def direct_sales_existing_user(user, template_tickets, order_type, notes, reques
 
                 template = DirectTicketTemplate.objects.get(id=template_ticket['id'])
                 template.status = DirectTicketTemplateStatus.ASSIGNED
+                template.order = order
+                template.amount_used = template_ticket['amount']
                 template.save()
 
         order.amount = emitted_tickets * ticket_type.price
@@ -115,6 +117,8 @@ def direct_sales_new_user(destination_email, template_tickets, order_type, notes
 
                 template = DirectTicketTemplate.objects.get(id=template_ticket['id'])
                 template.status = DirectTicketTemplateStatus.PENDING
+                template.order = order
+                template.amount_used = template_ticket['amount']
                 template.save()
 
         order.amount = emitted_tickets * ticket_type.price
