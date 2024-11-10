@@ -25,7 +25,7 @@ def direct_sales_existing_user(user, template_tickets, order_type, notes, reques
             donation_venue=0,
             donation_grant=0,
             notes=notes,
-            generated_by=request_user
+            generated_by_admin_user=request_user
         )
         order.save()
 
@@ -84,7 +84,7 @@ def direct_sales_new_user(destination_email, template_tickets, order_type, notes
             donation_venue=0,
             donation_grant=0,
             notes=notes,
-            generated_by=request_user
+            generated_by_admin_user=request_user
         )
         order.save()
 
