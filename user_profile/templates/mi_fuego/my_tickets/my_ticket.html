@@ -63,12 +63,7 @@
                         </div>
                         <div>
                             {% if my_ticket  and event.transfers_enabled_until >= now %}
-                                <button class="btn mt-2" id="unAssignTicket"
-                                        style="
-                                        background-color: #fff;
-                                        border-color: #dc3545;
-                                        color: #dc3545;"
-                                >Transferir
+                                <button class="btn btn-danger mt-2" id="unAssignTicket">Transferir
                                     mi bono
                                 </button>
                             {% endif %}

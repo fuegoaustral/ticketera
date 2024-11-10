@@ -188,6 +188,7 @@ def volunteering(request):
             show_congrats = True
     else:
         form = VolunteeringForm(instance=ticket)
+        show_congrats = False
 
     return render(
         request, 
