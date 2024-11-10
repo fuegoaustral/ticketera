@@ -120,7 +120,7 @@ class TicketType(BaseModel):
         return f"{self.name} ({self.event.name})"
 
 
-class OrderTicket(models.Model):
+class OrderTicket(BaseModel):
     order = models.ForeignKey('Order', related_name='order_tickets', on_delete=models.CASCADE)
     ticket_type = models.ForeignKey('TicketType', related_name='order_tickets', on_delete=models.RESTRICT)
     quantity = models.PositiveIntegerField(default=1)
@@ -357,7 +357,7 @@ class NewTicketTransfer(BaseModel):
         verbose_name = 'Ticket transfer'
 
 
-class TicketPerson(models.Model):
+class TicketPerson(BaseModel):
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
     email = models.CharField(max_length=320)
@@ -448,7 +448,7 @@ class TicketTransfer(TicketPerson, BaseModel):
         return reverse('ticket_transfer_confirmed', args=(self.key,))
 
 
-class MessageIdempotency(models.Model):
+class MessageIdempotency(BaseModel):
     email = models.EmailField()
     hash = models.CharField(max_length=64, unique=True)
     payload = jsonfield.JSONField()
@@ -469,7 +469,7 @@ class DirectTicketTemplateStatus(models.TextChoices):
     ASSIGNED = 'ASSIGNED', 'Asignados'
 
 
-class DirectTicketTemplate(models.Model):
+class DirectTicketTemplate(BaseModel):
     origin = models.CharField(
         max_length=20,
         choices=DirectTicketTemplateOriginChoices.choices,
