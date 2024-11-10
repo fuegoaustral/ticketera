@@ -9,11 +9,12 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import permission_required
 from django.contrib.auth.models import User
 from django.db import transaction
+from django.db.models import Count
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
-from import_export import resources
-from import_export.admin import ImportExportModelAdmin
+from import_export import resources, fields
+from import_export.admin import ImportExportModelAdmin, ExportActionMixin, ExportMixin
 
 from deprepagos import settings
 from events.models import Event
@@ -139,7 +140,7 @@ def admin_caja_view(request):
                         donation_venue=0,
                         donation_grant=0,
                         notes=form.cleaned_data['notes'],
-                        generated_by=request.user
+                        generated_by_admin_user=request.user
                     )
                     order.save()
 
@@ -304,7 +305,7 @@ class OrderAdmin(admin.ModelAdmin):
     readonly_fields = ['key', ]
 
 
-class DirectTicketTemplateResource(resources.ModelResource):
+class DirectTicketTemplateImportResource(resources.ModelResource):
 
     class Meta:
         model = DirectTicketTemplate
@@ -312,20 +313,26 @@ class DirectTicketTemplateResource(resources.ModelResource):
         exclude = ('id')
         force_init_instance = True
 
-    def __init__(self, *args, event, **kwargs):
+    def __init__(self, *args, event=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.event = event
+        if event:
+            self.event = event
 
     def before_save_instance(self, instance, row, **kwargs):
         instance.event = self.event
 
 
+class DirectTicketTemplateExportResource(DirectTicketTemplateImportResource):
+    class Meta(DirectTicketTemplateImportResource.Meta):
+        fields = ['origin', 'name', 'amount', 'status']
+
+
 @admin.register(DirectTicketTemplate)
-class DirectTicketTemplateAdmin(ImportExportModelAdmin):
-    resource_classes = [DirectTicketTemplateResource]
+class DirectTicketTemplateAdmin(ImportExportModelAdmin, ExportActionMixin):
+    resource_classes = [DirectTicketTemplateImportResource]
     list_display = ['id', 'origin', 'name', 'amount', 'status', 'event']
     list_display_links = ['id']
-    list_filter = ['event__name', 'origin']
+    list_filter = ['event__name', 'origin', 'status']
     search_fields = ['event__name', 'name']
 
     def get_import_resource_kwargs(self, request, *args, **kwargs):
@@ -333,6 +340,9 @@ class DirectTicketTemplateAdmin(ImportExportModelAdmin):
         event = Event.objects.filter(active=True).first()
         kwargs.update({"event": event})
         return kwargs
+
+    def get_export_resource_class(self):
+        return DirectTicketTemplateExportResource
 
 
 class TicketTypeAdmin(admin.ModelAdmin):
@@ -361,12 +371,51 @@ class NewTicketInline(admin.StackedInline):
     readonly_fields = ['key']
 
 
-class OrderAdmin(admin.ModelAdmin):
+class OrderResource(resources.ModelResource):
+
+    tickets_count = fields.Field(attribute='tickets_count')
+
+    class Meta:
+        model = Order
+        fields = [
+            'id',
+            'key',
+            'first_name',
+            'last_name',
+            'email',
+            'phone',
+            'dni',
+            'donation_art',
+            'donation_venue',
+            'donation_grant',
+            'amount',
+            'tickets_count',
+            'coupon',
+            'event__name',
+            'user__first_name',
+            'user__last_name',
+            'status',
+            'order_type',
+            'notes',
+            'generated_by_admin_user__last_name',
+            'generated_by_admin_user__first_name',
+            'created_at',
+            'updated_at',
+        ]
+
+
+class OrderAdmin(ExportActionMixin, ExportMixin, admin.ModelAdmin):
+    resource_classes = [OrderResource]
     list_display = ['id', 'first_name', 'last_name', 'email', 'phone', 'dni', 'amount', 'status', 'event', 'order_type', 'created_at']
     list_filter = ['event', 'status', 'order_type']
     search_fields = ['key', 'first_name', 'last_name', 'email', 'phone', 'dni']
     inlines = [NewTicketInline]
     readonly_fields = ['key']
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(
+            tickets_count=Count('new_tickets')
+        )
 
 
 admin.site.register(Order, OrderAdmin)

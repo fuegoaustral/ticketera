@@ -178,8 +178,14 @@ class Order(BaseModel):
     )
 
     notes = models.TextField(null=True, blank=True)
-    generated_by = models.ForeignKey(User, related_name='generated_by', null=True, blank=True,
-                                     on_delete=models.RESTRICT)
+    generated_by_admin_user = models.ForeignKey(
+        User,
+        related_name="generated_orders",
+        null=True,
+        blank=True,
+        on_delete=models.RESTRICT,
+        help_text="Usuario admin que generó la orden",
+    )
 
     class Meta:
         permissions = [
@@ -281,7 +287,7 @@ class Order(BaseModel):
 class NewTicket(BaseModel):
     key = models.UUIDField(default=uuid.uuid4, editable=False)
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
-    order = models.ForeignKey('Order', on_delete=models.CASCADE)
+    order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='new_tickets')
     ticket_type = models.ForeignKey('TicketType', on_delete=models.CASCADE)
     owner = models.ForeignKey(User, related_name='owned_tickets', null=True, blank=True, on_delete=models.SET_NULL)
     holder = models.ForeignKey(User, related_name='held_tickets', null=True, blank=True, on_delete=models.CASCADE)
