@@ -509,7 +509,7 @@ dl {
   background: linear-gradient(45deg, #fd004c 16.66%, #fe9000 33.33%, #fff020 50%, #3edf4b 66.66%, #3363ff 83.33%, #b102b7 100%);
   border-radius: calc(5px + var(--borderWidth));
   z-index: -1;
-  animation: animatedgradient 30s ease-in-out alternate infinite;
+  animation: animatedgradient 6s ease-in-out alternate infinite;
   background-size: 400% 100%;
 }
 
