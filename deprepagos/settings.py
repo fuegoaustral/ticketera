@@ -82,10 +82,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-
+    'utils.loggerMiddleware.LoggerMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'utils.loggerMiddleware.LoggerMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
