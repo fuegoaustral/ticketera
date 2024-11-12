@@ -19,6 +19,8 @@ class LoggerMiddleware:
         logger.info(f"------------Request {request_uuid} started------------")
         logger.info(f"Request method: {request.method}")
         logger.info(f"Request path: {request.path}")
+        if request.user is not None:
+            logger.info(f"Request user: {request.user}")
         logger.info(f"Client IP: {request.META.get('REMOTE_ADDR')}")
 
         # Process the request and get the response
