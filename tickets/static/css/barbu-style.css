@@ -110,6 +110,7 @@ footer {
 
 .hero {
   display: block;
+  position: relative;
   padding: 0;
 }
 
@@ -286,6 +287,11 @@ footer a {
   color: #ff787b;
 }
 
+.btn-hero {
+  position: absolute;
+  bottom: 15%;
+  left: 5%;
+}
 
 .btn-link {
   padding: 0;
