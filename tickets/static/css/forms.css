@@ -43,5 +43,9 @@
 }
 
 form .table > :not(caption) > * > * {
-  padding: 1rem 2rem !important;
+  padding: 0.5rem 1rem !important;
+
+  @media (min-width: 768px) {
+    padding: 1rem 2rem !important;
+  }
 }
