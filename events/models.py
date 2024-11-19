@@ -81,5 +81,29 @@ class Event(BaseModel):
             return False
         return True
 
+    @property
+    def donations_art(self):
+        from tickets.models import Order
+        return self.orders.filter(
+            status=Order.OrderStatus.CONFIRMED,
+            donation_art__isnull=False
+        ).aggregate(total=Sum('donation_art'))['total'] or 0
+
+    @property
+    def donations_venue(self):
+        from tickets.models import Order
+        return self.orders.filter(
+            status=Order.OrderStatus.CONFIRMED,
+            donation_venue__isnull=False
+        ).aggregate(total=Sum('donation_venue'))['total'] or 0
+
+    @property
+    def donations_grant(self):
+        from tickets.models import Order
+        return self.orders.filter(
+            status=Order.OrderStatus.CONFIRMED,
+            donation_grant__isnull=False
+        ).aggregate(total=Sum('donation_grant'))['total'] or 0
+
 
 auditlog.register(Event)
