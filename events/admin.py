@@ -10,6 +10,9 @@ class EventAdmin(admin.ModelAdmin):
         "start",
         "end",
         "max_tickets",
+        "donations_art",
+        "donations_venue",
+        "donations_grant",
     )  # add: transfers active
     list_filter = ("active",)
     search_fields = ("name",)
