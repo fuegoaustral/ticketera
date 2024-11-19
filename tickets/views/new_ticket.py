@@ -44,7 +44,10 @@ def transfer_ticket(request):
     except ValidationError:
         return HttpResponseBadRequest('')
 
-    destination_user_exists = User.objects.filter(email=email).exists()
+
+    destination_user = User.objects.filter(email=email).first()
+    destination_user_exists = destination_user is not None and destination_user.profile.profile_completion == 'COMPLETE'
+
 
     pending_transfers = NewTicketTransfer.objects.filter(ticket=ticket, status='PENDING').exists()
 

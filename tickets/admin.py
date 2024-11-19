@@ -22,6 +22,7 @@ from utils.direct_sales import direct_sales_existing_user, direct_sales_new_user
 from .forms import TicketPurchaseForm
 from .models import TicketType, Order, OrderTicket, NewTicket, NewTicketTransfer, DirectTicketTemplate, \
     DirectTicketTemplateStatus
+from .processing import mint_tickets
 from .views import webhooks
 
 admin.site.site_header = 'Bonos de Fuego Austral'
@@ -157,7 +158,8 @@ def admin_caja_view(request):
                     if order_tickets:
                         OrderTicket.objects.bulk_create(order_tickets)
 
-                    new_minted_tickets = webhooks.mint_tickets(order)
+
+                    mint_tickets(order)
                     Order.objects.get(key=order.key).send_confirmation_email()
 
                     # Build the base URL
