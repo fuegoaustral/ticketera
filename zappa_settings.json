@@ -6,7 +6,7 @@
     "django_settings": "deprepagos.settings_dev",
     "project_name": "deprepagos",
     "runtime": "python3.9",
-    "timeout_seconds": 30,
+    "timeout_seconds": 300,
     "s3_bucket": "faticketera-zappa-dev",
     "keep_warm": true,
     "vpc_config": {
@@ -33,13 +33,7 @@
       }
     ],
     "domain": "dev.fuegoaustral.org",
-    "certificate_arn": "arn:aws:acm:us-east-1:251799394474:certificate/09f6bc34-2d5a-4172-a25a-2602f1b15fca",
-    "events": [
-      {
-        "function": "tickets.email_crons.send_pending_actions_emails",
-        "expression": "cron(0 17 * * ? *)"
-      }
-    ]
+    "certificate_arn": "arn:aws:acm:us-east-1:251799394474:certificate/09f6bc34-2d5a-4172-a25a-2602f1b15fca"
   },
   "prod": {
     "alias": "prod",
