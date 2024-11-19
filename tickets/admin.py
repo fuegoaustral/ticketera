@@ -300,11 +300,6 @@ class NewTicketInline(admin.StackedInline):
     extra = 0
 
 
-class OrderAdmin(admin.ModelAdmin):
-    inlines = [NewTicketInline]
-    readonly_fields = ['key', ]
-
-
 class DirectTicketTemplateImportResource(resources.ModelResource):
 
     class Meta:
@@ -406,7 +401,7 @@ class OrderResource(resources.ModelResource):
 
 class OrderAdmin(ExportActionMixin, ExportMixin, admin.ModelAdmin):
     resource_classes = [OrderResource]
-    list_display = ['id', 'first_name', 'last_name', 'email', 'phone', 'dni', 'amount', 'status', 'event', 'order_type', 'created_at']
+    list_display = ['id', 'first_name', 'last_name', 'email', 'phone', 'dni', 'amount', 'status', 'event', 'order_type', 'created_at', 'donation_art', 'donation_venue', 'donation_grant']
     list_filter = ['event', 'status', 'order_type']
     search_fields = ['key', 'first_name', 'last_name', 'email', 'phone', 'dni']
     inlines = [NewTicketInline]
