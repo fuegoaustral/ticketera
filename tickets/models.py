@@ -162,8 +162,8 @@ class Order(BaseModel):
     coupon = models.ForeignKey('Coupon', null=True, blank=True, on_delete=models.RESTRICT)
 
     response = models.JSONField(null=True, blank=True)
-    event = models.ForeignKey(Event, null=True, blank=True, on_delete=models.RESTRICT)
-    user = models.ForeignKey(User, null=True, blank=True, on_delete=models.RESTRICT)
+    event = models.ForeignKey(Event, null=True, blank=True, on_delete=models.RESTRICT, related_name='orders')
+    user = models.ForeignKey(User, null=True, blank=True, on_delete=models.RESTRICT, related_name='orders')
 
     status = models.CharField(
         max_length=20,
