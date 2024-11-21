@@ -284,12 +284,19 @@
         document.getElementById('ticket-purchase-form').addEventListener('submit', async function (event) {
             event.preventDefault();
             let total = 0;
+            let hasValidTickets = false;
+
+            // Check ticket quantities without removing attributes
             document.querySelectorAll('input[name^="ticket_quantity_"]').forEach(function (input) {
-                const ticketId = input.name.split('_').pop();
                 const quantity = parseInt(input.value) || 0;
-                total += quantity;
+                input.value = quantity; // Ensure the value is a number
+                if (quantity > 0) {
+                    hasValidTickets = true;
+                    total += quantity;
+                }
             });
-            if (total < 1) {
+
+            if (!hasValidTickets) {
                 alert('Debe seleccionar al menos un bono');
                 return;
             }

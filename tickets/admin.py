@@ -73,8 +73,6 @@ def admin_caja_view(request):
             default_event = Event.objects.get(id=selected_event_id)
             form = TicketPurchaseForm(request.POST, event=default_event)
         elif action == "order":
-            event_id = request.POST.get('event_id')
-            default_event = Event.objects.get(id=event_id)
             form = TicketPurchaseForm(request.POST, event=default_event)
             if form.is_valid():
                 total_amount = 0
