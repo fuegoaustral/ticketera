@@ -37,7 +37,7 @@
                             </div>
                             <div>
                                 <a class="btn btn-secondary text-nowrap"
-                                   href="{% url "transferable_tickets" %}">Bonos a transferir</a>
+                                   href="{% url "transferable_tickets" %}">Bonos para transferir</a>
                             </div>
                         </div>
                     </div>
@@ -48,12 +48,32 @@
     {% endif %}
 {% endblock alerts %}
 {% block submenu %}
+   {% if owns_ticket %}
     <li class="nav-item">
         <a class="nav-link{% if nav_secondary == "my_ticket" %} active{% endif %}"
-           href="{% url 'my_ticket' %}">Mi Bono</a>
+           href="{% url 'my_ticket' %}"
+           >
+            Mi Bono 
+            <i data-bs-toggle="tooltip" 
+            data-bs-placement="top" 
+            data-bs-delay='{"show":0, "hide":100}'
+            data-bs-animation="false"
+            title="Este es tu bono. Hay muchos como el, pero este es el tuyo. Los otros son para compartir. Tu bono te permite el acceso a fuego austral. Cada participante debe tener su bono en su cuenta. Si compraste bonos para otras personas, asegurate de transferirselos"
+            class="fas fa-info-circle z-index-1000 mx-4"></i>
+        </a>
+       
     </li>
-    <li class="nav-item">
-        <a class="nav-link{% if nav_secondary == "transferable_tickets" %} active{% endif %}"
-           href="{% url 'transferable_tickets' %}">Bonos a transferir {% if holding_tickets > 0 %}({{ holding_tickets }}) {% endif %}</a>
-    </li>
+    {% endif %}
+    {% if holding_tickets > 0 %}
+        <li class="nav-item">
+            <a class="nav-link{% if nav_secondary == "transferable_tickets" %} active{% endif %}"
+               href="{% url 'transferable_tickets' %}">Bonos para transferir ({{ holding_tickets }}) </a>
+        </li>
+    {% endif %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+          const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+          const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+        });
+      </script>
 {% endblock submenu %}
