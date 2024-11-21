@@ -21,6 +21,10 @@ def current_event(request):
             holder=request.user, event=event, owner=None
         ).all()
 
+        owns_ticket = NewTicket.objects.filter(
+            holder=request.user, event=event, owner=request.user
+        ).exists()
+
         tickets_dto = []
 
         for ticket in tickets:
@@ -37,7 +41,8 @@ def current_event(request):
                 "has_unassigned_tickets": has_unassigned_tickets,
                 "has_transfer_pending": has_transfer_pending,
                 "has_available_tickets": TicketType.objects.get_available_ticket_types_for_current_events().exists(),
-                "holding_tickets": len(tickets)
+                "holding_tickets": len(tickets),
+                "owns_ticket": owns_ticket,
             }
         )
     return context

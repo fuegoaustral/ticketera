@@ -32,25 +32,25 @@ admin.site.site_header = 'Bonos de Fuego Austral'
 @permission_required("tickets.can_sell_tickets")
 def email_has_account(request):
     if request.method == 'POST':
-
-        data = json.loads(request.body)
-        email_param = data.get('email')
-        email_param.lower()
-
-        user = User.objects.filter(email=email).first()
-        if user:
-            if user.profile.profile_completion == 'COMPLETE':
-                return JsonResponse({
-                    'first_name': user.first_name,
-                    'last_name': user.last_name,
-                    'phone': user.profile.phone,
-                    'document_type': user.profile.document_type,
-                    'document_number': user.profile.document_number,
-
-                })
-            return HttpResponse(status=206)
-        else:
+        try:
+            data = json.loads(request.body)
+            email = data.get('email', '').lower()
+            
+            user = User.objects.filter(email=email).first()
+            if user:
+                if user.profile.profile_completion == 'COMPLETE':
+                    return JsonResponse({
+                        'first_name': user.first_name,
+                        'last_name': user.last_name,
+                        'phone': user.profile.phone,
+                        'document_type': user.profile.document_type,
+                        'document_number': user.profile.document_number,
+                    })
+                return HttpResponse(status=206)
             return HttpResponse(status=204)
+        except Exception as e:
+            print(f"Error in email_has_account: {str(e)}")
+            return HttpResponse(status=500)
     return HttpResponse(status=405)
 
 
