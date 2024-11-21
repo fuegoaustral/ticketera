@@ -766,3 +766,41 @@ dl {
   margin-top: 1rem;
   margin-bottom: 2rem;
 }
+
+.qr-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.qr {
+    background: white;
+    padding: 1rem;
+    border-radius: 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.qr img {
+    width: 200px;
+    height: 200px;
+    object-fit: contain;
+}
+
+@media (max-width: 767px) {
+    .qr-container {
+        width: 100%;
+    }
+
+    .qr {
+        width: fit-content;
+        margin: 0 auto;
+    }
+
+    .qr img {
+        width: 200px;
+        height: 200px;
+    }
+}
