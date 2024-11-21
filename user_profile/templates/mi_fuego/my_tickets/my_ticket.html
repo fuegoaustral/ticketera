@@ -42,14 +42,12 @@
                             </dd>
                         </dl>
                     </div>
-                      <div class=" d-flex flex-column align-items-center justify-content-center gap-3">
+                    <div class="qr-container">
                         <div class="qr">
                             <img src="data:image/png;base64,{{ my_ticket.qr_code }}"
-                                 style="max-width: 100%;
-                          height: auto"
+                                 class="img-fluid"
                                  alt="QR Code"/>
                         </div>
-                        <span class="badge">{{ my_ticket.ticket_type }}</span>
                     </div>
                 </div>
 
