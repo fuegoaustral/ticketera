@@ -197,7 +197,6 @@ class TicketPurchaseForm(BaseTicketForm):
             for ticket in ticket_types:
                 self.fields[f'ticket_quantity_{ticket.id}'] = forms.IntegerField(
                     label=f'Bonos tipo {ticket.emoji} {ticket.name}  - ${ticket.price} - Quedan: {ticket.ticket_count}',
-                    min_value=0,
                     max_value=ticket.ticket_count,
                     initial=0,
                     required=False,
