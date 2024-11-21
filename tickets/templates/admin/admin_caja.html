@@ -63,6 +63,7 @@
             <form method="post" class="form-horizontal" id="ticket-purchase-form">
                 {% csrf_token %}
                 <input type="hidden" name="action" id="action" value="order"/>
+                <input type="hidden" name="event_id" value="{{ event.id }}"/>
                 <fieldset class="module aligned" style="margin-top:20px; ">
                     <div class="form-row">
                         <div class="field-box">
