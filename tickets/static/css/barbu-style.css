@@ -5,6 +5,7 @@
   --bs-border-color: #b2b2b2;
   --primary-color: #289e6d;
   --primary-color-lighter: #33b37d;
+  --bs-card-border-width: 1px;
 }
 
 .btn-primary {
@@ -72,6 +73,7 @@ footer {
   position: relative;
   height: 100%;
   white-space: nowrap;
+  margin-bottom: 8px;
 }
 
 .nav-link {
@@ -633,6 +635,7 @@ dl {
     gap: 1rem;
 
     .ticket-card {
+      border-width: var(--bs-card-border-width) !important;
       .card-header {
         padding: 0.75rem;
         background-color: #000;
