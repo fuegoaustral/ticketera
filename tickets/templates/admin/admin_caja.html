@@ -286,10 +286,10 @@
             let total = 0;
             let hasValidTickets = false;
 
-            // Check ticket quantities without removing attributes
+            // Check ticket quantities
             document.querySelectorAll('input[name^="ticket_quantity_"]').forEach(function (input) {
                 const quantity = parseInt(input.value) || 0;
-                input.value = quantity; // Ensure the value is a number
+                input.value = quantity;
                 if (quantity > 0) {
                     hasValidTickets = true;
                     total += quantity;
@@ -301,15 +301,23 @@
                 return;
             }
 
-            if (document.getElementById(`id_first_name`).type != "hidden" && !iti.isValidNumber()) {
+            // Handle hidden fields for existing users
+            const fieldIds = ['first_name', 'last_name', 'document_type', 'document_number'];
+            fieldIds.forEach(id => {
+                if (document.getElementById(`id_${id}`).type === 'hidden') {
+                    // If field is hidden, use the label value
+                    document.getElementById(`id_${id}`).value = document.getElementById(`label_${id}`).innerText;
+                }
+            });
+
+            // Handle phone number
+            if (document.getElementById(`id_first_name`).type === 'hidden') {
+                document.getElementById('id_phone').value = document.getElementById(`label_phone`).innerText;
+            } else if (!iti.isValidNumber()) {
                 alert('Por favor ingrese un telefono valido');
                 return;
-            }
-
-            if (document.getElementById(`id_first_name`).type != "hidden") {
-                document.getElementById('id_phone').value = iti.getNumber();
             } else {
-                document.getElementById('id_phone').value = document.getElementById(`label_phone`).innerText;
+                document.getElementById('id_phone').value = iti.getNumber();
             }
 
             const boton = document.getElementById('comprar');
