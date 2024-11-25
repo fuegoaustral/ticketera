@@ -13,9 +13,16 @@ def home(request):
     if event:
         coupon = Coupon.objects.filter(token=request.GET.get('coupon'), ticket_type__event=event).first()
         ticket_types = TicketType.objects.get_available(coupon, event)
+
+        if not ticket_types:
+            next_ticket_type = TicketType.objects.get_next_ticket_type_available(event)
+            context.update({
+                'coupon': coupon,
+                'next_ticket_type': next_ticket_type
+            })
         context.update({
             'coupon': coupon,
-            'ticket_types': ticket_types
+            'ticket_types': ticket_types,
         })
 
     template = loader.get_template('tickets/home.html')
