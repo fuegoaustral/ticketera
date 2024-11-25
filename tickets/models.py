@@ -55,6 +55,15 @@ class TicketTypeManager(models.Manager):
                 .filter(is_direct_type=False)
                 )
 
+    def get_next_ticket_type_available(self, event):
+        return (self
+                .filter(event=event)
+                .filter(Q(date_from__gte=timezone.now()) | Q(date_from__isnull=True))
+                .filter(Q(ticket_count__gt=0) | Q(ticket_count__isnull=True))
+                .order_by('price')
+                .first()
+                )
+
     def get_available(self, coupon, event):
         if event.tickets_remaining() <= 0:
             return TicketType.objects.none()
