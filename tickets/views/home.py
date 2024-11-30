@@ -12,7 +12,7 @@ def home(request):
 
     if event:
         coupon = Coupon.objects.filter(token=request.GET.get('coupon'), ticket_type__event=event).first()
-        ticket_types = TicketType.objects.get_available(coupon, event)
+        ticket_types = TicketType.objects.get_available_ticket_types_for_current_events()
 
         if not ticket_types:
             next_ticket_type = TicketType.objects.get_next_ticket_type_available(event)
