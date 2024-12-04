@@ -3,79 +3,178 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
+    <title>Ingreso anticipados y LCO Camps 2025</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tiny.css@0/dist/tiny.css" />
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        /* background-color: #289e6d; */
+      }
+      select {
+        margin-bottom: 0.5rem;
+      }
+      input[type="datetime-local" i] {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      }
+      #campsUserInfo {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .member {
+        display: flex;
+        flex-direction: column;
+        border: 1px solid #ccc;
+        padding: 20px;
+      }
+    </style>
   </head>
   <body>
-    <h1>Health Survey</h1>
-    <h2>Diagnostic for applicants to our fitness program.</h2>
+    <h1>Ingreso anticipados y LCO Camps 2025</h1>
+    <p>
+      El ingreso anticipado es exclusivo para propuestas de camps que necesiten mucha logística para armarlos. El armado de las propuestas
+      se hace durante el evento, salvo casos particulares donde podemos dar unos días antes para que la experiencia sea mejor. Después les
+      vamos a confirmar si aceptamos el pedido. Nadie puede entrar al predio entre las 20hs y las 8hs en los días de armado.
+    </p>
 
     <iframe name="hiddenConfirm" id="hiddenConfirm" style="display: none" frameborder="0"></iframe>
-    <form
+    <div id="formContainer">
+      <form
       action="https://docs.google.com/forms/d/e/xxxxxxxxxxxxxxxxxxxx/formResponse"
-      id="form"
-      method="POST"
-      target="hiddenConfirm"
-    >
-      <label for="comfort">What is your go-to comfort food?</label>
-      <input name="entry.1608074211" type="text" id="comfort" />
-      <input name="entry.2053464848" type="text" placeholder="drugi" />
+        id="form"
+        method="POST"
+        target="hiddenConfirm"
+      ></form>
+      <select name="entry.1608074211" field="Area" form="form">
+        <option value="">Área</option>
+        <option value="Camps">Camps</option>
+        <option value="Arte">Arte</option>
+        <option value="Man">Man</option>
+        <option value="Templo">Templo</option>
+        <option value="Infra">Infra</option>
+      </select>
+      <select name="entry.708028178" field="Grupo" parent="Camps" style="display: none" form="form">
+        <option value="">Grupo</option>
+        <option value="Pochocamp">Pochocamp</option>
+        <option value="Purmalandia">Purmalandia</option>
+        <option value="Pi camp">Pi camp</option>
+      </select>
+      <div id="userInfoPlusSubmit" style="display: none">
+        <div id="campsUserInfo">
+          <div class="member">
+            <label for="name">Nombre y Apellido</label>
+            <input id="name" name="entry.2053464848" field="Nom+y+apell" placeholder="Nombre y Apellido" form="form" />
+            <label for="dni">DNI</label>
+            <input id="dni" name="entry.491214698" field="DNI" placeholder="DNI" form="form" />
+            <label for="tel">Teléfono</label>
+            <input id="tel" name="entry.367683234" field="tel" placeholder="Teléfono" form="form" />
+            <input type="text" name="entry.1069110744" field="dia+de+ingreso" placeholder="Día de Ingreso" form="form" />
+            <a href="#" class="js-removeMember">Eliminar miembro</a>
+          </div>
+        </div>
+        <a href="#" id="addMember">Enviar y agregar otro miembro</a>
+        <input type="submit" value="Enviar" form="form" id="submitButton" />
+      </div>
+    </div>
 
-      <input class="button" type="submit" value="Submit" />
-    </form>
+    <div id="thankYouContainer" style="display: none">
+      <h2>¡Gracias! ¡Nos vemos en Fuego Austral 2025!</h2>
+    </div>
 
     <script>
-      (function () {
-        let iframeId = 1;
-        const formEl = document.getElementById("form");
+      const formEl = document.getElementById("form");
+      const userInfoPlusSubmitEl = document.getElementById("userInfoPlusSubmit");
+      const submitEl = document.getElementById("submitButton");
+      const MEMBERS_FOR_CAMP = {
+        Pochocamp: 3,
+        Purmalandia: 2,
+        "Pi camp": 1,
+      };
 
-        const generateIframe = () => {
-          const iframe = document.createElement("iframe");
-          iframe.name = "hiddenConfirm";
-          iframe.id = `hiddenConfirm-${iframeId}`;
-          iframe.style.display = "none";
-          iframe.frameBorder = "0";
-          document.body.appendChild(iframe);
-          return iframe;
-        };
+      const campsUserInfoEl = document.getElementById("campsUserInfo");
+      let numberOfMembers = 1;
+      const addMemberEl = document.getElementById("addMember");
 
-        // let hiddenConfirmEl = generateIframe();
-        let hiddenConfirmEl = document.getElementById("hiddenConfirm");
-        hiddenConfirmEl.onload = function () {
-          alert("hiddenConfirmEl loaded");
-          // iframeId++;
-          // hiddenConfirmEl = generateIframe();
-          // formEl.target = hiddenConfirmEl.name;
-        };
+      const initFormFields = () => {
+        campsUserInfoEl.querySelectorAll("input").forEach((el) => {
+          el.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+            }
+          });
+        });
+        campsUserInfoEl.querySelector(".js-removeMember").addEventListener("click", (event) => {
+          event.preventDefault();
+          numberOfMembers--;
+          event.target.parentElement.remove();
+        });
+      };
+      initFormFields();
 
-        // formEl.addEventListener("submit", function (event) {
-        //   event.preventDefault();
-        //   const formData = new FormData(formEl); // Create a FormData object from the form
+      addMemberEl.addEventListener("click", (event) => {
+        event.preventDefault();
 
-        //   fetch(formEl.action, {
-        //     method: formEl.method,
-        //     body: formData,
-        //     headers: { "X-Requested-With": "XMLHttpRequest" },
-        //   })
-        //     .then((response) => {
-        //       console.log("Response:", response);
-        //       debugger;
-        //       if (!response.ok) {
-        //         throw new Error("Network response was not ok");
-        //       }
-        //       return response.json(); // Assuming the server responds with JSON
-        //     })
-        //     .then((data) => {
-        //       console.log("Success:", data);
-        //       debugger;
-        //       // Handle success (e.g., show a success message, redirect, etc.)
-        //     })
-        //     .catch((error) => {
-        //       console.error("Error:", error);
-        //       debugger;
-        //       // Handle error (e.g., show an error message)
-        //     });
-        // });
-      })();
+        numberOfMembers++;
+
+        // if (formEl.checkValidity()) {
+        formEl.submit();
+        // }
+
+        document.querySelectorAll('[field="Area"],[field="Grupo"]').forEach((el) => (el.style.pointerEvents = "none"));
+
+        const maxNumberOfMembers = MEMBERS_FOR_CAMP[document.querySelector('[field="Grupo"]').value];
+        if (!maxNumberOfMembers) return alert("Camp desconocido. Contactar a soporte.");
+
+        if (numberOfMembers >= maxNumberOfMembers) {
+          addMemberEl.style.display = "none";
+        }
+
+        campsUserInfoEl.querySelectorAll("input,select").forEach((el) => (el.disabled = true));
+        campsUserInfoEl.querySelectorAll(".js-removeMember").forEach((el) => el.remove());
+        campsUserInfoEl.insertAdjacentHTML(
+          "beforeend",
+          `
+              <div class="member">
+                <input name="entry.2053464848" field="Nom+y+apell" placeholder="Nombre y Apellido" form="form" required />
+                <input name="entry.491214698" field="DNI" placeholder="DNI" form="form" required />
+                <input name="entry.367683234" field="tel" placeholder="Teléfono" form="form" required />
+                <input type="datetime-local" name="entry.1069110744" field="dia+de+ingreso" placeholder="Día de Ingreso" form="form" required />
+                <a href="#" class="js-removeMember">Eliminar miembro</a>
+              </div>
+            `
+        );
+        initFormFields();
+      });
+
+      document.querySelector('[field="Area"]').addEventListener("change", (event) => {
+        document.querySelectorAll('[field="Grupo"]').forEach((el) => (el.style.display = "none"));
+        document.querySelector(`[field="Grupo"][parent="${event.target.value}"]`).style.display = "block";
+      });
+
+      document.querySelector('[field="Grupo"]').addEventListener("change", (event) => {
+        userInfoPlusSubmitEl.style.display = event.target.value !== "" ? "block" : "none";
+
+        const maxNumberOfMembers = MEMBERS_FOR_CAMP[event.target.value];
+        if (!maxNumberOfMembers) return alert("Camp desconocido. Contactar a soporte.");
+
+        addMemberEl.style.display = numberOfMembers < maxNumberOfMembers ? "block" : "none";
+      });
+
+      const hiddenConfirmEl = document.getElementById("hiddenConfirm");
+      hiddenConfirmEl.onload = () => {
+        console.log("hiddenConfirmEl loaded");
+        // submitEl.disabled = false;
+        // submitEl.value = "Enviar";
+      };
+      submitEl.addEventListener("click", () => {
+        document.querySelector("#formContainer").style.display = "none";
+        document.querySelector("#thankYouContainer").style.display = "block";
+      });
+
+      formEl.addEventListener("submit", (event) => {
+        submitEl.disabled = true;
+        submitEl.value = "Enviando...";
+      });
     </script>
   </body>
 </html>

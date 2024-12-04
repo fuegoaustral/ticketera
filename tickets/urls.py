@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import home, order, ticket, checkout, webhooks, new_ticket
+from .views import home, order, ticket, checkout, webhooks, new_ticket, pre_post_event
 
 urlpatterns = [
     path('', home.home, name='home'),
@@ -39,6 +39,10 @@ urlpatterns = [
 
     path('ticket/<str:ticket_key>/assign', new_ticket.assign_ticket, name='assign_ticket'),
     path('ticket/<str:ticket_key>/unassign', new_ticket.unassign_ticket, name='unassign_ticket'),
+
+    path('ingreso-anticipado', pre_post_event.ingreso_anticipado, name='ingreso_anticipado'),
+    path('late-checkout', pre_post_event.late_checkout, name='late_checkout'),
+    path('ingreso-de-proveedores', pre_post_event.ingreso_de_proveedores, name='ingreso_de_proveedores'),
 
     path('ping/', home.ping, name='ping')
 
