@@ -20,6 +20,8 @@ class CustomUserAdmin(UserAdmin):
     list_display = (
         'email', 'is_staff', 'is_superuser', 'first_name', 'last_name', 'get_phone', 'get_document_type',
         'get_document_number')
+    
+    search_fields = ('email', 'first_name', 'last_name', 'profile__document_number', 'profile__phone')
 
     def get_phone(self, instance):
         return instance.profile.phone
