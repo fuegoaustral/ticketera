@@ -25,7 +25,7 @@ class EventAdmin(admin.ModelAdmin):
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
-            path('custom-query/', self.custom_query_view, name='event_custom_query'),
+            path('tickets_report/', self.custom_query_view, name='event_tickets_report'),
             path('export-csv/', self.export_csv, name='export_csv'),
         ]
         return custom_urls + urls
@@ -106,7 +106,7 @@ class EventAdmin(admin.ModelAdmin):
             'opts': self.model._meta,
         }
         
-        return render(request, 'admin/custom_query.html', context)
+        return render(request, 'admin/tickets_report.html', context)
 
     def export_csv(self, request):
         event_id = request.GET.get('event_id')
