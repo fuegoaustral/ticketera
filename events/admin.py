@@ -223,6 +223,7 @@ class EventAdmin(admin.ModelAdmin):
 
     def orders_report_view(self, request):
         event_id = request.GET.get('event_id')
+        search_term = request.GET.get('search', '')
         events = Event.objects.all()
         
         if event_id:
@@ -244,14 +245,23 @@ class EventAdmin(admin.ModelAdmin):
                            too.order_type,
                            too.response->>'id' as mercadopago_id,
                            too.status,
-                           too.notes
+                           too.notes,
+                           ae.email as emited_by
                     from tickets_order too
                          left join auth_user au on lower(au.email) = lower(too.email)
                          left join public.user_profile_profile upp on au.id = upp.user_id
                          inner join public.tickets_orderticket tot on too.id = tot.order_id
                          left join tickets_tickettype tt on tot.ticket_type_id = tt.id
+                         left join auth_user ae on ae.id = too.generated_by_admin_user_id
                     where too.event_id = %s
                       and status = 'CONFIRMED'
+                      and (
+                          lower(au.first_name) LIKE %s 
+                          OR lower(au.last_name) LIKE %s
+                          OR lower(too.email) LIKE %s
+                          OR upp.phone LIKE %s
+                          OR upp.document_number LIKE %s
+                      )
                     union
                     select au.first_name,
                            au.last_name,
@@ -261,7 +271,7 @@ class EventAdmin(admin.ModelAdmin):
                            upp.document_number,
                            upp.profile_completion,
                            'Dirigido' as ticket_type,
-                           too.amount/85000 as quantity,
+                           (too.amount/85000)::INTEGER as quantity,
                            too.amount,
                            too.donation_art,
                            too.donation_venue,
@@ -269,16 +279,32 @@ class EventAdmin(admin.ModelAdmin):
                            too.order_type,
                            too.response->>'id' as mercadopago_id,
                            too.status,
-                           too.notes
+                           too.notes,
+                           ae.email as emited_by
                     from tickets_order too
                          left join auth_user au on lower(au.email) = lower(too.email)
                          left join public.user_profile_profile upp on au.id = upp.user_id
                          left join public.tickets_orderticket tot on too.id = tot.order_id
+                         left join auth_user ae on ae.id = too.generated_by_admin_user_id
                     where too.event_id = %s
                       and status = 'CONFIRMED' 
                       and tot.id is NULL
+                      and (
+                          lower(au.first_name) LIKE %s 
+                          OR lower(au.last_name) LIKE %s
+                          OR lower(too.email) LIKE %s
+                          OR upp.phone LIKE %s
+                          OR upp.document_number LIKE %s
+                      )
                 """
-                cursor.execute(query, [event_id, event_id])
+                search_pattern = f'%{search_term.lower()}%'
+                params = [
+                    event_id, 
+                    search_pattern, search_pattern, search_pattern, search_pattern, search_pattern,  # First union
+                    event_id,
+                    search_pattern, search_pattern, search_pattern, search_pattern, search_pattern   # Second union
+                ]
+                cursor.execute(query, params)
                 columns = [col[0] for col in cursor.description]
                 results = cursor.fetchall()
         else:
@@ -288,6 +314,7 @@ class EventAdmin(admin.ModelAdmin):
         context = {
             'events': events,
             'selected_event': event_id,
+            'search_term': search_term,
             'results': results,
             'columns': columns,
             'opts': self.model._meta,
@@ -319,12 +346,14 @@ class EventAdmin(admin.ModelAdmin):
                        too.order_type,
                        too.response->>'id' as mercadopago_id,
                        too.status,
-                       too.notes
+                       too.notes,
+                       ae.email as emited_by
                 from tickets_order too
                      left join auth_user au on lower(au.email) = lower(too.email)
                      left join public.user_profile_profile upp on au.id = upp.user_id
                      inner join public.tickets_orderticket tot on too.id = tot.order_id
                      left join tickets_tickettype tt on tot.ticket_type_id = tt.id
+                     left join auth_user ae on ae.id = too.generated_by_admin_user_id
                 where too.event_id = %s
                   and status = 'CONFIRMED'
                 union
@@ -336,7 +365,7 @@ class EventAdmin(admin.ModelAdmin):
                        upp.document_number,
                        upp.profile_completion,
                        'Dirigido' as ticket_type,
-                       too.amount/85000 as quantity,
+                       (too.amount/85000)::INTEGER as quantity,
                        too.amount,
                        too.donation_art,
                        too.donation_venue,
@@ -344,11 +373,13 @@ class EventAdmin(admin.ModelAdmin):
                        too.order_type,
                        too.response->>'id' as mercadopago_id,
                        too.status,
-                       too.notes
+                       too.notes,
+                       ae.email as emited_by
                 from tickets_order too
                      left join auth_user au on lower(au.email) = lower(too.email)
                      left join public.user_profile_profile upp on au.id = upp.user_id
                      left join public.tickets_orderticket tot on too.id = tot.order_id
+                     left join auth_user ae on ae.id = too.generated_by_admin_user_id
                 where too.event_id = %s
                   and status = 'CONFIRMED' 
                   and tot.id is NULL
