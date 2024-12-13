@@ -17,7 +17,8 @@
                 {% endfor %}
             </select>
             
-            <button type="submit" class="button">Filtrar</button>
+            <input type="text" name="search" placeholder="Buscar por nombre, email, teléfono o DNI..." value="{{ search_term }}">
+            <button type="submit" class="button">Buscar</button>
             
             {% if selected_event %}
                 <a href="{% url 'admin:export_orders_csv' %}?event_id={{ selected_event }}" class="button">Exportar a CSV</a>
