@@ -29,6 +29,8 @@ class EventAdmin(admin.ModelAdmin):
             path('pending-transfers/', self.pending_transfers_view, name='event_pending_transfers'),
             path('export-csv/', self.export_csv, name='export_csv'),
             path('export-pending-transfers/', self.export_pending_transfers_csv, name='export_pending_transfers'),
+            path('orders-report/', self.orders_report_view, name='event_orders_report'),
+            path('export-orders-csv/', self.export_orders_csv, name='export_orders_csv'),
         ]
         return custom_urls + urls
 
@@ -217,6 +219,152 @@ class EventAdmin(admin.ModelAdmin):
             for row in cursor.fetchall():
                 writer.writerow(row)
                 
+            return response
+
+    def orders_report_view(self, request):
+        event_id = request.GET.get('event_id')
+        events = Event.objects.all()
+        
+        if event_id:
+            with connection.cursor() as cursor:
+                query = """
+                    select au.first_name,
+                           au.last_name,
+                           lower(too.email) as email,
+                           upp.phone,
+                           upp.document_type,
+                           upp.document_number,
+                           upp.profile_completion,
+                           tt.name as ticket_type,
+                           tot.quantity,
+                           too.amount,
+                           too.donation_art,
+                           too.donation_venue,
+                           too.donation_grant,
+                           too.order_type,
+                           too.response->>'id' as mercadopago_id,
+                           too.status,
+                           too.notes
+                    from tickets_order too
+                         left join auth_user au on lower(au.email) = lower(too.email)
+                         left join public.user_profile_profile upp on au.id = upp.user_id
+                         inner join public.tickets_orderticket tot on too.id = tot.order_id
+                         left join tickets_tickettype tt on tot.ticket_type_id = tt.id
+                    where too.event_id = %s
+                      and status = 'CONFIRMED'
+                    union
+                    select au.first_name,
+                           au.last_name,
+                           lower(too.email) as email,
+                           upp.phone,
+                           upp.document_type,
+                           upp.document_number,
+                           upp.profile_completion,
+                           'Dirigido' as ticket_type,
+                           too.amount/85000 as quantity,
+                           too.amount,
+                           too.donation_art,
+                           too.donation_venue,
+                           too.donation_grant,
+                           too.order_type,
+                           too.response->>'id' as mercadopago_id,
+                           too.status,
+                           too.notes
+                    from tickets_order too
+                         left join auth_user au on lower(au.email) = lower(too.email)
+                         left join public.user_profile_profile upp on au.id = upp.user_id
+                         left join public.tickets_orderticket tot on too.id = tot.order_id
+                    where too.event_id = %s
+                      and status = 'CONFIRMED' 
+                      and tot.id is NULL
+                """
+                cursor.execute(query, [event_id, event_id])
+                columns = [col[0] for col in cursor.description]
+                results = cursor.fetchall()
+        else:
+            results = []
+            columns = []
+
+        context = {
+            'events': events,
+            'selected_event': event_id,
+            'results': results,
+            'columns': columns,
+            'opts': self.model._meta,
+            'title': 'Reporte de Ordenes'
+        }
+        
+        return render(request, 'admin/events/orders_report.html', context)
+
+    def export_orders_csv(self, request):
+        event_id = request.GET.get('event_id')
+        if not event_id:
+            return HttpResponse('Event ID is required', status=400)
+
+        with connection.cursor() as cursor:
+            query = """
+                select au.first_name,
+                       au.last_name,
+                       lower(too.email) as email,
+                       upp.phone,
+                       upp.document_type,
+                       upp.document_number,
+                       upp.profile_completion,
+                       tt.name as ticket_type,
+                       tot.quantity,
+                       too.amount,
+                       too.donation_art,
+                       too.donation_venue,
+                       too.donation_grant,
+                       too.order_type,
+                       too.response->>'id' as mercadopago_id,
+                       too.status,
+                       too.notes
+                from tickets_order too
+                     left join auth_user au on lower(au.email) = lower(too.email)
+                     left join public.user_profile_profile upp on au.id = upp.user_id
+                     inner join public.tickets_orderticket tot on too.id = tot.order_id
+                     left join tickets_tickettype tt on tot.ticket_type_id = tt.id
+                where too.event_id = %s
+                  and status = 'CONFIRMED'
+                union
+                select au.first_name,
+                       au.last_name,
+                       lower(too.email) as email,
+                       upp.phone,
+                       upp.document_type,
+                       upp.document_number,
+                       upp.profile_completion,
+                       'Dirigido' as ticket_type,
+                       too.amount/85000 as quantity,
+                       too.amount,
+                       too.donation_art,
+                       too.donation_venue,
+                       too.donation_grant,
+                       too.order_type,
+                       too.response->>'id' as mercadopago_id,
+                       too.status,
+                       too.notes
+                from tickets_order too
+                     left join auth_user au on lower(au.email) = lower(too.email)
+                     left join public.user_profile_profile upp on au.id = upp.user_id
+                     left join public.tickets_orderticket tot on too.id = tot.order_id
+                where too.event_id = %s
+                  and status = 'CONFIRMED' 
+                  and tot.id is NULL
+            """
+            cursor.execute(query, [event_id, event_id])
+            
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = 'attachment; filename="orders_report.csv"'
+            
+            writer = csv.writer(response)
+            columns = [col[0] for col in cursor.description]
+            writer.writerow(columns)
+            
+            for row in cursor.fetchall():
+                writer.writerow(row)
+            
             return response
 
 admin.site.register(Event, EventAdmin)
