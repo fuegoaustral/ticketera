@@ -3,7 +3,7 @@ import hmac
 
 from deprepagos import settings
 from events.models import Event
-from tickets.models import NewTicket, TicketType
+from tickets.models import NewTicket, TicketType, NewTicketTransfer
 
 
 def current_event(request):
@@ -36,12 +36,17 @@ def current_event(request):
         has_transfer_pending = any(
             ticket["is_transfer_pending"] is True for ticket in tickets_dto
         )
+
+        shared_tickets = NewTicketTransfer.objects.filter(
+            tx_from=request.user, status="COMPLETED").count()
+
         context.update(
             {
                 "has_unassigned_tickets": has_unassigned_tickets,
                 "has_transfer_pending": has_transfer_pending,
                 "has_available_tickets": TicketType.objects.get_available_ticket_types_for_current_events().exists(),
                 "holding_tickets": len(tickets),
+                "shared_tickets": shared_tickets,
                 "owns_ticket": owns_ticket,
             }
         )
