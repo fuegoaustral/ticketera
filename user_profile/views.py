@@ -139,32 +139,12 @@ def complete_profile(request):
 @login_required
 def profile_congrats(request):
     user = request.user
-    pending_transfers = (
-        NewTicketTransfer.objects.filter(tx_to_email__iexact=user.email, status="PENDING")
-        .select_related("ticket")
+    executed_pending_transfers = (
+        NewTicketTransfer.objects.filter(tx_to_email__iexact=user.email, status="COMPLETED")
         .all()
     )
 
-    if pending_transfers.exists():
-        with transaction.atomic():
-            user_already_has_ticket = NewTicket.objects.filter(owner=user).exists()
-            for transfer in pending_transfers:
-                transfer.status = "COMPLETED"
-                transfer.tx_to = user
-                transfer.save()
-
-                transfer.ticket.holder = user
-                transfer.ticket.volunteer_ranger = None
-                transfer.ticket.volunteer_transmutator = None
-                transfer.ticket.volunteer_umpalumpa = None
-                if user_already_has_ticket:
-                    transfer.ticket.owner = None
-                else:
-                    transfer.ticket.owner = user
-                    user_already_has_ticket = True
-
-                transfer.ticket.save()
-
+    if executed_pending_transfers.exists():
         return render(request, "account/profile_congrats_with_tickets.html")
     else:
         return render(request, "account/profile_congrats.html")

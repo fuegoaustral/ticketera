@@ -1,0 +1,51 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+
+{% block content %}
+<div id="content-main">
+    <form method="get" class="form-inline">
+        <div style="margin-bottom: 20px;">
+            <label for="event_id">Evento:</label>
+            <select name="event_id" id="event_id">
+                <option value="">Todos los eventos</option>
+                {% for event in events %}
+                    <option value="{{ event.id }}" {% if event.id|stringformat:"s" == selected_event %}selected{% endif %}>
+                        {{ event.name }}
+                    </option>
+                {% endfor %}
+            </select>
+            
+            <button type="submit" class="button">Filtrar</button>
+        </div>
+    </form>
+
+    {% if selected_event %}
+        <a href="{% url 'admin:export_pending_transfers' %}?event_id={{ selected_event }}" class="button">Exportar a CSV</a>
+    {% endif %}
+
+    {% if results %}
+        <div class="results">
+            <table>
+                <thead>
+                    <tr>
+                        {% for column in columns %}
+                            <th>{{ column }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in results %}
+                        <tr>
+                            {% for value in row %}
+                                <td>{{ value }}</td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p>No hay transferencias pendientes.</p>
+    {% endif %}
+</div>
+{% endblock %} 
