@@ -10,13 +10,19 @@ def ingreso_anticipado(request):
     return HttpResponse(template.render(context, request))
 
 @login_required()
+def ingreso_anticipado_proveedores(request):
+    context = { 'form_url': os.environ.get('INGRESO_ANTICIPADO_PROVEEDORES_FORM_URL') }
+    template = loader.get_template('pre_post_event/ingreso_anticipado_proveedores.html')
+    return HttpResponse(template.render(context, request))
+
+@login_required()
 def late_checkout(request):
     context = { 'form_url': os.environ.get('LATE_CHECKOUT_FORM_URL') }
     template = loader.get_template('pre_post_event/late_checkout.html')
     return HttpResponse(template.render(context, request))
 
 @login_required()
-def ingreso_de_proveedores(request):
-    context = { 'form_url': os.environ.get('INGRESO_DE_PROVEEDORES_FORM_URL') }
-    template = loader.get_template('pre_post_event/ingreso_de_proveedores.html')
+def late_checkout_proveedores(request):
+    context = { 'form_url': os.environ.get('LATE_CHECKOUT_PROVEEDORES_FORM_URL') }
+    template = loader.get_template('pre_post_event/late_checkout_proveedores.html')
     return HttpResponse(template.render(context, request))

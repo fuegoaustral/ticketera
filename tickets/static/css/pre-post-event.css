@@ -1,0 +1,58 @@
+.disabled {
+  pointer-events: none;
+  opacity: 0.5;
+}
+.form-group {
+  margin-bottom: 1rem;
+}
+.campsUserInfo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+}
+.member {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #ccc;
+  padding: 20px;
+}
+.removeMember {
+  position: absolute;
+  top: 0;
+  right: 0;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  line-height: 18px;
+  font-weight: bold;
+  border: 2px solid;
+  transform: translate(50%, -50%);
+}
+label {
+  display: block;
+  cursor: pointer;
+}
+@media (min-width: 480px) {
+  .tinyDropdown {
+    max-width: 210px;
+  }
+}
+select.form-control {
+  padding-right: 24px;
+  line-height: initial;
+}
+.form-group:has(> select.form-control) {
+  position: relative;
+
+  &:after {
+    position: absolute;
+    right: 14px;
+    top: calc(13px + 50%);
+    transform: translateY(-50%);
+    content: "▼";
+    pointer-events: none;
+    font-size: 11px;
+  }
+}
