@@ -338,6 +338,22 @@ Object.keys(MAX_MEMBERS_FOR.Templo).forEach(templo => {
   temploDropdownEl.appendChild(optionEl)
 })
 
+const infraDropdownEl = document.querySelector('[field="Grupo"][parent="Infra"]')
+Object.keys(MAX_MEMBERS_FOR.Infra).forEach(infra => {
+  const optionEl = document.createElement("option")
+  optionEl.value = infra
+  optionEl.textContent = infra
+  infraDropdownEl.appendChild(optionEl)
+})
+
+const manDropdownEl = document.querySelector('[field="Grupo"][parent="Man"]')
+Object.keys(MAX_MEMBERS_FOR.Man).forEach(man => {
+  const optionEl = document.createElement("option")
+  optionEl.value = man
+  optionEl.textContent = man
+  manDropdownEl.appendChild(optionEl)
+})
+
 const formEl = document.querySelector(".js-form")
 const memberHTML = document.querySelector(".js-memberHTML").innerHTML
 
@@ -537,6 +553,7 @@ document.addEventListener("input", event => {
   formMachine.dispatch({ type: `SET_MEMBER_VALUE`, payload: { field, value: event.target.value } })
 })
 
+// handle add member button click
 formEl.addEventListener("click", event => {
   if (!event.target.classList.contains("js-addMember")) return
   if (!formValid()) {
@@ -591,8 +608,17 @@ formEl.addEventListener("click", event => {
 
   if (!formValid()) {
     event.preventDefault()
-    alert("Por favor complete todos los campos requeridos: Área, Grupo, Datos de las personas (Nombre, DNI, Teléfono y Día de ingreso).")
-    return
+    // manage special case when there's at least one member and member form is empty
+    const state = formMachine.getState()
+    const hasAtLeastOneSubmittedMember = state.members.some(member => member.isSubmitted)
+    const lastMember = state.members.at(-1)
+    const hasEmptyLastMember = MEMBER_FIELDS.every(field => (lastMember[field] || "").trim() === "")
+    if (hasAtLeastOneSubmittedMember && hasEmptyLastMember) {
+      setTimeout(() => formMachine.dispatch({ type: "REMOVE_MEMBER" }), 100)
+    } else {
+      alert("Por favor complete todos los campos requeridos: Área, Grupo, Datos de las personas.")
+      return
+    }
   }
 
   if (formMachine.getState().members.every(member => member.isSubmitted)) {
