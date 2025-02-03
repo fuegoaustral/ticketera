@@ -1,18 +1,17 @@
 {% extends 'pre_post_event/base.html' %}
 
 {% block page_title %}
-  Ingreso anticipado
+  Ingreso anticipado - proveedores
 {% endblock page_title %}
 
 {% block description %}
-  El ingreso anticipado es exclusivo para propuestas de camps que necesiten mucha logística para armarlos. El armado de las propuestas
-  se hace durante el evento, salvo casos particulares donde podemos dar unos días antes para que la experiencia sea mejor. Después les
-  vamos a confirmar si aceptamos el pedido. Nadie puede entrar al predio las 20hs y las 8hs en los días de armado.
+  El ingreso anticipado - formulario de proveedores.
 {% endblock description %}
 
 {% block form %}
   <form
     action="{{ form_url }}"
+    data-form-type="ingreso-anticipado-proveedores"
     class="js-form"
     method="POST"
     target="hiddenConfirm"
@@ -59,7 +58,7 @@
     </div>
 
     <div class="js-userInfoPlusSubmit" style="display: none">
-      <h2>Datos de personas</h2>
+      <h2>Datos de proveedores</h2>
       <div class="campsUserInfo js-campsUserInfo"></div>
       <input type="submit" value="Enviar" class="btn btn-primary mb-3" />
     </div>
@@ -70,31 +69,31 @@
       <div class="form-group">
         <label>
           <span>Nombre*</span>
-          <input type="text" class="form-control" name="entry.2053464848" field="Nombre" placeholder="Nombre" />
+          <input type="text" class="form-control" name="entry.958574261" field="Proveedor: Nombre" placeholder="Nombre del proveedor" />
         </label>
       </div>
       <div class="form-group">
         <label>
           <span>Apellido*</span>
-          <input type="text" class="form-control" name="entry.535194377" field="Apellido" placeholder="Apellido" />
+          <input type="text" class="form-control" name="entry.1770891089" field="Proveedor: Apellido" placeholder="Apellido del proveedor" />
         </label>
       </div>
       <div class="form-group">
         <label>
           <span>DNI*</span>
-          <input type="text" class="form-control" name="entry.491214698" field="DNI" placeholder="DNI" />
+          <input type="text" class="form-control" name="entry.994332614" field="Proveedor: DNI" placeholder="DNI del proveedor" />
         </label>
       </div>
       <div class="form-group">
         <label>
-          <span>Teléfono</span>
-          <input type="text" class="form-control" name="entry.367683234" field="Telefono" placeholder="Teléfono" />
+          <span>Tipo de proveedor*</span>
+          <input type="text" class="form-control" name="entry.893441559" field="Proveedor: Tipo de proveedor" placeholder="Tipo de proveedor" />
         </label>
       </div>
       <div class="form-group">
         <label>
           <span>Día de ingreso*</span>
-          <select class="form-control" name="entry.1069110744" field="Dia">
+          <select class="form-control" name="entry.255145585" field="Proveedor: Dia">
             <option value="">Día de ingreso</option>
             <option value="25 martes 08 a 12 hs">25 martes 8 a 12 hs</option>
             <option value="25 martes 12 a 16 hs">25 martes 12 a 16 hs</option>
@@ -108,6 +107,32 @@
             <option value="27 jueves 12 a 16 hs">27 jueves 12 a 16 hs</option>
             <option value="27 jueves 16 a 20 hs">27 jueves 16 a 20 hs</option>
           </select>
+        </label>
+      </div>
+
+      <h3>¿Quién recibirá al proveedor?</h3>
+      <div class="form-group">
+        <label>
+          <span>Nombre*</span>
+          <input type="text" class="form-control" name="entry.2105690513" field="Proveedor: Quién recibirá: Nombre" placeholder="Quién recibirá: Nombre" />
+        </label>
+      </div>
+      <div class="form-group">
+        <label>
+          <span>Apellido*</span>
+          <input type="text" class="form-control" name="entry.181676448" field="Proveedor: Quién recibirá: Apellido" placeholder="Quién recibirá: Apellido" />
+        </label>
+      </div>
+      <div class="form-group">
+        <label>
+          <span>DNI*</span>
+          <input type="text" class="form-control" name="entry.2001070924" field="Proveedor: Quién recibirá: DNI" placeholder="Quién recibirá: DNI" />
+        </label>
+      </div>
+      <div class="form-group">
+        <label>
+          <span>Teléfono</span>
+          <input type="text" class="form-control" name="entry.441311753" field="Proveedor: Quién recibirá: Teléfono" placeholder="Quién recibirá: Teléfono" />
         </label>
       </div>
       <a href="#" class="removeMember js-removeMember btn btn-danger p-0 m-0 d-none" tabindex="-1">&times;</a>
