@@ -1,18 +1,16 @@
 {% extends 'pre_post_event/base.html' %}
 
 {% block page_title %}
-  Ingreso anticipado
+  Late checkout
 {% endblock page_title %}
 
 {% block description %}
-  El ingreso anticipado es exclusivo para propuestas de camps que necesiten mucha logística para armarlos. El armado de las propuestas
-  se hace durante el evento, salvo casos particulares donde podemos dar unos días antes para que la experiencia sea mejor. Después les
-  vamos a confirmar si aceptamos el pedido. Nadie puede entrar al predio las 20hs y las 8hs en los días de armado.
 {% endblock description %}
 
 {% block form %}
   <form
     action="{{ form_url }}"
+    data-form-type="late-checkout"
     class="js-form"
     method="POST"
     target="hiddenConfirm"
@@ -58,10 +56,28 @@
       </label>
     </div>
 
+    <div class="form-group tinyDropdown" style="display: none">
+      <label>
+        <span>Grupo*</span>
+        <select class="form-control" name="entry.708028178" field="Grupo" parent="Infra">
+          <option value=""></option>
+        </select>
+      </label>
+    </div>
+
+    <div class="form-group tinyDropdown" style="display: none">
+      <label>
+        <span>Grupo*</span>
+        <select class="form-control" name="entry.708028178" field="Grupo" parent="Man">
+          <option value=""></option>
+        </select>
+      </label>
+    </div>
+
     <div class="js-userInfoPlusSubmit" style="display: none">
       <h2>Datos de personas</h2>
       <div class="campsUserInfo js-campsUserInfo"></div>
-      <input type="submit" value="Enviar" class="btn btn-primary mb-3" />
+      <input type="submit" value="Enviar y cerrar formulario" class="btn btn-primary mb-3" />
     </div>
   </form>
 
@@ -70,25 +86,25 @@
       <div class="form-group">
         <label>
           <span>Nombre*</span>
-          <input type="text" class="form-control" name="entry.2053464848" field="Nombre" placeholder="Nombre" />
+          <input type="text" class="form-control" name="entry.515067413" field="Nombre" placeholder="Nombre" />
         </label>
       </div>
       <div class="form-group">
         <label>
           <span>Apellido*</span>
-          <input type="text" class="form-control" name="entry.535194377" field="Apellido" placeholder="Apellido" />
+          <input type="text" class="form-control" name="entry.1768039938" field="Apellido" placeholder="Apellido" />
         </label>
       </div>
       <div class="form-group">
         <label>
           <span>DNI*</span>
-          <input type="text" class="form-control" name="entry.491214698" field="DNI" placeholder="DNI" />
+          <input type="text" class="form-control" name="entry.1139826370" field="DNI" placeholder="DNI" />
         </label>
       </div>
       <div class="form-group">
         <label>
           <span>Teléfono</span>
-          <input type="text" class="form-control" name="entry.367683234" field="Telefono" placeholder="Teléfono" />
+          <input type="text" class="form-control" name="entry.1269660802" field="Telefono" placeholder="Teléfono" />
         </label>
       </div>
       <div class="form-group">
