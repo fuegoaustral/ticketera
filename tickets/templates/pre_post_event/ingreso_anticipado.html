@@ -5,14 +5,17 @@
 {% endblock page_title %}
 
 {% block description %}
-  El ingreso anticipado es exclusivo para propuestas de camps que necesiten mucha logística para armarlos. El armado de las propuestas
-  se hace durante el evento, salvo casos particulares donde podemos dar unos días antes para que la experiencia sea mejor. Después les
-  vamos a confirmar si aceptamos el pedido. Nadie puede entrar al predio las 20hs y las 8hs en los días de armado.
+  El ingreso anticipado es exclusivo para propuestas de camps que necesiten mucha logística para armarlos.
+  <strong>El armado de las propuestas se hace durante el evento</strong>,
+  salvo casos particulares donde podemos dar unos días antes para que la experiencia sea mejor. Después les
+  vamos a confirmar si aceptamos el pedido.
+  <strong>Nadie puede entrar al predio las 20hs y las 8hs en los días de armado.</strong>
 {% endblock description %}
 
 {% block form %}
   <form
     action="{{ form_url }}"
+    data-form-type="ingreso-anticipado"
     class="js-form"
     method="POST"
     target="hiddenConfirm"
