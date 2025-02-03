@@ -1,5 +1,117 @@
-{% extends 'tickets/barbu_base.html' %}
-{% load humanize %}
-{% block full_content %}
-<h1>Post Event</h1>
-{% endblock %}
+{% extends 'pre_post_event/base.html' %}
+
+{% block page_title %}
+  Ingreso anticipado
+{% endblock page_title %}
+
+{% block description %}
+  El ingreso anticipado es exclusivo para propuestas de camps que necesiten mucha logística para armarlos. El armado de las propuestas
+  se hace durante el evento, salvo casos particulares donde podemos dar unos días antes para que la experiencia sea mejor. Después les
+  vamos a confirmar si aceptamos el pedido. Nadie puede entrar al predio las 20hs y las 8hs en los días de armado.
+{% endblock description %}
+
+{% block form %}
+  <form
+    action="{{ form_url }}"
+    class="js-form"
+    method="POST"
+    target="hiddenConfirm"
+  >
+    <div class="form-group tinyDropdown">
+      <label>
+        <span>Área*</span>
+        <select class="form-control" name="entry.1608074211" field="Area">
+          <option value=""></option>
+          <option value="Camps">Camps</option>
+          <option value="Arte">Arte</option>
+          <option value="Man">Man</option>
+          <option value="Templo">Templo</option>
+          <option value="Infra">Infra</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="form-group tinyDropdown" style="display: none">
+      <label>
+        <span>Grupo*</span>
+        <select class="form-control" name="entry.708028178" field="Grupo" parent="Camps">
+          <option value=""></option>
+        </select>
+      </label>
+    </div>
+
+    <div class="form-group tinyDropdown" style="display: none">
+      <label>
+        <span>Grupo*</span>
+        <select class="form-control" name="entry.708028178" field="Grupo" parent="Arte">
+          <option value=""></option>
+        </select>
+      </label>
+    </div>
+
+    <div class="form-group tinyDropdown" style="display: none">
+      <label>
+        <span>Grupo*</span>
+        <select class="form-control" name="entry.708028178" field="Grupo" parent="Templo">
+          <option value=""></option>
+        </select>
+      </label>
+    </div>
+
+    <div class="js-userInfoPlusSubmit" style="display: none">
+      <h2>Datos de personas</h2>
+      <div class="campsUserInfo js-campsUserInfo"></div>
+      <input type="submit" value="Enviar" class="btn btn-primary mb-3" />
+    </div>
+  </form>
+
+  <div class="js-memberHTML" style="display: none">
+    <div class="member js-member card p-3 mb-3">
+      <div class="form-group">
+        <label>
+          <span>Nombre*</span>
+          <input type="text" class="form-control" name="entry.2053464848" field="Nombre" placeholder="Nombre" />
+        </label>
+      </div>
+      <div class="form-group">
+        <label>
+          <span>Apellido*</span>
+          <input type="text" class="form-control" name="entry.535194377" field="Apellido" placeholder="Apellido" />
+        </label>
+      </div>
+      <div class="form-group">
+        <label>
+          <span>DNI*</span>
+          <input type="text" class="form-control" name="entry.491214698" field="DNI" placeholder="DNI" />
+        </label>
+      </div>
+      <div class="form-group">
+        <label>
+          <span>Teléfono</span>
+          <input type="text" class="form-control" name="entry.367683234" field="Telefono" placeholder="Teléfono" />
+        </label>
+      </div>
+      <div class="form-group">
+        <label>
+          <span>Día de ingreso*</span>
+          <select class="form-control" name="entry.1069110744" field="Dia">
+            <option value="">Día de ingreso</option>
+            <option value="25 martes 08 a 12 hs">25 martes 8 a 12 hs</option>
+            <option value="25 martes 12 a 16 hs">25 martes 12 a 16 hs</option>
+            <option value="25 martes 16 a 20 hs">25 martes 16 a 20 hs</option>
+
+            <option value="26 miércoles 08 a 12 hs">26 miércoles 8 a 12 hs</option>
+            <option value="26 miércoles 12 a 16 hs">26 miércoles 12 a 16 hs</option>
+            <option value="26 miércoles 16 a 20 hs">26 miércoles 16 a 20 hs</option>
+
+            <option value="27 jueves 08 a 12 hs">27 jueves 8 a 12 hs</option>
+            <option value="27 jueves 12 a 16 hs">27 jueves 12 a 16 hs</option>
+            <option value="27 jueves 16 a 20 hs">27 jueves 16 a 20 hs</option>
+          </select>
+        </label>
+      </div>
+      <a href="#" class="removeMember js-removeMember btn btn-danger p-0 m-0 d-none" tabindex="-1">&times;</a>
+      <button type="submit" class="js-addMember btn btn-primary mb-3 align-self-end d-none">Enviar y agregar otrx</button>
+    </div>
+  </div>
+{% endblock form %}
