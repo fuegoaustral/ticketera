@@ -305,7 +305,7 @@ const MEMBER_FIELDS = [
 const PROVEEDOR_FIELDS = [
   "Proveedor: Nombre",
   "Proveedor: Apellido",
-  "Proveedor: DNI",
+  // "Proveedor: DNI",
   "Proveedor: Tipo de proveedor",
   "Proveedor: Dia",
   "Proveedor: Quién recibirá: Nombre",
@@ -466,7 +466,7 @@ const renderMembers = (state, doc) => {
       const input = tempDiv.querySelector(`[field="${field}"]`)
       if (field === "Dia" || field === "Proveedor: Dia") {
         const option = input.querySelector(`option[value="${value}"]`)
-        option.setAttribute("selected", "selected")
+        option?.setAttribute("selected", "selected")
       } else {
         input.setAttribute("value", value || "")
       }
@@ -562,7 +562,7 @@ formEl.addEventListener("click", event => {
       alert(`
         Por favor complete todos los campos requeridos:
           1. Área y Grupo
-          2. Datos de los proveedores (Nombre, DNI, Tipo de proveedor, Día de ingreso)
+          2. Datos de los proveedores (Nombre, Tipo de proveedor, Día de ingreso)
           3. Quién recibirá los proveedores (Nombre, Apellido, DNI, Teléfono).
       `)
     } else {
