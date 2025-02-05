@@ -1,13 +1,13 @@
 {% extends 'pre_post_event/base.html' %}
 
 {% block page_title %}
-  Late checkout
+  Late checkout - proveedores
 {% endblock page_title %}
 
 {% block description %}
-  El "Late checkout" es exclusivo para propuestas de camps u obras de arte que requieran un tiempo extra de desarme o intervención de proveedores para dejar el predio sin "MUGRE".
+  El ingreso de proveedores puede ocurrir exclusivamente durante los horarios de armado y desarme, fuera del evento.
   <br />
-  Los proveedores sólo podrán ingresar desde el Miércoles 5/3 de 12hs a 20hs, momento en el que sólo deberá estar pendiente de desarme lo correspondiente al proveedor.
+  Horario de proveedores DESARME: Miércoles 5 de 12hs a 20hs.
   <br />
   <br />
   Completar el form lo antes posible, fecha límite 14/02/2025. Tu responsable del equipo Camps/ESTAFA va a validar los datos ingresados y ajustar según sea necesario.
@@ -18,12 +18,12 @@
 {% block form %}
   <form
     action="{{ form_url }}"
-    data-form-type="late-checkout"
+    data-form-type="late-checkout-proveedores"
     class="js-form"
     method="POST"
     target="hiddenConfirm"
   >
-    <input type="hidden" name="entry.1924677508" value="{{ user.email }}" />
+    <input type="hidden" name="entry.782393961" value="{{ user.email }}" />
     <div class="form-group tinyDropdown">
       <label>
         <span>Área*</span>
@@ -78,7 +78,7 @@
     </div>
 
     <div class="js-userInfoPlusSubmit" style="display: none">
-      <h2>Datos de personas</h2>
+      <h2>Datos de proveedores</h2>
       <div class="campsUserInfo js-campsUserInfo"></div>
       <input type="submit" value="Enviar y cerrar formulario" class="btn btn-primary mb-3" />
     </div>
@@ -88,37 +88,63 @@
     <div class="member js-member card p-3 mb-3">
       <div class="form-group">
         <label>
-          <span>Nombre*</span>
-          <input type="text" class="form-control" name="entry.515067413" field="Nombre" placeholder="Nombre" />
+          <span>Nombre del proveedor*</span>
+          <input type="text" class="form-control" name="entry.958574261" field="Proveedor: Nombre" placeholder="Nombre del proveedor" />
         </label>
       </div>
       <div class="form-group">
         <label>
-          <span>Apellido*</span>
-          <input type="text" class="form-control" name="entry.1768039938" field="Apellido" placeholder="Apellido" />
+          <span>Apellido del proveedor*</span>
+          <input type="text" class="form-control" name="entry.1770891089" field="Proveedor: Apellido" placeholder="Apellido del proveedor" />
         </label>
       </div>
       <div class="form-group">
         <label>
-          <span>DNI*</span>
-          <input type="text" class="form-control" name="entry.1139826370" field="DNI" placeholder="DNI" />
+          <span>DNI del proveedor</span>
+          <input type="text" class="form-control" name="entry.994332614" field="Proveedor: DNI" placeholder="DNI del proveedor" />
         </label>
       </div>
       <div class="form-group">
         <label>
-          <span>Teléfono</span>
-          <input type="text" class="form-control" name="entry.1269660802" field="Telefono" placeholder="Teléfono" />
+          <span>Tipo de proveedor*</span>
+          <input type="text" class="form-control" name="entry.893441559" field="Proveedor: Tipo de proveedor" placeholder="Tipo de proveedor" />
         </label>
       </div>
       <div class="form-group">
         <label>
-          <span>Día de checkout*</span>
-          <select class="form-control" name="entry.1069110744" field="Dia">
+          <span>Día de checkout del proveedor*</span>
+          <select class="form-control" name="entry.255145585" field="Proveedor: Dia">
             <option value="">Seleccione un día</option>
             <option value="Miércoles 5, antes de las 16 hs">Miércoles 5, antes de las 16 hs</option>
             <option value="Miércoles 5, antes de las 20 hs">Miércoles 5, antes de las 20 hs</option>
             <option value="Más allá del miércoles 5, 20 hs">Más allá del miércoles 5, 20 hs</option>
           </select>
+        </label>
+      </div>
+
+      <h3>¿Quién recibirá al proveedor?</h3>
+      <div class="form-group">
+        <label>
+          <span>Nombre*</span>
+          <input type="text" class="form-control" name="entry.2105690513" field="Proveedor: Quién recibirá: Nombre" placeholder="Quién recibirá: Nombre" />
+        </label>
+      </div>
+      <div class="form-group">
+        <label>
+          <span>Apellido*</span>
+          <input type="text" class="form-control" name="entry.181676448" field="Proveedor: Quién recibirá: Apellido" placeholder="Quién recibirá: Apellido" />
+        </label>
+      </div>
+      <div class="form-group">
+        <label>
+          <span>DNI*</span>
+          <input type="text" class="form-control" name="entry.2001070924" field="Proveedor: Quién recibirá: DNI" placeholder="Quién recibirá: DNI" />
+        </label>
+      </div>
+      <div class="form-group">
+        <label>
+          <span>Teléfono de quién recibe al proveedor*</span>
+          <input type="text" class="form-control" name="entry.441311753" field="Proveedor: Quién recibirá: Teléfono" placeholder="Quién recibirá: Teléfono" />
         </label>
       </div>
       <a href="#" class="removeMember js-removeMember btn btn-danger p-0 m-0 d-none" tabindex="-1">&times;</a>
