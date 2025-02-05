@@ -5,83 +5,130 @@
 {% endblock page_title %}
 
 {% block description %}
-  El ingreso anticipado es exclusivo para propuestas de camps que necesiten mucha logística para armarlos. El armado de las propuestas
-  se hace durante el evento, salvo casos particulares donde podemos dar unos días antes para que la experiencia sea mejor. Después les
-  vamos a confirmar si aceptamos el pedido. Nadie puede entrar al predio las 20hs y las 8hs en los días de armado.
+  El ingreso anticipado es exclusivo para propuestas de camps u obras de arte que necesiten mucha logística para armarlos.
+  <br />
+  El armado de las propuestas se hace durante el evento, salvo casos particulares donde podemos dar unos días antes para que la experiencia sea mejor.
+  Durante el armado las puertas las puertas permanecerán cerradas para ingresos/egresos de 20hs a 8hs, salvo EMERGENCIAS.
+  <br />
+  <br />
+  Completar el form lo antes posible, fecha límite 14/02/2025. Tu responsable del equipo Camps/ESTAFA va a validar los datos ingresados y ajustar según sea necesario.
+  <br />
+  <br />
 {% endblock description %}
 
 {% block form %}
-  <div id="formContainer">
-    <form
-      action="{{ form_url }}"
-      id="form"
-      method="POST"
-      target="hiddenConfirm"
-    ></form>
+  <form
+    action="{{ form_url }}"
+    data-form-type="ingreso-anticipado"
+    class="js-form"
+    method="POST"
+    target="hiddenConfirm"
+  >
+    <input type="hidden" name="entry.1382391253" value="{{ user.email }}" />
     <div class="form-group tinyDropdown">
-      <label for="areaSelect">Área</label>
-      <select class="form-control" id="areaSelect" name="entry.1608074211" field="Area" form="form">
-        <option value="">Área</option>
-        <option value="Camps">Camps</option>
-        <option value="Arte">Arte</option>
-        <option value="Man">Man</option>
-        <option value="Templo">Templo</option>
-        <option value="Infra">Infra</option>
-      </select>
+      <label>
+        <span>Área*</span>
+        <select class="form-control" name="entry.1608074211" field="Area">
+          <option value="Camps">Camps</option>
+          <option value="Arte">Arte</option>
+          <option value="Man">Man</option>
+          <option value="Templo">Templo</option>
+          <option value="Infra">Infra</option>
+        </select>
+      </label>
     </div>
-    <div class="form-group tinyDropdown" style="display: none">
-      <label for="grupoCamps">Grupo</label>
-      <select class="form-control" id="grupoCamps" name="entry.708028178" field="Grupo" parent="Camps" form="form">
-        <option value="">Grupo</option>
-      </select>
-    </div>
-    <div class="form-group tinyDropdown" style="display: none">
-      <label for="grupoArte">Grupo</label>
-      <select class="form-control" id="grupoArte" name="entry.708028178" field="Grupo" parent="Arte" form="form">
-        <option value="">Grupo</option>
-      </select>
-    </div>
-    <div class="form-group col-sm-6 col-md-4" style="display: none">
-      <label for="descripcion">Descripción de tu actividad</label>
-      <input type="text" class="form-control" id="descripcion" name="entry.711573933" field="Descripcion" parent="Grupo" form="form" />
-    </div>
-    <div id="userInfoPlusSubmit" style="display: none">
-      <div id="campsUserInfo">
-        <div class="member js-member card p-3 mb-3">
-          <div class="form-group">
-            <label for="name">Nombre y apellido</label>
-            <input type="text" class="form-control" id="name" name="entry.2053464848" field="Nombre" placeholder="Nombre y apellido" form="form" />
-          </div>
-          <div class="form-group">
-            <label for="dni">DNI</label>
-            <input type="text" class="form-control" id="dni" name="entry.491214698" field="DNI" placeholder="DNI" form="form" />
-          </div>
-          <div class="form-group">
-            <label for="tel">Teléfono</label>
-            <input type="text" class="form-control" id="tel" name="entry.367683234" field="Telefono" placeholder="Teléfono" form="form" />
-          </div>
-          <div class="form-group">
-            <label for="diaIngreso">Día de ingreso</label>
-            <select class="form-control" id="diaIngreso" name="entry.1069110744" field="Dia" form="form">
-              <option value="">Día de ingreso</option>
-              <option value="25 martes 08 a 12 hs">25 martes 8 a 12 hs</option>
-              <option value="25 martes 12 a 16 hs">25 martes 12 a 16 hs</option>
-              <option value="25 martes 16 a 20 hs">25 martes 16 a 20 hs</option>
 
-              <option value="26 miércoles 08 a 12 hs">26 miércoles 8 a 12 hs</option>
-              <option value="26 miércoles 12 a 16 hs">26 miércoles 12 a 16 hs</option>
-              <option value="26 miércoles 16 a 20 hs">26 miércoles 16 a 20 hs</option>
+    <div class="form-group tinyDropdown" style="display: none">
+      <label>
+        <span>Grupo*</span>
+        <select class="form-control" name="entry.708028178" field="Grupo" parent="Camps">
+        </select>
+      </label>
+    </div>
 
-              <option value="27 jueves 08 a 12 hs">27 jueves 8 a 12 hs</option>
-              <option value="27 jueves 12 a 16 hs">27 jueves 12 a 16 hs</option>
-              <option value="27 jueves 16 a 20 hs">27 jueves 16 a 20 hs</option>
-            </select>
-          </div>
-          <a href="#" class="js-removeMember btn btn-danger mt-2">Eliminar miembro</a>
-        </div>
+    <div class="form-group tinyDropdown" style="display: none">
+      <label>
+        <span>Grupo*</span>
+        <select class="form-control" name="entry.708028178" field="Grupo" parent="Arte">
+        </select>
+      </label>
+    </div>
+
+    <div class="form-group tinyDropdown" style="display: none">
+      <label>
+        <span>Grupo*</span>
+        <select class="form-control" name="entry.708028178" field="Grupo" parent="Templo">
+        </select>
+      </label>
+    </div>
+
+    <div class="form-group tinyDropdown" style="display: none">
+      <label>
+        <span>Grupo*</span>
+        <select class="form-control" name="entry.708028178" field="Grupo" parent="Infra">
+        </select>
+      </label>
+    </div>
+
+    <div class="form-group tinyDropdown" style="display: none">
+      <label>
+        <span>Grupo*</span>
+        <select class="form-control" name="entry.708028178" field="Grupo" parent="Man">
+        </select>
+      </label>
+    </div>
+
+    <div class="js-userInfoPlusSubmit" style="display: none">
+      <h2>Datos de personas</h2>
+      <div class="campsUserInfo js-campsUserInfo"></div>
+      <input type="submit" value="Enviar y cerrar formulario" class="btn btn-primary mb-3" />
+    </div>
+  </form>
+
+  <div class="js-memberHTML" style="display: none">
+    <div class="member js-member card p-3 mb-3">
+      <div class="form-group">
+        <label>
+          <span>Nombre*</span>
+          <input type="text" class="form-control" name="entry.2053464848" field="Nombre" placeholder="Nombre" />
+        </label>
       </div>
-      <a href="#" id="addMember" class="btn btn-secondary mb-3">Enviar y agregar otro miembro</a>
-      <input type="submit" value="Enviar" form="form" id="submitButton" class="btn btn-primary mb-3" />
+      <div class="form-group">
+        <label>
+          <span>Apellido*</span>
+          <input type="text" class="form-control" name="entry.535194377" field="Apellido" placeholder="Apellido" />
+        </label>
+      </div>
+      <div class="form-group">
+        <label>
+          <span>DNI*</span>
+          <input type="text" class="form-control" name="entry.491214698" field="DNI" placeholder="DNI" />
+        </label>
+      </div>
+      <div class="form-group">
+        <label>
+          <span>Teléfono</span>
+          <input type="text" class="form-control" name="entry.367683234" field="Telefono" placeholder="Teléfono" />
+        </label>
+      </div>
+      <div class="form-group">
+        <label>
+          <span>Día de ingreso*</span>
+          <select class="form-control" name="entry.1069110744" field="Dia">
+            <option value="">Seleccione un día</option>
+            <option value="Martes 25, 8 a 14 hs">Martes 25, 8 a 14 hs</option>
+            <option value="Martes 25, 14 a 20 hs">Martes 25, 14 a 20 hs</option>
+
+            <option value="Miércoles 26, 8 a 14 hs">Miércoles 26, 8 a 14 hs</option>
+            <option value="Miércoles 26, 14 a 20 hs">Miércoles 26, 14 a 20 hs</option>
+
+            <option value="Jueves 27, 8 a 14 hs">Jueves 27, 8 a 14 hs</option>
+            <option value="Jueves 27, 14 a 20 hs">Jueves 27, 14 a 20 hs</option>
+          </select>
+        </label>
+      </div>
+      <a href="#" class="removeMember js-removeMember btn btn-danger p-0 m-0 d-none" tabindex="-1">&times;</a>
+      <button type="submit" class="js-addMember btn btn-primary mb-3 align-self-end d-none">Enviar y agregar otro</button>
     </div>
   </div>
 {% endblock form %}
