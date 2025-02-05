@@ -489,7 +489,7 @@ const renderMembers = (state, doc) => {
   if (isAllMembersSubmitted && !isMaxMembers && !state.isFormFinished) {
     campsUserInfoEl.insertAdjacentHTML(
       "beforeend",
-      `<button type="button" class="js-addMember btn btn-primary mb-3 align-self-end">Agregar otrx</button>`,
+      `<button type="button" class="js-addMember btn btn-primary mb-3 align-self-end">Agregar otro</button>`,
     )
   }
   if (isMaxMembers && !state.isFormFinished) {
@@ -501,6 +501,13 @@ const renderMembers = (state, doc) => {
 const renderThankYouMessage = state => {
   const thankYouContainerEl = document.getElementById("thankYouContainer")
   if (!state.area || !state.grupo) return
+
+  const thankYouArteEl = document.querySelector(".js-thankYouArte")
+  if (state.area === "Arte") {
+    thankYouArteEl.classList.remove("d-none")
+  } else {
+    thankYouArteEl.classList.add("d-none")
+  }
 
   const isAllMembersSubmitted = state.members.every(member => member.isSubmitted)
   const isMaxMembers = state.members.length === MAX_MEMBERS_FOR[state.area][state.grupo]
