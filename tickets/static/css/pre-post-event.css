@@ -17,6 +17,11 @@
   flex-direction: column;
   border: 1px solid #ccc;
   padding: 20px;
+  width: 100%;
+
+  @media (min-width: 480px) {
+    width: initial;
+  }
 }
 .removeMember {
   position: absolute;
