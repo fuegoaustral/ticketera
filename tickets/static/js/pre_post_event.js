@@ -189,7 +189,7 @@ const MAX_MEMBERS_FOR = {
       Cafeteria: 2,
       "Camp Tafies": 8,
       Dorado: 0,
-      "El Correo": 0,
+      "El Correo": 4,
       "Entre Pares": 0,
       "Familia Natural Camp": 0,
       Fresh: 10,
