@@ -266,7 +266,7 @@ const MAX_MEMBERS_FOR = {
       Fresh: 30,
       "HORUS ": 30,
       "Industria Fuegina": 30,
-      "La Cantina": 0,
+      "La Cantina": 30,
       Pi: 30,
       "Pies en Libertad": 30,
       "Planta Base Camp": 0,
