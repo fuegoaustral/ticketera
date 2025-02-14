@@ -7,6 +7,7 @@ from urllib.parse import urlencode
 
 from django.db import connection
 from django.urls import reverse
+from django.utils import timezone
 
 from events.models import Event
 from tickets.models import MessageIdempotency
@@ -20,6 +21,12 @@ def send_pending_actions_emails(event, context):
     logging.info("==============")
     logging.info("\n")
     current_event = Event.objects.get(active=True)
+    
+    # Check if transfers are still enabled
+    if current_event.transfers_enabled_until and current_event.transfers_enabled_until < timezone.now():
+        logging.info("Transfers are no longer enabled for this event. Skipping email notifications.")
+        return
+    
     send_pending_actions_emails_for_event(current_event)
 
 
