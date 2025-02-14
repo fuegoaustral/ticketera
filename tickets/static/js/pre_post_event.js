@@ -191,7 +191,7 @@ const MAX_MEMBERS_FOR = {
       Dorado: 0,
       "El Correo": 4,
       "Entre Pares": 0,
-      "Familia Natural Camp": 0,
+      "Familia Natural Camp": 8,
       Fresh: 10,
       "HORUS ": 12,
       "Industria Fuegina": 0,
