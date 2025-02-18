@@ -13,6 +13,21 @@
     </li>
 {% endblock menu %}
 {% block alerts %}
+    {% if not event.transfer_period %}
+        <div class="container-fluid">
+            <div class="container">
+                <div class="alert alert-warning text-start mt-2">
+                    <div class="d-flex align-items-center gap-5 flex-wrap flex-sm-nowrap
+                justify-content-between">
+                        <div>
+                            La posibilidad de transferir bonos caducó el
+                            <strong>{{ event.transfers_enabled_until|date:'d/m' }}</strong> a las <strong>{{ event.transfers_enabled_until|date:'H:i' }}</strong>. Los bonos que no se transfirieron hasta es momento, ya no pueden ser transferidos.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
     {% if has_unassigned_tickets or has_transfer_pending %}
         {% if event.transfer_period %}
             <div class="container-fluid">
