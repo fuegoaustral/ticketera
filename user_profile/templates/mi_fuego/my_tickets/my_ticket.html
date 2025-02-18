@@ -8,7 +8,7 @@
 {% block truecontent %}
     {% if my_ticket %}
         <div class="rainbow-border truecontent">
-            {% if not is_volunteer %}
+            {% if not is_volunteer and not event.volunteers_enabled_until %}
                 <div class="alert alert-info text-start">
                     <div class="d-flex align-items-center gap-5 flex-wrap flex-sm-nowrap">
                         <div>
