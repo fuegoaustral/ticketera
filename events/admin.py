@@ -35,6 +35,10 @@ class EventAdmin(admin.ModelAdmin):
         return custom_urls + urls
 
     def custom_query_view(self, request):
+        # Check if user has permission to view tickets report
+        if not request.user.is_superuser and not request.user.groups.filter(name='tickets_report_viewers').exists():
+            return HttpResponse('Permission Denied', status=403)
+
         event_id = request.GET.get('event_id')
         search_term = request.GET.get('search', '')
         page = int(request.GET.get('page', 1))
