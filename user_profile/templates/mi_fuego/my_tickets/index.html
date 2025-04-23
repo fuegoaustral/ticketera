@@ -86,7 +86,7 @@
     {% if holding_tickets|add:shared_tickets > 0 %}
         <li class="nav-item">
             <a class="nav-link{% if nav_secondary == "transferable_tickets" %} active{% endif %}"
-               href="{% url 'transferable_tickets' %}">Bonos para transferir ({{ holding_tickets }}) </a>
+               href="{% url 'transferable_tickets' %}">Bonos adicionales ({{ holding_tickets }}) </a>
         </li>
     {% endif %}
     <script>
