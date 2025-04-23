@@ -6,71 +6,7 @@
     {% endif %}
 {% endblock actions %}
 {% block truecontent %}
-    {% if my_ticket %}
-        <div class="rainbow-border truecontent">
-            {% if not is_volunteer and not event.volunteers_enabled_until and event.has_volunteers %}
-                <div class="alert alert-info text-start">
-                    <div class="d-flex align-items-center gap-5 flex-wrap flex-sm-nowrap">
-                        <div>
-                            Fuego Austral es un encuentro participativo y todos tenemos un talento para aportar a
-                            nuestra ciudad temporal. Te invitamos a sumarte al área en la que sabés que podés dar lo
-                            mejor de vos.
-                        </div>
-                        <div>
-                            <a class="btn btn-secondary text-nowrap"
-                               href="{% url "volunteering" %}">Quiero ser voluntario</a>
-                        </div>
-                    </div>
-                </div>
-            {% endif %}
-            <div class="card text-center">
-                <div class="card-header">{{ event.name }}</div>
-                <div class="card-body d-flex justify-content-between flex-wrap flex-lg-nowrap">
-                    <div class="ticket-name">
-                        <dl class="flex-column text-align-left">
-                            <dt>Nombre(s)</dt>
-                            <dd>
-                                {{ user.first_name }}
-                            </dd>
-                            <dt>Apellido(s)</dt>
-                            <dd>
-                                {{ user.last_name }}
-                            </dd>
-                            <dt>{{ user.profile.document_type }}</dt>
-                            <dd>
-                                {{ user.profile.document_number }}
-                            </dd>
-                        </dl>
-                    </div>
-                    <div class="qr-container">
-                        <div class="qr">
-                            <img src="data:image/png;base64,{{ my_ticket.qr_code }}"
-                                 class="img-fluid"
-                                 alt="QR Code"/>
-                        </div>
-                    </div>
-                </div>
-
-
-                <div class="card-footer text-muted">
-                    <div class="d-flex flex-column flex-md-row justify-content-between">
-                        <div>
-                            Código de bono
-                            <br/>
-                            <strong>{{ my_ticket.key }}</strong>
-                        </div>
-                        <div>
-                            {% if my_ticket  and event.transfers_enabled_until >= now %}
-                                <button class="btn btn-danger mt-2" id="unAssignTicket">Transferir
-                                    mi bono
-                                </button>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    {% else %}
+    {% if not tickets_dto %}
         <div class="truecontent">
             <div class="card text-center mx-extra">
                 <div class="card-body d-flex justify-content-between flex-column align-items-center main-card-spacing gap-4">
@@ -81,14 +17,249 @@
                 </div>
             </div>
         </div>
+    {% else %}
+        {% if not is_volunteer and not event.volunteers_enabled_until and event.has_volunteers %}
+            <div class="alert alert-info text-start">
+                <div class="d-flex align-items-center gap-5 flex-wrap flex-sm-nowrap">
+                    <div>
+                        Fuego Austral es un encuentro participativo y todos tenemos un talento para aportar a
+                        nuestra ciudad temporal. Te invitamos a sumarte al área en la que sabés que podés dar lo
+                        mejor de vos.
+                    </div>
+                    <div>
+                        <a class="btn btn-secondary text-nowrap"
+                           href="{% url "volunteering" %}">Quiero ser voluntario</a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+            
+        <div class="card">
+            <div class="card-header">{{ event.name }}</div>
+            <div class="card-body">
+                {% for ticket in tickets_dto %}
+                    {% if not attendee_must_be_registered or ticket.tag == 'Mine' %}
+                        <div class="ticket-item mb-4 {% if not forloop.last %}border-bottom pb-4{% endif %}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="ticket-info">
+                                    <div class="d-flex flex-column gap-2">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="ticket-type fw-bold">{{ ticket.ticket_type }}</span>
+                                            <span class="badge {% if ticket.tag == 'Mine' %}bg-primary{% else %}bg-secondary{% endif %}" style="color: white !important;">
+                                                {{ ticket.tag }}
+                                            </span>
+                                            
+                                            {% if not attendee_must_be_registered %}
+                                                {% if ticket.used %}
+                                                    <span class="badge bg-dark" style="color: white !important;">Usado</span>
+                                                {% else %}
+                                                    <span class="badge bg-success" style="color: white !important;">No usado</span>
+                                                {% endif %}
+                                            {% endif %}
+                                        </div>
+                                        <div class="text-muted">
+                                            Código de bono: <span class="fw-semibold">{{ ticket.key }}</span>
+                                        </div>
+                                        {% if ticket.is_transfer_pending %}
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="notice badge bg-warning text-dark">Invitación pendiente</span>
+                                                <span class="text-muted">{{ ticket.transferring_to }}</span>
+                                                {% if event.transfers_enabled_until >= now %}
+                                                    <button class="btn btn-sm btn-outline-danger" onclick="cancelTicketTransfer('{{ ticket.key }}')">
+                                                        Cancelar invitación
+                                                    </button>
+                                                {% endif %}
+                                            </div>
+                                        {% else %}
+                                            {% if event.transfers_enabled_until >= now %}
+                                                <div>
+                                                    {% if ticket.tag == 'Mine' %}
+                                                        <button class="btn btn-sm btn-outline-danger unassign-ticket" data-ticket-key="{{ ticket.key }}">
+                                                            Transferir mi bono
+                                                        </button>
+                                                    {% else %}
+                                                        <button class="btn btn-sm btn-outline-secondary transfer-ticket" data-ticket-key="{{ ticket.key }}" data-bs-toggle="modal" data-bs-target="#transferModal">
+                                                            Transferir bono
+                                                        </button>
+                                                    {% endif %}
+                                                </div>
+                                            {% endif %}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="qr-container ms-3">
+                                    <div class="qr">
+                                        <img src="data:image/png;base64,{{ ticket.qr_code }}"
+                                             class="img-fluid"
+                                             style="max-width: 120px;"
+                                             alt="QR Code"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
     {% endif %}
-    {% if my_ticket %}
-        <script>
-            document.getElementById('unAssignTicket').addEventListener('click', async function () {
+
+    <div class="modal fade" id="transferModal" data-bs-backdrop="static" tabindex="-1" aria-labelledby="transferModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="transferModalLabel">Transferir Bono</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="transferForm">
+                        <div class="alert alert-warning text-start" role="alert">
+                            <strong>¡Atención!</strong>
+                            Si el destinatario no tiene cuenta en FA, se enviara una invitacion pero la transferencia no
+                            estara completa <strong>hasta que no se cree su cuenta.</strong>
+                        </div>
+                        <div class="mb-3">
+                            <label for="recipient-email" class="form-label">Correo Electrónico del Destinatario</label>
+                            <input type="email" class="form-control" id="recipient-email" placeholder="nombre@ejemplo.com">
+                            <div class="invalid-feedback">Por favor, ingresa un correo electrónico válido.</div>
+                        </div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-primary" onclick="confirmTransfer()">Confirmar</button>
+                        </div>
+                    </div>
+                    <div id="loadingSpinner" class="flex-column justify-content-center align-items-center" style="display: none">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <div class="my-4">Enviando...</div>
+                    </div>
+                    <div id="transferSuccessMessage" style="display: none">
+                        <div class="alert alert-success mb-3">
+                            ¡Transferencia exitosa! El bono ha sido transferido correctamente.
+                        </div>
+                        <div class="d-flex justify-content-center">
+                            <button type="button" class="btn btn-primary" onclick="refreshPage()">Aceptar</button>
+                        </div>
+                    </div>
+                    <div id="transferPendingMessage" style="display: none">
+                        <div class="alert alert-info mb-3">
+                            Se ha enviado una invitación a <span id="invitation-email"></span> para crear una cuenta y completar la transferencia.
+                        </div>
+                        <div class="d-flex justify-content-center">
+                            <button type="button" class="btn btn-primary" onclick="refreshPage()">Aceptar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTicketKey = null;
+
+        document.querySelectorAll('.unassign-ticket').forEach(button => {
+            button.addEventListener('click', async function () {
+                const ticketKey = this.dataset.ticketKey;
                 if (confirm('Si no vas a ir, desasigna tu bono para poder transferirselo a otra persona. ¿Estás seguro que no vas a ir?')) {
-                    window.location.href = "{% url 'unassign_ticket' my_ticket.key %}"
+                    window.location.href = `/ticket/${ticketKey}/unassign/`;
                 }
-            })
-        </script>
-    {% endif %}
+            });
+        });
+
+        document.querySelectorAll('.transfer-ticket').forEach(button => {
+            button.addEventListener('click', function () {
+                currentTicketKey = this.dataset.ticketKey;
+            });
+        });
+
+        function validateEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(email);
+        }
+
+        async function confirmTransfer() {
+            const emailInput = document.getElementById('recipient-email');
+            const email = emailInput.value;
+
+            if (!validateEmail(email)) {
+                emailInput.classList.add('is-invalid');
+                return;
+            } else {
+                emailInput.classList.remove('is-invalid');
+            }
+
+            document.getElementById('transferForm').style.display = 'none';
+            document.getElementById('loadingSpinner').style.display = 'flex';
+
+            try {
+                const response = await fetch(`/ticket/${currentTicketKey}/transfer/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    },
+                    body: JSON.stringify({
+                        email: email
+                    })
+                });
+
+                if (response.ok) {
+                    document.getElementById('loadingSpinner').style.display = 'none';
+                    const responseBody = await response.json();
+
+                    if (responseBody.destination_user_exists) {
+                        document.getElementById('transferSuccessMessage').style.display = 'block';
+                    } else {
+                        document.getElementById('invitation-email').innerHTML = email;
+                        document.getElementById('transferPendingMessage').style.display = 'block';
+                    }
+                } else {
+                    alert('Error en la transferencia. Por favor, inténtalo de nuevo.');
+                    resetModal();
+                }
+            } catch (error) {
+                console.error('Error during fetch:', error);
+                alert('Error en la conexión. Por favor, inténtalo de nuevo.');
+                resetModal();
+            }
+        }
+
+        async function cancelTicketTransfer(ticketKey) {
+            if (!confirm('¿Estás seguro de que deseas cancelar la transferencia?')) {
+                return;
+            }
+            try {
+                const response = await fetch('{% url "cancel_ticket_transfer" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    },
+                    body: JSON.stringify({
+                        ticket_key: ticketKey
+                    })
+                });
+
+                if (response.ok) {
+                    refreshPage();
+                } else {
+                    alert('Error al cancelar la transferencia. Por favor, inténtalo de nuevo.');
+                }
+            } catch (error) {
+                console.error('Error during fetch:', error);
+                alert('Error en la conexión. Por favor, inténtalo de nuevo.');
+            }
+        }
+
+        function refreshPage() {
+            location.reload();
+        }
+
+        function resetModal() {
+            document.getElementById('transferForm').style.display = 'block';
+            document.getElementById('loadingSpinner').style.display = 'none';
+            document.getElementById('transferSuccessMessage').style.display = 'none';
+            document.getElementById('transferPendingMessage').style.display = 'none';
+            document.getElementById('recipient-email').classList.remove('is-invalid');
+            document.getElementById('recipient-email').value = '';
+        }
+    </script>
 {% endblock truecontent %}

@@ -88,7 +88,7 @@
        tabindex="-1"
        aria-labelledby="transferModalLabel"
        aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header justify-content-center">
           <h1 class="modal-title" id="transferModalLabel">Transferir Bono</h1>
@@ -156,7 +156,6 @@
 
     async function confirmTransfer() {
         const emailInput = document.getElementById('recipient-email');
-
         const email = emailInput.value;
 
         if (!validateEmail(email)) {
@@ -170,22 +169,20 @@
         document.getElementById('loadingSpinner').style.display = 'flex';
 
         try {
-            const response = await fetch('{% url 'transfer_ticket' %}', {  // Replace with your actual server endpoint
+            const response = await fetch(`/ticket/${currentTicketKey}/transfer/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}',
-
                 },
                 body: JSON.stringify({
-                    ticket_key: currentTicketKey,
                     email: email
                 })
             });
 
             if (response.ok) {
                 document.getElementById('loadingSpinner').style.display = 'none';
-                const responseBody = await response.json()
+                const responseBody = await response.json();
 
                 if (responseBody.destination_user_exists) {
                     document.getElementById('transferSuccessMessage').style.display = 'block';
@@ -209,12 +206,11 @@
             return;
         }
         try {
-            const response = await fetch('{% url 'cancel_ticket_transfer' %}', {
+            const response = await fetch('{% url "cancel_ticket_transfer" %}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}',
-
                 },
                 body: JSON.stringify({
                     ticket_key: ticketKey

@@ -1,0 +1,333 @@
+{% extends 'tickets/barbu_base.html' %}
+{% load static %}
+
+{% block page_title %}
+    Escanear Bonos
+{% endblock %}
+
+{% block menu %}
+{% endblock %}
+
+{% block innercontent %}
+    {% csrf_token %}
+    <div class="container py-4">
+        <div id="scanner-view">
+            <div class="row justify-content-center">
+                <div class="col-md-8 col-lg-6">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Escanear Bonos</h5>
+                            <button id="toggleCamera" class="btn btn-primary">
+                                Iniciar Cámara
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="video-container mb-4" style="border-radius: 8px; overflow: hidden;">
+                                <video id="qr-video" class="w-100" style="background-color: #000;"></video>
+                            </div>
+                            <div id="scanning-overlay" class="text-center d-none">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Escaneando...</span>
+                                </div>
+                                <p class="mt-2 text-muted">Escaneando...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="ticket-view" class="d-none">
+            <div class="row justify-content-center">
+                <div class="col-md-8 col-lg-6">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Información del Bono</h5>
+                            <button id="backToScanner" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left"></i> Volver a escanear
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div id="ticket-info">
+                                <div class="ticket-details mb-4">
+                                    <div class="row g-3">
+                                        <div class="col-sm-6">
+                                            <div class="detail-item">
+                                                <label class="text-muted">Tipo de Bono</label>
+                                                <h6 id="ticket-type" class="mb-0"></h6>
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <div class="detail-item">
+                                                <label class="text-muted">Estado</label>
+                                                <h6 id="ticket-status" class="mb-0"></h6>
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <div class="detail-item">
+                                                <label class="text-muted">Código</label>
+                                                <h6 id="ticket-key" class="mb-0 font-monospace"></h6>
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <div class="detail-item">
+                                                <label class="text-muted">Propietario</label>
+                                                <h6 id="ticket-owner" class="mb-0"></h6>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="ticket-actions" class="d-flex justify-content-center">
+                                    <button id="mark-used" class="btn btn-success btn-lg d-none">
+                                        <i class="fas fa-check-circle me-2"></i>Marcar como Usado
+                                    </button>
+                                    <div id="already-used" class="alert alert-warning d-none w-100 text-center">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>Este bono ya fue usado
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="error-message" class="alert alert-danger d-none">
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .video-container {
+            position: relative;
+            background: #000;
+            border: 2px solid #dee2e6;
+        }
+        .detail-item {
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            height: 100%;
+        }
+        .detail-item label {
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+        }
+        #scanning-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+        }
+        .alert {
+            margin-top: 1rem;
+        }
+    </style>
+    <script>
+        let selectedDeviceId;
+        let codeReader;
+        let isScanning = false;
+
+        function getCSRFToken() {
+            return document.querySelector('[name=csrfmiddlewaretoken]').value;
+        }
+
+        function showScannerView() {
+            document.getElementById('scanner-view').classList.remove('d-none');
+            document.getElementById('ticket-view').classList.add('d-none');
+            document.getElementById('error-message').classList.add('d-none');
+        }
+
+        function showTicketView() {
+            document.getElementById('scanner-view').classList.add('d-none');
+            document.getElementById('ticket-view').classList.remove('d-none');
+            document.getElementById('error-message').classList.add('d-none');
+        }
+
+        async function initializeScanner() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                stream.getTracks().forEach(track => track.stop());
+
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                
+                if (!videoDevices || videoDevices.length === 0) {
+                    throw new Error('No se encontraron cámaras disponibles');
+                }
+                
+                const backCamera = videoDevices.find(device => 
+                    device.label.toLowerCase().includes('back') || 
+                    device.label.toLowerCase().includes('trasera') ||
+                    device.label.toLowerCase().includes('rear')
+                );
+                
+                selectedDeviceId = backCamera ? backCamera.deviceId : videoDevices[0].deviceId;
+                codeReader = new ZXing.BrowserMultiFormatReader();
+                
+                document.getElementById('toggleCamera').addEventListener('click', toggleCamera);
+                document.getElementById('backToScanner').addEventListener('click', () => {
+                    showScannerView();
+                    if (!isScanning) {
+                        toggleCamera();
+                    }
+                });
+            } catch (err) {
+                console.error('Camera initialization error:', err);
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    showError('No se otorgaron permisos para acceder a la cámara. Por favor, permite el acceso a la cámara y recarga la página.');
+                } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                    showError('No se encontró ninguna cámara en el dispositivo.');
+                } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                    showError('La cámara está siendo utilizada por otra aplicación.');
+                } else if (err.message === 'No se encontraron cámaras disponibles') {
+                    showError('No se encontraron cámaras disponibles en el dispositivo.');
+                } else {
+                    showError('Error al inicializar la cámara: ' + (err.message || 'Error desconocido'));
+                }
+            }
+        }
+
+        async function toggleCamera() {
+            const button = document.getElementById('toggleCamera');
+            const scanningOverlay = document.getElementById('scanning-overlay');
+
+            if (!isScanning) {
+                try {
+                    await startScanning();
+                    button.textContent = 'Detener Cámara';
+                    button.classList.replace('btn-primary', 'btn-danger');
+                    isScanning = true;
+                    scanningOverlay.classList.remove('d-none');
+                } catch (err) {
+                    console.error('Camera start error:', err);
+                    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                        showError('No se otorgaron permisos para acceder a la cámara.');
+                    } else {
+                        showError('Error al iniciar la cámara: ' + (err.message || 'Error desconocido'));
+                    }
+                }
+            } else {
+                await stopScanning();
+                button.textContent = 'Iniciar Cámara';
+                button.classList.replace('btn-danger', 'btn-primary');
+                isScanning = false;
+                scanningOverlay.classList.add('d-none');
+            }
+        }
+
+        async function startScanning() {
+            try {
+                await codeReader.decodeFromVideoDevice(selectedDeviceId, 'qr-video', async (result, err) => {
+                    if (result) {
+                        const ticketKey = result.text;
+                        await checkTicket(ticketKey);
+                    }
+                    if (err && !(err instanceof ZXing.NotFoundException)) {
+                        console.error('QR scan error:', err);
+                        showError('Error al leer el código QR: ' + (err.message || 'Error desconocido'));
+                    }
+                });
+            } catch (err) {
+                console.error('Scan start error:', err);
+                throw err;
+            }
+        }
+
+        async function stopScanning() {
+            try {
+                codeReader.reset();
+                const videoElement = document.getElementById('qr-video');
+                const stream = videoElement.srcObject;
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                videoElement.srcObject = null;
+            } catch (err) {
+                console.error('Stop scanning error:', err);
+                showError('Error al detener la cámara: ' + (err.message || 'Error desconocido'));
+            }
+        }
+
+        async function checkTicket(ticketKey) {
+            try {
+                const response = await fetch(`/api/tickets/${ticketKey}/check/`, {
+                    headers: {
+                        'X-CSRFToken': getCSRFToken(),
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayTicketInfo(data);
+                    showTicketView();
+                    await stopScanning();
+                    const button = document.getElementById('toggleCamera');
+                    button.textContent = 'Iniciar Cámara';
+                    button.classList.replace('btn-danger', 'btn-primary');
+                    isScanning = false;
+                } else {
+                    showError(data.error || 'Bono no encontrado');
+                }
+            } catch (err) {
+                console.error('Check ticket error:', err);
+                showError('Error al verificar el bono: ' + (err.message || 'Error desconocido'));
+            }
+        }
+
+        async function markTicketAsUsed(ticketKey) {
+            try {
+                const response = await fetch(`/api/tickets/${ticketKey}/mark-used/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCSRFToken(),
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayTicketInfo(data);
+                } else {
+                    showError(data.error || 'Error al marcar el bono como usado');
+                }
+            } catch (err) {
+                console.error('Mark ticket error:', err);
+                showError('Error al marcar el bono como usado: ' + (err.message || 'Error desconocido'));
+            }
+        }
+
+        function displayTicketInfo(ticket) {
+            const ticketInfo = document.getElementById('ticket-info');
+            const markUsedButton = document.getElementById('mark-used');
+            const alreadyUsed = document.getElementById('already-used');
+
+            document.getElementById('ticket-type').textContent = ticket.ticket_type;
+            document.getElementById('ticket-key').textContent = ticket.key;
+            document.getElementById('ticket-status').textContent = ticket.used ? 'Usado' : 'No usado';
+            document.getElementById('ticket-owner').textContent = ticket.owner_name;
+
+            if (ticket.used) {
+                markUsedButton.classList.add('d-none');
+                alreadyUsed.classList.remove('d-none');
+            } else {
+                markUsedButton.classList.remove('d-none');
+                alreadyUsed.classList.add('d-none');
+                markUsedButton.onclick = () => markTicketAsUsed(ticket.key);
+            }
+        }
+
+        function showError(message) {
+            const errorMessage = document.getElementById('error-message');
+            errorMessage.textContent = message;
+            errorMessage.classList.remove('d-none');
+        }
+
+        document.addEventListener('DOMContentLoaded', initializeScanner);
+    </script>
+{% endblock innercontent %} 
