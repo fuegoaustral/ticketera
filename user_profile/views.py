@@ -55,7 +55,7 @@ def transferable_tickets_view(request):
         tickets_dto.append(ticket.get_dto(user=request.user))
 
     transferred_tickets = NewTicketTransfer.objects.filter(
-        tx_from=request.user, status="COMPLETED"
+        tx_from=request.user, status="COMPLETED", ticket__event=event
     ).all()
     transferred_dto = []
     for transfer in transferred_tickets:
