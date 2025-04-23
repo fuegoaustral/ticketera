@@ -34,6 +34,8 @@ class Event(BaseModel):
     # ticket email
     email_info = models.TextField()
 
+    attendee_must_be_registered = models.BooleanField(default=True, help_text="If checked, all attendees must be registered users")
+
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=['active'], condition=Q(active=True), name='unique_active')

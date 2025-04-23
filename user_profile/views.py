@@ -22,6 +22,18 @@ def my_ticket_view(request):
         holder=request.user, event=event, owner=request.user
     ).first()
 
+    # Get all tickets for the user
+    all_tickets = NewTicket.objects.filter(
+        holder=request.user, event=event
+    ).order_by("owner").all()
+
+    tickets_dto = []
+    for ticket in all_tickets:
+        ticket_dto = ticket.get_dto(user=request.user)
+        # Add tag to distinguish between Mine and Guest tickets
+        ticket_dto['tag'] = 'Mine' if ticket.owner == request.user else 'Guest'
+        tickets_dto.append(ticket_dto)
+
     return render(
         request,
         "mi_fuego/my_tickets/my_ticket.html",
@@ -32,6 +44,8 @@ def my_ticket_view(request):
             "nav_primary": "tickets",
             "nav_secondary": "my_ticket",
             'now': timezone.now(),
+            'tickets_dto': tickets_dto,
+            'attendee_must_be_registered': event.attendee_must_be_registered,
         },
     )
 
@@ -39,6 +53,11 @@ def my_ticket_view(request):
 @login_required
 def transferable_tickets_view(request):
     event = Event.objects.get(active=True)
+    
+    # If attendees don't need to be registered, redirect to my_ticket view
+    if not event.attendee_must_be_registered:
+        return redirect(reverse("my_ticket"))
+
     tickets = (
         NewTicket.objects.filter(holder=request.user, event=event)
         .exclude(owner=request.user)
