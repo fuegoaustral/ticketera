@@ -70,12 +70,6 @@
         "Resource": "arn:aws:s3:::faticketera-zappa-prod/*"
       }
     ],
-    "certificate_arn": "arn:aws:acm:us-east-1:251799394474:certificate/84e0a65b-041f-49f0-8fb5-f440fb700aef",
-    "events": [
-      {
-        "function": "tickets.email_crons.send_pending_actions_emails",
-        "expression": "cron(0 17 * * ? *)"
-      }
-    ]
+    "certificate_arn": "arn:aws:acm:us-east-1:251799394474:certificate/84e0a65b-041f-49f0-8fb5-f440fb700aef"
   }
 }
