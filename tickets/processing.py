@@ -7,12 +7,12 @@ def mint_tickets(order):
 
     try:
         from tickets.models import NewTicket, OrderTicket, Order
-        user_already_has_ticket = NewTicket.objects.filter(owner=order.user).exists()
+        user_already_has_ticket = NewTicket.objects.filter(owner=order.user, event=order.event).exists()
         logging.info(f"user_already_has_ticket {user_already_has_ticket}")
         order_has_more_than_one_ticket_type = order.total_ticket_types() > 1
         logging.info(f"order_has_more_than_one_ticket_type {order_has_more_than_one_ticket_type}")
 
-        order_tickets = OrderTicket.objects.filter(order=order)
+        order_tickets = OrderTicket.objects.filter(order=order, ticket_type__event=order.event)
 
         new_minted_tickets = []
         with transaction.atomic():
