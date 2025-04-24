@@ -70,10 +70,22 @@ footer {
 }
 
 .nav-item {
-  position: relative;
-  height: 100%;
-  white-space: nowrap;
-  margin-bottom: 8px;
+  border-right: 1px solid rgba(255, 255, 255, 0.3);
+  padding-right: 1rem;
+  padding-left: 1rem;
+}
+
+.nav-item:first-child {
+  padding-left: 0;
+}
+
+.nav-item:last-child {
+  border-right: none;
+  padding-right: 0;
+}
+
+.nav-item.no-border {
+  border-right: none;
 }
 
 .nav-link {

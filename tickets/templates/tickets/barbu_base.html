@@ -87,7 +87,7 @@
            href="https://donaronline.org/asociacion-civil-fuego-austral/becas-de-arte-fuego-austral-2025"
            target="_blank">Quiero Donar</a>
       </div>
-      <ul class="nav d-flex flex-row align-items-center flex-nowrap gap-3">
+      <ul class="nav d-flex flex-row align-items-center flex-nowrap">
         <li class="nav-item d-none d-md-block">
           <a class="nav-link" href="https://fuegoaustral.org" target="_blank">fuegoaustral.org</a>
         </li>
@@ -95,7 +95,7 @@
         {% if request.user.is_authenticated %}
           <li class="nav-item d-sm-none">
             <a href="{% url 'my_ticket' %}" class="nav-link p-0">
-              <div class="d-flex align-items-center gap-2 ticket-counter {% if holding_tickets|add:shared_tickets > 1 %}ticket-counter-animated{% endif %}">
+              <div class="d-flex align-items-center gap-2 ticket-counter">
                 <i class="fa-solid fa-ticket text-white fs-5"></i>
                 <span class="text-white">{{ holding_tickets|add:shared_tickets }}</span>
               </div>
@@ -127,7 +127,7 @@
         <li class="nav-item d-none d-sm-block no-border">
           {% if request.user.is_authenticated %}
             <a href="{% url 'my_ticket' %}" class="nav-link p-0">
-              <div class="d-flex align-items-center gap-2 ticket-counter {% if holding_tickets|add:shared_tickets > 1 %}ticket-counter-animated{% endif %}">
+              <div class="d-flex align-items-center gap-2 ticket-counter">
                 <i class="fa-solid fa-ticket text-white fs-5"></i>
                 <span class="text-white">{{ holding_tickets|add:shared_tickets }}</span>
               </div>
@@ -144,33 +144,16 @@
       .ticket-counter:hover {
         transform: scale(1.1);
       }
-      .ticket-counter-animated {
-        animation: ticketPulse 4s infinite;
-      }
-      .ticket-counter-animated i {
-        animation: ticketFlip 8s infinite;
+      .ticket-counter:hover i {
+        animation: ticketFlip 1s ease;
         display: inline-block;
-      }
-      @keyframes ticketPulse {
-        0% {
-          transform: scale(1);
-        }
-        50% {
-          transform: scale(1.1);
-        }
-        100% {
-          transform: scale(1);
-        }
       }
       @keyframes ticketFlip {
         0% {
           transform: rotateY(0deg);
         }
-        5% {
+        50% {
           transform: rotateY(180deg);
-        }
-        10% {
-          transform: rotateY(360deg);
         }
         100% {
           transform: rotateY(360deg);
