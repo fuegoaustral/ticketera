@@ -164,13 +164,20 @@
                                             {% if event.transfers_enabled_until >= now and not ticket.is_used %}
                                                 <div>
                                                     {% if ticket.tag == 'Mine' %}
-                                                        <button class="btn btn-sm btn-outline-danger unassign-ticket" data-ticket-key="{{ ticket.key }}">
+                                                        <a href="/ticket/{{ ticket.key }}/unassign/" class="btn btn-sm btn-outline-danger">
                                                             Transferir mi bono
-                                                        </button>
+                                                        </a>
                                                     {% else %}
-                                                        <button class="btn btn-sm btn-outline-secondary transfer-ticket" data-ticket-key="{{ ticket.key }}" data-bs-toggle="modal" data-bs-target="#transferModal">
-                                                            Transferir bono
-                                                        </button>
+                                                        <div class="d-flex gap-2">
+                                                            <button class="btn btn-sm btn-outline-secondary transfer-ticket" data-ticket-key="{{ ticket.key }}" data-bs-toggle="modal" data-bs-target="#transferModal">
+                                                                Transferir bono
+                                                            </button>
+                                                            {% if not attendee_must_be_registered and all_unassigned %}
+                                                            <a href="/ticket/{{ ticket.key }}/assign" class="btn btn-sm btn-outline-primary">
+                                                                Asigname este bono
+                                                            </a>
+                                                            {% endif %}
+                                                        </div>
                                                     {% endif %}
                                                 </div>
                                             {% endif %}
