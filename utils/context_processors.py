@@ -18,7 +18,7 @@ def current_event(request):
     if request.user.is_authenticated:
 
         tickets = NewTicket.objects.filter(
-            holder=request.user, event=event, owner=None
+            holder=request.user, event=event
         ).all()
 
         owns_ticket = NewTicket.objects.filter(
