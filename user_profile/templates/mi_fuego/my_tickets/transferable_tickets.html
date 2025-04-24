@@ -14,7 +14,7 @@
     </div>
   {% else %}
     <div class="card transferable text-start">
-      <!-- <div class="card-header filters" role="group" aria-label="Filtros">
+      <div class="card-header filters" role="group" aria-label="Filtros">
         <button type="button"
                 class="active"
                 data-filter="all"
@@ -28,11 +28,7 @@
         <button type="button"
                 data-filter="complete"
                 onclick="filterTickets('complete', this)">Transferencia Completa</button>
-      </div> -->
-      <p class="p-3 pb-0">
-        Puedes llevar {{ holding_tickets }} amigo(s) al evento con estas entradas.
-        No hace falta que pongas sus nombres en el ticket.
-      </p>
+      </div>
       <div class="card-body d-flex justify-content-between">
         {% for ticket in tickets_dto %}
           <div class="card ticket-card {% if ticket.is_transfer_pending %}pending{% else %}not-pending{% endif %}">
