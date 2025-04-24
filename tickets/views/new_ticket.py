@@ -144,7 +144,7 @@ def cancel_ticket_transfer(request):
 @login_required()
 def assign_ticket(request, ticket_key):
     if request.method != 'GET':
-        return HttpResponseNotAllowed(['GET'])
+        return HttpResponseNotAllowed()
 
     ticket = NewTicket.objects.get(key=ticket_key)
     if ticket is None:
