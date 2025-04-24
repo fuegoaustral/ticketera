@@ -11,6 +11,7 @@ from utils.models import BaseModel
 class Event(BaseModel):
     active = models.BooleanField(default=True, help_text="Only 1 event can be active at a time")
     name = models.CharField(max_length=255)
+    location = models.CharField(max_length=255, blank=True, help_text="Location of the event")
     has_volunteers = models.BooleanField(default=False)
     start = models.DateTimeField()
     end = models.DateTimeField()
@@ -33,6 +34,8 @@ class Event(BaseModel):
 
     # ticket email
     email_info = models.TextField()
+
+    attendee_must_be_registered = models.BooleanField(default=True, help_text="If checked, all attendees must be registered users")
 
     class Meta:
         constraints = [
