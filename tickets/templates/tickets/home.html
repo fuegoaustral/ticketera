@@ -2,10 +2,12 @@
 {% load humanize %}
 {% block full_content %}
     {% if event %}
-        <a {%  if ticket_types %}href="{% url "select_tickets" %}"{% endif %} class="container-xxl hero">
-            <img src="{{ event.header_image.url }}" alt="{{ event.name }}">
-            {%  if ticket_types %}<button class="btn btn-secondary btn-hero" style="">Bonos disponibles</button>{% endif %}
-            {%  if not ticket_types and next_ticket_type %}<button class="btn btn-secondary btn-hero disabled" style=""><span id="countdown"></span></button>{% endif %}
+        <a {%  if ticket_types %}href="{% url "select_tickets" %}"{% endif %} class="container-xxl hero hero-container">
+            <img src="{{ event.header_image.url }}" alt="{{ event.name }}" class="hero-image">
+            <div class="hero-button-container">
+                {%  if ticket_types %}<button class="btn btn-secondary btn-hero">Bonos disponibles</button>{% endif %}
+                {%  if not ticket_types and next_ticket_type %}<button class="btn btn-secondary btn-hero disabled"><span id="countdown"></span></button>{% endif %}
+            </div>
         </a>
         <div class="container-xxl home-section">
             <div class="row d-flex justify-content-center">
@@ -68,6 +70,59 @@
             }
             @media (min-width: 992px) {
                 padding: 3rem 5rem;
+            }
+        }
+        .hero-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .hero-button-container {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2;
+            text-align: center;
+        }
+        .btn-hero {
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            font-size: 1.1rem;
+            background-color: rgba(255, 255, 255, 0.95);
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        @media (min-width: 768px) {
+            .hero-button-container {
+                width: 100%;
+                max-width: 300px;
+            }
+            .btn-hero {
+                width: 80%;
+                min-width: 240px;
+            }
+        }
+        .btn-hero:hover {
+            background-color: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+        .btn-hero.disabled {
+            opacity: 0.9;
+            cursor: not-allowed;
+        }
+        @media (max-width: 768px) {
+            .hero-button-container {
+                bottom: 1rem;
+            }
+            .btn-hero {
+                padding: 0.5rem 1rem;
+                font-size: 1rem;
             }
         }
     </style>

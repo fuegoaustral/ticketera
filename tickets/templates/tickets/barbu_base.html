@@ -64,28 +64,44 @@
     {% endif %}
   </head>
   <body>
-    <header class="container-xxl d-flex justify-content-between">
-      <a href="/" class="logo d-flex align-items-center gap-3">
-        <svg width="48"
-             height="49"
-             viewBox="0 0 48 49"
-             fill="none"
-             xmlns="http://www.w3.org/2000/svg">
-          <mask id="mask0_41_1237" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="48" height="49">
-          <rect y="0.5" width="48" height="48" fill="#D9D9D9" />
-          </mask>
-          <g mask="url(#mask0_41_1237)">
-          <path d="M24.0999 28.5461H24.098C22.2663 28.5461 20.7803 27.0598 20.7803 25.2276C20.7803 23.3961 22.2663 21.9089 24.098 21.9089H24.0999C25.9317 21.9099 27.4167 23.3961 27.4167 25.2276C27.4167 27.0598 25.9317 28.5461 24.0999 28.5461ZM30.7372 21.9089V18.5905H27.4186V15.2715H24.0999H20.7803V18.5905H17.4607V21.9089H14.1421V25.2276V28.547H17.4607V31.8647H20.7803V35.1853H24.0999H27.4186V31.8647H30.7372V28.547H34.0559V25.2276V21.9089H30.7372Z" fill="white" />
-          <path d="M10.5992 7.07482C10.5992 7.07482 10.9 20.8707 12.2657 34.2834C12.2657 34.2834 18.8741 38.7346 20.7999 39.8673C20.7999 39.8673 21.4614 44.8686 21.7284 59.6545L16.321 62.3183C16.321 62.3183 18.0368 79.2153 18.8383 88.7484C18.8383 88.7484 18.3964 89.3145 15.9883 88.7484C15.9883 88.7484 12.1931 73.426 11.0692 59.3691C11.0692 59.3691 13.8207 57.406 17.9149 55.7327C17.9149 55.7327 16.7106 47.0245 16.7106 44.6008C16.7106 44.6008 10.2964 40.4259 6.72773 37.6824C6.72773 37.6824 4.4876 29.4119 3 7.07482C3 7.07482 6.21701 5.78147 10.5992 7.07482Z" fill="white" />
-          <path d="M37.5993 7.07482C37.5993 7.07482 37.2996 20.8707 35.9341 34.2834C35.9341 34.2834 29.3267 38.7346 27.3983 39.8673C27.3983 39.8673 26.7389 44.8686 26.4697 59.6545L31.8799 62.3183C31.8799 62.3183 30.164 79.2153 29.3604 88.7484C29.3604 88.7484 29.8025 89.3145 32.2106 88.7484C32.2106 88.7484 36.0055 73.426 37.1304 59.3691C37.1304 59.3691 34.3789 57.406 30.2852 55.7327C30.2852 55.7327 31.489 47.0245 31.489 44.6008C31.489 44.6008 37.9031 40.4259 41.4706 37.6824C41.4706 37.6824 43.7104 29.4119 45.1982 7.07482C45.1982 7.07482 41.9823 5.78147 37.5993 7.07482Z" fill="white" />
-          </g>
-        </svg>
-        <div class="d-none d-sm-block">EVENTOS</div>
-      </a>
+    <header class="container-xxl d-flex justify-content-between align-items-center">
+      <div class="d-flex align-items-center gap-3">
+        <a href="/" class="logo d-flex align-items-center gap-3">
+          <svg width="48"
+               height="49"
+               viewBox="0 0 48 49"
+               fill="none"
+               xmlns="http://www.w3.org/2000/svg">
+            <mask id="mask0_41_1237" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="48" height="49">
+            <rect y="0.5" width="48" height="48" fill="#D9D9D9" />
+            </mask>
+            <g mask="url(#mask0_41_1237)">
+            <path d="M24.0999 28.5461H24.098C22.2663 28.5461 20.7803 27.0598 20.7803 25.2276C20.7803 23.3961 22.2663 21.9089 24.098 21.9089H24.0999C25.9317 21.9099 27.4167 23.3961 27.4167 25.2276C27.4167 27.0598 25.9317 28.5461 24.0999 28.5461ZM30.7372 21.9089V18.5905H27.4186V15.2715H24.0999H20.7803V18.5905H17.4607V21.9089H14.1421V25.2276V28.547H17.4607V31.8647H20.7803V35.1853H24.0999H27.4186V31.8647H30.7372V28.547H34.0559V25.2276V21.9089H30.7372Z" fill="white" />
+            <path d="M10.5992 7.07482C10.5992 7.07482 10.9 20.8707 12.2657 34.2834C12.2657 34.2834 18.8741 38.7346 20.7999 39.8673C20.7999 39.8673 21.4614 44.8686 21.7284 59.6545L16.321 62.3183C16.321 62.3183 18.0368 79.2153 18.8383 88.7484C18.8383 88.7484 18.3964 89.3145 15.9883 88.7484C15.9883 88.7484 12.1931 73.426 11.0692 59.3691C11.0692 59.3691 13.8207 57.406 17.9149 55.7327C17.9149 55.7327 16.7106 47.0245 16.7106 44.6008C16.7106 44.6008 10.2964 40.4259 6.72773 37.6824C6.72773 37.6824 4.4876 29.4119 3 7.07482C3 7.07482 6.21701 5.78147 10.5992 7.07482Z" fill="white" />
+            <path d="M37.5993 7.07482C37.5993 7.07482 37.2996 20.8707 35.9341 34.2834C35.9341 34.2834 29.3267 38.7346 27.3983 39.8673C27.3983 39.8673 26.7389 44.8686 26.4697 59.6545L31.8799 62.3183C31.8799 62.3183 30.164 79.2153 29.3604 88.7484C29.3604 88.7484 29.8025 89.3145 32.2106 88.7484C32.2106 88.7484 36.0055 73.426 37.1304 59.3691C37.1304 59.3691 34.3789 57.406 30.2852 55.7327C30.2852 55.7327 31.489 47.0245 31.489 44.6008C31.489 44.6008 37.9031 40.4259 41.4706 37.6824C41.4706 37.6824 43.7104 29.4119 45.1982 7.07482C45.1982 7.07482 41.9823 5.78147 37.5993 7.07482Z" fill="white" />
+            </g>
+          </svg>
+          <div class="d-none d-sm-block">EVENTOS</div>
+        </a>
+        <a class="nav-link btn btn-secondary"
+           href="https://donaronline.org/asociacion-civil-fuego-austral/becas-de-arte-fuego-austral-2025"
+           target="_blank">Quiero Donar</a>
+      </div>
       <ul class="nav d-flex flex-row align-items-center flex-nowrap">
         <li class="nav-item d-none d-md-block">
           <a class="nav-link" href="https://fuegoaustral.org" target="_blank">fuegoaustral.org</a>
         </li>
+        <!-- Ticket counter for mobile -->
+        {% if request.user.is_authenticated %}
+          <li class="nav-item d-sm-none">
+            <a href="{% url 'my_ticket' %}" class="nav-link p-0">
+              <div class="d-flex align-items-center gap-2 ticket-counter">
+                <i class="fa-solid fa-ticket text-white fs-5"></i>
+                <span class="text-white me-2">{{ holding_tickets|add:shared_tickets }}</span>
+              </div>
+            </a>
+          </li>
+        {% endif %}
         {% if request.user.is_authenticated %}
           <li class="nav-item dropdown show">
             <a class="nav-link dropdown-toggle" href="#" id="dropdownProfileButton" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -107,13 +123,61 @@
             <a class="nav-link" href="{% url 'account_signup' %}">Registrarse</a>
           </li>
         {% endif %}
+        <!-- Ticket counter for desktop -->
         <li class="nav-item d-none d-sm-block no-border">
-          <a class="nav-link btn btn-secondary"
-             href="https://donaronline.org/asociacion-civil-fuego-austral/becas-de-arte-fuego-austral-2025"
-             target="_blank">Quiero Donar</a>
+          {% if request.user.is_authenticated %}
+            <a href="{% url 'my_ticket' %}" class="nav-link p-0">
+              <div class="d-flex align-items-center gap-2 ticket-counter">
+                <i class="fa-solid fa-ticket text-white fs-5"></i>
+                <span class="text-white me-2">{{ holding_tickets|add:shared_tickets }}</span>
+              </div>
+            </a>
+          {% endif %}
         </li>
       </ul>
     </header>
+    <style>
+      .ticket-counter {
+        transition: transform 0.3s ease;
+        cursor: pointer;
+      }
+      .ticket-counter:hover {
+        transform: scale(1.1);
+      }
+      .ticket-counter:hover i {
+        animation: ticketFlip 1s ease;
+        display: inline-block;
+      }
+      @keyframes ticketFlip {
+        0% {
+          transform: rotateY(0deg);
+        }
+        50% {
+          transform: rotateY(180deg);
+        }
+        100% {
+          transform: rotateY(360deg);
+        }
+      }
+
+      /* Center hero image when smaller */
+      .hero-image {
+        width: 100%;
+        height: auto;
+        object-fit: contain;
+        max-height: 600px;
+        display: block;
+        margin: 0 auto;
+      }
+      
+      .hero-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+        width: 100%;
+      }
+    </style>
     {% block full_content %}
       <div class="container-fluid subheader">
         <div class="container">
