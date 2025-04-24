@@ -86,10 +86,10 @@
                                     </div>
                                 </div>
                                 <div id="ticket-actions" class="d-flex justify-content-center">
-                                    <button id="mark-used" class="btn btn-success btn-lg d-none">
+                                    <button id="mark-is-used" class="btn btn-success btn-lg d-none">
                                         <i class="fas fa-check-circle me-2"></i>Marcar como Usado
                                     </button>
-                                    <div id="already-used" class="alert alert-warning d-none w-100 text-center">
+                                    <div id="already-is-used" class="alert alert-warning d-none w-100 text-center">
                                         <i class="fas fa-exclamation-triangle me-2"></i>Este bono ya fue usado
                                     </div>
                                 </div>
@@ -390,34 +390,40 @@
 
         function displayTicketInfo(ticket) {
             const ticketInfo = document.getElementById('ticket-info');
-            const markUsedButton = document.getElementById('mark-used');
-            const alreadyUsed = document.getElementById('already-used');
-            const invitedByContainer = document.getElementById('invited-by-container');
-
-            document.getElementById('ticket-type').textContent = ticket.ticket_type;
-            document.getElementById('ticket-key').textContent = ticket.key;
-            document.getElementById('ticket-status').textContent = ticket.used ? 'Usado' : 'No usado';
+            const ticketOwner = document.getElementById('ticket-owner');
+            const ticketHolder = document.getElementById('ticket-holder');
+            const ticketType = document.getElementById('ticket-type');
+            const ticketStatus = document.getElementById('ticket-status');
+            const ticketKey = document.getElementById('ticket-key');
+            const invitadoPor = document.getElementById('invited-by-container');
+            const markIsUsedButton = document.getElementById('mark-is-used');
+            const alreadyIsUsedDiv = document.getElementById('already-is-used');
             
-            if (ticket.owner_name) {
-                document.getElementById('ticket-owner').textContent = ticket.owner_name + ' (' + ticket.user_info.document_type  + ' ' + ticket.user_info.document_number + ')';
-                invitedByContainer.classList.add('d-none');
+            ticketInfo.style.display = 'block';
+            ticketOwner.textContent = ticket.owner_name || 'Invitado';
+            ticketType.textContent = ticket.ticket_type;
+            ticketStatus.textContent = ticket.is_used ? 'Usado' : 'No usado';
+            ticketStatus.className = 'mb-0';
+            ticketKey.textContent = ticket.key;
+            
+            if (ticket.user_info && 
+                ticket.user_info.first_name && 
+                ticket.user_info.last_name &&
+                (!ticket.owner_name || 
+                 ticket.owner_name !== `${ticket.user_info.first_name} ${ticket.user_info.last_name}`)) {
+                invitadoPor.classList.remove('d-none');
+                ticketHolder.textContent = `${ticket.user_info.first_name} ${ticket.user_info.last_name}`;
             } else {
-                document.getElementById('ticket-owner').textContent = 'Invitado';
-                if (ticket.user_info) {
-                    document.getElementById('ticket-holder').textContent = `${ticket.user_info.first_name} ${ticket.user_info.last_name} (${ticket.user_info.document_type} ${ticket.user_info.document_number})`;
-                    document.getElementById('invited-by-container').classList.remove('d-none');
-                } else {
-                    document.getElementById('invited-by-container').classList.add('d-none');
-                }
+                invitadoPor.classList.add('d-none');
             }
 
-            if (ticket.used) {
-                markUsedButton.classList.add('d-none');
-                alreadyUsed.classList.remove('d-none');
+            if (ticket.is_used) {
+                markIsUsedButton.classList.add('d-none');
+                alreadyIsUsedDiv.classList.remove('d-none');
             } else {
-                markUsedButton.classList.remove('d-none');
-                alreadyUsed.classList.add('d-none');
-                markUsedButton.onclick = () => markTicketAsUsed(ticket.key);
+                markIsUsedButton.classList.remove('d-none');
+                alreadyIsUsedDiv.classList.add('d-none');
+                markIsUsedButton.onclick = () => markTicketAsUsed(ticket.key);
             }
         }
 

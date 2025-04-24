@@ -18,7 +18,7 @@ def check_ticket(request, ticket_key):
         return JsonResponse({
             'key': ticket.key,
             'ticket_type': str(ticket.ticket_type),
-            'used': ticket.used,
+            'is_used': ticket.is_used,
             'owner_name': f"{ticket.owner.first_name} {ticket.owner.last_name}" if ticket.owner else None,
             'user_info': {
                 'first_name': ticket.holder.first_name,
@@ -39,16 +39,16 @@ def mark_ticket_used(request, ticket_key):
     
     try:
         ticket = NewTicket.objects.get(key=ticket_key)
-        if ticket.used:
+        if ticket.is_used:
             return JsonResponse({'error': 'El bono ya fue usado'}, status=400)
         
-        ticket.used = True
+        ticket.is_used = True
         ticket.save()
         
         return JsonResponse({
             'key': ticket.key,
             'ticket_type': str(ticket.ticket_type),
-            'used': ticket.used,
+            'is_used': ticket.is_used,
             'owner_name': f"{ticket.owner.first_name} {ticket.owner.last_name}" if ticket.owner else "Sin asignar"
         })
     except ObjectDoesNotExist:

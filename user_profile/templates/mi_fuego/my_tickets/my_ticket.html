@@ -112,10 +112,10 @@
         
                 {% for ticket in tickets_dto %}
                 <div class="card mb-4 border">
-                    <div class="card-header {% if not ticket.used %}bg-success text-white{% endif %} d-flex justify-content-between align-items-center">
+                    <div class="card-header {% if not ticket.is_used %}bg-success text-white{% endif %} d-flex justify-content-between align-items-center">
                         <span>{{ event.name }}</span>
                         {% if not attendee_must_be_registered %}
-                            {% if ticket.used %}
+                            {% if ticket.is_used %}
                                 <span class="badge bg-dark" style="color: white !important;">Usado</span>
                             {% else %}
                                 <span class="badge" style="background-color: white !important; color: #198754 !important; border: 1px solid #198754;">Válido</span>
@@ -154,14 +154,14 @@
                                             <div class="d-flex align-items-center gap-2">
                                                 <span class="notice badge bg-warning text-dark">Invitación pendiente</span>
                                                 <span class="text-muted">{{ ticket.transferring_to }}</span>
-                                                {% if event.transfers_enabled_until >= now and not ticket.used %}
+                                                {% if event.transfers_enabled_until >= now and not ticket.is_used %}
                                                     <button class="btn btn-sm btn-outline-danger" onclick="cancelTicketTransfer('{{ ticket.key }}')">
                                                         Cancelar invitación
                                                     </button>
                                                 {% endif %}
                                             </div>
                                         {% else %}
-                                            {% if event.transfers_enabled_until >= now and not ticket.used %}
+                                            {% if event.transfers_enabled_until >= now and not ticket.is_used %}
                                                 <div>
                                                     {% if ticket.tag == 'Mine' %}
                                                         <button class="btn btn-sm btn-outline-danger unassign-ticket" data-ticket-key="{{ ticket.key }}">

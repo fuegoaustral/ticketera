@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name='newticket',
-            name='used',
+            name='is_used',
             field=models.BooleanField(default=False),
         ),
     ] 
