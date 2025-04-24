@@ -19,7 +19,13 @@ def check_ticket(request, ticket_key):
             'key': ticket.key,
             'ticket_type': str(ticket.ticket_type),
             'used': ticket.used,
-            'owner_name': f"{ticket.owner.first_name} {ticket.owner.last_name}" if ticket.owner else "Sin asignar"
+            'owner_name': f"{ticket.owner.first_name} {ticket.owner.last_name}" if ticket.owner else None,
+            'user_info': {
+                'first_name': ticket.holder.first_name,
+                'last_name': ticket.holder.last_name,
+                'document_type': ticket.holder.profile.document_type,
+                'document_number': ticket.holder.profile.document_number
+            } if ticket.holder else None
         })
     except ObjectDoesNotExist:
         return JsonResponse({'error': 'Bono no encontrado'}, status=404)

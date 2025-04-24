@@ -6,6 +6,69 @@
     {% endif %}
 {% endblock actions %}
 {% block truecontent %}
+    <style>
+        .floating-nav {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            display: flex;
+            gap: 8px;
+            z-index: 1000;
+        }
+        .floating-nav button {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #8B4513;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        .floating-nav button:disabled {
+            background: #A67B5B;
+            opacity: 0.7;
+        }
+        @media (min-width: 768px) {
+            .floating-nav {
+                display: none;
+            }
+        }
+        .tickets-container {
+            scroll-behavior: smooth;
+        }
+        .qr img {
+            max-width: 280px !important;
+        }
+        @media (min-width: 768px) {
+            .qr img {
+                max-width: 180px !important;
+            }
+        }
+        @media (max-width: 767px) {
+            .qr-container {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+            }
+            .qr {
+                width: 100% !important;
+                display: flex !important;
+                justify-content: center !important;
+            }
+            .qr img {
+                max-width: 100% !important;
+                width: 90% !important;
+                height: auto !important;
+            }
+            .ticket-actions {
+                margin-top: 0.5rem !important;
+            }
+        }
+    </style>
+
     {% if not tickets_dto %}
         <div class="truecontent">
             <div class="card text-center mx-extra">
@@ -18,6 +81,18 @@
             </div>
         </div>
     {% else %}
+        <!-- Floating Navigation Buttons -->
+        {% if tickets_dto|length > 1 %}
+        <div class="floating-nav d-md-none">
+            <button onclick="scrollToPrevious()" id="prevTicket" class="btn">
+                <i class="fas fa-chevron-up"></i>
+            </button>
+            <button onclick="scrollToNext()" id="nextTicket" class="btn">
+                <i class="fas fa-chevron-down"></i>
+            </button>
+        </div>
+        {% endif %}
+
         {% if not is_volunteer and not event.volunteers_enabled_until and event.has_volunteers %}
             <div class="alert alert-info text-start">
                 <div class="d-flex align-items-center gap-5 flex-wrap flex-sm-nowrap">
@@ -34,44 +109,59 @@
             </div>
         {% endif %}
             
-        <div class="card">
-            <div class="card-header">{{ event.name }}</div>
-            <div class="card-body">
+        
                 {% for ticket in tickets_dto %}
+                <div class="card mb-4 border">
+                    <div class="card-header {% if not ticket.used %}bg-success text-white{% endif %} d-flex justify-content-between align-items-center">
+                        <span>{{ event.name }}</span>
+                        {% if not attendee_must_be_registered %}
+                            {% if ticket.used %}
+                                <span class="badge bg-dark" style="color: white !important;">Usado</span>
+                            {% else %}
+                                <span class="badge" style="background-color: white !important; color: #198754 !important; border: 1px solid #198754;">Válido</span>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                    <div class="card-body">
                     {% if not attendee_must_be_registered or ticket.tag == 'Mine' %}
-                        <div class="ticket-item mb-4 {% if not forloop.last %}border-bottom pb-4{% endif %}">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div class="ticket-info">
+                        <div class="ticket-item mb-4">
+                            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start">
+                                <div class="ticket-info w-100">
                                     <div class="d-flex flex-column gap-2">
-                                        <div class="d-flex align-items-center gap-2">
-                                            <span class="ticket-type fw-bold">{{ ticket.ticket_type }}</span>
-                                            <span class="badge {% if ticket.tag == 'Mine' %}bg-primary{% else %}bg-secondary{% endif %}" style="color: white !important;">
-                                                {{ ticket.tag }}
-                                            </span>
-                                            
-                                            {% if not attendee_must_be_registered %}
-                                                {% if ticket.used %}
-                                                    <span class="badge bg-dark" style="color: white !important;">Usado</span>
-                                                {% else %}
-                                                    <span class="badge bg-success" style="color: white !important;">No usado</span>
-                                                {% endif %}
-                                            {% endif %}
-                                        </div>
-                                        <div class="text-muted">
-                                            Código de bono: <span class="fw-semibold">{{ ticket.key }}</span>
-                                        </div>
+                                        {% if ticket.tag == 'Mine' %}
+                                            <div class="text-muted">
+                                                <span class="fw-bold">{{ ticket.user_info.first_name }} {{ ticket.user_info.last_name }}</span> - DNI: <span class="fw-bold">{{ ticket.user_info.dni }}</span>
+                                            </div>
+                                        {% else %}
+                                            <div class="text-muted">
+                                                <span class="fw-bold">Invitado</span>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="qr-container my-3 my-md-0 mx-auto">
+                                    <div class="qr">
+                                        <img src="data:image/png;base64,{{ ticket.qr_code }}"
+                                             class="img-fluid"
+                                             alt="QR Code"/>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start">
+                                <div class="ticket-actions w-100">
+                                    <div class="d-flex flex-column gap-2">
                                         {% if ticket.is_transfer_pending %}
                                             <div class="d-flex align-items-center gap-2">
                                                 <span class="notice badge bg-warning text-dark">Invitación pendiente</span>
                                                 <span class="text-muted">{{ ticket.transferring_to }}</span>
-                                                {% if event.transfers_enabled_until >= now %}
+                                                {% if event.transfers_enabled_until >= now and not ticket.used %}
                                                     <button class="btn btn-sm btn-outline-danger" onclick="cancelTicketTransfer('{{ ticket.key }}')">
                                                         Cancelar invitación
                                                     </button>
                                                 {% endif %}
                                             </div>
                                         {% else %}
-                                            {% if event.transfers_enabled_until >= now %}
+                                            {% if event.transfers_enabled_until >= now and not ticket.used %}
                                                 <div>
                                                     {% if ticket.tag == 'Mine' %}
                                                         <button class="btn btn-sm btn-outline-danger unassign-ticket" data-ticket-key="{{ ticket.key }}">
@@ -87,20 +177,13 @@
                                         {% endif %}
                                     </div>
                                 </div>
-                                <div class="qr-container ms-3">
-                                    <div class="qr">
-                                        <img src="data:image/png;base64,{{ ticket.qr_code }}"
-                                             class="img-fluid"
-                                             style="max-width: 120px;"
-                                             alt="QR Code"/>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     {% endif %}
-                {% endfor %}
+                
             </div>
         </div>
+        {% endfor %}
     {% endif %}
 
     <div class="modal fade" id="transferModal" data-bs-backdrop="static" tabindex="-1" aria-labelledby="transferModalLabel" aria-hidden="true">
@@ -153,6 +236,35 @@
     </div>
 
     <script>
+        const ticketCards = document.querySelectorAll('.card.mb-4.border');
+        let currentIndex = 0;
+
+        function scrollToNext() {
+            if (currentIndex < ticketCards.length - 1) {
+                currentIndex++;
+                ticketCards[currentIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                updateButtonStates();
+            }
+        }
+
+        function scrollToPrevious() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                ticketCards[currentIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                updateButtonStates();
+            }
+        }
+
+        function updateButtonStates() {
+            document.getElementById('prevTicket').disabled = currentIndex === 0;
+            document.getElementById('nextTicket').disabled = currentIndex === ticketCards.length - 1;
+        }
+
+        // Initialize button states
+        if (ticketCards.length > 0) {
+            updateButtonStates();
+        }
+
         let currentTicketKey = null;
 
         document.querySelectorAll('.unassign-ticket').forEach(button => {

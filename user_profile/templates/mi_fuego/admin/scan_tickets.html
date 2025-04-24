@@ -2,7 +2,6 @@
 {% load static %}
 
 {% block page_title %}
-    Escanear Bonos
 {% endblock %}
 
 {% block menu %}
@@ -15,21 +14,24 @@
             <div class="row justify-content-center">
                 <div class="col-md-8 col-lg-6">
                     <div class="card">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">Escanear Bonos</h5>
-                            <button id="toggleCamera" class="btn btn-primary">
-                                Iniciar Cámara
+                        <div class="d-flex justify-content-end">
+                            <button id="toggleCamera" class="btn btn-primary d-none">
+                                <i class="fas fa-camera me-2"></i>Iniciar Cámara
                             </button>
                         </div>
                         <div class="card-body">
-                            <div class="video-container mb-4" style="border-radius: 8px; overflow: hidden;">
-                                <video id="qr-video" class="w-100" style="background-color: #000;"></video>
-                            </div>
-                            <div id="scanning-overlay" class="text-center d-none">
-                                <div class="spinner-border text-primary" role="status">
-                                    <span class="visually-hidden">Escaneando...</span>
+                            <div class="video-container mb-4" style="border-radius: 8px; overflow: hidden; min-height: 300px; display: flex; align-items: center; justify-content: center;">
+                                <video id="qr-video" class="w-100" style="background-color: #000; display: none;"></video>
+                                <div id="scanning-overlay" class="d-none">
+                                    <div class="scanning-bar"></div>
+                                    <div class="focus-square">
+                                        <div class="corner-top-right"></div>
+                                        <div class="corner-bottom-left"></div>
+                                    </div>
                                 </div>
-                                <p class="mt-2 text-muted">Escaneando...</p>
+                                <button id="startCameraBtn" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-camera me-2"></i>Iniciar Cámara
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -75,6 +77,12 @@
                                                 <h6 id="ticket-owner" class="mb-0"></h6>
                                             </div>
                                         </div>
+                                        <div class="col-sm-6 d-none" id="invited-by-container">
+                                            <div class="detail-item">
+                                                <label class="text-muted">Invitado por</label>
+                                                <h6 id="ticket-holder" class="mb-0"></h6>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div id="ticket-actions" class="d-flex justify-content-center">
@@ -116,10 +124,80 @@
         }
         #scanning-overlay {
             position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 1000;
+            overflow: hidden;
+        }
+        .scanning-bar {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background-color: #00ff00;
+            animation: scan 4s linear infinite;
+            z-index: 1;
+        }
+        @keyframes scan {
+            0% {
+                top: 0;
+            }
+            50% {
+                top: 100%;
+            }
+            100% {
+                top: 0;
+            }
+        }
+        .focus-square {
+            position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            z-index: 1000;
+            width: 200px;
+            height: 200px;
+            z-index: 1;
+        }
+        .focus-square::before,
+        .focus-square::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 4px solid #00ff00;
+        }
+        .focus-square::before {
+            top: 0;
+            left: 0;
+            border-right: none;
+            border-bottom: none;
+        }
+        .focus-square::after {
+            bottom: 0;
+            right: 0;
+            border-left: none;
+            border-top: none;
+        }
+        .focus-square .corner-top-right,
+        .focus-square .corner-bottom-left {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 4px solid #00ff00;
+        }
+        .focus-square .corner-top-right {
+            top: 0;
+            right: 0;
+            border-left: none;
+            border-bottom: none;
+        }
+        .focus-square .corner-bottom-left {
+            bottom: 0;
+            left: 0;
+            border-right: none;
+            border-top: none;
         }
         .alert {
             margin-top: 1rem;
@@ -167,6 +245,7 @@
                 selectedDeviceId = backCamera ? backCamera.deviceId : videoDevices[0].deviceId;
                 codeReader = new ZXing.BrowserMultiFormatReader();
                 
+                document.getElementById('startCameraBtn').addEventListener('click', toggleCamera);
                 document.getElementById('toggleCamera').addEventListener('click', toggleCamera);
                 document.getElementById('backToScanner').addEventListener('click', () => {
                     showScannerView();
@@ -191,16 +270,21 @@
         }
 
         async function toggleCamera() {
-            const button = document.getElementById('toggleCamera');
+            const startButton = document.getElementById('startCameraBtn');
+            const toggleButton = document.getElementById('toggleCamera');
+            const video = document.getElementById('qr-video');
             const scanningOverlay = document.getElementById('scanning-overlay');
 
             if (!isScanning) {
                 try {
                     await startScanning();
-                    button.textContent = 'Detener Cámara';
-                    button.classList.replace('btn-primary', 'btn-danger');
+                    startButton.style.display = 'none';
+                    toggleButton.classList.remove('d-none');
+                    toggleButton.textContent = 'Detener Cámara';
+                    toggleButton.classList.replace('btn-primary', 'btn-danger');
                     isScanning = true;
                     scanningOverlay.classList.remove('d-none');
+                    video.style.display = 'block';
                 } catch (err) {
                     console.error('Camera start error:', err);
                     if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
@@ -211,10 +295,11 @@
                 }
             } else {
                 await stopScanning();
-                button.textContent = 'Iniciar Cámara';
-                button.classList.replace('btn-danger', 'btn-primary');
+                startButton.style.display = 'block';
+                toggleButton.classList.add('d-none');
                 isScanning = false;
                 scanningOverlay.classList.add('d-none');
+                video.style.display = 'none';
             }
         }
 
@@ -266,9 +351,10 @@
                     displayTicketInfo(data);
                     showTicketView();
                     await stopScanning();
-                    const button = document.getElementById('toggleCamera');
-                    button.textContent = 'Iniciar Cámara';
-                    button.classList.replace('btn-danger', 'btn-primary');
+                    const toggleButton = document.getElementById('toggleCamera');
+                    const startButton = document.getElementById('startCameraBtn');
+                    startButton.style.display = 'block';
+                    toggleButton.classList.add('d-none');
                     isScanning = false;
                 } else {
                     showError(data.error || 'Bono no encontrado');
@@ -306,11 +392,24 @@
             const ticketInfo = document.getElementById('ticket-info');
             const markUsedButton = document.getElementById('mark-used');
             const alreadyUsed = document.getElementById('already-used');
+            const invitedByContainer = document.getElementById('invited-by-container');
 
             document.getElementById('ticket-type').textContent = ticket.ticket_type;
             document.getElementById('ticket-key').textContent = ticket.key;
             document.getElementById('ticket-status').textContent = ticket.used ? 'Usado' : 'No usado';
-            document.getElementById('ticket-owner').textContent = ticket.owner_name;
+            
+            if (ticket.owner_name) {
+                document.getElementById('ticket-owner').textContent = ticket.owner_name + ' (' + ticket.user_info.document_type  + ' ' + ticket.user_info.document_number + ')';
+                invitedByContainer.classList.add('d-none');
+            } else {
+                document.getElementById('ticket-owner').textContent = 'Invitado';
+                if (ticket.user_info) {
+                    document.getElementById('ticket-holder').textContent = `${ticket.user_info.first_name} ${ticket.user_info.last_name} (${ticket.user_info.document_type} ${ticket.user_info.document_number})`;
+                    document.getElementById('invited-by-container').classList.remove('d-none');
+                } else {
+                    document.getElementById('invited-by-container').classList.add('d-none');
+                }
+            }
 
             if (ticket.used) {
                 markUsedButton.classList.add('d-none');
@@ -331,3 +430,6 @@
         document.addEventListener('DOMContentLoaded', initializeScanner);
     </script>
 {% endblock innercontent %} 
+
+{% block footer %}
+{% endblock footer %}

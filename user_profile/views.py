@@ -32,6 +32,13 @@ def my_ticket_view(request):
         ticket_dto = ticket.get_dto(user=request.user)
         # Add tag to distinguish between Mine and Guest tickets
         ticket_dto['tag'] = 'Mine' if ticket.owner == request.user else 'Guest'
+        # Add user information for Mine tickets
+        if ticket.owner == request.user:
+            ticket_dto['user_info'] = {
+                'first_name': request.user.first_name,
+                'last_name': request.user.last_name,
+                'dni': request.user.profile.document_number
+            }
         tickets_dto.append(ticket_dto)
 
     return render(
