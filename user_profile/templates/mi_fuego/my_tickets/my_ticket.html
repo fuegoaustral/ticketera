@@ -140,10 +140,12 @@
                                             </div>
                                         {% endif %}
                                         <div class="ticket-details mt-2">
+                                            {% if event.location %}
                                             <div class="d-flex align-items-center gap-2 mb-2">
                                                 <i class="fas fa-map-marker-alt text-muted"></i>
                                                 <span class="text-muted">{{ event.location|safe }}</span>
                                             </div>
+                                            {% endif %}
                                             <div class="d-flex align-items-center gap-2 mb-2">
                                                 <i class="fas fa-calendar-alt text-muted"></i>
                                                 <span class="text-muted">{{ event.start|date:"d/m/Y H:i" }}</span>
