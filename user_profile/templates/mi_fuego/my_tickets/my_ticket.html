@@ -10,35 +10,6 @@
 {% block truecontent %}
 
     <style>
-        .floating-nav {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            display: flex;
-            gap: 8px;
-            z-index: 1000;
-        }
-        .floating-nav button {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: #8B4513;
-            border: none;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-        }
-        .floating-nav button:disabled {
-            background: #A67B5B;
-            opacity: 0.7;
-        }
-        @media (min-width: 768px) {
-            .floating-nav {
-                display: none;
-            }
-        }
         .tickets-container {
             scroll-behavior: smooth;
         }
@@ -84,18 +55,6 @@
             </div>
         </div>
     {% else %}
-        <!-- Floating Navigation Buttons -->
-        {% if tickets_dto|length > 1 %}
-        <div class="floating-nav d-md-none">
-            <button onclick="scrollToPrevious()" id="prevTicket" class="btn">
-                <i class="fas fa-chevron-up"></i>
-            </button>
-            <button onclick="scrollToNext()" id="nextTicket" class="btn">
-                <i class="fas fa-chevron-down"></i>
-            </button>
-        </div>
-        {% endif %}
-
         {% if not is_volunteer and not event.volunteers_enabled_until and event.has_volunteers %}
             <div class="alert alert-info text-start">
                 <div class="d-flex align-items-center gap-5 flex-wrap flex-sm-nowrap">
@@ -199,16 +158,19 @@
                                                             Soltar mi bono
                                                         </a>
                                                     {% else %}
-                                                        <div class="d-flex gap-2">
-                                                            <button class="btn btn-sm btn-outline-secondary transfer-ticket" data-ticket-key="{{ ticket.key }}" data-bs-toggle="modal" data-bs-target="#transferModal">
-                                                                Transferir bono
-                                                            </button>
-                                                            {% if not attendee_must_be_registered and all_unassigned %}
-                                                            <a href="/ticket/{{ ticket.key }}/assign" class="btn btn-sm btn-outline-primary">
-                                                                Asigname este bono
-                                                            </a>
-                                                            {% endif %}
-                                                        </div>
+                                                        {% if attendee_must_be_registered %}
+                                                            <div class="d-flex gap-2">
+                                                                <button class="btn btn-sm btn-outline-secondary transfer-ticket" data-ticket-key="{{ ticket.key }}" data-bs-toggle="modal" data-bs-target="#transferModal">
+                                                                    Transferir bono
+                                                                </button>
+                                                             
+                                                            </div>
+                                                        {% endif %}
+                                                        {% if all_unassigned %}
+                                                        <a href="/ticket/{{ ticket.key }}/assign" class="btn btn-sm btn-outline-primary">
+                                                            Asigname este bono
+                                                        </a>
+                                                        {% endif %}
                                                     {% endif %}
                                                 </div>
                                             {% endif %}
@@ -274,35 +236,6 @@
     </div>
 
     <script>
-        const ticketCards = document.querySelectorAll('.card.mb-4.border');
-        let currentIndex = 0;
-
-        function scrollToNext() {
-            if (currentIndex < ticketCards.length - 1) {
-                currentIndex++;
-                ticketCards[currentIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                updateButtonStates();
-            }
-        }
-
-        function scrollToPrevious() {
-            if (currentIndex > 0) {
-                currentIndex--;
-                ticketCards[currentIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                updateButtonStates();
-            }
-        }
-
-        function updateButtonStates() {
-            document.getElementById('prevTicket').disabled = currentIndex === 0;
-            document.getElementById('nextTicket').disabled = currentIndex === ticketCards.length - 1;
-        }
-
-        // Initialize button states
-        if (ticketCards.length > 0) {
-            updateButtonStates();
-        }
-
         let currentTicketKey = null;
 
         document.querySelectorAll('.unassign-ticket').forEach(button => {
