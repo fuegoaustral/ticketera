@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bono - {{ ticket.key }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .qr-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+        .qr {
+            background: white;
+            padding: 1rem;
+            border-radius: 1rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .qr img {
+            width: 200px;
+            height: 200px;
+            object-fit: contain;
+        }
+        @media (min-width: 768px) {
+            .container {
+                max-width: 1200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% load humanize %}
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="card">
+                    <div class="card-header {% if is_valid %}bg-success text-white{% else %}bg-danger text-white{% endif %}">
+                        <h5 class="card-title mb-0">
+                            {% if is_valid %}
+                                Bono Válido
+                            {% else %}
+                                Bono Inválido
+                            {% endif %}
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="mb-3">Información del Evento</h6>
+                                <p class="mb-2"><strong>Evento:</strong> {{ event.name }}</p>
+                                <p class="mb-2"><strong>Ubicación:</strong> {{ event.location|safe }}</p>
+                                <p class="mb-2"><strong>Fecha:</strong> {{ event.start|date:"d/m/Y H:i" }}</p>
+                                
+                                <h6 class="mb-3 mt-4">Información del Bono</h6>
+                                <p class="mb-2"><strong>Tipo:</strong> {{ ticket.ticket_type }}</p>
+                                <p class="mb-2"><strong>Precio:</strong> ${{ ticket.price|floatformat:0|intcomma }}</p>
+                                
+                                <h6 class="mb-3 mt-4">Información del Titular</h6>
+                                {% if ticket.tag == 'Mine' %}
+                                    <p class="mb-2"><strong>Nombre:</strong> {{ holder_name }}</p>
+                                    <p class="mb-2"><strong>DNI:</strong> {{ holder_dni }}</p>
+                                {% else %}
+                                    <p class="mb-2"><strong>Invitado</strong></p>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 text-center">
+                                {% if is_valid %}
+                                <div class="qr-container mb-4">
+                                    <div class="qr d-flex flex-column align-items-center">
+                                        <img src="data:image/png;base64,{{ ticket.qr_code }}"
+                                             class="img-fluid"
+                                             alt="QR Code"/>
+                                        <div class="text-center mt-2">
+                                            <small class="text-muted">{{ ticket.key }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    Este bono no es válido para el evento actual o ya ha sido utilizado.
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 

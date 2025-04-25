@@ -8,6 +8,7 @@
     {% endif %}
 {% endblock actions %}
 {% block truecontent %}
+
     <style>
         .floating-nav {
             position: fixed;
@@ -135,8 +136,11 @@
                                                 <span class="fw-bold">{{ ticket.user_info.first_name }} {{ ticket.user_info.last_name }}</span> - DNI: <span class="fw-bold">{{ ticket.user_info.dni }}</span>
                                             </div>
                                         {% else %}
-                                            <div class="text-muted">
+                                            <div class="text-muted d-flex align-items-center gap-2">
                                                 <span class="fw-bold">Invitado</span>
+                                                <button class="btn btn-sm btn-outline-secondary" onclick="shareTicket('{{ ticket.key }}')">
+                                                    <i class="fas fa-share-alt"></i> Compartir
+                                                </button>
                                             </div>
                                         {% endif %}
                                         <div class="ticket-details mt-2">
@@ -192,7 +196,7 @@
                                                 <div>
                                                     {% if ticket.tag == 'Mine' %}
                                                         <a href="/ticket/{{ ticket.key }}/unassign/" class="btn btn-sm btn-outline-danger">
-                                                            Transferir mi bono
+                                                            Soltar mi bono
                                                         </a>
                                                     {% else %}
                                                         <div class="d-flex gap-2">
@@ -406,6 +410,27 @@
             document.getElementById('transferPendingMessage').style.display = 'none';
             document.getElementById('recipient-email').classList.remove('is-invalid');
             document.getElementById('recipient-email').value = '';
+        }
+
+        function shareTicket(ticketKey) {
+            const shareUrl = `${window.location.origin}/bono/${ticketKey}/`;
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Bono de {{ event.name }}',
+                    text: 'Te comparto un bono para {{ event.name }}',
+                    url: shareUrl
+                })
+                .catch(error => console.log('Error sharing:', error));
+            } else {
+                // Fallback for browsers that don't support Web Share API
+                const tempInput = document.createElement('input');
+                tempInput.value = shareUrl;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempInput);
+                alert('URL copiada al portapapeles');
+            }
         }
     </script>
 {% endblock truecontent %}

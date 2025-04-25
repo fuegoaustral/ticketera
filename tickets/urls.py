@@ -24,7 +24,10 @@ urlpatterns = [
     path('ticket/transfer-ticket/cancel-ticket-transfer', new_ticket.cancel_ticket_transfer,
          name='cancel_ticket_transfer'),
 
-    path('ticket/<str:ticket_key>', ticket.ticket_detail, name='ticket_detail'),
+    # Public ticket view (must come before other ticket paths)
+    path('bono/<str:ticket_key>/', ticket.public_ticket_detail, name='public_ticket_detail'),
+
+    # Other ticket paths
     path('ticket/<str:ticket_key>/transfer', ticket.ticket_transfer, name='ticket_transfer'),
     path('ticket/<str:ticket_key>/transfer/confirmation', ticket.ticket_transfer_confirmation,
          name='ticket_transfer_confirmation'),
