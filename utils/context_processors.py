@@ -48,6 +48,11 @@ def current_event(request):
         else:
             holding_tickets = len(tickets)
 
+
+        total_tickets = NewTicket.objects.filter(
+            event=event, holder=request.user
+        ).count()
+
         context.update(
             {
                 "has_unassigned_tickets": has_unassigned_tickets,
@@ -56,6 +61,7 @@ def current_event(request):
                 "holding_tickets": holding_tickets,
                 "shared_tickets": shared_tickets,
                 "owns_ticket": owns_ticket,
+                "total_tickets": total_tickets,
             }
         )
     return context
