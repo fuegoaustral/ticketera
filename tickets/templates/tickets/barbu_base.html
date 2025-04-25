@@ -97,7 +97,7 @@
             <a href="{% url 'my_ticket' %}" class="nav-link p-0">
               <div class="d-flex align-items-center gap-2 ticket-counter">
                 <i class="fa-solid fa-ticket text-white fs-5"></i>
-                <span class="text-white me-2">{{ holding_tickets|add:shared_tickets }}</span>
+                <span class="text-white me-2">{{ total_tickets }}</span>
               </div>
             </a>
           </li>
@@ -129,7 +129,7 @@
             <a href="{% url 'my_ticket' %}" class="nav-link p-0">
               <div class="d-flex align-items-center gap-2 ticket-counter">
                 <i class="fa-solid fa-ticket text-white fs-5"></i>
-                <span class="text-white me-2">{{ holding_tickets|add:shared_tickets }}</span>
+                <span class="text-white me-2">{{ total_tickets }}</span>
               </div>
             </a>
           {% endif %}
