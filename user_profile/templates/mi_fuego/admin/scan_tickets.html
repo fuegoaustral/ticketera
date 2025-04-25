@@ -406,11 +406,7 @@
             ticketStatus.className = 'mb-0';
             ticketKey.textContent = ticket.key;
             
-            if (ticket.user_info && 
-                ticket.user_info.first_name && 
-                ticket.user_info.last_name &&
-                (!ticket.owner_name || 
-                 ticket.owner_name !== `${ticket.user_info.first_name} ${ticket.user_info.last_name}`)) {
+            if (ticket.user_info && ticket.user_info.first_name && ticket.user_info.last_name) {
                 invitadoPor.classList.remove('d-none');
                 ticketHolder.textContent = `${ticket.user_info.first_name} ${ticket.user_info.last_name}`;
             } else {
