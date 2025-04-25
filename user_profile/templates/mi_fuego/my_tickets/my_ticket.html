@@ -1,5 +1,7 @@
 {% extends 'mi_fuego/my_tickets/index.html' %}
 {% load static %}
+{% load humanize %}
+{% load ticket_filters %}
 {% block actions %}
     {% if has_available_tickets %}
         <a class="btn btn-primary" href="{% url "select_tickets" %}">Comprar Bono</a>
@@ -111,7 +113,7 @@
             
         
                 {% for ticket in tickets_dto %}
-                <div class="card mb-4 border">
+                <div class="card my-4 border">
                     <div class="card-header {% if not ticket.is_used %}bg-success text-white{% endif %} d-flex justify-content-between align-items-center">
                         <span>{{ event.name }}</span>
                         {% if not attendee_must_be_registered %}
@@ -137,14 +139,37 @@
                                                 <span class="fw-bold">Invitado</span>
                                             </div>
                                         {% endif %}
+                                        <div class="ticket-details mt-2">
+                                            <div class="d-flex align-items-center gap-2 mb-2">
+                                                <i class="fas fa-map-marker-alt text-muted"></i>
+                                                <span class="text-muted">{{ event.location|safe }}</span>
+                                            </div>
+                                            <div class="d-flex align-items-center gap-2 mb-2">
+                                                <i class="fas fa-calendar-alt text-muted"></i>
+                                                <span class="text-muted">{{ event.start|date:"d/m/Y H:i" }}</span>
+                                            </div>
+                                            
+                                            <div class="d-flex align-items-center gap-2 mb-2">
+                                                <i class="fas fa-tag text-muted"></i>
+                                                <span class="text-muted">{{ ticket.ticket_type }} - ${{ ticket.price|floatformat:0|intcomma }}</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="qr-container my-3 my-md-0 mx-auto">
-                                    <div class="qr">
+                                    <div class="qr d-flex flex-column align-items-center">
                                         <img src="data:image/png;base64,{{ ticket.qr_code }}"
                                              class="img-fluid"
                                              alt="QR Code"/>
+                                             <div class="text-center mt-2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <small class="text-muted">{{ ticket.key|last_uuid_part }}</small>
+                                                    </div>
+                                                </div>
+                                            </div>
                                     </div>
+                                    
                                 </div>
                             </div>
                             <div class="d-flex flex-column flex-md-row justify-content-between align-items-start">
