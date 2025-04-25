@@ -1,6 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.http import Http404
+from django.http import Http404, HttpResponseNotAllowed, HttpResponseForbidden
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
@@ -22,6 +22,34 @@ def my_ticket_view(request):
         holder=request.user, event=event, owner=request.user
     ).first()
 
+    # Get all tickets for the user
+    if event.attendee_must_be_registered:
+        # If attendees must be registered, only show tickets where owner and holder is the user
+        all_tickets = NewTicket.objects.filter(
+            holder=request.user, event=event, owner=request.user
+        ).order_by("owner").all()
+    else:
+        # If attendees don't need to be registered, show all tickets
+        all_tickets = NewTicket.objects.filter(
+            holder=request.user, event=event
+        ).order_by("owner").all()
+
+    tickets_dto = []
+    all_unassigned = True
+    for ticket in all_tickets:
+        ticket_dto = ticket.get_dto(user=request.user)
+        # Add tag to distinguish between Mine and Guest tickets
+        ticket_dto['tag'] = 'Mine' if ticket.owner == request.user else 'Guest'
+        # Add user information for Mine tickets
+        if ticket.owner == request.user:
+            ticket_dto['user_info'] = {
+                'first_name': request.user.first_name,
+                'last_name': request.user.last_name,
+                'dni': request.user.profile.document_number
+            }
+            all_unassigned = False
+        tickets_dto.append(ticket_dto)
+
     return render(
         request,
         "mi_fuego/my_tickets/my_ticket.html",
@@ -32,6 +60,9 @@ def my_ticket_view(request):
             "nav_primary": "tickets",
             "nav_secondary": "my_ticket",
             'now': timezone.now(),
+            'tickets_dto': tickets_dto,
+            'attendee_must_be_registered': event.attendee_must_be_registered,
+            'all_unassigned': all_unassigned and not event.attendee_must_be_registered,
         },
     )
 
@@ -39,6 +70,11 @@ def my_ticket_view(request):
 @login_required
 def transferable_tickets_view(request):
     event = Event.objects.get(active=True)
+    
+    # If attendees don't need to be registered, redirect to my_ticket view
+    if not event.attendee_must_be_registered:
+        return redirect(reverse("my_ticket"))
+
     tickets = (
         NewTicket.objects.filter(holder=request.user, event=event)
         .exclude(owner=request.user)

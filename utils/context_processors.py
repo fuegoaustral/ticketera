@@ -18,7 +18,7 @@ def current_event(request):
     if request.user.is_authenticated:
 
         tickets = NewTicket.objects.filter(
-            holder=request.user, event=event, owner=None
+            holder=request.user, event=event
         ).all()
 
         owns_ticket = NewTicket.objects.filter(
@@ -40,12 +40,20 @@ def current_event(request):
         shared_tickets = NewTicketTransfer.objects.filter(
             tx_from=request.user, status="COMPLETED").count()
 
+        # Count holding_tickets based on attendee_must_be_registered
+        if event.attendee_must_be_registered:
+            holding_tickets = NewTicket.objects.filter(
+                holder=request.user, event=event, owner__isnull=True
+            ).count()
+        else:
+            holding_tickets = len(tickets)
+
         context.update(
             {
                 "has_unassigned_tickets": has_unassigned_tickets,
                 "has_transfer_pending": has_transfer_pending,
                 "has_available_tickets": TicketType.objects.get_available_ticket_types_for_current_events().exists(),
-                "holding_tickets": len(tickets),
+                "holding_tickets": holding_tickets,
                 "shared_tickets": shared_tickets,
                 "owns_ticket": owns_ticket,
             }

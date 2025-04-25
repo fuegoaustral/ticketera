@@ -17,18 +17,17 @@ from utils.email import send_mail
 
 
 @login_required
-def transfer_ticket(request):
+def transfer_ticket(request, ticket_key):
     if request.method != 'POST':
         return HttpResponseNotAllowed('')
 
     request_body = json.loads(request.body)
 
-    if 'email' not in request_body or 'ticket_key' not in request_body:
+    if 'email' not in request_body:
         return HttpResponseBadRequest('')
 
     email_param = request_body['email']
     email = email_param.lower()
-    ticket_key = request_body['ticket_key']
 
     ticket = NewTicket.objects.get(key=ticket_key)
     if ticket is None:
@@ -44,10 +43,8 @@ def transfer_ticket(request):
     except ValidationError:
         return HttpResponseBadRequest('')
 
-
     destination_user = User.objects.filter(email=email).first()
     destination_user_exists = destination_user is not None and destination_user.profile.profile_completion == 'COMPLETE'
-
 
     pending_transfers = NewTicketTransfer.objects.filter(ticket=ticket, status='PENDING').exists()
 
@@ -151,16 +148,16 @@ def assign_ticket(request, ticket_key):
 
     ticket = NewTicket.objects.get(key=ticket_key)
     if ticket is None:
-        return HttpResponseBadRequest()
+        return HttpResponseBadRequest('Ticket not found')
 
     if not (ticket.holder == request.user and ticket.owner == None):
-        return HttpResponseForbidden()
+        return HttpResponseForbidden('Not authorized')
 
     if not ticket.event.transfer_period():
-        return HttpResponseBadRequest('')
+        return HttpResponseBadRequest('Transfer period has ended')
 
-    if NewTicket.objects.filter(holder=request.user, owner=request.user).exists():
-        return HttpResponseBadRequest
+    if NewTicket.objects.filter(holder=request.user, owner=request.user, event=ticket.event).exists():
+        return HttpResponseBadRequest('User already has a ticket')
 
     ticket.owner = request.user
     ticket.save()
