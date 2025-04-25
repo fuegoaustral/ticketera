@@ -101,20 +101,11 @@ def public_ticket_detail(request, ticket_key):
         if hasattr(ticket.holder, 'profile') and ticket.holder.profile:
             holder_dni = ticket.holder.profile.document_number
     
-    print(f"Ticket {ticket_key} validation:")
-    print(f"- Current event exists: {current_event is not None}")
-    print(f"- Ticket event matches: {ticket.ticket_type.event == current_event}")
-    print(f"- Ticket not used: {not ticket.is_used}")
-    print(f"- Event not ended: {ticket.ticket_type.event.end >= timezone.now()}")
-    print(f"- Final is_valid: {is_valid}")
-    
     
     context = {
         'ticket': ticket_dto,
         'event': current_event,
         'is_valid': is_valid,
-        'holder_name': holder_name,
-        'holder_dni': holder_dni,
     }
     
     return render(request, 'mi_fuego/tickets/public_ticket.html', context)
