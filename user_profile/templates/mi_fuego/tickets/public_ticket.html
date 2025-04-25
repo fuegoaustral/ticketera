@@ -57,12 +57,6 @@
                                     <i class="fas fa-user text-muted"></i>
                                     <span>Invitado</span>
                                 </div>
-                                {% if holder_name %}
-                                <div class="d-flex align-items-center gap-2 mb-2">
-                                    <i class="fas fa-user text-muted"></i>
-                                    <span>{{ holder_name }} - DNI: {{ holder_dni }}</span>
-                                </div>
-                                {% endif %}
                                 <div class="d-flex align-items-center gap-2 mb-2">
                                     <i class="fas fa-map-marker-alt text-muted"></i>
                                     <span>{{ event.location|safe }}</span>
