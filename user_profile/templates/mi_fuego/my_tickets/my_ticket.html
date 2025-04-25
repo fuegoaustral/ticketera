@@ -70,7 +70,19 @@
                 </div>
             </div>
         {% endif %}
+
+        {% if not attendee_must_be_registered %}
+            <div class="alert alert-info text-start mb-4">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-info-circle"></i>
+                    <div>
+                        Para este evento no hace falta que los invitados tengan su cuenta. Podés compartir el bono haciendo clic en el botón "Compartir" o tomando una captura de pantalla.
+                    </div>
+                </div>
+            </div>
+        {% endif %}
             
+        
         
                 {% for ticket in tickets_dto %}
                 <div class="card my-4 border">
@@ -90,7 +102,7 @@
                             <div class="d-flex flex-column flex-md-row justify-content-between align-items-start">
                                 <div class="ticket-info w-100">
                                     <div class="d-flex flex-column gap-2">
-                                        {% if ticket.tag == 'Mine' %}
+                                        {% if attendee_must_be_registered %}
                                             <div class="text-muted">
                                                 <span class="fw-bold">{{ ticket.user_info.first_name }} {{ ticket.user_info.last_name }}</span> - DNI: <span class="fw-bold">{{ ticket.user_info.dni }}</span>
                                             </div>
@@ -100,7 +112,11 @@
                                                 <button class="btn btn-sm btn-outline-secondary" onclick="shareTicket('{{ ticket.key }}')">
                                                     <i class="fas fa-share-alt"></i> Compartir
                                                 </button>
+                                                <button class="btn btn-sm btn-outline-secondary" onclick="copyBonoLink('{{ ticket.key }}', event)">
+                                                    <i class="fas fa-copy"></i> Copiar link
+                                                </button>
                                             </div>
+                                            
                                         {% endif %}
                                         <div class="ticket-details mt-2">
                                             {% if event.location %}
@@ -153,11 +169,7 @@
                                         {% else %}
                                             {% if event.transfers_enabled_until >= now and not ticket.is_used %}
                                                 <div>
-                                                    {% if ticket.tag == 'Mine' %}
-                                                        <a href="/ticket/{{ ticket.key }}/unassign/" class="btn btn-sm btn-outline-danger">
-                                                            Soltar mi bono
-                                                        </a>
-                                                    {% else %}
+                                                    {% if ticket.tag != 'Mine' %}
                                                         {% if attendee_must_be_registered %}
                                                             <div class="d-flex gap-2">
                                                                 <button class="btn btn-sm btn-outline-secondary transfer-ticket" data-ticket-key="{{ ticket.key }}" data-bs-toggle="modal" data-bs-target="#transferModal">
@@ -364,6 +376,23 @@
                 document.body.removeChild(tempInput);
                 alert('URL copiada al portapapeles');
             }
+        }
+
+        function copyBonoLink(ticketKey, event) {
+            const bonoUrl = `${window.location.origin}/bono/${ticketKey}/`;
+            navigator.clipboard.writeText(bonoUrl)
+                .then(() => {
+                    const button = event.target.closest('button');
+                    const originalText = button.innerHTML;
+                    button.innerHTML = '<i class="fas fa-check"></i> Copiado!';
+                    setTimeout(() => {
+                        button.innerHTML = originalText;
+                    }, 2000);
+                })
+                .catch(err => {
+                    console.error('Error al copiar:', err);
+                    alert('Error al copiar el link');
+                });
         }
     </script>
 {% endblock truecontent %}

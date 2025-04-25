@@ -43,28 +43,29 @@
         <div class="row justify-content-center">
             <div class="col-md-10">
                 <div class="card">
-                    <div class="card-header {% if is_valid %}bg-success text-white{% else %}bg-danger text-white{% endif %}">
-                        <h5 class="card-title mb-0">
-                            {% if is_valid %}
-                                Bono Válido
-                            {% else %}
-                                Bono Inválido
-                            {% endif %}
-                        </h5>
+                    <div class="card-header {% if is_valid %}bg-success text-white{% endif %}">
+                        
+                            {{ event.name }}
+                        
                     </div>
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-6">
                                 
-                                <p class="mb-2"><strong>{{ event.name }}</strong> </p>
+                                
                                 <div class="d-flex align-items-center gap-2 mb-2">
                                     <i class="fas fa-user text-muted"></i>
                                     <span>Invitado</span>
                                 </div>
-                                
+                                {% if holder_name %}
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    <i class="fas fa-user text-muted"></i>
+                                    <span>{{ holder_name }} - DNI: {{ holder_dni }}</span>
+                                </div>
+                                {% endif %}
                                 <div class="d-flex align-items-center gap-2 mb-2">
                                     <i class="fas fa-tag text-muted"></i>
-                                    <span>{{ ticket.ticket_type }} - ${{ ticket.price|floatformat:0|intcomma }}</span>
+                                    <span>{{ ticket.ticket_type }} - ${{ ticket_dto.price|floatformat:0|intcomma }}</span>
                                 </div>
                                 <div class="d-flex align-items-center gap-2 mb-2">
                                     <i class="fas fa-map-marker-alt text-muted"></i>
@@ -81,7 +82,7 @@
                                 {% if is_valid %}
                                 <div class="qr-container mb-4">
                                     <div class="qr d-flex flex-column align-items-center">
-                                        <img src="data:image/png;base64,{{ ticket.qr_code }}"
+                                        <img src="data:image/png;base64,{{ ticket_dto.qr_code }}"
                                              class="img-fluid"
                                              alt="QR Code"/>
                                         <div class="text-center mt-2">
