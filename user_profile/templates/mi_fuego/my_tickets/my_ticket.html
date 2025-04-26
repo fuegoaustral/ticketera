@@ -180,7 +180,7 @@
                                                 <button class="btn btn-sm btn-semi-white" onclick="copyBonoLink('{{ ticket.key }}', event)">
                                                     <i class="fas fa-copy"></i> Copiar link
                                                 </button>
-                                                <a href="https://calendar.google.com/calendar/render?action=TEMPLATE&text={{ event.name|urlencode }}&dates={{ event.start|date:'Ymd\THis' }}/{{ event.end|date:'Ymd\THis' }}&details=Bono: <a href='https://fuego.doghel.com.ar/bono/{{ ticket.key }}/'>https://fuego.doghel.com.ar/bono/{{ ticket.key }}/</a>&location={{ event.location|urlencode }}" 
+                                                <a href="https://calendar.google.com/calendar/render?action=TEMPLATE&text={{ event.name|urlencode }}&dates={{ event.start|date:'Ymd\THis' }}/{{ event.end|date:'Ymd\THis' }}&details=Bono: <a href='{{ request.scheme }}://{{ request.get_host }}/bono/{{ ticket.key }}/'>{{ request.scheme }}://{{ request.get_host }}/bono/{{ ticket.key }}/</a>&location={{ event.location|urlencode }}" 
                                                    target="_blank" 
                                                    class="btn btn-sm btn-semi-white"
                                                    style="text-decoration: none;">
