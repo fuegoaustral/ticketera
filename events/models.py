@@ -12,6 +12,7 @@ class Event(BaseModel):
     active = models.BooleanField(default=True, help_text="Only 1 event can be active at a time")
     name = models.CharField(max_length=255)
     location = models.CharField(max_length=255, blank=True, help_text="Location of the event")
+    location_url = models.URLField(max_length=500, blank=True, help_text="URL for the event location (e.g. Google Maps link)")
     has_volunteers = models.BooleanField(default=False)
     start = models.DateTimeField()
     end = models.DateTimeField()
