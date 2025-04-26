@@ -78,6 +78,34 @@
         .btn-semi-white:hover {
             background-color: rgba(255, 255, 255, 0.9);
         }
+
+        .calendar-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background-color: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 0.5rem;
+            color: #212529;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+        }
+
+        .calendar-btn:hover {
+            background-color: rgba(255, 255, 255, 0.9);
+            color: #212529;
+        }
+
+        .location-link {
+            color: inherit;
+            text-decoration: underline;
+        }
+
+        .location-link:hover {
+            text-decoration: underline;
+        }
     </style>
 
     {% if not tickets_dto %}
@@ -152,6 +180,12 @@
                                                 <button class="btn btn-sm btn-semi-white" onclick="copyBonoLink('{{ ticket.key }}', event)">
                                                     <i class="fas fa-copy"></i> Copiar link
                                                 </button>
+                                                <a href="https://calendar.google.com/calendar/render?action=TEMPLATE&text={{ event.name|urlencode }}&dates={{ event.start|date:'Ymd\THis' }}/{{ event.end|date:'Ymd\THis' }}&details=Bono: <a href='https://fuego.doghel.com.ar/bono/{{ ticket.key }}/'>https://fuego.doghel.com.ar/bono/{{ ticket.key }}/</a>&location={{ event.location|urlencode }}" 
+                                                   target="_blank" 
+                                                   class="btn btn-sm btn-semi-white"
+                                                   style="text-decoration: none;">
+                                                    <i class="fas fa-calendar-plus"></i> Agendar
+                                                </a>
                                             </div>
                                             
                                         {% endif %}
@@ -159,7 +193,15 @@
                                             {% if event.location %}
                                             <div class="d-flex align-items-center gap-2 mb-2">
                                                 <i class="fas fa-map-marker-alt text-muted"></i>
-                                                <span class="text-muted">{{ event.location|safe }}</span>
+                                                <span class="text-muted">
+                                                    {% if event.location_url %}
+                                                        <a href="{{ event.location_url }}" target="_blank" class="location-link">
+                                                            {{ event.location|safe }}
+                                                        </a>
+                                                    {% else %}
+                                                        {{ event.location|safe }}
+                                                    {% endif %}
+                                                </span>
                                             </div>
                                             {% endif %}
                                             <div class="d-flex align-items-center gap-2 mb-2">
