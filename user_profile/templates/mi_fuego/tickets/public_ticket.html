@@ -23,8 +23,8 @@
         [data-theme="dark"] {
             --bg-color: #212529;
             --card-bg: #343a40;
-            --text-color: #adb5bd;
-            --text-muted: #868e96;
+            --text-color: #dee2e6;
+            --text-muted: #adb5bd;
             --border-color: #495057;
             --qr-bg: #495057;
             --pattern-color: #6c757d;
@@ -169,6 +169,15 @@
             color: var(--text-color);
         }
 
+        [data-theme="dark"] .btn-semi-white {
+            background-color: var(--qr-bg);
+            border: 1px solid var(--border-color);
+        }
+
+        [data-theme="dark"] .btn-semi-white:hover {
+            background-color: #545b62;
+        }
+
         .location-link {
             color: inherit;
             text-decoration: underline;
@@ -223,12 +232,14 @@
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-6">
-                                <div class="info-item">
-                                    <i class="fas fa-user text-muted"></i>
-                                    <span>Invitado</span>
-                                    <a href="https://calendar.google.com/calendar/render?action=TEMPLATE&text={{ event.name|urlencode }}&dates={{ event.start|date:'Ymd\THis' }}/{{ event.end|date:'Ymd\THis' }}&details=Bono: <a href='{{ request.build_absolute_uri }}'>{{ request.build_absolute_uri }}</a>&location={{ event.location|urlencode }}" 
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div class="info-item">
+                                        <i class="fas fa-user text-muted"></i>
+                                        <span>Invitado</span>
+                                    </div>
+                                    <a href="https://calendar.google.com/calendar/render?action=TEMPLATE&text={{ event.name|urlencode }}&dates={{ event.start|date:'Ymd\THis' }}/{{ event.end|date:'Ymd\THis' }}&details=Bono: <a href='{{ request.scheme }}://{{ request.get_host }}/bono/{{ ticket.key }}/'>{{ request.scheme }}://{{ request.get_host }}/bono/{{ ticket.key }}/</a>&location={{ event.location|urlencode }}" 
                                        target="_blank" 
-                                       class="btn btn-sm btn-semi-white ms-2"
+                                       class="btn btn-sm btn-semi-white"
                                        style="text-decoration: none;">
                                         <i class="fas fa-calendar-plus"></i> Agendar
                                     </a>
