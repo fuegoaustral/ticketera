@@ -94,7 +94,7 @@
 
                             </div>
                             <div class="col-md-6 text-center">
-                                {% if is_valid %}
+                               
                                 <div class="qr-container mb-4">
                                     <div class="qr d-flex flex-column align-items-center">
                                         <img src="data:image/png;base64,{{ ticket_dto.qr_code }}"
@@ -105,7 +105,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                {% else %}
+                                {% if not is_valid %}
                                 <div class="alert alert-warning">
                                     <i class="fas fa-exclamation-triangle"></i>
                                     Este bono no es válido para el evento actual o ya ha sido utilizado.
