@@ -216,6 +216,12 @@
         .swarm-element.emoji {
             font-size: 3rem;
         }
+
+        .ticket-id {
+            font-weight: bold;
+            margin-right: 0.5em;
+            color: inherit;
+        }
     </style>
 </head>
 <body>
@@ -227,7 +233,7 @@
             <div class="col-md-10">
                 <div class="card">
                     <div class="card-header {% if is_valid %}bg-success text-white{% endif %}">
-                        {{ event.name }}
+                        <span class="ticket-id">#{{ ticket.key|stringformat:"s"|slice:"-2:" }}</span> {{ event.name }}
                     </div>
                     <div class="card-body">
                         <div class="row">
