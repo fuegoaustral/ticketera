@@ -1,10 +1,12 @@
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotFound, Http404
 from django.template import loader
 from django.urls import reverse
-from django.shortcuts import get_object_or_404
-from tickets.models import Ticket, TicketTransfer
+from django.shortcuts import get_object_or_404, render
+from tickets.models import Ticket, TicketTransfer, NewTicket
 from tickets.forms import TransferForm
 from django.utils.timezone import now
+from events.models import Event
+from django.utils import timezone
 
 def ticket_detail(request, ticket_key):
     ticket = Ticket.objects.get(key=ticket_key)
@@ -67,3 +69,27 @@ def ticket_transfer_confirmed(request, transfer_key):
     }
 
     return HttpResponse(template.render(context, request))
+
+def public_ticket_detail(request, ticket_key):
+    try:
+        ticket = NewTicket.objects.get(key=ticket_key)
+        current_event = Event.objects.filter(active=True).first()
+        
+        is_valid = (
+            not ticket.is_used and
+            current_event and
+            ticket.event == current_event
+        )
+        
+        # Get ticket DTO for QR code
+        ticket_dto = ticket.get_dto(user=None)
+        
+        context = {
+            'ticket': ticket,
+            'ticket_dto': ticket_dto,  # Add DTO for QR code
+            'event': ticket.event,
+            'is_valid': is_valid,
+        }
+        return render(request, 'mi_fuego/tickets/public_ticket.html', context)
+    except NewTicket.DoesNotExist:
+        raise Http404("Ticket no encontrado")

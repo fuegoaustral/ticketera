@@ -65,27 +65,24 @@
     {% endif %}
 {% endblock alerts %}
 {% block submenu %}
-    {% if owns_ticket %}
+    {% if owns_ticket and event.attendee_must_be_registered %}
+    
         <li class="nav-item">
             <div class="nav-link{% if nav_secondary == "my_ticket" %} active{% endif %}">
                 
                 <a class="text-reset" href="{% url 'my_ticket' %}">
-                    {% if not attendee_must_be_registered and tickets_dto|length > 1 %}
-                        Mis bonos
-                    {% else %}
                         Mi Bono
-                    {% endif %}
                 </a>
-                {% if event.attendee_must_be_registered %}
+                
                 <i data-bs-toggle="tooltip"
                    data-bs-placement="top"
                    data-bs-delay='{"show":0, "hide":100}'
                    data-bs-animation="false"
                    title="Este es tu bono. Hay muchos como él, pero este es el tuyo. Los otros son para compartir. Tu bono te permite el acceso a Fuego Austral. Cada participante debe tener su bono en su cuenta. Si compraste bonos para otras personas, asegurate de transferírselos."
                    class="fas fa-info-circle mx-2 text-black"></i>
-                {% endif %}
             </div>
         </li>
+        
     {% endif %}
     {% if event.attendee_must_be_registered and holding_tickets|add:shared_tickets > 0 %}
         <li class="nav-item">

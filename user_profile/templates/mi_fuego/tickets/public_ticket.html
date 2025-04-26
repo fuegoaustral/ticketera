@@ -1,0 +1,331 @@
+{% load ticket_filters %}
+{% load humanize %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bono - {{ ticket.key }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-color: #212529;
+            --text-muted: #6c757d;
+            --border-color: #dee2e6;
+            --qr-bg: #ffffff;
+            --pattern-color: #e0e0e0;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #212529;
+            --card-bg: #343a40;
+            --text-color: #adb5bd;
+            --text-muted: #868e96;
+            --border-color: #495057;
+            --qr-bg: #495057;
+            --pattern-color: #6c757d;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            color: var(--text-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .container {
+            flex: 1;
+        }
+        .card {
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+            background-color: var(--card-bg);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .card-body {
+            position: relative;
+            overflow: hidden;
+        }
+        .card-body::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg width='48' height='49' viewBox='0 0 48 49' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cmask id='mask0_41_1237' style='mask-type:alpha' maskUnits='userSpaceOnUse' x='0' y='0' width='48' height='49'%3E%3Crect y='0.5' width='48' height='48' fill='%23D9D9D9'/%3E%3C/mask%3E%3Cg mask='url(%23mask0_41_1237)'%3E%3Cpath d='M24.0999 28.5461H24.098C22.2663 28.5461 20.7803 27.0598 20.7803 25.2276C20.7803 23.3961 22.2663 21.9089 24.098 21.9089H24.0999C25.9317 21.9099 27.4167 23.3961 27.4167 25.2276C27.4167 27.0598 25.9317 28.5461 24.0999 28.5461ZM30.7372 21.9089V18.5905H27.4186V15.2715H24.0999H20.7803V18.5905H17.4607V21.9089H14.1421V25.2276V28.547H17.4607V31.8647H20.7803V35.1853H24.0999H27.4186V31.8647H30.7372V28.547H34.0559V25.2276V21.9089H30.7372Z' fill='%23e0e0e0'/%3E%3Cpath d='M10.5992 7.07482C10.5992 7.07482 10.9 20.8707 12.2657 34.2834C12.2657 34.2834 18.8741 38.7346 20.7999 39.8673C20.7999 39.8673 21.4614 44.8686 21.7284 59.6545L16.321 62.3183C16.321 62.3183 18.0368 79.2153 18.8383 88.7484C18.8383 88.7484 18.3964 89.3145 15.9883 88.7484C15.9883 88.7484 12.1931 73.426 11.0692 59.3691C11.0692 59.3691 13.8207 57.406 17.9149 55.7327C17.9149 55.7327 16.7106 47.0245 16.7106 44.6008C16.7106 44.6008 10.2964 40.4259 6.72773 37.6824C6.72773 37.6824 4.4876 29.4119 3 7.07482C3 7.07482 6.21701 5.78147 10.5992 7.07482Z' fill='%23e0e0e0'/%3E%3Cpath d='M37.5993 7.07482C37.5993 7.07482 37.2996 20.8707 35.9341 34.2834C35.9341 34.2834 29.3267 38.7346 27.3983 39.8673C27.3983 39.8673 26.7389 44.8686 26.4697 59.6545L31.8799 62.3183C31.8799 62.3183 30.164 79.2153 29.3604 88.7484C29.3604 88.7484 29.8025 89.3145 32.2106 88.7484C32.2106 88.7484 36.0055 73.426 37.1304 59.3691C37.1304 59.3691 34.3789 57.406 30.2852 55.7327C30.2852 55.7327 31.489 47.0245 31.489 44.6008C31.489 44.6008 37.9031 40.4259 41.4706 37.6824C41.4706 37.6824 43.7104 29.4119 45.1982 7.07482C45.1982 7.07482 41.9823 5.78147 37.5993 7.07482Z' fill='%23e0e0e0'/%3E%3C/g%3E%3C/svg%3E");
+            background-repeat: repeat;
+            opacity: 0.2;
+            z-index: 0;
+        }
+        .card-body > * {
+            position: relative;
+            z-index: 1;
+        }
+        .qr-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+        .qr {
+            background: var(--qr-bg);
+            padding: 1rem;
+            border-radius: 1rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid var(--border-color);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+        .qr img {
+            width: 200px;
+            height: 200px;
+            object-fit: contain;
+        }
+        .theme-toggle {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .theme-toggle:hover {
+            transform: scale(1.1);
+        }
+        .theme-toggle i {
+            color: var(--text-color);
+        }
+        @media (min-width: 768px) {
+            .container {
+                max-width: 1200px;
+            }
+        }
+        .text-muted {
+            color: var(--text-muted) !important;
+        }
+        [data-theme="dark"] .card-header:not(.bg-success) {
+            background-color: #2b3035;
+            color: var(--text-color);
+        }
+        [data-theme="dark"] .alert-warning {
+            background-color: #2b2517;
+            border-color: #856404;
+            color: #ffd970;
+        }
+        
+        .info-item {
+            display: flex;
+            align-items: center;
+            background-color: var(--card-bg);
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            width: fit-content;
+        }
+
+        [data-theme="dark"] .info-item {
+            background-color: rgb(74 80 88);
+        }
+
+        .info-item i {
+            margin-right: 0.5rem;
+            width: 16px;
+            text-align: center;
+        }
+
+        
+
+   
+        .info-item a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        .info-item a:hover {
+            text-decoration: underline;
+        }
+
+        @keyframes swarm {
+            0% {
+                transform: translate(var(--x-start), -100vh) rotate(0deg) scale(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+                transform: translate(var(--x-start), -80vh) rotate(90deg) scale(1);
+            }
+            80% {
+                opacity: 1;
+                transform: translate(var(--x-end), var(--y-end)) rotate(720deg) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(var(--x-end), var(--y-end)) rotate(1080deg) scale(0);
+            }
+        }
+
+        .swarm-element {
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            animation: swarm 5s ease-in-out forwards;
+        }
+
+        .swarm-element.emoji {
+            font-size: 3rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="theme-toggle" onclick="toggleTheme()">
+        <i class="fas fa-moon"></i>
+    </div>
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="card">
+                    <div class="card-header {% if is_valid %}bg-success text-white{% endif %}">
+                        {{ event.name }}
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="info-item">
+                                    <i class="fas fa-user text-muted"></i>
+                                    <span>Invitado</span>
+                                </div>
+                                <div class="info-item">
+                                    <i class="fas fa-map-marker-alt text-muted"></i>
+                                    <span>{{ event.location|safe }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <i class="fas fa-calendar-alt text-muted"></i>
+                                    <span>{{ event.start|date:"d/m/Y H:i" }}</span>
+                                </div>
+                                
+                            </div>
+                            <div class="col-md-6 text-center">
+                                <div class="qr-container mb-4">
+                                    <div class="qr d-flex flex-column align-items-center">
+                                        <img src="data:image/png;base64,{{ ticket_dto.qr_code }}"
+                                             class="img-fluid"
+                                             alt="QR Code"/>
+                                        <div class="text-center mt-2">
+                                            <small class="text-muted">{{ ticket.key|last_uuid_part }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% if not is_valid %}
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    Este bono no es válido para el evento actual o ya ha sido utilizado.
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let themeChangeCount = 0;
+        let lastChangeTime = 0;
+
+        // Function to set theme and store preference
+        function setTheme(isDark) {
+            const html = document.documentElement;
+            const themeToggle = document.querySelector('.theme-toggle i');
+            
+            if (isDark) {
+                html.setAttribute('data-theme', 'dark');
+                themeToggle.classList.remove('fa-moon');
+                themeToggle.classList.add('fa-sun');
+            } else {
+                html.removeAttribute('data-theme');
+                themeToggle.classList.remove('fa-sun');
+                themeToggle.classList.add('fa-moon');
+            }
+            
+            // Store theme preference
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        }
+
+        function createSwarmElement() {
+            const element = document.createElement('div');
+            element.textContent = '🔥';
+            element.className = 'swarm-element emoji';
+            
+            // Random start position across the width of the screen
+            const startX = Math.random() * window.innerWidth;
+            
+            // Random end position (also across width and to bottom)
+            const endX = Math.random() * window.innerWidth;
+            const endY = window.innerHeight + 100;
+            
+            element.style.setProperty('--x-start', `${startX}px`);
+            element.style.setProperty('--x-end', `${endX}px`);
+            element.style.setProperty('--y-end', `${endY}px`);
+            
+            document.body.appendChild(element);
+            
+            // Remove element after animation
+            setTimeout(() => {
+                element.remove();
+            }, 7000);
+        }
+
+        function triggerSwarm() {
+            // Create 100 elements with slight delays
+            for (let i = 0; i < 100; i++) {
+                setTimeout(() => {
+                    createSwarmElement();
+                }, i * 100);
+            }
+        }
+
+        function toggleTheme() {
+            const currentTime = Date.now();
+            const html = document.documentElement;
+            
+            // Check if it's been less than 2 seconds since last change
+            if (currentTime - lastChangeTime < 2000) {
+                themeChangeCount++;
+            } else {
+                themeChangeCount = 1;
+            }
+            lastChangeTime = currentTime;
+            
+            // Toggle theme based on current state
+            const isDark = html.getAttribute('data-theme') === 'dark';
+            setTheme(!isDark);
+
+            // Trigger animation on third quick change
+            if (themeChangeCount >= 3) {
+                triggerSwarm();
+                themeChangeCount = 0;
+            }
+        }
+
+        // Initialize theme from localStorage or default to light
+        const savedTheme = localStorage.getItem('theme');
+        setTheme(savedTheme === 'dark');
+    </script>
+</body>
+</html>
