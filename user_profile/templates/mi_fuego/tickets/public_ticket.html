@@ -12,7 +12,7 @@
     <style>
         :root {
             --bg-color: #f8f9fa;
-            --card-bg: #ffffff;
+            --card-bg: rgba(255, 255, 255, 0.7);
             --text-color: #212529;
             --text-muted: #6c757d;
             --border-color: #dee2e6;
@@ -22,7 +22,7 @@
 
         [data-theme="dark"] {
             --bg-color: #212529;
-            --card-bg: #343a40;
+            --card-bg: rgba(52, 58, 64, 0.7);
             --text-color: #dee2e6;
             --text-muted: #adb5bd;
             --border-color: #495057;
@@ -37,6 +37,12 @@
             align-items: center;
             color: var(--text-color);
             transition: background-color 0.3s ease, color 0.3s ease;
+            background-image: url('{% static "img/haditas.png" %}');
+            background-repeat: repeat;
+            background-size: auto;
+        }
+        [data-theme="dark"] body {
+            background-image: url('{% static "img/duritos.png" %}');
         }
         .container {
             flex: 1;
@@ -85,9 +91,29 @@
             transition: background-color 0.3s ease, border-color 0.3s ease;
         }
         .qr img {
-            width: 200px;
-            height: 200px;
-            object-fit: contain;
+            max-width: 280px !important;
+        }
+        @media (min-width: 768px) {
+            .qr img {
+                max-width: 180px !important;
+            }
+        }
+        @media (max-width: 767px) {
+            .qr-container {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+            }
+            .qr {
+                width: 100% !important;
+                display: flex !important;
+                justify-content: center !important;
+            }
+            .qr img {
+                max-width: 100% !important;
+                width: 90% !important;
+                height: auto !important;
+            }
         }
         .theme-toggle {
             position: fixed;
@@ -216,6 +242,12 @@
         .swarm-element.emoji {
             font-size: 3rem;
         }
+
+        .ticket-id {
+            font-weight: bold;
+            margin-right: 0.5em;
+            color: inherit;
+        }
     </style>
 </head>
 <body>
@@ -227,7 +259,7 @@
             <div class="col-md-10">
                 <div class="card">
                     <div class="card-header {% if is_valid %}bg-success text-white{% endif %}">
-                        {{ event.name }}
+                        <span class="ticket-id">#{{ ticket.key|stringformat:"s"|slice:"-2:" }}</span> {{ event.name }}
                     </div>
                     <div class="card-body">
                         <div class="row">
