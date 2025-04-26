@@ -41,9 +41,15 @@
                 margin-top: 0.5rem !important;
             }
         }
+        .truecontent {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+        }
         .card {
             position: relative;
             overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
         }
         .card-body {
             position: relative;
@@ -103,7 +109,7 @@
         {% endif %}
 
         {% if not attendee_must_be_registered %}
-            <div class="alert alert-info text-start mb-4">
+            <div class="alert alert-info text-start">
                 <div class="d-flex align-items-center gap-2">
                     <i class="fas fa-info-circle"></i>
                     <div>

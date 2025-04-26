@@ -1,5 +1,6 @@
 {% load ticket_filters %}
 {% load humanize %}
+{% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -9,12 +10,43 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-color: #212529;
+            --text-muted: #6c757d;
+            --border-color: #dee2e6;
+            --qr-bg: #ffffff;
+            --pattern-color: #e0e0e0;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #212529;
+            --card-bg: #343a40;
+            --text-color: #adb5bd;
+            --text-muted: #868e96;
+            --border-color: #495057;
+            --qr-bg: #495057;
+            --pattern-color: #6c757d;
+        }
+
         body {
-            background-color: #f8f9fa;
+            background-color: var(--bg-color);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            color: var(--text-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .container {
+            flex: 1;
         }
         .card {
             position: relative;
             overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+            background-color: var(--card-bg);
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
         .card-body {
             position: relative;
@@ -43,58 +75,157 @@
             gap: 1rem;
         }
         .qr {
-            background: white;
+            background: var(--qr-bg);
             padding: 1rem;
             border-radius: 1rem;
             display: flex;
             justify-content: center;
             align-items: center;
-            border: 1px solid #dee2e6;
+            border: 1px solid var(--border-color);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
         .qr img {
             width: 200px;
             height: 200px;
             object-fit: contain;
         }
+        .theme-toggle {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .theme-toggle:hover {
+            transform: scale(1.1);
+        }
+        .theme-toggle i {
+            color: var(--text-color);
+        }
         @media (min-width: 768px) {
             .container {
                 max-width: 1200px;
             }
         }
+        .text-muted {
+            color: var(--text-muted) !important;
+        }
+        [data-theme="dark"] .card-header:not(.bg-success) {
+            background-color: #2b3035;
+            color: var(--text-color);
+        }
+        [data-theme="dark"] .alert-warning {
+            background-color: #2b2517;
+            border-color: #856404;
+            color: #ffd970;
+        }
+        
+        .info-item {
+            display: flex;
+            align-items: center;
+            background-color: var(--card-bg);
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            width: fit-content;
+        }
+
+        [data-theme="dark"] .info-item {
+            background-color: rgb(74 80 88);
+        }
+
+        .info-item i {
+            margin-right: 0.5rem;
+            width: 16px;
+            text-align: center;
+        }
+
+        
+
+   
+        .info-item a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        .info-item a:hover {
+            text-decoration: underline;
+        }
+
+        @keyframes swarm {
+            0% {
+                transform: translate(var(--x-start), -100vh) rotate(0deg) scale(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+                transform: translate(var(--x-start), -80vh) rotate(90deg) scale(1);
+            }
+            80% {
+                opacity: 1;
+                transform: translate(var(--x-end), var(--y-end)) rotate(720deg) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(var(--x-end), var(--y-end)) rotate(1080deg) scale(0);
+            }
+        }
+
+        .swarm-element {
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            animation: swarm 5s ease-in-out forwards;
+        }
+
+        .swarm-element img {
+            width: 3rem;
+            height: 3rem;
+            object-fit: contain;
+        }
+
+        .swarm-element.emoji {
+            font-size: 3rem;
+        }
     </style>
 </head>
 <body>
+    <div class="theme-toggle" onclick="toggleTheme()">
+        <i class="fas fa-moon"></i>
+    </div>
     <div class="container py-5">
         <div class="row justify-content-center">
             <div class="col-md-10">
                 <div class="card">
                     <div class="card-header {% if is_valid %}bg-success text-white{% endif %}">
-                        
-                            {{ event.name }}
-                        
+                        {{ event.name }}
                     </div>
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-6">
-                                
-                                
-                                <div class="d-flex align-items-center gap-2 mb-2">
+                                <div class="info-item">
                                     <i class="fas fa-user text-muted"></i>
                                     <span>Invitado</span>
                                 </div>
-                                <div class="d-flex align-items-center gap-2 mb-2">
+                                <div class="info-item">
                                     <i class="fas fa-map-marker-alt text-muted"></i>
                                     <span>{{ event.location|safe }}</span>
                                 </div>
-                                <div class="d-flex align-items-center gap-2 mb-2">
+                                <div class="info-item">
                                     <i class="fas fa-calendar-alt text-muted"></i>
                                     <span>{{ event.start|date:"d/m/Y H:i" }}</span>
                                 </div>
-                                <br>
-
+                                
                             </div>
                             <div class="col-md-6 text-center">
-                               
                                 <div class="qr-container mb-4">
                                     <div class="qr d-flex flex-column align-items-center">
                                         <img src="data:image/png;base64,{{ ticket_dto.qr_code }}"
@@ -119,5 +250,93 @@
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let themeChangeCount = 0;
+        let lastChangeTime = 0;
+
+        // Function to set theme and store preference
+        function setTheme(isDark) {
+            const html = document.documentElement;
+            const themeToggle = document.querySelector('.theme-toggle i');
+            
+            if (isDark) {
+                html.setAttribute('data-theme', 'dark');
+                themeToggle.classList.remove('fa-moon');
+                themeToggle.classList.add('fa-sun');
+            } else {
+                html.removeAttribute('data-theme');
+                themeToggle.classList.remove('fa-sun');
+                themeToggle.classList.add('fa-moon');
+            }
+            
+            // Store theme preference
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        }
+
+        function createSwarmElement(isGif) {
+            const element = document.createElement(isGif ? 'img' : 'div');
+            if (isGif) {
+                element.src = "{% static 'img/pepe-transparent.gif' %}";
+                element.className = 'swarm-element';
+            } else {
+                element.textContent = '🔥';
+                element.className = 'swarm-element emoji';
+            }
+            
+            // Random start position across the width of the screen
+            const startX = Math.random() * window.innerWidth;
+            
+            // Random end position (also across width and to bottom)
+            const endX = Math.random() * window.innerWidth;
+            const endY = window.innerHeight + 100;
+            
+            element.style.setProperty('--x-start', `${startX}px`);
+            element.style.setProperty('--x-end', `${endX}px`);
+            element.style.setProperty('--y-end', `${endY}px`);
+            
+            document.body.appendChild(element);
+            
+            // Remove element after animation (increased from 5000 to 7000)
+            setTimeout(() => {
+                element.remove();
+            }, 7000);
+        }
+
+        function triggerSwarm() {
+            // Create 100 elements (10x more) with slight delays
+            for (let i = 0; i < 100; i++) {
+                setTimeout(() => {
+                    createSwarmElement(i % 2 === 0); // Alternate between gif and emoji
+                }, i * 100); // Increased delay between elements from 50 to 100
+            }
+        }
+
+        function toggleTheme() {
+            const currentTime = Date.now();
+            const html = document.documentElement;
+            
+            // Check if it's been less than 2 seconds since last change
+            if (currentTime - lastChangeTime < 2000) {
+                themeChangeCount++;
+            } else {
+                themeChangeCount = 1;
+            }
+            lastChangeTime = currentTime;
+            
+            // Toggle theme based on current state
+            const isDark = html.getAttribute('data-theme') === 'dark';
+            setTheme(!isDark);
+
+            // Trigger animation on third quick change
+            if (themeChangeCount >= 3) {
+                triggerSwarm();
+                themeChangeCount = 0;
+            }
+        }
+
+        // Initialize theme from localStorage or default to light
+        const savedTheme = localStorage.getItem('theme');
+        setTheme(savedTheme === 'dark');
+    </script>
 </body>
 </html>
