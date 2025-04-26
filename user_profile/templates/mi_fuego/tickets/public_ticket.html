@@ -148,15 +148,33 @@
             text-align: center;
         }
 
-        
-
-   
         .info-item a {
-            color: #007bff;
-            text-decoration: none;
+            color: inherit;
+            text-decoration: underline;
         }
 
         .info-item a:hover {
+            text-decoration: underline;
+        }
+
+        .btn-semi-white {
+            background-color: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            color: var(--text-color);
+            transition: all 0.3s ease;
+        }
+
+        .btn-semi-white:hover {
+            background-color: rgba(255, 255, 255, 0.9);
+            color: var(--text-color);
+        }
+
+        .location-link {
+            color: inherit;
+            text-decoration: underline;
+        }
+
+        .location-link:hover {
             text-decoration: underline;
         }
 
@@ -208,16 +226,29 @@
                                 <div class="info-item">
                                     <i class="fas fa-user text-muted"></i>
                                     <span>Invitado</span>
+                                    <a href="https://calendar.google.com/calendar/render?action=TEMPLATE&text={{ event.name|urlencode }}&dates={{ event.start|date:'Ymd\THis' }}/{{ event.end|date:'Ymd\THis' }}&details=Bono: <a href='{{ request.build_absolute_uri }}'>{{ request.build_absolute_uri }}</a>&location={{ event.location|urlencode }}" 
+                                       target="_blank" 
+                                       class="btn btn-sm btn-semi-white ms-2"
+                                       style="text-decoration: none;">
+                                        <i class="fas fa-calendar-plus"></i> Agendar
+                                    </a>
                                 </div>
                                 <div class="info-item">
                                     <i class="fas fa-map-marker-alt text-muted"></i>
-                                    <span>{{ event.location|safe }}</span>
+                                    <span>
+                                        {% if event.location_url %}
+                                            <a href="{{ event.location_url }}" target="_blank" class="location-link">
+                                                {{ event.location|safe }}
+                                            </a>
+                                        {% else %}
+                                            {{ event.location|safe }}
+                                        {% endif %}
+                                    </span>
                                 </div>
                                 <div class="info-item">
                                     <i class="fas fa-calendar-alt text-muted"></i>
                                     <span>{{ event.start|date:"d/m/Y H:i" }}</span>
                                 </div>
-                                
                             </div>
                             <div class="col-md-6 text-center">
                                 <div class="qr-container mb-4">
