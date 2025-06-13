@@ -53,6 +53,7 @@ class TicketTypeManager(models.Manager):
                 .filter(Q(date_to__gte=timezone.now()) | Q(date_to__isnull=True))
                 .filter(Q(ticket_count__gt=0) | Q(ticket_count__isnull=True))
                 .filter(is_direct_type=False)
+                .order_by('cardinality', 'price')
                 )
 
     def get_next_ticket_type_available(self, event):
@@ -60,7 +61,7 @@ class TicketTypeManager(models.Manager):
                 .filter(event=event)
                 .filter(Q(date_from__gte=timezone.now()) | Q(date_from__isnull=True))
                 .filter(Q(ticket_count__gt=0) | Q(ticket_count__isnull=True))
-                .order_by('price')
+                .order_by('cardinality', 'price')
                 .first()
                 )
 
@@ -110,6 +111,7 @@ class TicketType(BaseModel):
     color = models.CharField(max_length=6, default='6633ff')
     emoji = models.CharField(max_length=255, default='🖕')
     ticket_count = models.IntegerField()
+    cardinality = models.IntegerField(null=True, blank=True, help_text="Optional ordering number for ticket types")
 
     objects = TicketTypeManager()
 
