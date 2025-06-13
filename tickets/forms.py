@@ -70,7 +70,7 @@ class CheckoutTicketSelectionForm(forms.Form):
         initial_data = kwargs.pop('initial', {})
         super(CheckoutTicketSelectionForm, self).__init__(*args, **kwargs)
 
-        ticket_types = TicketType.objects.get_available_ticket_types_for_current_events().order_by('price')
+        ticket_types = TicketType.objects.get_available_ticket_types_for_current_events().order_by('cardinality', 'price')
 
         self.ticket_data = []  # Initialize an empty list to store ticket data
 
