@@ -5,10 +5,13 @@
         <a {%  if ticket_types %}href="{% url "select_tickets" %}"{% endif %} class="container-xxl hero hero-container">
             <img src="{{ event.header_image.url }}" alt="{{ event.name }}" class="hero-image">
             <div class="hero-button-container">
-                {%  if ticket_types %}<button class="btn btn-secondary btn-hero">Bonos disponibles</button>{% endif %}
-                {%  if not ticket_types and next_ticket_type %}<button class="btn btn-secondary btn-hero disabled"><span id="countdown"></span></button>{% endif %}
+                
             </div>
         </a>
+        <div class="container-xxl d-flex justify-content-center mt-3">
+            <a href="{% url "select_tickets" %}" class="btn btn-secondary">{%  if ticket_types %}Bonos disponibles{% endif %}</a>
+            {%  if not ticket_types and next_ticket_type %}<button class="btn btn-secondary disabled"><span id="countdown"></span></button>{% endif %}
+        </div>
         <div class="container-xxl home-section">
             <div class="row d-flex justify-content-center">
                 <div class="col-lg-5">
