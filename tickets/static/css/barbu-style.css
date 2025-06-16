@@ -699,16 +699,35 @@ dl {
 
 .wrapper {
   background-color: #f3f4f5;
-  padding: 5rem;
+  padding: 1rem;
   border-radius: 0.5rem;
 
-  @media (max-width: 767px) {
-    padding: 0 !important;
+  @media (min-width: 576px) {
+    padding: 2rem;
+  }
+
+  @media (min-width: 768px) {
+    padding: 3rem;
+  }
+
+  @media (min-width: 992px) {
+    padding: 5rem;
   }
 }
 
 .account-wrapper > .container {
-  padding: 5rem;
+  
+  @media (min-width: 576px) {
+    padding: 1rem;
+  }
+
+  @media (min-width: 768px) {
+    padding: 3rem;
+  }
+
+  @media (min-width: 992px) {
+    padding: 5rem;
+  }
   border-radius: 0 0 0.5rem 0.5rem;
   margin-bottom: 1rem;
 
