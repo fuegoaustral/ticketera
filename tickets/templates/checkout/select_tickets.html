@@ -52,15 +52,16 @@
                                             <div class="ticket-price text-center">
                                                 <div class="mb-2 fw-bold">${{ ticket.price|floatformat|intcomma }}</div>
                                                 <span class="quantity-controls">
-                                                    <button type="button" onclick="updateQuantity('{{ ticket.id }}', -1)">&minus;</button>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="updateQuantity('{{ ticket.id }}', -1)">&minus;</button>
                                                     <input type="number"
-                                                           id="ticket_{{ ticket.id }}_quantity"
                                                            name="{{ ticket.field_name }}"
                                                            value="{{ ticket.quantity|default:0 }}"
                                                            min="0"
-                                                           max="{{ available_tickets }}"
-                                                           oninput="this.value = Math.min(Math.max(parseInt(this.value), 0), {{ available_tickets }})">
-                                                    <button type="button" onclick="updateQuantity('{{ ticket.id }}', 1)">&plus;</button>
+                                                           max="{{ ticket.ticket_count }}"
+                                                           class="form-control form-control-sm text-center"
+                                                           style="width: 60px; display: inline-block;"
+                                                           onchange="handleQuantityChange(this)">
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="updateQuantity('{{ ticket.id }}', 1)">&plus;</button>
                                                 </span>
                                             </div>
                                         </div>
@@ -85,15 +86,16 @@
                                             <td class="text-end align-middle fw-bold">${{ ticket.price|floatformat|intcomma }}</td>
                                             <td class="text-end align-middle">
                                                 <span class="quantity-controls">
-                                                    <button type="button" onclick="updateQuantity('{{ ticket.id }}', -1)">&minus;</button>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="updateQuantity('{{ ticket.id }}', -1)">&minus;</button>
                                                     <input type="number"
-                                                           id="ticket_{{ ticket.id }}_quantity"
                                                            name="{{ ticket.field_name }}"
                                                            value="{{ ticket.quantity|default:0 }}"
                                                            min="0"
-                                                           max="{{ available_tickets }}"
-                                                           oninput="this.value = Math.min(Math.max(parseInt(this.value), 0), {{ available_tickets }})">
-                                                    <button type="button" onclick="updateQuantity('{{ ticket.id }}', 1)">&plus;</button>
+                                                           max="{{ ticket.ticket_count }}"
+                                                           class="form-control form-control-sm text-center"
+                                                           style="width: 60px; display: inline-block;"
+                                                           onchange="handleQuantityChange(this)">
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="updateQuantity('{{ ticket.id }}', 1)">&plus;</button>
                                                 </span>
                                             </td>
                                         </tr>
@@ -135,62 +137,89 @@
                     {% for ticket in ticket_data %}'{{ ticket.id }}': {{ ticket.ticket_count }},{% endfor %}
                 };
 
+                function handleQuantityChange(input) {
+                    const value = parseInt(input.value) || 0;
+                    const ticketId = input.name.replace('ticket_', '').replace('_quantity', '');
+                    const maxAvailable = ticketsRemainingByType[ticketId];
+                    
+                    if (value < 0) {
+                        input.value = 0;
+                    } else if (value > maxAvailable) {
+                        input.value = maxAvailable;
+                        alert('No hay suficientes bonos disponibles para este tipo.');
+                    }
+                    
+                    // Update all inputs with the same name
+                    const inputs = document.querySelectorAll(`input[name="${input.name}"]`);
+                    inputs.forEach(otherInput => {
+                        if (otherInput !== input) {
+                            otherInput.value = input.value;
+                        }
+                    });
+                    
+                    updateCalculations();
+                }
+
                 function updateQuantity(ticketId, increment) {
-                    const quantityInput = document.getElementById('ticket_' + ticketId + '_quantity');
-                    const currentValue = parseInt(quantityInput.value);
+                    // Find all inputs with the same name (both mobile and desktop)
+                    const inputs = document.querySelectorAll(`input[name="ticket_${ticketId}_quantity"]`);
+                    if (!inputs.length) return;
+                    
+                    const currentValue = parseInt(inputs[0].value) || 0;
                     const newValue = currentValue + increment;
+                    const maxAvailable = ticketsRemainingByType[ticketId];
                     const totalQuantity = getTotalQuantity();
 
-
-                    if (newValue >= 0 && newValue <= ticketsRemainingByType[ticketId]) {
+                    if (newValue >= 0 && newValue <= maxAvailable) {
                         if (increment > 0 && totalQuantity + increment > maxTicketsPerOrder) {
                             alert('No puedes seleccionar más de ' + maxTicketsPerOrder + ' bonos en total.');
                         } else {
-                            quantityInput.value = newValue;
-                            calculateSubtotal();
-                            toggleContinueButton();
+                            // Update all inputs with the same name
+                            inputs.forEach(input => {
+                                input.value = newValue;
+                                input.dispatchEvent(new Event('change')); // Trigger change event
+                            });
+                            updateCalculations();
                         }
-                    } else if (newValue > ticketsRemainingByType[ticketId]) {
+                    } else if (newValue > maxAvailable) {
                         alert('No hay suficientes bonos disponibles para este tipo.');
                     }
                 }
 
                 function getTotalQuantity() {
-                    var totalQuantity = 0;
-
+                    let total = 0;
                     {% for ticket in ticket_data %}
-                        totalQuantity += parseInt(document.getElementById('ticket_{{ ticket.id }}_quantity').value);
+                        const input = document.querySelector(`input[name="{{ ticket.field_name }}"]`);
+                        if (input) {
+                            total += parseInt(input.value) || 0;
+                        }
                     {% endfor %}
-
-                    return totalQuantity;
+                    return total;
                 }
 
                 function calculateSubtotal() {
-                    var subtotal = 0;
-
+                    let subtotal = 0;
                     {% for ticket in ticket_data %}
-                        var quantity = parseInt(document.getElementById('ticket_{{ ticket.id }}_quantity').value);
-                        var price = ticketPrices['{{ ticket.id }}'];
-                        subtotal += quantity * price;
+                        const input = document.querySelector(`input[name="{{ ticket.field_name }}"]`);
+                        if (input) {
+                            const quantity = parseInt(input.value) || 0;
+                            const price = ticketPrices['{{ ticket.id }}'];
+                            subtotal += quantity * price;
+                        }
                     {% endfor %}
-
                     document.getElementById('subtotal').innerText = '$ ' + subtotal.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
                 }
 
-                function toggleContinueButton() {
-                    var totalQuantity = getTotalQuantity();
-                    var continueButton = document.getElementById('continue-button');
-
-                    if (totalQuantity > 0) {
-                        continueButton.disabled = false;
-                    } else {
-                        continueButton.disabled = true;
-                    }
+                function updateCalculations() {
+                    calculateSubtotal();
+                    const totalQuantity = getTotalQuantity();
+                    const continueButton = document.getElementById('continue-button');
+                    continueButton.disabled = totalQuantity <= 0;
                 }
 
-                document.addEventListener("DOMContentLoaded", function () {
-                    calculateSubtotal();
-                    toggleContinueButton();
+                // Initialize on page load
+                document.addEventListener("DOMContentLoaded", function() {
+                    updateCalculations();
                 });
         </script>
     {% endif %}
