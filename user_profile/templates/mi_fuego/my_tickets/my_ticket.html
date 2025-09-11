@@ -118,7 +118,7 @@
         <div class="truecontent">
             <div class="card text-center mx-extra">
                 <div class="card-body d-flex justify-content-between flex-column align-items-center main-card-spacing gap-4">
-                    <h3>No tenés bono</h3>
+                    <h3>No tenés bonos para este evento</h3>
                     {% if has_available_tickets %}
                         <a class="btn btn-primary" href="{% url "select_tickets" %}">Comprar Bono</a>
                     {% endif %}
@@ -153,21 +153,19 @@
             </div>
         {% endif %}
             
-        
-        
-                {% for ticket in tickets_dto %}
-                <div class="card my-4 border">
-                    <div class="card-header {% if not ticket.is_used %}bg-success text-white{% endif %} d-flex justify-content-between align-items-center">
-                        <span><span class="ticket-id">#{{ ticket.key|stringformat:"s"|slice:"-2:" }}</span> {{ event.name }}</span>
-                        {% if not attendee_must_be_registered %}
-                            {% if ticket.is_used %}
-                                <span class="badge bg-dark" style="color: white !important;">Usado</span>
-                            {% else %}
-                                <span class="badge" style="background-color: white !important; color: #198754 !important; border: 1px solid #198754;">Válido</span>
-                            {% endif %}
+        {% for ticket in tickets_dto %}
+            <div class="card my-4 border">
+                <div class="card-header {% if not ticket.is_used %}bg-success text-white{% endif %} d-flex justify-content-between align-items-center">
+                    <span><span class="ticket-id">#{{ ticket.key|stringformat:"s"|slice:"-2:" }}</span> {{ ticket.event.name }}</span>
+                    {% if not attendee_must_be_registered %}
+                        {% if ticket.is_used %}
+                            <span class="badge bg-dark" style="color: white !important;">Usado</span>
+                        {% else %}
+                            <span class="badge" style="background-color: white !important; color: #198754 !important; border: 1px solid #198754;">Válido</span>
                         {% endif %}
-                    </div>
-                    <div class="card-body">
+                    {% endif %}
+                </div>
+                <div class="card-body">
                     {% if not attendee_must_be_registered or ticket.tag == 'Mine' %}
                         <div class="ticket-item mb-4">
                             <div class="d-flex flex-column flex-md-row justify-content-between align-items-start">
@@ -180,41 +178,39 @@
                                         {% else %}
                                             <div class="text-muted d-flex align-items-center gap-2">
                                                 <span class="fw-bold">Invitado</span>
-                                                <button class="btn btn-sm btn-semi-white" onclick="shareTicket('{{ ticket.key }}')">
+                                                <button class="btn btn-sm btn-semi-white" onclick="shareTicket('{{ ticket.key }}', '{{ ticket.event.name }}')">
                                                     <i class="fas fa-share-alt"></i> Compartir
                                                 </button>
                                                 <button class="btn btn-sm btn-semi-white" onclick="copyBonoLink('{{ ticket.key }}', event)">
                                                     <i class="fas fa-copy"></i> Copiar link
                                                 </button>
-                                                <a href="https://calendar.google.com/calendar/render?action=TEMPLATE&text={{ event.name|urlencode }}&dates={{ event.start|date:'Ymd\THis' }}/{{ event.end|date:'Ymd\THis' }}&details=Bono: <a href='{{ request.scheme }}://{{ request.get_host }}/bono/{{ ticket.key }}/'>{{ request.scheme }}://{{ request.get_host }}/bono/{{ ticket.key }}/</a>&location={{ event.location|urlencode }}" 
+                                                <a href="https://calendar.google.com/calendar/render?action=TEMPLATE&text={{ ticket.event.name|urlencode }}&dates={{ ticket.event.start|date:'Ymd\THis' }}/{{ ticket.event.end|date:'Ymd\THis' }}&details=Bono: <a href='{{ request.scheme }}://{{ request.get_host }}/bono/{{ ticket.key }}/'>{{ request.scheme }}://{{ request.get_host }}/bono/{{ ticket.key }}/</a>&location={{ ticket.event.location|urlencode }}" 
                                                    target="_blank" 
                                                    class="btn btn-sm btn-semi-white"
                                                    style="text-decoration: none;">
                                                     <i class="fas fa-calendar-plus"></i> Agendar
                                                 </a>
                                             </div>
-                                            
                                         {% endif %}
                                         <div class="ticket-details mt-2">
-                                            {% if event.location %}
+                                            {% if ticket.event.location %}
                                             <div class="d-flex align-items-center gap-2 mb-2">
                                                 <i class="fas fa-map-marker-alt text-muted"></i>
                                                 <span class="text-muted">
-                                                    {% if event.location_url %}
-                                                        <a href="{{ event.location_url }}" target="_blank" class="location-link">
-                                                            {{ event.location|safe }}
+                                                    {% if ticket.event.location_url %}
+                                                        <a href="{{ ticket.event.location_url }}" target="_blank" class="location-link">
+                                                            {{ ticket.event.location|safe }}
                                                         </a>
                                                     {% else %}
-                                                        {{ event.location|safe }}
+                                                        {{ ticket.event.location|safe }}
                                                     {% endif %}
                                                 </span>
                                             </div>
                                             {% endif %}
                                             <div class="d-flex align-items-center gap-2 mb-2">
                                                 <i class="fas fa-calendar-alt text-muted"></i>
-                                                <span class="text-muted">{{ event.start|date:"d/m/Y H:i" }}</span>
+                                                <span class="text-muted">{{ ticket.event.start|date:"d/m/Y H:i" }}</span>
                                             </div>
-                                            
                                             <div class="d-flex align-items-center gap-2 mb-2">
                                                 <i class="fas fa-tag text-muted"></i>
                                                 <span class="text-muted">{{ ticket.ticket_type }} - ${{ ticket.price|floatformat:0|intcomma }}</span>
@@ -227,15 +223,14 @@
                                         <img src="data:image/png;base64,{{ ticket.qr_code }}"
                                              class="img-fluid"
                                              alt="QR Code"/>
-                                             <div class="text-center mt-2">
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <div>
-                                                        <small class="text-muted">{{ ticket.key|last_uuid_part }}</small>
-                                                    </div>
+                                        <div class="text-center mt-2">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <small class="text-muted">{{ ticket.key|last_uuid_part }}</small>
                                                 </div>
                                             </div>
+                                        </div>
                                     </div>
-                                    
                                 </div>
                             </div>
                             <div class="d-flex flex-column flex-md-row justify-content-between align-items-start">
@@ -260,7 +255,6 @@
                                                                 <button class="btn btn-sm btn-outline-secondary transfer-ticket" data-ticket-key="{{ ticket.key }}" data-bs-toggle="modal" data-bs-target="#transferModal">
                                                                     Transferir bono
                                                                 </button>
-                                                             
                                                             </div>
                                                         {% endif %}
                                                         {% if all_unassigned %}
@@ -277,9 +271,8 @@
                             </div>
                         </div>
                     {% endif %}
-                
+                </div>
             </div>
-        </div>
         {% endfor %}
     {% endif %}
 
@@ -442,12 +435,12 @@
             document.getElementById('recipient-email').value = '';
         }
 
-        function shareTicket(ticketKey) {
+        function shareTicket(ticketKey, eventName) {
             const shareUrl = `${window.location.origin}/bono/${ticketKey}/`;
             if (navigator.share) {
                 navigator.share({
-                    title: 'Bono de {{ event.name }}',
-                    text: 'Te comparto un bono para {{ event.name }}',
+                    title: 'Bono de ' + eventName,
+                    text: 'Te comparto un bono para ' + eventName,
                     url: shareUrl
                 })
                 .catch(error => console.log('Error sharing:', error));

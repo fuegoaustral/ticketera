@@ -8,19 +8,34 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render, redirect
 from django.urls import reverse
 
+from events.models import Event
+from events.utils import get_event_from_request, store_event_in_session
 from tickets.forms import CheckoutTicketSelectionForm, CheckoutDonationsForm
-from tickets.models import Event, TicketType, Order, OrderTicket
+from tickets.models import TicketType, Order, OrderTicket
 
 
 @login_required
-def select_tickets(request):
+def select_tickets(request, event_slug=None):
+    # Get event from URL slug or request
+    if event_slug:
+        event = Event.get_by_slug(event_slug)
+        if not event:
+            return HttpResponse('Event not found', status=404)
+    else:
+        event = get_event_from_request(request)
+    
+    # Store event in session for checkout flow
+    store_event_in_session(request, event)
+    
     if request.method == 'POST':
-        form = CheckoutTicketSelectionForm(request.POST, user=request.user)
+        form = CheckoutTicketSelectionForm(request.POST, user=request.user, event=event)
         if form.is_valid():
             request.session['ticket_selection'] = form.cleaned_data
+            # Redirect with event parameter
+            if event.slug:
+                return redirect(f"{reverse('select_donations')}?event={event.slug}")
             return redirect('select_donations')
         else:
-            event = Event.objects.get(active=True)
             tickets_remaining = event.tickets_remaining() or 0
             available_tickets = event.max_tickets_per_order
             available_tickets = min(available_tickets, tickets_remaining)
@@ -28,10 +43,10 @@ def select_tickets(request):
                 'form': form,
                 'ticket_data': form.ticket_data,
                 'available_tickets': available_tickets,
-                'tickets_remaining': tickets_remaining
+                'tickets_remaining': tickets_remaining,
+                'current_event': event,
             })
 
-    event = Event.objects.get(active=True)
     tickets_remaining = event.tickets_remaining() or 0
     available_tickets = event.max_tickets_per_order
     available_tickets = min(available_tickets, tickets_remaining)
@@ -47,22 +62,29 @@ def select_tickets(request):
         if ticket_id:
             initial_data[f'ticket_{ticket_id}_quantity'] = 1
 
-    form = CheckoutTicketSelectionForm(initial=initial_data)
+    form = CheckoutTicketSelectionForm(initial=initial_data, event=event)
 
     return render(request, 'checkout/select_tickets.html', {
         'form': form,
         'ticket_data': form.ticket_data,
         'available_tickets': available_tickets,
-        'tickets_remaining': tickets_remaining
+        'tickets_remaining': tickets_remaining,
+        'current_event': event,
     })
 
 
 @login_required
-def select_donations(request):
+def select_donations(request, event_slug=None):
+    # Get event from session or request
+    event = get_event_from_request(request)
+    
     if request.method == 'POST':
         form = CheckoutDonationsForm(request.POST)
         if form.is_valid():
             request.session['donations'] = form.cleaned_data
+            # Redirect with event parameter
+            if event.slug:
+                return redirect(f"{reverse('order_summary')}?event={event.slug}")
             return redirect('order_summary')
 
     if 'new' in request.GET or request.session.get('order_sid') is None:
@@ -76,23 +98,35 @@ def select_donations(request):
     return render(request, 'checkout/select_donations.html', {
         'form': form,
         'ticket_selection': request.session.get('ticket_selection', None),
+        'current_event': event,
     })
 
 
 @login_required
-def order_summary(request):
+def order_summary(request, event_slug=None):
     if request.session.get('order_sid') is None:
+        if event.slug:
+            return redirect(f"{reverse('select_tickets')}?event={event.slug}")
         return redirect('select_tickets')
 
     ticket_selection = request.session.get('ticket_selection', {})
     donations = request.session.get('donations', {})
-    event = Event.objects.get(active=True)
+    event = get_event_from_request(request)
 
     total_amount = 0
     ticket_data = []
     items = []
 
-    ticket_types = TicketType.objects.get_available_ticket_types_for_current_events()
+    # Filter ticket types by the specific event using the same logic as get_available_ticket_types_for_current_events
+    from django.utils import timezone
+    from django.db.models import Q
+    ticket_types = (TicketType.objects
+                  .filter(event=event)
+                  .filter(Q(date_from__lte=timezone.now()) | Q(date_from__isnull=True))
+                  .filter(Q(date_to__gte=timezone.now()) | Q(date_to__isnull=True))
+                  .filter(Q(ticket_count__gt=0) | Q(ticket_count__isnull=True))
+                  .filter(is_direct_type=False)
+                  .order_by('cardinality', 'price'))
 
     for ticket_type in ticket_types:
         field_name = f'ticket_{ticket_type.id}_quantity'

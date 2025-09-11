@@ -4,7 +4,14 @@ from .views import home, order, ticket, checkout, webhooks, new_ticket
 from tickets.views import admin
 
 urlpatterns = [
+    # Main event (/) and event-specific URLs
     path('', home.home, name='home'),
+    
+    # Events listing (must come before slug pattern)
+    path('eventos/', home.events_listing, name='events_listing'),
+    
+    # Event-specific URLs
+    path('<slug:event_slug>/', home.home, name='event_home'),
 
     # Order related paths
     path('new-order/<int:ticket_type_id>/', order.order, name='order'),
@@ -26,6 +33,7 @@ urlpatterns = [
 
     # Public ticket view (must come before other ticket paths)
     path('bono/<str:ticket_key>/', ticket.public_ticket_detail, name='public_ticket_detail'),
+    path('<slug:event_slug>/bono/<str:ticket_key>/', ticket.public_ticket_detail, name='public_ticket_detail_event'),
 
     # Other ticket paths
     path('ticket/<str:ticket_key>/transfer', ticket.ticket_transfer, name='ticket_transfer'),
@@ -33,7 +41,7 @@ urlpatterns = [
          name='ticket_transfer_confirmation'),
     path('ticket/<str:transfer_key>/confirmed', ticket.ticket_transfer_confirmed, name='ticket_transfer_confirmed'),
 
-    # Checkout related paths
+    # Checkout related paths (using query parameters for event selection)
     path('checkout/select-tickets', checkout.select_tickets, name='select_tickets'),
     path('checkout/select-donations', checkout.select_donations, name='select_donations'),
     path('checkout/order-summary', checkout.order_summary, name='order_summary'),

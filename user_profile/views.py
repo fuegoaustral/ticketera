@@ -6,6 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from events.models import Event
+from events.utils import get_event_from_request
 from tickets.models import NewTicket, NewTicketTransfer
 from .forms import ProfileStep1Form, ProfileStep2Form, VolunteeringForm
 
@@ -15,31 +16,57 @@ def my_fire_view(request):
     return redirect(reverse("my_ticket"))
 
 
-@login_required
-def my_ticket_view(request):
-    event = Event.objects.get(active=True)
+def show_past_events(request):
+    """Show past events tickets"""
+    from django.utils import timezone
+    
+    # Get past events
+    past_events = Event.get_active_events().filter(
+        end__lt=timezone.now()
+    ).order_by('-end')
+    
+    # Get the main event for context
+    main_event = Event.get_main_event()
+    
+    # Get tickets from past events
+    past_tickets = NewTicket.objects.filter(
+        holder=request.user, 
+        event__in=past_events
+    ).order_by("-event__end", "event__name", "owner").all()
+    
+    # Get the first ticket for the main event (for backward compatibility)
     my_ticket = NewTicket.objects.filter(
-        holder=request.user, event=event, owner=request.user
-    ).first()
+        holder=request.user, event=main_event, owner=request.user
+    ).first() if main_event else None
 
-    # Get all tickets for the user
-    if event.attendee_must_be_registered:
-        # If attendees must be registered, only show tickets where owner and holder is the user
-        all_tickets = NewTicket.objects.filter(
-            holder=request.user, event=event, owner=request.user
-        ).order_by("owner").all()
-    else:
-        # If attendees don't need to be registered, show all tickets
-        all_tickets = NewTicket.objects.filter(
-            holder=request.user, event=event
-        ).order_by("owner").all()
-
-    tickets_dto = []
-    all_unassigned = True
-    for ticket in all_tickets:
+    # Organize past tickets by event
+    past_tickets_by_event = {}
+    for ticket in past_tickets:
+        event_key = ticket.event.slug or ticket.event.id
+        if event_key not in past_tickets_by_event:
+            past_tickets_by_event[event_key] = {
+                'event': {
+                    'id': ticket.event.id,
+                    'name': ticket.event.name,
+                    'slug': ticket.event.slug,
+                    'start': ticket.event.start,
+                    'end': ticket.event.end,
+                    'location': ticket.event.location,
+                    'location_url': ticket.event.location_url,
+                },
+                'tickets': []
+            }
+        
         ticket_dto = ticket.get_dto(user=request.user)
         # Add tag to distinguish between Mine and Guest tickets
         ticket_dto['tag'] = 'Mine' if ticket.owner == request.user else 'Guest'
+        # Add event information for this specific ticket
+        ticket_dto['event'] = {
+            'name': ticket.event.name,
+            'slug': ticket.event.slug,
+            'start': ticket.event.start,
+            'end': ticket.event.end,
+        }
         # Add user information for Mine tickets
         if ticket.owner == request.user:
             ticket_dto['user_info'] = {
@@ -47,51 +74,229 @@ def my_ticket_view(request):
                 'last_name': request.user.last_name,
                 'dni': request.user.profile.document_number
             }
-            all_unassigned = False
-        tickets_dto.append(ticket_dto)
+        
+        past_tickets_by_event[event_key]['tickets'].append(ticket_dto)
 
+    # Get events where user has tickets, prioritizing main event
+    user_events = Event.get_active_events().filter(
+        newticket__holder=request.user
+    ).distinct().order_by('-is_main', 'name')
+    
     return render(
         request,
-        "mi_fuego/my_tickets/my_ticket.html",
+        "mi_fuego/my_tickets/past_events.html",
         {
             "is_volunteer": my_ticket.is_volunteer() if my_ticket else False,
             "my_ticket": my_ticket.get_dto(user=request.user) if my_ticket else None,
-            "event": event,
+            "event": main_event,  # Use main event for context
+            "active_events": user_events,  # Only events where user has tickets
             "nav_primary": "tickets",
-            "nav_secondary": "my_ticket",
+            "nav_secondary": "past_events",
             'now': timezone.now(),
-            'tickets_dto': tickets_dto,
-            'attendee_must_be_registered': event.attendee_must_be_registered,
-            'all_unassigned': all_unassigned and not event.attendee_must_be_registered,
+            'past_tickets_by_event': past_tickets_by_event,  # Past events tickets
+            'attendee_must_be_registered': main_event.attendee_must_be_registered if main_event else False,
+        },
+    )
+
+
+@login_required
+def my_ticket_view(request, event_slug=None):
+    from django.utils import timezone
+    
+    # If event_slug is provided, show tickets for that specific event
+    if event_slug:
+        # Special case: if slug is "eventos-anteriores", show past events
+        if event_slug == "eventos-anteriores":
+            return show_past_events(request)
+        try:
+            current_event = Event.get_by_slug(event_slug)
+            # Get tickets for this specific event
+            all_tickets = NewTicket.objects.filter(
+                holder=request.user, 
+                event=current_event
+            ).order_by("owner").all()
+            
+            # Get the first ticket for this event (for backward compatibility)
+            my_ticket = NewTicket.objects.filter(
+                holder=request.user, event=current_event, owner=request.user
+            ).first()
+            
+            # Organize tickets for this event
+            tickets_dto = []
+            all_unassigned = True
+            for ticket in all_tickets:
+                ticket_dto = ticket.get_dto(user=request.user)
+                # Add tag to distinguish between Mine and Guest tickets
+                ticket_dto['tag'] = 'Mine' if ticket.owner == request.user else 'Guest'
+                # Add event information for this specific ticket
+                ticket_dto['event'] = {
+                    'name': ticket.event.name,
+                    'slug': ticket.event.slug,
+                    'start': ticket.event.start,
+                    'end': ticket.event.end,
+                }
+                # Add user information for Mine tickets
+                if ticket.owner == request.user:
+                    ticket_dto['user_info'] = {
+                        'first_name': request.user.first_name,
+                        'last_name': request.user.last_name,
+                        'dni': request.user.profile.document_number
+                    }
+                    all_unassigned = False
+                tickets_dto.append(ticket_dto)
+            
+            # Get events where user has tickets, prioritizing main event
+            user_events = Event.get_active_events().filter(
+                newticket__holder=request.user
+            ).distinct().order_by('-is_main', 'name')
+            
+            return render(
+                request,
+                "mi_fuego/my_tickets/my_ticket.html",
+                {
+                    "is_volunteer": my_ticket.is_volunteer() if my_ticket else False,
+                    "my_ticket": my_ticket.get_dto(user=request.user) if my_ticket else None,
+                    "event": current_event,  # Use current event for context
+                    "active_events": user_events,  # Only events where user has tickets
+                    "nav_primary": "tickets",
+                    "nav_secondary": "my_ticket",
+                    'now': timezone.now(),
+                    'tickets_dto': tickets_dto,  # Simple list for single event
+                    'attendee_must_be_registered': current_event.attendee_must_be_registered,
+                    'all_unassigned': all_unassigned and not current_event.attendee_must_be_registered,
+                },
+            )
+        except Event.DoesNotExist:
+            # If event doesn't exist, redirect to main event
+            return redirect('my_ticket')
+    
+    # If no event_slug, determine what to show by default
+    # Priority: 1) Main event if user has tickets, 2) Any active event if user has tickets, 3) Past events
+    
+    # Get events where user has tickets, prioritizing main event
+    user_events = Event.get_active_events().filter(
+        newticket__holder=request.user
+    ).distinct().order_by('-is_main', 'name')
+    
+    # If user has tickets in active events, redirect to the first one (main event priority)
+    if user_events.exists():
+        main_event_with_tickets = user_events.first()
+        return redirect('my_ticket_event', event_slug=main_event_with_tickets.slug)
+    
+    # If no active events with tickets, show past events
+    past_events = Event.get_active_events().filter(
+        end__lt=timezone.now()
+    ).order_by('-end')
+    
+    # Get the main event for context
+    main_event = Event.get_main_event()
+    
+    # Get tickets from past events
+    past_tickets = NewTicket.objects.filter(
+        holder=request.user, 
+        event__in=past_events
+    ).order_by("-event__end", "event__name", "owner").all()
+    
+    # Get the first ticket for the main event (for backward compatibility)
+    my_ticket = NewTicket.objects.filter(
+        holder=request.user, event=main_event, owner=request.user
+    ).first() if main_event else None
+
+    # Organize past tickets by event
+    past_tickets_by_event = {}
+    for ticket in past_tickets:
+        event_key = ticket.event.slug or ticket.event.id
+        if event_key not in past_tickets_by_event:
+            past_tickets_by_event[event_key] = {
+                'event': {
+                    'id': ticket.event.id,
+                    'name': ticket.event.name,
+                    'slug': ticket.event.slug,
+                    'start': ticket.event.start,
+                    'end': ticket.event.end,
+                    'location': ticket.event.location,
+                    'location_url': ticket.event.location_url,
+                },
+                'tickets': []
+            }
+        
+        ticket_dto = ticket.get_dto(user=request.user)
+        # Add tag to distinguish between Mine and Guest tickets
+        ticket_dto['tag'] = 'Mine' if ticket.owner == request.user else 'Guest'
+        # Add event information for this specific ticket
+        ticket_dto['event'] = {
+            'name': ticket.event.name,
+            'slug': ticket.event.slug,
+            'start': ticket.event.start,
+            'end': ticket.event.end,
+        }
+        # Add user information for Mine tickets
+        if ticket.owner == request.user:
+            ticket_dto['user_info'] = {
+                'first_name': request.user.first_name,
+                'last_name': request.user.last_name,
+                'dni': request.user.profile.document_number
+            }
+        
+        past_tickets_by_event[event_key]['tickets'].append(ticket_dto)
+
+    # Get events where user has tickets, prioritizing main event
+    user_events = Event.get_active_events().filter(
+        newticket__holder=request.user
+    ).distinct().order_by('-is_main', 'name')
+    
+    return render(
+        request,
+        "mi_fuego/my_tickets/past_events.html",
+        {
+            "is_volunteer": my_ticket.is_volunteer() if my_ticket else False,
+            "my_ticket": my_ticket.get_dto(user=request.user) if my_ticket else None,
+            "event": main_event,  # Use main event for context
+            "active_events": user_events,  # Only events where user has tickets
+            "nav_primary": "tickets",
+            "nav_secondary": "past_events",
+            'now': timezone.now(),
+            'past_tickets_by_event': past_tickets_by_event,  # Past events tickets
+            'attendee_must_be_registered': main_event.attendee_must_be_registered if main_event else False,
         },
     )
 
 
 @login_required
 def transferable_tickets_view(request):
-    event = Event.objects.get(active=True)
+    # Get all active events to show tickets from all events
+    active_events = Event.get_active_events()
+    main_event = Event.get_main_event()
     
     # If attendees don't need to be registered, redirect to my_ticket view
-    if not event.attendee_must_be_registered:
+    if not (main_event and main_event.attendee_must_be_registered):
         return redirect(reverse("my_ticket"))
 
     tickets = (
-        NewTicket.objects.filter(holder=request.user, event=event)
+        NewTicket.objects.filter(holder=request.user, event__in=active_events)
         .exclude(owner=request.user)
-        .order_by("owner")
+        .order_by("event__name", "owner")
         .all()
     )
     my_ticket = NewTicket.objects.filter(
-        holder=request.user, event=event, owner=request.user
-    ).first()
+        holder=request.user, event=main_event, owner=request.user
+    ).first() if main_event else None
 
     tickets_dto = []
 
     for ticket in tickets:
-        tickets_dto.append(ticket.get_dto(user=request.user))
+        ticket_dto = ticket.get_dto(user=request.user)
+        # Add event information for this specific ticket
+        ticket_dto['event'] = {
+            'name': ticket.event.name,
+            'slug': ticket.event.slug,
+            'start': ticket.event.start,
+            'end': ticket.event.end,
+        }
+        tickets_dto.append(ticket_dto)
 
     transferred_tickets = NewTicketTransfer.objects.filter(
-        tx_from=request.user, status="COMPLETED", ticket__event=event
+        tx_from=request.user, status="COMPLETED", ticket__event__in=active_events
     ).all()
     transferred_dto = []
     for transfer in transferred_tickets:
@@ -102,9 +307,20 @@ def transferable_tickets_view(request):
                 "ticket_type": transfer.ticket.ticket_type.name,
                 "ticket_color": transfer.ticket.ticket_type.color,
                 "emoji": transfer.ticket.ticket_type.emoji,
+                "event": {
+                    'name': transfer.ticket.event.name,
+                    'slug': transfer.ticket.event.slug,
+                    'start': transfer.ticket.event.start,
+                    'end': transfer.ticket.event.end,
+                }
             }
         )
 
+    # Get events where user has tickets, prioritizing main event
+    user_events = Event.get_active_events().filter(
+        newticket__holder=request.user
+    ).distinct().order_by('-is_main', 'name')
+    
     return render(
         request,
         "mi_fuego/my_tickets/transferable_tickets.html",
@@ -112,7 +328,8 @@ def transferable_tickets_view(request):
             "my_ticket": my_ticket,
             "tickets_dto": tickets_dto,
             "transferred_dto": transferred_dto,
-            "event": event,
+            "event": main_event,  # Use main event for context
+            "active_events": user_events,  # Only events where user has tickets
             "nav_primary": "tickets",
             "nav_secondary": "transferable_tickets",
         },

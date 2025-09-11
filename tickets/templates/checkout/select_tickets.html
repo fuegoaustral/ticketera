@@ -23,7 +23,7 @@
                     <!-- Al finalizar la compra, podrás transferir los bonos a otras personas. -->
                 </div>
                     <form method="post"
-                          action="{% url 'select_tickets' %}"
+                          action="{% url 'select_tickets' %}{% if current_event.slug %}?event={{ current_event.slug }}{% endif %}"
                           class="w-100 d-flex flex-column">
                         {% csrf_token %}
                         {% if form.errors %}

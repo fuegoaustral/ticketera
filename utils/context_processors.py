@@ -7,13 +7,31 @@ from tickets.models import NewTicket, TicketType, NewTicketTransfer
 
 
 def current_event(request):
-    try:
-        event = Event.objects.get(active=True)
-    except Event.DoesNotExist:
-        event = Event.objects.latest("id")
+    # For the main page (/), always use main event
+    if request.path == '/':
+        try:
+            event = Event.get_main_event()
+        except Exception:
+            event = Event.objects.latest("id")
+    else:
+        try:
+            # Try to get event from request (URL slug, query params, session)
+            from events.utils import get_event_from_request
+            event = get_event_from_request(request)
+        except Exception:
+            # Fallback to main event or latest
+            try:
+                event = Event.get_main_event()
+            except Exception:
+                event = Event.objects.latest("id")
 
+    # Check if there are multiple active events
+    active_events = Event.get_active_events()
+    has_multiple_events = active_events.count() > 1
+    
     context = {
         "event": event,
+        "has_multiple_events": has_multiple_events,
     }
     if request.user.is_authenticated:
 
@@ -49,15 +67,16 @@ def current_event(request):
             holding_tickets = len(tickets)
 
 
+        # Count total tickets across all active events
         total_tickets = NewTicket.objects.filter(
-            event=event, holder=request.user
+            event__in=active_events, holder=request.user
         ).count()
 
         context.update(
             {
                 "has_unassigned_tickets": has_unassigned_tickets,
                 "has_transfer_pending": has_transfer_pending,
-                "has_available_tickets": TicketType.objects.get_available_ticket_types_for_current_events().exists(),
+                "has_available_tickets": TicketType.objects.get_available_ticket_types_for_current_events().filter(event=event).exists(),
                 "holding_tickets": holding_tickets,
                 "shared_tickets": shared_tickets,
                 "owns_ticket": owns_ticket,

@@ -22,8 +22,9 @@ class BaseTicketFormset(BaseModelFormSet):
         self.queryset = Ticket.objects.none()
 def order(request, ticket_type_id):
     try:
-        event = Event.objects.get(active=True)
-    except Event.DoesNotExist:
+        from events.utils import get_event_from_request
+        event = get_event_from_request(request)
+    except Exception:
         return HttpResponse('Lo sentimos, este link es inválido.', status=404)
 
     coupon = Coupon.objects.filter(token=request.GET.get('coupon')).first()
