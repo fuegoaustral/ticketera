@@ -1,0 +1,104 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+
+{% block content %}
+<div id="content-main">
+    <h1>{{ title }}</h1>
+    
+    {% if results %}
+        <div class="results">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Evento</th>
+                        <th>Fecha de Inicio</th>
+                        <th>Fecha de Fin</th>
+                        <th>Máximo de Tickets</th>
+                        <th>Tickets Vendidos</th>
+                        <th>% Vendido</th>
+                        <th>Total de Órdenes</th>
+                        <th>Ingresos Totales</th>
+                        <th>Donaciones Arte</th>
+                        <th>Donaciones Sede</th>
+                        <th>Donaciones Beca</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in results %}
+                        <tr>
+                            <td><strong>{{ row.1 }}</strong></td>
+                            <td>{{ row.2|date:"d/m/Y H:i" }}</td>
+                            <td>{{ row.3|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                {% if row.4 %}
+                                    {{ row.4 }}
+                                {% else %}
+                                    <em>Sin límite</em>
+                                {% endif %}
+                            </td>
+                            <td><strong>{{ row.5 }}</strong></td>
+                            <td>
+                                {% if row.4 %}
+                                    {% widthratio row.5 row.4 100 %}%
+                                {% else %}
+                                    <em>N/A</em>
+                                {% endif %}
+                            </td>
+                            <td>{{ row.11 }}</td>
+                            <td>${{ row.6|floatformat:0 }}</td>
+                            <td>${{ row.7|floatformat:0 }}</td>
+                            <td>${{ row.8|floatformat:0 }}</td>
+                            <td>${{ row.9|floatformat:0 }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <div style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 5px;">
+            <h3>Resumen General</h3>
+            <p><strong>Total de Eventos:</strong> {{ results|length }}</p>
+            <p><strong>Total de Tickets Vendidos:</strong> 
+                {% for row in results %}
+                    {% if forloop.first %}{{ row.5 }}{% else %}{{ row.5|add:0 }}{% endif %}
+                {% endfor %}
+            </p>
+            <p><strong>Total de Ingresos:</strong> 
+                {% for row in results %}
+                    {% if forloop.first %}${{ row.6|floatformat:0 }}{% else %}{{ row.6|add:0 }}{% endif %}
+                {% endfor %}
+            </p>
+        </div>
+    {% else %}
+        <p>No hay eventos disponibles.</p>
+    {% endif %}
+</div>
+
+<style>
+    .results table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    
+    .results th,
+    .results td {
+        padding: 8px 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+    
+    .results th {
+        background-color: #f8f9fa;
+        font-weight: bold;
+    }
+    
+    .results tr:hover {
+        background-color: #f5f5f5;
+    }
+    
+    .results strong {
+        color: #007cba;
+    }
+</style>
+{% endblock %}

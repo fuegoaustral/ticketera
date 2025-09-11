@@ -42,6 +42,9 @@ class Event(BaseModel):
         constraints = [
             models.UniqueConstraint(fields=['active'], condition=Q(active=True), name='unique_active')
         ]
+        permissions = [
+            ("view_tickets_sold_report", "Can view tickets sold report"),
+        ]
 
     def __str__(self):
         return self.name

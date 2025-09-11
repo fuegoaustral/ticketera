@@ -9,4 +9,7 @@ GROUPS_PERMISSIONS = {
         {'app_label': 'tickets', 'codename': 'delete_directtickettemplate'},
         {'app_label': 'tickets', 'codename': 'view_directtickettemplate'},
     ],
+    'Event Organizer': [
+        {'app_label': 'events', 'codename': 'view_tickets_sold_report'},
+    ],
 }
