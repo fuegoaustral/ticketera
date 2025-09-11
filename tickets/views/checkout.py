@@ -132,7 +132,16 @@ def order_summary(request, event_slug=None):
         field_name = f'ticket_{ticket_type.id}_quantity'
         quantity = ticket_selection.get(field_name, 0)
         price = ticket_type.price
-        subtotal = price * quantity
+        
+        # For free tickets (price = 0), use custom amount
+        if price == 0:
+            custom_amount_field = f'ticket_{ticket_type.id}_custom_amount'
+            custom_amount = ticket_selection.get(custom_amount_field, 0)
+            subtotal = custom_amount * quantity
+            effective_price = custom_amount
+        else:
+            subtotal = price * quantity
+            effective_price = price
 
         if quantity > 0:
             total_amount += subtotal
@@ -140,16 +149,18 @@ def order_summary(request, event_slug=None):
                 'id': ticket_type.id,
                 'name': ticket_type.name,
                 'description': ticket_type.description,
-                'price': price,
+                'price': effective_price,
                 'quantity': quantity,
                 'subtotal': subtotal,
+                'is_free_ticket': price == 0,
+                'original_price': price,
             })
             items.append({
                 "id": ticket_type.name,
                 "title": ticket_type.name,
                 "description": ticket_type.description,
                 "quantity": quantity,
-                "unit_price": float(price),
+                "unit_price": float(effective_price),
             })
 
     donation_data = []

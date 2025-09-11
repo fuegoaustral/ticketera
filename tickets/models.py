@@ -88,7 +88,8 @@ class TicketTypeManager(models.Manager):
             ticket_types = ticket_types.filter(coupon=coupon)
         else:
             # Exclude ticket types that are only available with coupons
-            ticket_types = ticket_types.filter(price__isnull=False, price__gt=0)
+            # Allow tickets with price 0 (free tickets with custom amount)
+            ticket_types = ticket_types.filter(price__isnull=False, price__gte=0)
 
         # If event does not show multiple tickets, return the cheapest available ticket
         if not event.show_multiple_tickets:
@@ -246,7 +247,7 @@ class Order(BaseModel):
             "title": self.ticket_type.name,
             "quantity": 1,
             "unit_price": ticket.price,
-        } for ticket in self.ticket_set.all() if ticket.price > 0])
+        } for ticket in self.ticket_set.all() if ticket.price >= 0])
 
         if self.donation_art:
             items.append({

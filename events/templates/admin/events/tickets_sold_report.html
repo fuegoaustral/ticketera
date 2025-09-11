@@ -3,7 +3,6 @@
 
 {% block content %}
 <div id="content-main">
-    <h1>{{ title }}</h1>
     
     {% if results %}
         <div class="results">
@@ -17,10 +16,11 @@
                         <th>Tickets Vendidos</th>
                         <th>% Vendido</th>
                         <th>Total de Órdenes</th>
-                        <th>Ingresos Totales</th>
+                        <th>Ingreso por Entradas</th>
                         <th>Donaciones Arte</th>
                         <th>Donaciones Sede</th>
                         <th>Donaciones Beca</th>
+                        <th>Ingresos Totales</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -49,26 +49,13 @@
                             <td>${{ row.7|floatformat:0 }}</td>
                             <td>${{ row.8|floatformat:0 }}</td>
                             <td>${{ row.9|floatformat:0 }}</td>
+                            <td><strong>${{ row.10|floatformat:0 }}</strong></td>
                         </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
         
-        <div style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 5px;">
-            <h3>Resumen General</h3>
-            <p><strong>Total de Eventos:</strong> {{ results|length }}</p>
-            <p><strong>Total de Tickets Vendidos:</strong> 
-                {% for row in results %}
-                    {% if forloop.first %}{{ row.5 }}{% else %}{{ row.5|add:0 }}{% endif %}
-                {% endfor %}
-            </p>
-            <p><strong>Total de Ingresos:</strong> 
-                {% for row in results %}
-                    {% if forloop.first %}${{ row.6|floatformat:0 }}{% else %}{{ row.6|add:0 }}{% endif %}
-                {% endfor %}
-            </p>
-        </div>
     {% else %}
         <p>No hay eventos disponibles.</p>
     {% endif %}
@@ -85,20 +72,39 @@
     .results td {
         padding: 8px 12px;
         text-align: left;
-        border-bottom: 1px solid #ddd;
+        border-bottom: 1px solid var(--border-color, #ddd);
     }
     
     .results th {
-        background-color: #f8f9fa;
+        background-color: var(--header-bg, #f8f9fa);
         font-weight: bold;
+        color: var(--header-fg, #000);
     }
     
-    .results tr:hover {
-        background-color: #f5f5f5;
-    }
+    /* Removed hover effect for better readability */
     
     .results strong {
-        color: #007cba;
+        color: var(--link-fg, #007cba);
     }
+    
+    /* Dark theme compatibility */
+    @media (prefers-color-scheme: dark) {
+        .results th {
+            background-color: #2b2b2b;
+            color: #fff;
+        }
+        
+        /* Removed hover effect for better readability */
+        
+        .results th,
+        .results td {
+            border-bottom-color: #555;
+        }
+        
+        .results strong {
+            color: #4fc3f7;
+        }
+    }
+    
 </style>
 {% endblock %}
