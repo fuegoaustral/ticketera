@@ -20,8 +20,8 @@ def show_past_events(request):
     """Show past events tickets"""
     from django.utils import timezone
     
-    # Get past events
-    past_events = Event.get_active_events().filter(
+    # Get past events (include both active and inactive events that have ended)
+    past_events = Event.objects.filter(
         end__lt=timezone.now()
     ).order_by('-end')
     
