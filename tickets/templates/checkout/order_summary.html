@@ -26,8 +26,19 @@
                         {% for ticket in ticket_data %}
                             {% if ticket.quantity > 0 %}
                                 <tr>
-                                    <td class="text-start">{{ ticket.name }}</td>
-                                    <td class="text-end">${{ ticket.price|floatformat|intcomma }}</td>
+                                    <td class="text-start">
+                                        {{ ticket.name }}
+                                        {% if ticket.is_free_ticket %}
+                                            <br><small class="text-muted">(Monto personalizado)</small>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        {% if ticket.is_free_ticket %}
+                                            Monto libre
+                                        {% else %}
+                                            ${{ ticket.price|floatformat|intcomma }}
+                                        {% endif %}
+                                    </td>
                                     <td class="text-center">{{ ticket.quantity }}</td>
                                     <td class="text-end">${{ ticket.subtotal|floatformat|intcomma }}</td>
                                 </tr>
