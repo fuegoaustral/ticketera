@@ -70,10 +70,13 @@ def ticket_transfer_confirmed(request, transfer_key):
 
     return HttpResponse(template.render(context, request))
 
-def public_ticket_detail(request, ticket_key):
+def public_ticket_detail(request, ticket_key, event_slug=None):
     try:
         ticket = NewTicket.objects.get(key=ticket_key)
-        current_event = Event.objects.filter(active=True).first()
+        if event_slug:
+            current_event = Event.get_by_slug(event_slug)
+        else:
+            current_event = Event.get_main_event()
         
         is_valid = (
             not ticket.is_used and

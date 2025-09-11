@@ -1,0 +1,186 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% load static %}
+{% load humanize %}
+{% load ticket_filters %}
+{% block actions %}
+    {% if has_available_tickets %}
+        <a class="btn btn-primary" href="{% url "select_tickets" %}">Comprar Bono</a>
+    {% endif %}
+{% endblock actions %}
+{% block truecontent %}
+
+    <style>
+        .tickets-container {
+            scroll-behavior: smooth;
+        }
+        .qr img {
+            max-width: 280px !important;
+        }
+        @media (min-width: 768px) {
+            .qr img {
+                max-width: 180px !important;
+            }
+        }
+        @media (max-width: 767px) {
+            .qr-container {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+            }
+            .qr {
+                width: 100% !important;
+                display: flex !important;
+                justify-content: center !important;
+            }
+            .qr img {
+                max-width: 100% !important;
+                width: 90% !important;
+                height: auto !important;
+            }
+            .ticket-actions {
+                margin-top: 0.5rem !important;
+            }
+        }
+        .truecontent {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+        }
+        .card {
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+        .card-body {
+            position: relative;
+            overflow: hidden;
+        }
+        .card-body::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg width='48' height='49' viewBox='0 0 48 49' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cmask id='mask0_41_1237' style='mask-type:alpha' maskUnits='userSpaceOnUse' x='0' y='0' width='48' height='49'%3E%3Crect y='0.5' width='48' height='48' fill='%23D9D9D9'/%3E%3C/mask%3E%3Cg mask='url(%23mask0_41_1237)'%3E%3Cpath d='M24.0999 28.5461H24.098C22.2663 28.5461 20.7803 27.0598 20.7803 25.2276C20.7803 23.3961 22.2663 21.9089 24.098 21.9089H24.0999C25.9317 21.9099 27.4167 23.3961 27.4167 25.2276C27.4167 27.0598 25.9317 28.5461 24.0999 28.5461ZM30.7372 21.9089V18.5905H27.4186V15.2715H24.0999H20.7803V18.5905H17.4607V21.9089H14.1421V25.2276V28.547H17.4607V31.8647H20.7803V35.1853H24.0999H27.4186V31.8647H30.7372V28.547H34.0559V25.2276V21.9089H30.7372Z' fill='%23e0e0e0'/%3E%3Cpath d='M10.5992 7.07482C10.5992 7.07482 10.9 20.8707 12.2657 34.2834C12.2657 34.2834 18.8741 38.7346 20.7999 39.8673C20.7999 39.8673 21.4614 44.8686 21.7284 59.6545L16.321 62.3183C16.321 62.3183 18.0368 79.2153 18.8383 88.7484C18.8383 88.7484 18.3964 89.3145 15.9883 88.7484C15.9883 88.7484 12.1931 73.426 11.0692 59.3691C11.0692 59.3691 13.8207 57.406 17.9149 55.7327C17.9149 55.7327 16.7106 47.0245 16.7106 44.6008C16.7106 44.6008 10.2964 40.4259 6.72773 37.6824C6.72773 37.6824 4.4876 29.4119 3 7.07482C3 7.07482 6.21701 5.78147 10.5992 7.07482Z' fill='%23e0e0e0'/%3E%3Cpath d='M37.5993 7.07482C37.5993 7.07482 37.2996 20.8707 35.9341 34.2834C35.9341 34.2834 29.3267 38.7346 27.3983 39.8673C27.3983 39.8673 26.7389 44.8686 26.4697 59.6545L31.8799 62.3183C31.8799 62.3183 30.164 79.2153 29.3604 88.7484C29.3604 88.7484 29.8025 89.3145 32.2106 88.7484C32.2106 88.7484 36.0055 73.426 37.1304 59.3691C37.1304 59.3691 34.3789 57.406 30.2852 55.7327C30.2852 55.7327 31.489 47.0245 31.489 44.6008C31.489 44.6008 37.9031 40.4259 41.4706 37.6824C41.4706 37.6824 43.7104 29.4119 45.1982 7.07482C45.1982 7.07482 41.9823 5.78147 37.5993 7.07482Z' fill='%23e0e0e0'/%3E%3C/g%3E%3C/svg%3E");
+            background-repeat: repeat;
+            opacity: 0.2;
+            z-index: 0;
+        }
+        .card-body > * {
+            position: relative;
+            z-index: 1;
+        }
+        .btn-semi-white {
+            background-color: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        .btn-semi-white:hover {
+            background-color: rgba(255, 255, 255, 0.9);
+        }
+
+        .calendar-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background-color: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 0.5rem;
+            color: #212529;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+        }
+
+        .calendar-btn:hover {
+            background-color: rgba(255, 255, 255, 0.9);
+            color: #212529;
+        }
+
+        .location-link {
+            color: inherit;
+            text-decoration: underline;
+        }
+
+        .location-link:hover {
+            text-decoration: underline;
+        }
+
+        .ticket-id {
+            font-weight: bold;
+            margin-right: 0.5em;
+            color: inherit;
+        }
+    </style>
+
+    {% if not past_tickets_by_event %}
+        <div class="truecontent">
+            <div class="card text-center mx-extra">
+                <div class="card-body d-flex justify-content-between flex-column align-items-center main-card-spacing gap-4">
+                    <h3>No tenés bonos de eventos anteriores</h3>
+                    {% if has_available_tickets %}
+                        <a class="btn btn-primary" href="{% url "select_tickets" %}">Comprar Bono</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-info text-start mb-4">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-info-circle"></i>
+                <div>
+                    Estos son tus bonos de eventos anteriores. Los bonos de eventos finalizados son solo para referencia histórica.
+                </div>
+            </div>
+        </div>
+        
+        <!-- Past Events -->
+        {% for event_key, event_data in past_tickets_by_event.items %}
+            <div class="card mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">{{ event_data.event.name }}</h5>
+                    <small>{{ event_data.event.start|date:"d/m/Y" }} - {{ event_data.event.end|date:"d/m/Y" }}</small>
+                </div>
+                <div class="card-body">
+                    {% for ticket in event_data.tickets %}
+                        <div class="card mb-3 border">
+                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                <span><span class="ticket-id">#{{ ticket.key|stringformat:"s"|slice:"-2:" }}</span> {{ ticket.ticket_type }}</span>
+                                <span class="badge bg-secondary">Evento Finalizado</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex flex-column flex-md-row justify-content-between align-items-start">
+                                    <div class="ticket-info w-100">
+                                        <div class="d-flex flex-column gap-2">
+                                            <div class="text-muted">
+                                                <span class="fw-bold">{{ ticket.ticket_type }} - ${{ ticket.price|floatformat:0|intcomma }}</span>
+                                            </div>
+                                            <div class="ticket-details mt-2">
+                                                <div class="d-flex align-items-center gap-2 mb-2">
+                                                    <i class="fas fa-calendar-alt text-muted"></i>
+                                                    <span class="text-muted">{{ ticket.event.start|date:"d/m/Y H:i" }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="qr-container my-3 my-md-0 mx-auto">
+                                        <div class="qr d-flex flex-column align-items-center">
+                                            <img src="data:image/png;base64,{{ ticket.qr_code }}"
+                                                 class="img-fluid"
+                                                 alt="QR Code"/>
+                                            <div class="text-center mt-2">
+                                                <small class="text-muted">{{ ticket.key|last_uuid_part }}</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+{% endblock truecontent %}

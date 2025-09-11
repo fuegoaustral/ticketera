@@ -2,6 +2,7 @@ from django.db import models
 from django.db.models import Count, Sum, Q
 from django.forms import ValidationError
 from django.utils import timezone
+from django.utils.text import slugify
 
 from auditlog.registry import auditlog
 
@@ -9,7 +10,9 @@ from utils.models import BaseModel
 
 
 class Event(BaseModel):
-    active = models.BooleanField(default=True, help_text="Only 1 event can be active at a time")
+    active = models.BooleanField(default=True, help_text="Event is active and can be accessed")
+    is_main = models.BooleanField(default=False, help_text="Main event displayed at /")
+    slug = models.SlugField(max_length=100, unique=True, null=True, blank=True, help_text="URL-friendly identifier for the event")
     name = models.CharField(max_length=255)
     location = models.CharField(max_length=255, blank=True, help_text="Location of the event")
     location_url = models.URLField(max_length=500, blank=True, help_text="URL for the event location (e.g. Google Maps link)")
@@ -40,7 +43,7 @@ class Event(BaseModel):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['active'], condition=Q(active=True), name='unique_active')
+            models.UniqueConstraint(fields=['is_main'], condition=Q(is_main=True), name='unique_main_event')
         ]
         permissions = [
             ("view_tickets_sold_report", "Can view tickets sold report"),
@@ -50,14 +53,20 @@ class Event(BaseModel):
         return self.name
 
     def clean(self, *args, **kwargs):
-        if self.active:
-            qs = Event.objects.exclude(pk=self.pk).filter(active=True)
+        # Validate that only one event can be main
+        if self.is_main:
+            qs = Event.objects.exclude(pk=self.pk).filter(is_main=True)
             if qs.exists():
                 raise ValidationError({
-                    'active': ValidationError(
-                        'Only one event can be active at the same time. Please set the other events as inactive before saving.',
+                    'is_main': ValidationError(
+                        'Only one event can be the main event at a time. Please set the other main event as non-main before saving.',
                         code='not_unique'),
                 })
+        
+        # Auto-generate slug from name if not provided
+        if not self.slug and self.name:
+            self.slug = slugify(self.name)
+            
         return super().clean(*args, **kwargs)
 
     def tickets_remaining(self):
@@ -111,6 +120,27 @@ class Event(BaseModel):
             status=Order.OrderStatus.CONFIRMED,
             donation_grant__isnull=False
         ).aggregate(total=Sum('donation_grant'))['total'] or 0
+
+    @classmethod
+    def get_main_event(cls):
+        """Get the main event (displayed at /)"""
+        try:
+            return cls.objects.get(is_main=True, active=True)
+        except cls.DoesNotExist:
+            return None
+
+    @classmethod
+    def get_active_events(cls):
+        """Get all active events"""
+        return cls.objects.filter(active=True)
+
+    @classmethod
+    def get_by_slug(cls, slug):
+        """Get event by slug"""
+        try:
+            return cls.objects.get(slug=slug, active=True)
+        except cls.DoesNotExist:
+            return None
 
 
 auditlog.register(Event)

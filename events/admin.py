@@ -10,7 +10,9 @@ from .models import Event
 class EventAdmin(admin.ModelAdmin):
     list_display = (
         "name",
+        "slug",
         "active",
+        "is_main",
         "start",
         "end",
         "max_tickets",
@@ -18,8 +20,9 @@ class EventAdmin(admin.ModelAdmin):
         "donations_venue",
         "donations_grant",
     )
-    list_filter = ("active",)
-    search_fields = ("name",)
+    list_filter = ("active", "is_main")
+    search_fields = ("name", "slug")
+    prepopulated_fields = {"slug": ("name",)}
     change_list_template = 'admin/events/event/change_list.html'
 
     def get_urls(self):
