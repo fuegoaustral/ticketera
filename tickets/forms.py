@@ -36,8 +36,13 @@ class TicketForm(PersonForm):
     def __init__(self, *args, **kwargs):
         super(TicketForm, self).__init__(*args, **kwargs)
         # ugly hack to disable volunteers
-        event = Event.objects.get(active=True)
-        if not event.has_volunteers:
+        # Try to get event from the form's instance or use main event
+        event = None
+        if hasattr(self, 'instance') and self.instance and hasattr(self.instance, 'order') and self.instance.order:
+            event = self.instance.order.ticket_type.event
+        if not event:
+            event = Event.get_main_event()
+        if event and not event.has_volunteers:
             self.initial['volunteer'] = 'no'
 
     def clean(self):
@@ -67,10 +72,25 @@ class TransferForm(PersonForm):
 class CheckoutTicketSelectionForm(forms.Form):
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
+        self.event = kwargs.pop('event', None)
         initial_data = kwargs.pop('initial', {})
         super(CheckoutTicketSelectionForm, self).__init__(*args, **kwargs)
 
-        ticket_types = TicketType.objects.get_available_ticket_types_for_current_events().order_by('cardinality', 'price')
+        # Get ticket types for the specific event
+        if self.event:
+            # Use the same logic as get_available_ticket_types_for_current_events but for specific event
+            from django.utils import timezone
+            from django.db.models import Q
+            ticket_types = (TicketType.objects
+                          .filter(event=self.event)
+                          .filter(Q(date_from__lte=timezone.now()) | Q(date_from__isnull=True))
+                          .filter(Q(date_to__gte=timezone.now()) | Q(date_to__isnull=True))
+                          .filter(Q(ticket_count__gt=0) | Q(ticket_count__isnull=True))
+                          .filter(is_direct_type=False)
+                          .order_by('cardinality', 'price'))
+        else:
+            # Fallback to current events if no specific event
+            ticket_types = TicketType.objects.get_available_ticket_types_for_current_events().order_by('cardinality', 'price')
 
         self.ticket_data = []  # Initialize an empty list to store ticket data
 
@@ -104,7 +124,10 @@ class CheckoutTicketSelectionForm(forms.Form):
         cleaned_data = super().clean()
 
         # check if any total selected tickets quantity is greater than available tickets
-        event = Event.objects.get(active=True)
+        if self.event:
+            event = self.event
+        else:
+            event = Event.get_main_event()
         tickets_remaining = event.tickets_remaining() or 0
         available_tickets = event.max_tickets_per_order
         available_tickets = min(available_tickets, tickets_remaining)

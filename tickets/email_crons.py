@@ -20,7 +20,7 @@ def send_pending_actions_emails(event, context):
     logging.info("Email cron job")
     logging.info("==============")
     logging.info("\n")
-    current_event = Event.objects.get(active=True)
+    current_event = Event.get_main_event()
     
     # Check if transfers are still enabled
     if current_event.transfers_enabled_until and current_event.transfers_enabled_until < timezone.now():

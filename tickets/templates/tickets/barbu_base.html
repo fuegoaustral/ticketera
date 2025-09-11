@@ -89,7 +89,11 @@
       </div>
       <ul class="nav d-flex flex-row align-items-center flex-nowrap">
         <li class="nav-item d-none d-md-block">
-          <a class="nav-link" href="https://fuegoaustral.org" target="_blank">fuegoaustral.org</a>
+          {% if has_multiple_events %}
+            <a class="nav-link" href="{% url 'events_listing' %}">Otros eventos</a>
+          {% else %}
+            <a class="nav-link" href="https://fuegoaustral.org" target="_blank">fuegoaustral.org</a>
+          {% endif %}
         </li>
         <!-- Ticket counter for mobile -->
         {% if request.user.is_authenticated %}

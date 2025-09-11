@@ -56,9 +56,12 @@ def email_has_account(request):
 
 @staff_member_required
 @permission_required("tickets.can_sell_tickets")
-def admin_caja_view(request):
+def admin_caja_view(request, event_id=None):
     events = Event.objects.all()
-    default_event = Event.objects.filter(active=True).first()
+    if event_id:
+        default_event = Event.objects.get(id=event_id)
+    else:
+        default_event = Event.get_main_event()
     ticket_types = TicketType.objects.filter(event_id=default_event.id) if default_event else None
 
     form = TicketPurchaseForm(event=default_event)
@@ -184,9 +187,9 @@ def admin_caja_view(request):
 
 @staff_member_required
 @permission_required("tickets.can_sell_tickets")
-def admin_direct_tickets_view(request):
+def admin_direct_tickets_view(request, event_id=None):
     direct_ticket_summary = request.session.pop('direct_ticket_summary', {})
-    events = Event.objects.filter(active=True).all()
+    events = Event.get_active_events()
     default_event = events.first()
     direct_tickets = DirectTicketTemplate.objects.filter(event_id=default_event.id,
                                                          status=DirectTicketTemplateStatus.AVAILABLE) if default_event else None
@@ -334,7 +337,7 @@ class DirectTicketTemplateAdmin(ImportExportModelAdmin, ExportActionMixin):
 
     def get_import_resource_kwargs(self, request, *args, **kwargs):
         kwargs = super().get_resource_kwargs(request, *args, **kwargs)
-        event = Event.objects.filter(active=True).first()
+        event = Event.get_main_event()
         kwargs.update({"event": event})
         return kwargs
 
