@@ -106,6 +106,19 @@ class CheckoutTicketSelectionForm(forms.Form):
                     max_value=ticket_type.ticket_count,
                     initial=initial_value
                 )
+                
+                # If this is a free ticket (price = 0), add a custom amount field
+                if ticket_type.price == 0:
+                    amount_field_name = f'ticket_{ticket_type.id}_custom_amount'
+                    self.fields[amount_field_name] = forms.DecimalField(
+                        label=f"Monto personalizado para {ticket_type.name}",
+                        min_value=0,
+                        max_digits=10,
+                        decimal_places=2,
+                        initial=initial_data.get(amount_field_name, 0),
+                        required=False,
+                        help_text="Ingresa el monto que deseas pagar por este bono"
+                    )
 
                 # Store ticket type and price to use in the template
                 self.ticket_data.append({
@@ -115,7 +128,8 @@ class CheckoutTicketSelectionForm(forms.Form):
                     'price': ticket_type.price,
                     'field_name': field_name,
                     'quantity': initial_value,  # Pass the initial value to the template
-                    'ticket_count': ticket_type.ticket_count
+                    'ticket_count': ticket_type.ticket_count,
+                    'is_free_ticket': ticket_type.price == 0  # Flag to identify free tickets
                 })
         else:
             self.ticket_data = []
@@ -141,8 +155,17 @@ class CheckoutTicketSelectionForm(forms.Form):
             raise ValidationError(f'Superaste la máxima cantidad de bonos disponibles para esta compra: {available_tickets}.')
 
         # check if there's any ticket quantity greater than zero
-        if all(cleaned_data.get(field, 0) == 0 for field in self.fields if field.startswith('ticket_')):
+        if all(cleaned_data.get(field, 0) == 0 for field in self.fields if field.startswith('ticket_') and field.endswith('_quantity')):
             raise ValidationError('Debe seleccionar al menos un ticket para continuar con la compra.')
+
+        # Validate custom amounts for free tickets
+        for ticket in self.ticket_data:
+            if ticket['is_free_ticket']:
+                quantity = cleaned_data.get(f'ticket_{ticket["id"]}_quantity', 0)
+                custom_amount = cleaned_data.get(f'ticket_{ticket["id"]}_custom_amount', 0)
+                
+                if quantity > 0 and custom_amount <= 0:
+                    raise ValidationError(f'Debe ingresar un monto personalizado para {ticket["name"]}.')
 
         return cleaned_data
 

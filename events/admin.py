@@ -413,9 +413,10 @@ class EventAdmin(admin.ModelAdmin):
                 request.user.has_perm('events.view_tickets_sold_report')):
             return HttpResponse('Permission Denied', status=403)
 
-        events = Event.objects.all()
+        # Get only active events
+        events = Event.objects.filter(active=True)
         
-        # Get tickets sold per event
+        # Get tickets sold per active event
         with connection.cursor() as cursor:
             query = """
                 SELECT 
@@ -425,14 +426,16 @@ class EventAdmin(admin.ModelAdmin):
                     e.end,
                     e.max_tickets,
                     COALESCE(SUM(tot.quantity), 0) as tickets_sold,
-                    COALESCE(SUM(too.amount), 0) as total_revenue,
+                    COALESCE(SUM(too.amount - COALESCE(too.donation_art, 0) - COALESCE(too.donation_venue, 0) - COALESCE(too.donation_grant, 0)), 0) as ticket_revenue,
                     COALESCE(SUM(too.donation_art), 0) as donations_art,
                     COALESCE(SUM(too.donation_venue), 0) as donations_venue,
                     COALESCE(SUM(too.donation_grant), 0) as donations_grant,
+                    COALESCE(SUM(too.amount), 0) as total_revenue,
                     COUNT(DISTINCT too.id) as total_orders
                 FROM events_event e
                 LEFT JOIN tickets_order too ON e.id = too.event_id AND too.status = 'CONFIRMED'
                 LEFT JOIN tickets_orderticket tot ON too.id = tot.order_id
+                WHERE e.active = true
                 GROUP BY e.id, e.name, e.start, e.end, e.max_tickets
                 ORDER BY e.start DESC
             """
@@ -445,7 +448,7 @@ class EventAdmin(admin.ModelAdmin):
             'results': results,
             'columns': columns,
             'opts': self.model._meta,
-            'title': 'Reporte de Tickets Vendidos por Evento'
+            'title': 'Reporte de Tickets Vendidos - Eventos Activos'
         }
         
         return render(request, 'admin/events/tickets_sold_report.html', context)
