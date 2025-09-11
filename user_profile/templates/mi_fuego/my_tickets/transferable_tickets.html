@@ -7,7 +7,11 @@
         <div class="card-body d-flex justify-content-between flex-column align-items-center main-card-spacing gap-4">
           <h3>No tenés bonos adicionales</h3>
             {% if has_available_tickets %}
-              <a class="btn btn-primary" href="{% url "select_tickets" %}">Comprar Bono</a>
+              {% if has_multiple_events %}
+                  <a class="nav-link" href="/eventos">Otros eventos</a>
+              {% else %}
+                  <a class="btn btn-primary" href="{% url "select_tickets" %}">Adquirir Bonos</a>
+              {% endif %}
             {% endif %}
         </div>
       </div>

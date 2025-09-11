@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from events.models import Event
 from events.utils import get_event_from_request
-from tickets.models import NewTicket, NewTicketTransfer
+from tickets.models import NewTicket, NewTicketTransfer, Order
 from .forms import ProfileStep1Form, ProfileStep2Form, VolunteeringForm
 
 
@@ -110,6 +110,11 @@ def my_ticket_view(request, event_slug=None):
             return show_past_events(request)
         try:
             current_event = Event.get_by_slug(event_slug)
+            # Check if event was found
+            if not current_event:
+                # If event doesn't exist, redirect to main event
+                return redirect('my_ticket')
+                
             # Get tickets for this specific event
             all_tickets = NewTicket.objects.filter(
                 holder=request.user, 
@@ -263,24 +268,29 @@ def my_ticket_view(request, event_slug=None):
 
 
 @login_required
-def transferable_tickets_view(request):
-    # Get all active events to show tickets from all events
-    active_events = Event.get_active_events()
-    main_event = Event.get_main_event()
+def transferable_tickets_view(request, event_slug=None):
+    # Get the specific event from slug
+    if event_slug:
+        current_event = Event.get_by_slug(event_slug)
+        if not current_event:
+            raise Http404("Event not found")
+    else:
+        current_event = Event.get_main_event()
     
     # If attendees don't need to be registered, redirect to my_ticket view
-    if not (main_event and main_event.attendee_must_be_registered):
-        return redirect(reverse("my_ticket"))
+    if not (current_event and current_event.attendee_must_be_registered):
+        return redirect(reverse("my_ticket_event", kwargs={"event_slug": current_event.slug}))
 
+    # Get tickets for the specific event only
     tickets = (
-        NewTicket.objects.filter(holder=request.user, event__in=active_events)
+        NewTicket.objects.filter(holder=request.user, event=current_event)
         .exclude(owner=request.user)
-        .order_by("event__name", "owner")
+        .order_by("owner")
         .all()
     )
     my_ticket = NewTicket.objects.filter(
-        holder=request.user, event=main_event, owner=request.user
-    ).first() if main_event else None
+        holder=request.user, event=current_event, owner=request.user
+    ).first()
 
     tickets_dto = []
 
@@ -296,7 +306,7 @@ def transferable_tickets_view(request):
         tickets_dto.append(ticket_dto)
 
     transferred_tickets = NewTicketTransfer.objects.filter(
-        tx_from=request.user, status="COMPLETED", ticket__event__in=active_events
+        tx_from=request.user, status="COMPLETED", ticket__event=current_event
     ).all()
     transferred_dto = []
     for transfer in transferred_tickets:
@@ -328,7 +338,7 @@ def transferable_tickets_view(request):
             "my_ticket": my_ticket,
             "tickets_dto": tickets_dto,
             "transferred_dto": transferred_dto,
-            "event": main_event,  # Use main event for context
+            "event": current_event,  # Use current event for context
             "active_events": user_events,  # Only events where user has tickets
             "nav_primary": "tickets",
             "nav_secondary": "transferable_tickets",
@@ -408,8 +418,17 @@ def verification_congrats(request):
 
 
 @login_required
-def volunteering(request):
-    ticket = get_object_or_404(NewTicket, holder=request.user, owner=request.user)
+def volunteering(request, event_slug=None):
+    # Get the specific event from slug
+    if event_slug:
+        current_event = Event.get_by_slug(event_slug)
+        if not current_event:
+            raise Http404("Event not found")
+    else:
+        current_event = Event.get_main_event()
+    
+    # Get ticket for the specific event
+    ticket = get_object_or_404(NewTicket, holder=request.user, owner=request.user, event=current_event)
     show_congrats = False
 
     if request.method == "POST":
@@ -423,11 +442,58 @@ def volunteering(request):
         form = VolunteeringForm(instance=ticket)
         show_congrats = False
 
+    # Get events where user has tickets, prioritizing main event
+    user_events = Event.get_active_events().filter(
+        newticket__holder=request.user
+    ).distinct().order_by('-is_main', 'name')
+
     return render(
         request, 
         "mi_fuego/my_tickets/volunteering.html",
         {
             "form": form,
             "show_congrats": show_congrats,
+            "event": current_event,
+            "active_events": user_events,
+            "nav_primary": "volunteering",
+            "nav_secondary": "volunteering",
+            "my_ticket": ticket.get_dto(user=request.user) if ticket else None,
+            "now": timezone.now(),
         }
+    )
+
+
+@login_required
+def my_orders_view(request):
+    """Show user's order history"""
+    # Get all orders for the current user
+    orders = Order.objects.filter(
+        user=request.user
+    ).order_by('-created_at')
+    
+    # Get the main event for context
+    main_event = Event.get_main_event()
+    
+    # Get events where user has tickets, prioritizing main event
+    user_events = Event.get_active_events().filter(
+        newticket__holder=request.user
+    ).distinct().order_by('-is_main', 'name')
+    
+    # Get the first ticket for the main event (for backward compatibility)
+    my_ticket = NewTicket.objects.filter(
+        holder=request.user, event=main_event, owner=request.user
+    ).first() if main_event else None
+    
+    return render(
+        request,
+        "mi_fuego/my_tickets/my_orders.html",
+        {
+            "orders": orders,
+            "event": main_event,
+            "active_events": user_events,
+            "nav_primary": "orders",
+            "nav_secondary": "my_orders",
+            "my_ticket": my_ticket.get_dto(user=request.user) if my_ticket else None,
+            "now": timezone.now(),
+        },
     )

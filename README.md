@@ -7,6 +7,22 @@
 [![AWS Lambda](https://img.shields.io/badge/AWS-Lambda-orange.svg)](https://aws.amazon.com/lambda/)
 [![Zappa](https://img.shields.io/badge/Zappa-0.60.2-purple.svg)](https://github.com/Miserlou/Zappa)
 
+## 📋 Índice
+
+- [🚀 Características](#-características)
+- [🛠️ Desarrollo Local](#️-desarrollo-local)
+  - [📋 Requisitos Previos](#-requisitos-previos)
+  - [⚙️ Configuración del Entorno](#️-configuración-del-entorno)
+  - [🔄 Migración de Base de Datos](#-migración-de-base-de-datos)
+  - [🔗 Integraciones Externas](#-integraciones-externas)
+- [🛠️ Herramientas de Desarrollo](#️-herramientas-de-desarrollo)
+- [🚀 Deploy](#-deploy)
+- [🎪 Agregar un Nuevo Evento](#-agregar-un-nuevo-evento)
+- [🏗️ Arquitectura](#️-arquitectura)
+- [🛠️ Tecnologías](#️-tecnologías)
+- [🔧 Troubleshooting](#-troubleshooting)
+- [📞 Soporte](#-soporte)
+
 ## 🚀 Características
 
 - 🎟️ **Gestión de eventos** - Crear y administrar eventos de manera sencilla
@@ -31,8 +47,14 @@
 Crea un archivo `.env` basado en el template:
 
 ```bash
-cp .env.example .env
+cp env.example .env
 ```
+
+> 📝 **Configura las variables de base de datos** en tu archivo `.env`:
+> - `DB_HOST` - Host de tu base de datos PostgreSQL
+> - `DB_USER` - Usuario de la base de datos  
+> - `DB_DATABASE` - Nombre de la base de datos
+> - `DB_PASSWORD` - Contraseña de la base de datos
 
 #### 🐍 Configuración de Python
 
@@ -64,7 +86,7 @@ source venv/bin/activate
 
 ```bash
 # macOS
-brew services start postgresql
+brew services start postgresql@17
 
 # Ubuntu/Debian
 sudo systemctl start postgresql
@@ -87,6 +109,62 @@ sudo systemctl start postgresql
 ```bash
 (venv)$ python manage.py createsuperuser
 ```
+
+### 🔄 **Migración de Base de Datos**
+
+Si necesitas migrar datos desde PostgreSQL 15 (producción) a PostgreSQL 17 (local), usa nuestro script automatizado:
+
+#### 📋 **Proceso de Migración**
+
+1. **Configurar variables de entorno** en tu archivo `.env`:
+   ```bash
+   DB_HOST=tu_host_de_produccion
+   DB_USER=tu_usuario
+   DB_DATABASE=tu_database
+   DB_PASSWORD=tu_password
+   ```
+
+2. **Ejecutar migración completa**:
+   ```bash
+   ./migrate_db.sh all
+   ```
+
+3. **O ejecutar paso a paso**:
+   ```bash
+   ./migrate_db.sh dump      # Hacer dump desde producción
+   ./migrate_db.sh create    # Crear nuevo schema
+   ./migrate_db.sh restore   # Restaurar datos
+   ```
+
+#### 🎯 **Opciones del Script**
+
+- `dump` - Hacer dump desde PostgreSQL 15 (producción)
+- `create` - Crear nuevo schema en PostgreSQL 17 (local)
+- `restore` - Restaurar dump en el nuevo schema
+- `all` - Ejecutar todo el proceso completo
+- `help` - Mostrar ayuda
+
+#### ⚙️ **Configurar Django para Nuevo Schema**
+
+Después de la migración, actualiza tu `local_settings.py`:
+
+```python
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'postgres',
+        'USER': 'tu_usuario',
+        'PASSWORD': 'tu_password',
+        'HOST': 'localhost',
+        'PORT': '5432',
+        'OPTIONS': {
+            'options': '-c search_path=ticketera_new,public'
+        }
+    }
+}
+```
+
+> 💡 **Tip**: El script crea un schema llamado `ticketera_new` para mantener los datos separados del schema `public`
 
 ### 🔗 Integraciones Externas
 
@@ -127,6 +205,69 @@ Usa [Mailtrap](https://mailtrap.io/) para testing de emails 📬
 ```
 
 ¡Listo! 🎉 Tu aplicación estará disponible en `http://127.0.0.1:8000`
+
+## 🛠️ Herramientas de Desarrollo
+
+### 🗄️ **Script de Migración de Base de Datos**
+
+El proyecto incluye un script automatizado para migrar datos entre diferentes versiones de PostgreSQL:
+
+#### 📁 **Archivos Incluidos**
+- `migrate_db.sh` - Script principal de migración
+- `env.example` - Template de variables de entorno
+
+#### 🚀 **Uso Rápido**
+```bash
+# Configurar variables de entorno
+cp env.example .env
+# Editar .env con tus datos
+
+# Ejecutar migración completa
+./migrate_db.sh all
+```
+
+#### 🔧 **Características del Script**
+- ✅ **Carga automática** de variables desde `.env`
+- ✅ **Compatibilidad** con PostgreSQL 15 → 16+
+- ✅ **Creación automática** de base de datos `ticketera_local`
+- ✅ **Dump optimizado** con opciones avanzadas
+- ✅ **Limpieza automática** de archivos temporales
+- ✅ **Manejo de foreign keys** circulares
+- ✅ **Mensajes informativos** con colores
+- ✅ **Manejo de errores** robusto
+
+#### 📋 **Comandos Disponibles**
+```bash
+./migrate_db.sh help        # Mostrar ayuda
+./migrate_db.sh check       # Verificar dependencias del sistema
+./migrate_db.sh dump        # Hacer dump desde producción
+./migrate_db.sh create      # Crear base de datos ticketera_local
+./migrate_db.sh restore     # Restaurar datos
+./migrate_db.sh cleanup     # Limpiar archivos de dump
+./migrate_db.sh drop-db     # Eliminar base de datos ticketera_local
+./migrate_db.sh test-local  # Verificar conexión local
+./migrate_db.sh test-remote # Verificar conexión remota
+./migrate_db.sh test-all    # Verificar ambas conexiones
+./migrate_db.sh all         # Proceso completo
+```
+
+#### 🔧 **Verificación de Dependencias**
+El script verifica automáticamente que tengas todas las dependencias necesarias:
+- ✅ **PostgreSQL 16+** (local)
+- ✅ **Homebrew** (para instalación)
+- ✅ **Archivo .env** (configuración)
+
+Si faltan dependencias, el script te dará instrucciones específicas de instalación.
+
+#### ⚡ **Optimizaciones del Dump**
+El script utiliza opciones avanzadas de `pg_dump` para mayor eficiencia:
+- **`--disable-triggers`** - Evita problemas con foreign keys circulares
+- **`--no-owner --no-privileges`** - Ignora permisos específicos del sistema
+- **`--exclude-schema`** - Excluye schemas del sistema y de Supabase
+- **Limpieza automática** - Elimina archivos de dump anteriores antes de crear nuevos
+- **Eliminación robusta de BD** - Termina conexiones activas antes de eliminar la base de datos
+- **Manejo de conflictos** - Ignora errores de schemas/tablas existentes durante la restauración
+- **Estadísticas de archivos** - Muestra el tamaño de cada archivo creado
 
 ## 🚀 Deploy
 
@@ -265,6 +406,78 @@ python manage.py collectstatic --settings=deprepagos.settings_prod
 - **Pagos**: MercadoPago 💳
 - **Auth**: Google OAuth2 🔐
 - **Emails**: Django + SMTP 📧
+- **Herramientas**: Scripts de migración automatizados 🔧
+
+## 🔧 Troubleshooting
+
+### ❌ **Problemas Comunes**
+
+#### 🐍 **Error de Python/PostgreSQL**
+```bash
+# Si psql no se encuentra
+export PATH="/opt/homebrew/Cellar/postgresql@17/17.6/bin:$PATH"
+
+# Si hay problemas de permisos
+sudo chown -R $(whoami) /opt/homebrew/var/postgresql@17
+```
+
+#### 🗄️ **Problemas de Base de Datos**
+```bash
+# Verificar conexión a PostgreSQL
+/opt/homebrew/Cellar/postgresql@17/17.6/bin/psql -d postgres -c "SELECT version();"
+
+# Reiniciar PostgreSQL
+brew services restart postgresql@17
+
+# Ver logs de PostgreSQL
+tail -f /opt/homebrew/var/log/postgresql@17.log
+```
+
+#### 🔄 **Problemas de Migración**
+```bash
+# Verificar dependencias del sistema
+./migrate_db.sh check
+
+# Verificar conexiones
+./migrate_db.sh test-all
+
+# Verificar variables de entorno
+./migrate_db.sh help
+
+# Verificar conexión a base de datos remota manualmente
+/opt/homebrew/Cellar/postgresql@16/16.10/bin/psql -h $DB_HOST -U $DB_USER -d $DB_DATABASE -c "SELECT 1;"
+```
+
+#### 🚀 **Problemas de Deploy**
+```bash
+# Verificar AWS credentials
+aws sts get-caller-identity
+
+# Verificar Zappa
+source venv/bin/activate && zappa status dev
+
+# Ver logs de Lambda
+zappa tail dev
+```
+
+### 📋 **Comandos Útiles**
+
+```bash
+# Verificar estado del proyecto
+python manage.py check
+
+# Verificar migraciones pendientes
+python manage.py showmigrations
+
+# Crear migraciones
+python manage.py makemigrations
+
+# Aplicar migraciones
+python manage.py migrate
+
+# Cargar datos de prueba
+python manage.py loaddata fixtures/initial_data.json
+```
 
 ## 📞 Soporte
 

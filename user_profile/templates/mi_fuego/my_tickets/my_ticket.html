@@ -3,9 +3,7 @@
 {% load humanize %}
 {% load ticket_filters %}
 {% block actions %}
-    {% if has_available_tickets %}
-        <a class="btn btn-primary" href="{% url "select_tickets" %}">Comprar Bono</a>
-    {% endif %}
+    <!-- No action buttons needed -->
 {% endblock actions %}
 {% block truecontent %}
 

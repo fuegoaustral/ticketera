@@ -1,0 +1,208 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% load static %}
+{% load humanize %}
+{% load ticket_filters %}
+
+{% block truecontent %}
+    <style>
+        .order-card {
+            background: #fff;
+            border: 1px solid #d9d9d9;
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .order-header {
+            background: #f8f9fa;
+            border-bottom: 1px solid #d9d9d9;
+            padding: 1rem;
+            border-radius: 0.75rem 0.75rem 0 0;
+        }
+        
+        .order-body {
+            padding: 1rem;
+        }
+        
+        .order-status {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .status-pending {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-processing {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .status-confirmed {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .status-error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .order-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .detail-label {
+            font-size: 0.875rem;
+            color: #6c757d;
+            font-weight: 500;
+        }
+        
+        .detail-value {
+            font-size: 1rem;
+            color: #1e1e1e;
+            font-weight: 400;
+        }
+        
+        .ticket-types {
+            margin-top: 1rem;
+        }
+        
+        .ticket-type-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #f8f9fa;
+        }
+        
+        .ticket-type-item:last-child {
+            border-bottom: none;
+        }
+        
+        .no-orders {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #6c757d;
+        }
+        
+        .no-orders i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #dee2e6;
+        }
+    </style>
+
+    {% if not orders %}
+        <div class="no-orders">
+            <i class="fas fa-receipt"></i>
+            <h3>No tenés órdenes registradas</h3>
+            <p>Cuando realices una compra, aparecerá aquí el historial de tus órdenes.</p>
+        </div>
+    {% else %}
+        <div class="orders-container">
+            <h2 class="mb-4">Mis Órdenes</h2>
+            
+            {% for order in orders %}
+                <div class="order-card">
+                    <div class="order-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="mb-1">Orden #{{ order.pk }}</h5>
+                                <small class="text-muted">{{ order.created_at|date:"d/m/Y H:i" }}</small>
+                            </div>
+                            <div>
+                                <span class="order-status status-{{ order.status|lower }}">
+                                    {{ order.get_status_display }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="order-body">
+                        <div class="order-details">
+                            <div class="detail-item">
+                                <span class="detail-label">Total</span>
+                                <span class="detail-value">${{ order.amount|floatformat:2 }}</span>
+                            </div>
+                            
+                            <div class="detail-item">
+                                <span class="detail-label">Tipo de Orden</span>
+                                <span class="detail-value">{{ order.get_order_type_display }}</span>
+                            </div>
+                            
+                            {% if order.event %}
+                            <div class="detail-item">
+                                <span class="detail-label">Evento</span>
+                                <span class="detail-value">{{ order.event.name }}</span>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="detail-item">
+                                <span class="detail-label">Email</span>
+                                <span class="detail-value">{{ order.email }}</span>
+                            </div>
+                        </div>
+                        
+                        {% if order.order_tickets.exists %}
+                        <div class="ticket-types">
+                            <h6 class="mb-3">Bonos incluidos:</h6>
+                            {% for order_ticket in order.order_tickets.all %}
+                                <div class="ticket-type-item">
+                                    <span>{{ order_ticket.ticket_type.name }}</span>
+                                    <span class="badge bg-secondary text-white">{{ order_ticket.quantity }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        {% if order.donation_art or order.donation_venue or order.donation_grant %}
+                        <div class="mt-3">
+                            <h6 class="mb-2">Donaciones:</h6>
+                            <div class="row">
+                                {% if order.donation_art %}
+                                <div class="col-md-4">
+                                    <small class="text-muted">Becas de Arte:</small>
+                                    <div>${{ order.donation_art|floatformat:0 }}</div>
+                                </div>
+                                {% endif %}
+                                {% if order.donation_venue %}
+                                <div class="col-md-4">
+                                    <small class="text-muted">Donaciones a La Sede:</small>
+                                    <div>${{ order.donation_venue|floatformat:0 }}</div>
+                                </div>
+                                {% endif %}
+                                {% if order.donation_grant %}
+                                <div class="col-md-4">
+                                    <small class="text-muted">Beca Inclusión Radical:</small>
+                                    <div>${{ order.donation_grant|floatformat:0 }}</div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if order.notes %}
+                        <div class="mt-3">
+                            <h6 class="mb-2">Notas:</h6>
+                            <p class="text-muted">{{ order.notes }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endblock truecontent %}
