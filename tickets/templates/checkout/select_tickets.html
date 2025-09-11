@@ -50,7 +50,11 @@
                                                 <span style="font-size: 0.85em; color: #666;">{{ ticket.description }}</span>
                                             </div>
                                             <div class="ticket-price text-center">
-                                                <div class="mb-2 fw-bold">${{ ticket.price|floatformat|intcomma }}</div>
+                                                {% if ticket.is_free_ticket %}
+                                                    <div class="mb-2 fw-bold">Monto libre</div>
+                                                {% else %}
+                                                    <div class="mb-2 fw-bold">${{ ticket.price|floatformat|intcomma }}</div>
+                                                {% endif %}
                                                 <span class="quantity-controls">
                                                     <button type="button" class="btn btn-sm btn-outline-secondary quantity-btn" data-ticket-id="{{ ticket.id }}" data-increment="-1">&minus;</button>
                                                     <input type="number"
@@ -62,6 +66,18 @@
                                                            style="width: 60px; display: inline-block;">
                                                     <button type="button" class="btn btn-sm btn-outline-secondary quantity-btn" data-ticket-id="{{ ticket.id }}" data-increment="1">&plus;</button>
                                                 </span>
+                                                {% if ticket.is_free_ticket %}
+                                                    <div class="mt-2">
+                                                        <input type="number"
+                                                               name="ticket_{{ ticket.id }}_custom_amount"
+                                                               value="0"
+                                                               min="0"
+                                                               step="0.01"
+                                                               class="form-control form-control-sm text-center custom-amount-input"
+                                                               placeholder="Monto"
+                                                               style="width: 100px; display: inline-block;">
+                                                    </div>
+                                                {% endif %}
                                             </div>
                                         </div>
                                     </div>
@@ -82,7 +98,13 @@
                                                 <div>{{ ticket.name }}</div>
                                                 <span style="font-size: 0.85em; color: #666;">{{ ticket.description }}</span>
                                             </td>
-                                            <td class="text-end align-middle fw-bold">${{ ticket.price|floatformat|intcomma }}</td>
+                                            <td class="text-end align-middle fw-bold">
+                                                {% if ticket.is_free_ticket %}
+                                                    Monto libre
+                                                {% else %}
+                                                    ${{ ticket.price|floatformat|intcomma }}
+                                                {% endif %}
+                                            </td>
                                             <td class="text-end align-middle">
                                                 <span class="quantity-controls">
                                                     <button type="button" class="btn btn-sm btn-outline-secondary quantity-btn" data-ticket-id="{{ ticket.id }}" data-increment="-1">&minus;</button>
@@ -95,6 +117,18 @@
                                                            style="width: 60px; display: inline-block;">
                                                     <button type="button" class="btn btn-sm btn-outline-secondary quantity-btn" data-ticket-id="{{ ticket.id }}" data-increment="1">&plus;</button>
                                                 </span>
+                                                {% if ticket.is_free_ticket %}
+                                                    <div class="mt-2">
+                                                        <input type="number"
+                                                               name="ticket_{{ ticket.id }}_custom_amount"
+                                                               value="0"
+                                                               min="0"
+                                                               step="0.01"
+                                                               class="form-control form-control-sm text-center custom-amount-input"
+                                                               placeholder="Monto"
+                                                               style="width: 100px; display: inline-block;">
+                                                    </div>
+                                                {% endif %}
                                             </td>
                                         </tr>
                                     {% endfor %}
@@ -127,6 +161,13 @@
                 const ticketPrices = {
                     {% for ticket in ticket_data %}
                         '{{ ticket.id }}': parseFloat('{{ ticket.price|floatformat:2 }}'.replace(',', '.')),
+                    {% endfor %}
+                };
+
+                // Store which tickets are free tickets
+                const freeTickets = {
+                    {% for ticket in ticket_data %}
+                        '{{ ticket.id }}': {{ ticket.is_free_ticket|yesno:"true,false" }},
                     {% endfor %}
                 };
 
@@ -211,7 +252,17 @@
                         if (inputs.length > 0) {
                             const quantity = parseInt(inputs[0].value) || 0;
                             const ticketId = fieldName.replace('ticket_', '').replace('_quantity', '');
-                            const price = ticketPrices[ticketId];
+                            
+                            let price = ticketPrices[ticketId];
+                            
+                            // For free tickets, use custom amount
+                            if (freeTickets[ticketId]) {
+                                const customAmountInput = document.querySelector(`input[name="ticket_${ticketId}_custom_amount"]`);
+                                if (customAmountInput) {
+                                    price = parseFloat(customAmountInput.value) || 0;
+                                }
+                            }
+                            
                             subtotal += quantity * price;
                         }
                     });
@@ -238,6 +289,16 @@
                         const ticketId = this.dataset.ticketId;
                         const increment = parseInt(this.dataset.increment);
                         updateQuantity(ticketId, increment);
+                    });
+                });
+
+                // Add event listeners to all custom amount inputs
+                document.querySelectorAll('.custom-amount-input').forEach(input => {
+                    input.addEventListener('input', function() {
+                        updateCalculations();
+                    });
+                    input.addEventListener('change', function() {
+                        updateCalculations();
                     });
                 });
 
