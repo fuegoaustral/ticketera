@@ -20,7 +20,7 @@
 
 ### 📋 Requisitos Previos
 
-- **PostgreSQL** (v16.8 en producción, v14.11+ para desarrollo local) 🐘
+- **PostgreSQL** (v16.8 en producción, v15.6+ en desarrollo. En cualquier momento migramos todo a 17) 🐘
 - **Python 3.13** (última versión) 🐍
 - **Git** para clonar el repositorio 📦
 
@@ -259,7 +259,7 @@ python manage.py collectstatic --settings=deprepagos.settings_prod
 ## 🛠️ Tecnologías
 
 - **Backend**: Django 4.2 + Python 3.13 🐍
-- **Base de Datos**: PostgreSQL 16.8 (producción) / 14.11+ (desarrollo) 🐘
+- **Base de Datos**: PostgreSQL 16.8 (producción) / 15.6 (desarrollo) 🐘
 - **Deploy**: AWS Lambda + Zappa ☁️
 - **CI/CD**: GitHub Actions 🚀
 - **Pagos**: MercadoPago 💳
