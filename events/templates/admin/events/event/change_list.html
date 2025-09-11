@@ -17,5 +17,10 @@
             Reporte de Ordenes
         </a>
     </li>
+    <li>
+        <a href="{% url 'admin:event_tickets_sold_report' %}" class="addlink">
+            Tickets Vendidos por Evento
+        </a>
+    </li>
     {{ block.super }}
 {% endblock %}
