@@ -10,7 +10,7 @@
             </div>
         </a>
         <div class="container-xxl d-flex justify-content-center mt-3">
-            <a href="{% url 'select_tickets' %}?event={{ event.slug }}" class="btn btn-primary">{%  if ticket_types %}Bonos disponibles{% endif %}</a>
+            <a href="{% url 'select_tickets' %}?event={{ event.slug }}" class="btn btn-primary">{%  if ticket_types %}Adquirir Bonos{% endif %}</a>
             {%  if not ticket_types and next_ticket_type %}<button class="btn btn-secondary disabled"><span id="countdown"></span></button>{% endif %}
         </div>
         <div class="container-xxl home-section">
