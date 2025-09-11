@@ -3,9 +3,17 @@
     Mi Perfil
 {% endblock page_title %}
 {% block menu %}
+    <!-- Event tabs for active events where user has tickets -->
+    {% for event in active_events %}
+        <li class="nav-item">
+            <a class="nav-link{% if nav_primary == "tickets" and event.slug in request.path %} active{% endif %}"
+               href="{% url "my_ticket_event" event.slug %}">{{ event.name }}</a>
+        </li>
+    {% endfor %}
+    <!-- Past events tab - always show -->
     <li class="nav-item">
-        <a class="nav-link{% if nav_primary == "tickets" %} active{% endif %}"
-           href="{% url "mi_fuego" %}">Bonos</a>
+        <a class="nav-link{% if nav_primary == "tickets" and "eventos-anteriores" in request.path %} active{% endif %}"
+           href="{% url "my_ticket_past" %}">Eventos Anteriores</a>
     </li>
     {% if  event.has_volunteers %}
         <li class="nav-item">

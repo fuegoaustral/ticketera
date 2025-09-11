@@ -1,0 +1,173 @@
+{% extends 'tickets/barbu_base.html' %}
+{% load static %}
+
+{% block full_content %}
+<div class="container-xxl">
+    <div class="row justify-content-center">
+        <div class="col-12">
+            <div class="text-center mb-5">
+                <h1 class="display-4 mb-3">Eventos Disponibles</h1>
+                <p class="lead text-muted">Descubre todos los eventos activos de Fuego Austral</p>
+            </div>
+            
+            {% if active_events %}
+                <div class="row justify-content-center">
+                    {% for event in active_events %}
+                        <div class="col-lg-6 col-md-6 col-sm-12 mb-5">
+                            <div class="card shadow-sm event-card">
+                                <!-- Image at full width -->
+                                {% if event.header_image %}
+                                    <img src="{{ event.header_image.url }}" 
+                                         class="card-img-top" 
+                                         alt="{{ event.name }}"
+                                         style="height: 250px; object-fit: cover;">
+                                {% else %}
+                                    <div class="card-img-top bg-primary d-flex align-items-center justify-content-center" 
+                                         style="height: 250px;">
+                                        <i class="fas fa-calendar-alt text-white" style="font-size: 3rem;"></i>
+                                    </div>
+                                {% endif %}
+                                
+                                <!-- Content below image -->
+                                <div class="card-body">
+                                    <h3 class="card-title mb-3">{{ event.name }}</h3>
+                                    
+                                    {% if event.description %}
+                                        <div class="card-text text-muted mb-4">
+                                            {{ event.description|striptags|truncatewords:30 }}
+                                        </div>
+                                    {% endif %}
+                                    
+                                    <div class="event-details mb-4">
+                                        <div class="row">
+                                            {% if event.start %}
+                                                <div class="col-md-6 mb-2">
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="fas fa-calendar-alt text-primary me-2"></i>
+                                                        <span class="text-muted">
+                                                            {{ event.start|date:"d/m/Y H:i" }}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            {% endif %}
+                                            
+                                            {% if event.location %}
+                                                <div class="col-md-6 mb-2">
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="fas fa-map-marker-alt text-primary me-2"></i>
+                                                        <span class="text-muted">{{ event.location }}</span>
+                                                    </div>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="text-center">
+                                        <a href="{% if event.slug %}{% url 'event_home' event.slug %}{% else %}{% url 'home' %}{% endif %}" 
+                                           class="btn btn-primary btn-lg">
+                                            Ver Evento
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-calendar-times text-muted mb-3" style="font-size: 4rem;"></i>
+                    <h3 class="text-muted">No hay eventos disponibles</h3>
+                    <p class="text-muted">Próximamente tendremos nuevos eventos para ti.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.event-card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    border: none;
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+.event-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15) !important;
+}
+
+.event-card .card-img-top {
+    transition: transform 0.2s ease-in-out;
+}
+
+.event-card:hover .card-img-top {
+    transform: scale(1.05);
+}
+
+.event-card .btn {
+    border-radius: 25px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 12px 30px;
+}
+
+.event-card .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.event-card .card-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+.event-card .event-details {
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 10px;
+    border-left: 4px solid #007bff;
+}
+
+.event-card .event-details i {
+    width: 20px;
+    text-align: center;
+}
+
+.event-card .card-text {
+    font-size: 1.1rem;
+    line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+    .event-card {
+        margin-bottom: 2rem;
+    }
+    
+    .event-card .card-title {
+        font-size: 1.5rem;
+    }
+    
+    .event-card .card-img-top {
+        height: 200px !important;
+    }
+    
+    .event-card .btn {
+        width: 100%;
+        margin-top: 1rem;
+    }
+    
+    .event-card .event-details .col-md-6 {
+        margin-bottom: 0.5rem;
+    }
+}
+
+@media (min-width: 769px) {
+    .event-card .card-img-top {
+        height: 250px !important;
+    }
+}
+</style>
+{% endblock full_content %}

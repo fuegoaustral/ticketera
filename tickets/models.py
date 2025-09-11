@@ -47,8 +47,9 @@ class Coupon(BaseModel):
 class TicketTypeManager(models.Manager):
     # get all available ticket types for available events
     def get_available_ticket_types_for_current_events(self):
+        active_events = Event.get_active_events()
         return (self
-                .filter(event__active=True)
+                .filter(event__in=active_events)
                 .filter(Q(date_from__lte=timezone.now()) | Q(date_from__isnull=True))
                 .filter(Q(date_to__gte=timezone.now()) | Q(date_to__isnull=True))
                 .filter(Q(ticket_count__gt=0) | Q(ticket_count__isnull=True))
