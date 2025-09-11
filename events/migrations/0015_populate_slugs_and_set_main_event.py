@@ -17,10 +17,22 @@ def populate_slugs_and_set_main_event(apps, schema_editor):
             main_event.is_main = True
             main_event.save()
         
-        # Populate slugs for all events
+        # Populate slugs for all events with duplicate handling
+        used_slugs = set()
         for event in events:
             if not event.slug:
-                event.slug = slugify(event.name)
+                # Generate base slug
+                base_slug = slugify(event.name)
+                slug = base_slug
+                counter = 1
+                
+                # Handle duplicates by adding counter
+                while slug in used_slugs:
+                    slug = f"{base_slug}-{counter}"
+                    counter += 1
+                
+                event.slug = slug
+                used_slugs.add(slug)
                 event.save()
 
 
