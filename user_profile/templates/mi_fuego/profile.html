@@ -1,0 +1,396 @@
+{% extends "tickets/barbu_base.html" %}
+{% load static %}
+{% load account %}
+
+{% block title %}Mi Perfil - {% endblock %}
+
+{% block page_title %}Configuración de Cuenta{% endblock %}
+
+{% block extrahead %}
+<!-- Include intl-tel-input CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/css/intlTelInput.css">
+<!-- Include intl-tel-input JS -->
+<script src="https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/js/intlTelInput.min.js"></script>
+<style>
+    .card {
+        border: none;
+        border-radius: 15px;
+    }
+    
+    .card-header {
+        border-radius: 15px 15px 0 0 !important;
+        border: none;
+    }
+    
+    .form-control, .form-select {
+        border-radius: 10px;
+        border: 2px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+    
+    .btn {
+        border-radius: 10px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .list-group-item {
+        border-radius: 10px !important;
+        margin-bottom: 5px;
+        border: 1px solid #e9ecef;
+    }
+    
+    .badge {
+        font-size: 0.75em;
+        color: white !important;
+    }
+    
+    .badge.bg-warning {
+        color: #000 !important;
+    }
+    
+    .alert {
+        border-radius: 10px;
+        border: none;
+    }
+    
+    .display-6 {
+        color: #0d6efd;
+    }
+    
+    .text-primary {
+        color: #0d6efd !important;
+    }
+    
+    .bg-primary {
+        background-color: #0d6efd !important;
+    }
+    
+    .bg-success {
+        background-color: #198754 !important;
+    }
+    
+    .bg-info {
+        background-color: #0dcaf0 !important;
+    }
+    
+    .phone-input {
+        padding-left: 60px;
+    }
+    
+    .input-hint {
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+</style>
+
+<script>
+    // Initialize phone input with Twilio component when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        const phoneInput = document.querySelector("#phone");
+        if (phoneInput) {
+            const iti = window.intlTelInput(phoneInput, {
+                utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/js/utils.js",
+                initialCountry: "AR",
+                customPlaceholder: function (selectedCountryPlaceholder, selectedCountryData) {
+                    if (selectedCountryData.iso2 === "ar") {
+                        return "11 1234 5678";
+                    }
+                    return selectedCountryPlaceholder;
+                },
+            });
+
+            // Update hidden field with full phone number on form submit
+            const profileForm = document.querySelector('form[action*="profile"]');
+            if (profileForm) {
+                profileForm.addEventListener('submit', function (event) {
+                    document.getElementById('fullPhoneNumber').value = iti.getNumber();
+                });
+            }
+        }
+    });
+</script>
+{% endblock %}
+
+{% block menu_container %}{% endblock %}
+
+{% block innercontent %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+
+            <!-- Messages -->
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <!-- Profile Information Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-user me-2"></i>Información Personal
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'profile' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="update_profile" value="1">
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ profile_form.first_name.id_for_label }}" class="form-label">
+                                    {{ profile_form.first_name.label }}
+                                </label>
+                                {{ profile_form.first_name }}
+                                {% if profile_form.first_name.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in profile_form.first_name.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ profile_form.last_name.id_for_label }}" class="form-label">
+                                    {{ profile_form.last_name.label }}
+                                </label>
+                                {{ profile_form.last_name }}
+                                {% if profile_form.last_name.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in profile_form.last_name.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ profile_form.document_type.id_for_label }}" class="form-label">
+                                    {{ profile_form.document_type.label }}
+                                </label>
+                                {{ profile_form.document_type }}
+                                {% if profile_form.document_type.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in profile_form.document_type.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ profile_form.document_number.id_for_label }}" class="form-label">
+                                    {{ profile_form.document_number.label }}
+                                </label>
+                                {{ profile_form.document_number }}
+                                {% if profile_form.document_number.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in profile_form.document_number.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="phone" class="form-label">
+                                    Teléfono
+                                </label>
+                                <!-- Hidden input to store the full international phone number -->
+                                <input type="hidden" id="fullPhoneNumber" name="phone">
+                                <input type="tel"
+                                       id="phone"
+                                       class="phone-input form-control"
+                                       name="phone_input"
+                                       value="{{ profile_form.phone_input.value|default:profile.phone }}">
+                                <div class="input-hint text-muted small mt-1">
+                                    Ingresá tu teléfono sin 0 ni 15. Por ejemplo: 11 030 3456
+                                </div>
+                                {% if profile_form.phone.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in profile_form.phone.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        {% if profile_form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {% for error in profile_form.non_field_errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Actualizar Perfil
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Email Management Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-envelope me-2"></i>Gestión de Emails
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Current Emails -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold mb-3">Emails Asociados</h6>
+                        {% if email_addresses %}
+                            <div class="list-group">
+                                {% for email_obj in email_addresses %}
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-envelope me-2 text-muted"></i>
+                                            <span class="fw-medium">{{ email_obj.email }}</span>
+                                            {% if email_obj.primary %}
+                                                <span class="badge bg-primary ms-2">Principal</span>
+                                            {% endif %}
+                                            {% if email_obj.verified %}
+                                                <span class="badge bg-success ms-2">
+                                                    <i class="fas fa-check me-1"></i>Verificado
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-warning ms-2">
+                                                    <i class="fas fa-clock me-1"></i>Pendiente
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="btn-group" role="group">
+                                            {% if not email_obj.primary and email_obj.verified %}
+                                                <form method="post" action="{% url 'profile' %}" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="set_primary" value="1">
+                                                    <input type="hidden" name="email_id" value="{{ email_obj.id }}">
+                                                    <button type="submit" class="btn btn-sm btn-outline-primary" 
+                                                            title="Establecer como principal">
+                                                        <i class="fas fa-star"></i>
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                            {% if not email_obj.primary %}
+                                                <form method="post" action="{% url 'profile' %}" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="remove_email" value="1">
+                                                    <input type="hidden" name="email_id" value="{{ email_obj.id }}">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                                            title="Eliminar email"
+                                                            onclick="return confirm('¿Estás seguro de que quieres eliminar este email?')">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-center text-muted py-3">
+                                <i class="fas fa-inbox fa-2x mb-2"></i>
+                                <p>No hay emails asociados</p>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Add New Email -->
+                    <div class="border-top pt-3">
+                        <h6 class="fw-bold mb-3">Agregar Nuevo Email</h6>
+                        <form method="post" action="{% url 'profile' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="add_email" value="1">
+                            
+                            <div class="row">
+                                <div class="col-md-8 mb-3">
+                                    {{ add_email_form.email }}
+                                    {% if add_email_form.email.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {% for error in add_email_form.email.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <button type="submit" class="btn btn-success w-100">
+                                        <i class="fas fa-plus me-2"></i>Agregar Email
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Se enviará un email de verificación al nuevo email agregado.
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Account Information Card -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Información de Cuenta
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Nombre de Usuario</label>
+                            <p class="form-control-plaintext">{{ user.username }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Estado del Perfil</label>
+                            <p class="form-control-plaintext">
+                                {% if profile.profile_completion == 'COMPLETE' %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check me-1"></i>Completo
+                                    </span>
+                                {% elif profile.profile_completion == 'INITIAL_STEP' %}
+                                    <span class="badge bg-warning">
+                                        <i class="fas fa-clock me-1"></i>En Progreso
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-danger">
+                                        <i class="fas fa-exclamation me-1"></i>Incompleto
+                                    </span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Miembro desde</label>
+                            <p class="form-control-plaintext">{{ user.date_joined|date:"d/m/Y" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Último acceso</label>
+                            <p class="form-control-plaintext">{{ user.last_login|date:"d/m/Y H:i" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock innercontent %}
