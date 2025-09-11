@@ -31,6 +31,7 @@ class EventAdmin(admin.ModelAdmin):
             path('export-pending-transfers/', self.export_pending_transfers_csv, name='export_pending_transfers'),
             path('orders-report/', self.orders_report_view, name='event_orders_report'),
             path('export-orders-csv/', self.export_orders_csv, name='export_orders_csv'),
+            path('tickets-sold-report/', self.tickets_sold_report_view, name='event_tickets_sold_report'),
         ]
         return custom_urls + urls
 
@@ -401,5 +402,49 @@ class EventAdmin(admin.ModelAdmin):
                 writer.writerow(row)
             
             return response
+
+    def tickets_sold_report_view(self, request):
+        # Check if user has permission to view tickets sold report
+        if not (request.user.is_superuser or 
+                request.user.groups.filter(name='Event Organizer').exists() or
+                request.user.has_perm('events.view_tickets_sold_report')):
+            return HttpResponse('Permission Denied', status=403)
+
+        events = Event.objects.all()
+        
+        # Get tickets sold per event
+        with connection.cursor() as cursor:
+            query = """
+                SELECT 
+                    e.id,
+                    e.name,
+                    e.start,
+                    e.end,
+                    e.max_tickets,
+                    COALESCE(SUM(tot.quantity), 0) as tickets_sold,
+                    COALESCE(SUM(too.amount), 0) as total_revenue,
+                    COALESCE(SUM(too.donation_art), 0) as donations_art,
+                    COALESCE(SUM(too.donation_venue), 0) as donations_venue,
+                    COALESCE(SUM(too.donation_grant), 0) as donations_grant,
+                    COUNT(DISTINCT too.id) as total_orders
+                FROM events_event e
+                LEFT JOIN tickets_order too ON e.id = too.event_id AND too.status = 'CONFIRMED'
+                LEFT JOIN tickets_orderticket tot ON too.id = tot.order_id
+                GROUP BY e.id, e.name, e.start, e.end, e.max_tickets
+                ORDER BY e.start DESC
+            """
+            cursor.execute(query)
+            columns = [col[0] for col in cursor.description]
+            results = cursor.fetchall()
+
+        context = {
+            'events': events,
+            'results': results,
+            'columns': columns,
+            'opts': self.model._meta,
+            'title': 'Reporte de Tickets Vendidos por Evento'
+        }
+        
+        return render(request, 'admin/events/tickets_sold_report.html', context)
 
 admin.site.register(Event, EventAdmin)
