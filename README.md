@@ -1,140 +1,283 @@
-# Ticketera de FA
+# 🎫 Ticketera de FA
 
-## Development - local
+> **Sistema de venta de tickets para eventos de Fuego Austral** 🔥
 
-### Requirements
+[![Python](https://img.shields.io/badge/Python-3.13-blue.svg)](https://python.org)
+[![Django](https://img.shields.io/badge/Django-4.2-green.svg)](https://djangoproject.com)
+[![AWS Lambda](https://img.shields.io/badge/AWS-Lambda-orange.svg)](https://aws.amazon.com/lambda/)
+[![Zappa](https://img.shields.io/badge/Zappa-0.60.2-purple.svg)](https://github.com/Miserlou/Zappa)
 
-- install PostgreSQL (v14.11 works perfectly)
-- Python<3.10 (v3.9.19 works perfectly)
+## 🚀 Características
 
-### Setup environment
+- 🎟️ **Gestión de eventos** - Crear y administrar eventos de manera sencilla
+- 💳 **Pagos integrados** - Integración con MercadoPago para procesamiento de pagos
+- 🔐 **Autenticación** - Login con Google OAuth2
+- 📧 **Notificaciones** - Sistema de emails automáticos
+- ☁️ **Deploy automático** - CI/CD con GitHub Actions
+- 🐍 **Python 3.13** - Última versión de Python con mejoras de rendimiento
 
-#### Env variables
+## 🛠️ Desarrollo Local
 
-Set env variables in `.env` file. You can use `.env.example` as template to copy from.
-```sh
+### 📋 Requisitos Previos
+
+- **PostgreSQL** (v16.8 en producción, v15.6+ en desarrollo. En cualquier momento migramos todo a 17) 🐘
+- **Python 3.13** (última versión) 🐍
+- **Git** para clonar el repositorio 📦
+
+### ⚙️ Configuración del Entorno
+
+#### 🔧 Variables de Entorno
+
+Crea un archivo `.env` basado en el template:
+
+```bash
 cp .env.example .env
 ```
 
-#### Python
+#### 🐍 Configuración de Python
 
-1. Create python virtual environment and start it
+1. **Crear entorno virtual** 🌐
 
-```sh
-python3 -m venv venv
+```bash
+python3.13 -m venv venv
 source venv/bin/activate
 ```
 
-Note: you can quit virtual environment by running deactivate 
+> 💡 **Tip**: Para salir del entorno virtual ejecuta `deactivate`
 
-```sh
-(venv)$ deactivate
-```
+2. **Instalar dependencias** 📦
 
-2. Install python dependencies
-
-```sh
+```bash
 (venv)$ pip install -r requirements.txt
 (venv)$ pip install -r requirements-dev.txt
 ```
 
-3. Copy local settings
-```sh
+3. **Configurar settings locales** ⚙️
+
+```bash
 (venv)$ cp deprepagos/local_settings.py.example deprepagos/local_settings.py
 ```
 
-#### Local DB
+#### 🗄️ Base de Datos Local
 
-1. Start postgresql server
-```sh
-brew services start postgresql #for mac
+1. **Iniciar PostgreSQL** 🚀
+
+```bash
+# macOS
+brew services start postgresql
+
+# Ubuntu/Debian
+sudo systemctl start postgresql
 ```
 
-2. Create db
+2. **Crear base de datos** 🏗️
 
-```sh
+```bash
 (venv)$ createdb deprepagos_development
 ```
 
-3. Apply db updates
+3. **Aplicar migraciones** 🔄
 
-```sh
+```bash
 (venv)$ python manage.py migrate
 ```
 
-4. Create Django admin user
+4. **Crear usuario administrador** 👤
 
-```sh
-(venv)$ python manage.py createsuperuser # provide username, leave email empty, and set some password. You can use whoami in mac to get a username
+```bash
+(venv)$ python manage.py createsuperuser
 ```
 
-#### Setup MercadoPago
+### 🔗 Integraciones Externas
 
-Create a SELLER TEST USER in MercadoPago and set the following
-envs. [Instructions here]('https://www.mercadopago.com.ar/developers/es/docs/your-integrations/test/accounts')
+#### 💳 MercadoPago
 
-Set the envs `MERCADOPAGO_PUBLIC_KEY`, `MERCADOPAGO_ACCESS_TOKEN` with the onces from the SELLER TEST USER.
+1. **Crear usuario de prueba** en [MercadoPago](https://www.mercadopago.com.ar/developers/es/docs/your-integrations/test/accounts) 🧪
+2. **Configurar variables**:
+   - `MERCADOPAGO_PUBLIC_KEY`
+   - `MERCADOPAGO_ACCESS_TOKEN`
+   - `MERCADOPAGO_WEBHOOK_SECRET`
 
-Then set up a [webhook]('https://www.mercadopago.com.ar/developers/es/docs/your-integrations/notifications/webhooks')
-pointing to `{your local env url}/webhooks/mercadopago`. And set the env `MERCADOPAGO_WEBHOOK_SECRET` with the secret
-you set in the webhook creation.
+3. **Configurar webhook** apuntando a `{tu_url_local}/webhooks/mercadopago` 🔗
 
-I recommend using
-a [cloudflare tunnel]('https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/get-started/create-remote-tunnel/'),
-or [ngrok]('https://ngrok.com/), or similar to expose your local server to the internet.
+> 🌐 **Para exponer tu servidor local**: Usa [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/get-started/create-remote-tunnel/) o [ngrok](https://ngrok.com/)
 
-#### Setup Google authentication
+#### 🔐 Google OAuth2
 
-Create a project in Google Cloud Platform and enable the Google+ API. Then create OAuth 2.0 credentials and set the envs
-`GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` with the values from the credentials.
+1. **Crear proyecto** en [Google Cloud Platform](https://console.cloud.google.com/) ☁️
+2. **Habilitar Google+ API** 📡
+3. **Crear credenciales OAuth 2.0** 🔑
+4. **Configurar variables**:
+   - `GOOGLE_CLIENT_ID`
+   - `GOOGLE_CLIENT_SECRET`
+5. **Agregar URI de redirección**: `{tu_url_local}/accounts/google/login/callback/` 🔄
 
-On the OAuth consent screen, set the authorized redirect URIs to `{your local env url}/accounts/google/login/callback/`
+#### 📧 Testing de Emails
 
-#### Setup email testing
+Usa [Mailtrap](https://mailtrap.io/) para testing de emails 📬
 
-For email testing use https://mailtrap.io/
+1. Crear cuenta en Mailtrap
+2. Obtener credenciales SMTP de **Email Testing > Inboxes > SMTP**
+3. Configurar en tu `.env`
 
-1. Create an account
-2. Get HOST, PORT, USERNAME and PASSWORD from Email Testing > Inboxes > SMTP
+### 🏃‍♂️ Ejecutar el Servidor
 
-### Run environment
-
-```sh
+```bash
 (venv)$ python manage.py runserver
 ```
 
-## Deploy
+¡Listo! 🎉 Tu aplicación estará disponible en `http://127.0.0.1:8000`
 
-### DEV
+## 🚀 Deploy
 
-Just push to the `dev` branch and the pipeline will deploy to the dev environment.
+> ⚠️ **IMPORTANTE**: Todos los deploys se realizan **exclusivamente por CI/CD** (GitHub Actions). No se hacen deploys manuales.
 
-### PROD
-  > [!IMPORTANT]  
-  > In OS X you need to use a Docker image to have the same linux environment
-  > as the one that runs in AWS Lambda to install the correct dependencies.
-  >
-  > ```
-  > $ docker build . -t ticketera-zappashell
-  > $ alias zappashell='docker run -ti -e AWS_PROFILE=default -v "$(pwd):/var/task" -v ~/.aws/:/root/.aws --rm ticketera-zappashell'
-  > $ zappashell
-  > zappashell> zappa update dev
-  > ```
+### 🔄 Flujo de Deploy Completo
 
-Please don't push to the `main` branch directly. Create a PR and merge it on `dev` first. Then create a PR from `dev` to `main`.
+#### 1️⃣ **Desarrollo → Dev Environment**
 
-`TODO ongoing: The pipeline will deploy to the prod environment.`
+```bash
+# 1. Crear feature branch desde dev
+git checkout dev
+git pull origin dev
+git checkout -b feature/nueva-funcionalidad
 
-If for some horrible reason you need to push to `main` directly, PLEASE, make sure to backport the changes to `dev` afterwards.
-3. Update the static files to S3:
+# 2. Hacer cambios y commit
+git add .
+git commit -m "feat: agregar nueva funcionalidad"
 
-        $ python manage.py collectstatic --settings=deprepagos.settings_prod
+# 3. Push y crear PR a dev
+git push origin feature/nueva-funcionalidad
+# Crear PR en GitHub: feature/nueva-funcionalidad → dev
+```
 
-## Adding a new Event
+> ⚡ **Deploy automático a dev**: Al mergear el PR a `dev`, GitHub Actions despliega automáticamente
 
-We have an [external Google
-doc](https://docs.google.com/document/d/1_8NBQMMYZ68ABRQs2Fy-BX296OZnTdzzGWp6yNr_KEU/edit)
-with instructions on how to create a new `Event` for the community members in
-charge of communication and design.
+#### 2️⃣ **Testing en Dev Environment**
 
-When starting to prepare a new Event share this doc with the appropiate people.
+- 🧪 **Probar** la funcionalidad en `https://dev.fuegoaustral.org`
+- ✅ **Verificar** que todo funciona correctamente
+- 🔍 **Revisar** logs y métricas
+
+#### 3️⃣ **Dev → Production**
+
+```bash
+# 1. Crear PR de dev a main
+# En GitHub: Crear PR dev → main
+
+# 2. Revisar y mergear
+# Después de revisión, mergear el PR
+
+# 3. Deploy automático a producción
+# GitHub Actions despliega automáticamente a prod
+```
+
+> 🚀 **Deploy automático a prod**: Al mergear `dev` → `main`, se despliega automáticamente a producción
+
+### 📋 Reglas de Deploy
+
+#### ✅ **Permitido**
+- ✅ Push a `feature/*` branches
+- ✅ PRs a `dev` branch
+- ✅ PRs de `dev` a `main`
+
+#### 🚫 **Prohibido**
+- 🚫 Push directo a `dev` (excepto hotfixes críticos)
+- 🚫 Push directo a `main` (NUNCA)
+- 🚫 Deploys manuales con Zappa
+
+### 🆘 **Hotfixes Críticos**
+
+En caso de emergencia crítica:
+
+```bash
+# 1. Crear hotfix desde main
+git checkout main
+git pull origin main
+git checkout -b hotfix/fix-critico
+
+# 2. Aplicar fix y commit
+git add .
+git commit -m "hotfix: fix crítico urgente"
+
+# 3. Push y crear PR directo a main
+git push origin hotfix/fix-critico
+# Crear PR: hotfix/fix-critico → main
+
+# 4. OBLIGATORIO: Backport a dev después
+git checkout dev
+git cherry-pick <commit-hash>
+git push origin dev
+```
+
+### 🏗️ **Configuración Docker (Solo para Emergencias)**
+
+> ⚠️ **Solo usar en emergencias**: El deploy normal es 100% automático
+
+```bash
+# Construir imagen Docker
+docker build . -t ticketera-zappashell
+
+# Crear alias para facilitar el uso
+alias zappashell='docker run -ti -e AWS_PROFILE=ticketera -v "$(pwd):/var/task" -v ~/.aws/:/root/.aws --rm ticketera-zappashell'
+
+# Usar el shell (solo emergencias)
+zappashell
+zappashell> zappa update prod
+```
+
+### 📁 **Archivos Estáticos**
+
+Los archivos estáticos se manejan automáticamente en el pipeline:
+
+```bash
+# Esto se ejecuta automáticamente en CI/CD
+python manage.py collectstatic --settings=deprepagos.settings_prod
+```
+
+## 🎪 Agregar un Nuevo Evento
+
+📖 **Documentación completa**: [Google Doc](https://docs.google.com/document/d/1_8NBQMMYZ68ABRQs2Fy-BX296OZnTdzzGWp6yNr_KEU/edit)
+
+> 💡 **Tip**: Comparte este documento con el equipo de comunicación y diseño cuando prepares un nuevo evento
+
+## 🏗️ Arquitectura
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Frontend      │    │   Django App     │    │   AWS Lambda    │
+│   (Templates)   │◄──►│   (Python 3.13)  │◄──►│   (Zappa)       │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+                                │
+                                ▼
+                       ┌──────────────────┐
+                       │   PostgreSQL     │
+                       │   (RDS v16.8)    │
+                       └──────────────────┘
+```
+
+## 🛠️ Tecnologías
+
+- **Backend**: Django 4.2 + Python 3.13 🐍
+- **Base de Datos**: PostgreSQL 16.8 (producción) / 15.6 (desarrollo) 🐘
+- **Deploy**: AWS Lambda + Zappa ☁️
+- **CI/CD**: GitHub Actions 🚀
+- **Pagos**: MercadoPago 💳
+- **Auth**: Google OAuth2 🔐
+- **Emails**: Django + SMTP 📧
+
+## 📞 Soporte
+
+¿Necesitas ayuda? 🤔
+
+- 📧 **Email**: [contacto@fuegoaustral.org](mailto:contacto@fuegoaustral.org)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/fuegoaustral/ticketera)
+
+
+---
+
+<div align="center">
+
+**Hecho con ❤️ por el equipo de Fuego Austral** 🔥
+
+</div>
