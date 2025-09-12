@@ -113,6 +113,9 @@
             </a>
             <div class="dropdown-menu" aria-labelledby="dropdownProfileButton">
               <a class="dropdown-item" href="{% url "my_ticket" %}"><i class="fa-solid fa-user"></i> Mi perfil ({{ user.email }})</a>
+              {% if user.admin_events.exists %}
+              <a class="dropdown-item" href="{% url "my_events" %}"><i class="fa-solid fa-cogs"></i> Mis eventos</a>
+              {% endif %}
               <a class="dropdown-item" href="https://fuegoaustral.org/el-evento/10-principios/" target="_blank">10 principios</a>
               <a class="dropdown-item" href="https://fuegoaustral.org/faq/" target="_blank">Preguntas frecuentes</a>
               <a class="dropdown-item" href="https://fuegoaustral.org/prepararse/" target="_blank">Guía de supervivencia</a>
