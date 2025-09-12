@@ -8,3 +8,9 @@ deprepagos/media
 dbs/
 venv/*
 .env
+
+# Database dumps and SQL files
+*.sql
+dump_completo.sql
+data_only.sql
+schema_only.sql
