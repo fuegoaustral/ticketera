@@ -1,13 +1,29 @@
 from django.contrib import admin
+from django.contrib.admin.widgets import FilteredSelectMultiple
 from django.http import HttpResponse
 from django.db import connection
 from django.urls import path
 from django.shortcuts import render
+from django.forms import ModelForm
 import csv
 from .models import Event
 
 
+class EventAdminForm(ModelForm):
+    class Meta:
+        model = Event
+        fields = '__all__'
+        widgets = {
+            'admins': FilteredSelectMultiple(
+                verbose_name='Administradores',
+                is_stacked=False
+            ),
+        }
+
+
 class EventAdmin(admin.ModelAdmin):
+    form = EventAdminForm
+    filter_horizontal = ('admins',)  # Esto también ayuda con la interfaz
     list_display = (
         "name",
         "slug",
