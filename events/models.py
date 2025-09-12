@@ -3,6 +3,7 @@ from django.db.models import Count, Sum, Q
 from django.forms import ValidationError
 from django.utils import timezone
 from django.utils.text import slugify
+from django.contrib.auth.models import User
 
 from auditlog.registry import auditlog
 
@@ -40,6 +41,8 @@ class Event(BaseModel):
     email_info = models.TextField()
 
     attendee_must_be_registered = models.BooleanField(default=True, help_text="If checked, all attendees must be registered users")
+    
+    admins = models.ManyToManyField(User, blank=True, related_name='admin_events', help_text="Users who can administer this event")
 
     class Meta:
         constraints = [

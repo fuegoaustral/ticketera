@@ -1,0 +1,372 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block submenu %}
+    <!-- Mobile menu toggle button -->
+    <div class="mobile-menu-toggle d-lg-none mb-3">
+        <button class="btn btn-outline-secondary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-expanded="false" aria-controls="sidebarMenu">
+            <i class="fas fa-bars me-2"></i>
+            Menú de Administración
+        </button>
+    </div>
+    
+    <div class="sidebar-menu collapse d-lg-block" id="sidebarMenu">
+        <div class="menu-section">
+            <h6 class="menu-section-title">
+                <i class="fas fa-chart-bar me-2"></i>
+                Reportes por Evento
+            </h6>
+            <ul class="menu-list">
+                {% for admin_event in user.admin_events.all %}
+                    <li class="menu-item">
+                        <a class="menu-link{% if admin_event.slug == event.slug %} active{% endif %}"
+                           href="{% url "event_admin" admin_event.slug %}">
+                            <i class="fas fa-chart-line me-2"></i>
+                            {{ admin_event.name }}
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    
+    <style>
+        .sidebar-menu {
+            background: transparent;
+            padding: 0;
+            margin-bottom: 1rem;
+        }
+        
+        .menu-section {
+            margin-bottom: 1.5rem;
+        }
+        
+        .menu-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .menu-section-title {
+            color: #1e1e1e;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #d9d9d9;
+        }
+        
+        .menu-section-link {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            padding: 1rem;
+            text-align: left;
+            color: #1e1e1e !important;
+            text-decoration: none;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #d9d9d9;
+        }
+        
+        .menu-section-link:hover {
+            font-weight: 600;
+            text-decoration: none !important;
+            background-color: #f8f9fa;
+            color: #1e1e1e !important;
+        }
+        
+        .menu-section-link.active {
+            background-color: #e9f5f0;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            color: #289e6d !important;
+        }
+        
+        .menu-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .menu-item {
+            margin-bottom: 0.25rem;
+            width: 100%;
+        }
+        
+        .menu-link {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            padding: 1rem;
+            text-align: left;
+            color: #1e1e1e !important;
+            text-decoration: none;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+        
+        .menu-link:hover {
+            font-weight: 500;
+            text-decoration: none !important;
+            background-color: #f8f9fa;
+        }
+        
+        .menu-link.active {
+            background-color: #e9f5f0;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            color: #289e6d !important;
+        }
+        
+        .menu-link i {
+            width: 16px;
+            text-align: center;
+            margin-right: 0.5rem;
+        }
+        
+        /* Mobile menu toggle button */
+        .mobile-menu-toggle .btn {
+            border-radius: 0.5rem;
+            font-weight: 500;
+        }
+        
+        @media (max-width: 991.98px) {
+            .sidebar-menu {
+                margin-top: 1rem;
+            }
+        }
+    </style>
+{% endblock submenu %}
+
+{% block truecontent %}
+    <style>
+        .stats-card {
+            background: #fff;
+            border: 1px solid #d9d9d9;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 0.5rem;
+            border: 1px solid #e9ecef;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #ff6b35;
+            margin-bottom: 0.25rem;
+        }
+        
+        .stat-label {
+            font-size: 0.875rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .event-header {
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            margin-bottom: 2rem;
+        }
+        
+        .event-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .event-dates {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+        
+        .event-location {
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+        
+        
+        .progress-bar {
+            background-color: #ff6b35;
+        }
+        
+        .summary-table {
+            background: #fff;
+            border: 1px solid #d9d9d9;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .summary-table th {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #d9d9d9;
+            font-weight: 600;
+            color: #1e1e1e;
+        }
+        
+        .summary-table td {
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .summary-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .highlight-row {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+    </style>
+
+    <div class="container-fluid">
+        <div class="container">
+            <div class="row">
+                <div class="col-12">
+                    <div class="event-header">
+                        <div class="event-title">
+                            {% if event.is_main %}
+                                <i class="fas fa-star me-2"></i>
+                            {% endif %}
+                            {{ event.name }}
+                        </div>
+                        <div class="event-dates">
+                            <i class="fas fa-calendar me-1"></i>
+                            {{ event.start|date:'d/m/Y' }} - {{ event.end|date:'d/m/Y' }}
+                        </div>
+                        {% if event.location %}
+                            <div class="event-location">
+                                <i class="fas fa-map-marker-alt me-1"></i>
+                                {% if event.location_url %}
+                                    <a href="{{ event.location_url }}" target="_blank" class="text-white text-decoration-none">
+                                        {{ event.location }}
+                                    </a>
+                                {% else %}
+                                    {{ event.location }}
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                        
+                    </div>
+
+                    <!-- Stats Grid -->
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value">{{ stats.tickets_sold }}</div>
+                            <div class="stat-label">Tickets Vendidos</div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <div class="stat-value">{{ stats.total_orders }}</div>
+                            <div class="stat-label">Total de Órdenes</div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <div class="stat-value">${{ stats.total_revenue|floatformat:0 }}</div>
+                            <div class="stat-label">Ingresos Totales</div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <div class="stat-value">${{ stats.net_received_amount|floatformat:0 }}</div>
+                            <div class="stat-label">Neto Recibido</div>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar for Tickets Sold -->
+                    {% if event.max_tickets %}
+                        <div class="stats-card">
+                            <h5 class="mb-3">
+                                <i class="fas fa-chart-pie me-2"></i>
+                                Progreso de Ventas
+                            </h5>
+                            <div class="progress mb-2" style="height: 25px;">
+                                <div class="progress-bar" role="progressbar" 
+                                     style="width: {{ stats.percentage_sold }}%"
+                                     aria-valuenow="{{ stats.percentage_sold }}" 
+                                     aria-valuemin="0" aria-valuemax="100">
+                                    {{ stats.percentage_sold|floatformat:1 }}%
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between text-muted">
+                                <small>{{ stats.tickets_sold }} vendidos</small>
+                                <small>{{ event.max_tickets }} máximo</small>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <!-- Detailed Summary Table -->
+                    <div class="summary-table">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Concepto</th>
+                                    <th class="text-end">Cantidad</th>
+                                    <th class="text-end">Monto Bruto</th>
+                                    <th class="text-end">Monto Neto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><i class="fas fa-ticket-alt me-2"></i>Ingresos por Entradas</td>
+                                    <td class="text-end">{{ stats.tickets_sold }} tickets</td>
+                                    <td class="text-end">${{ stats.ticket_revenue|floatformat:0 }}</td>
+                                    <td class="text-end">${{ stats.ticket_revenue_net|floatformat:0 }}</td>
+                                </tr>
+                                <tr>
+                                    <td><i class="fas fa-palette me-2"></i>Donaciones Arte</td>
+                                    <td class="text-end">-</td>
+                                    <td class="text-end">${{ stats.donations_art|floatformat:0 }}</td>
+                                    <td class="text-end">${{ stats.donations_art_net|floatformat:0 }}</td>
+                                </tr>
+                                <tr>
+                                    <td><i class="fas fa-building me-2"></i>Donaciones Sede</td>
+                                    <td class="text-end">-</td>
+                                    <td class="text-end">${{ stats.donations_venue|floatformat:0 }}</td>
+                                    <td class="text-end">${{ stats.donations_venue_net|floatformat:0 }}</td>
+                                </tr>
+                                <tr>
+                                    <td><i class="fas fa-heart me-2"></i>Donaciones Beca</td>
+                                    <td class="text-end">-</td>
+                                    <td class="text-end">${{ stats.donations_grant|floatformat:0 }}</td>
+                                    <td class="text-end">${{ stats.donations_grant_net|floatformat:0 }}</td>
+                                </tr>
+                                <tr class="highlight-row">
+                                    <td><i class="fas fa-calculator me-2"></i><strong>Total Bruto</strong></td>
+                                    <td class="text-end"><strong>{{ stats.total_orders }} órdenes</strong></td>
+                                    <td class="text-end"><strong>${{ stats.total_revenue|floatformat:0 }}</strong></td>
+                                    <td class="text-end"><strong>${{ stats.net_received_amount|floatformat:0 }}</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock truecontent %}

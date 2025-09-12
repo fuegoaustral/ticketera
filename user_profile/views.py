@@ -548,3 +548,140 @@ def my_orders_view(request):
             "now": timezone.now(),
         },
     )
+
+
+@login_required
+def my_events_view(request):
+    """Show events that the user administers"""
+    # Get events where the user is an admin
+    admin_events = Event.objects.filter(
+        admins=request.user
+    ).order_by('-is_main', 'name')
+    
+    # Get the main event for context
+    main_event = Event.get_main_event()
+    
+    # Get events where user has tickets, prioritizing main event
+    user_events = Event.get_active_events().filter(
+        newticket__holder=request.user
+    ).distinct().order_by('-is_main', 'name')
+    
+    # Get the first ticket for the main event (for backward compatibility)
+    my_ticket = NewTicket.objects.filter(
+        holder=request.user, event=main_event, owner=request.user
+    ).first() if main_event else None
+    
+    return render(
+        request,
+        "mi_fuego/my_events.html",
+        {
+            "admin_events": admin_events,
+            "event": main_event,
+            "active_events": user_events,
+            "nav_primary": "events",
+            "nav_secondary": "my_events",
+            "my_ticket": my_ticket.get_dto(user=request.user) if my_ticket else None,
+            "now": timezone.now(),
+        },
+    )
+
+
+@login_required
+def event_admin_view(request, event_slug):
+    """Show admin dashboard for a specific event"""
+    from django.db import connection
+    from decimal import Decimal
+    
+    # Get the event and check if user is admin
+    try:
+        event = Event.objects.get(slug=event_slug)
+    except Event.DoesNotExist:
+        raise Http404("Event not found")
+    
+    # Check if user is admin of this event
+    if not event.admins.filter(id=request.user.id).exists():
+        return HttpResponseForbidden("You don't have permission to view this event")
+    
+    # Get tickets sold data for this specific event
+    with connection.cursor() as cursor:
+        query = """
+            SELECT 
+                COALESCE(SUM(tot.quantity), 0) as tickets_sold,
+                COALESCE(SUM(too.amount - COALESCE(too.donation_art, 0) - COALESCE(too.donation_venue, 0) - COALESCE(too.donation_grant, 0)), 0) as ticket_revenue,
+                COALESCE(SUM(too.donation_art), 0) as donations_art,
+                COALESCE(SUM(too.donation_venue), 0) as donations_venue,
+                COALESCE(SUM(too.donation_grant), 0) as donations_grant,
+                COALESCE(SUM(too.amount), 0) as total_revenue,
+                COALESCE(SUM(too.net_received_amount), 0) as net_received_amount,
+                COUNT(DISTINCT too.id) as total_orders
+            FROM tickets_order too
+            LEFT JOIN tickets_orderticket tot ON too.id = tot.order_id
+            WHERE too.event_id = %s AND too.status = 'CONFIRMED'
+        """
+        cursor.execute(query, [event.id])
+        result = cursor.fetchone()
+    
+    # Get the main event for context
+    main_event = Event.get_main_event()
+    
+    # Get events where user has tickets, prioritizing main event
+    user_events = Event.get_active_events().filter(
+        newticket__holder=request.user
+    ).distinct().order_by('-is_main', 'name')
+    
+    # Get the first ticket for the main event (for backward compatibility)
+    my_ticket = NewTicket.objects.filter(
+        holder=request.user, event=main_event, owner=request.user
+    ).first() if main_event else None
+    
+    # Calculate percentage sold
+    percentage_sold = 0
+    if event.max_tickets and event.max_tickets > 0:
+        percentage_sold = (result[0] / event.max_tickets) * 100
+    
+    # Calculate net ratio for proportional distribution
+    total_revenue = result[5] or Decimal('0')
+    net_received_amount = result[6] or Decimal('0')
+    net_ratio = Decimal('0')
+    
+    if total_revenue > 0 and net_received_amount > 0:
+        net_ratio = net_received_amount / total_revenue
+    
+    # Calculate net amounts for each category
+    ticket_revenue = result[1] or Decimal('0')
+    donations_art = result[2] or Decimal('0')
+    donations_venue = result[3] or Decimal('0')
+    donations_grant = result[4] or Decimal('0')
+    
+    ticket_revenue_net = ticket_revenue * net_ratio if net_ratio > 0 else Decimal('0')
+    donations_art_net = donations_art * net_ratio if net_ratio > 0 else Decimal('0')
+    donations_venue_net = donations_venue * net_ratio if net_ratio > 0 else Decimal('0')
+    donations_grant_net = donations_grant * net_ratio if net_ratio > 0 else Decimal('0')
+    
+    context = {
+        "event": event,
+        "main_event": main_event,
+        "active_events": user_events,
+        "nav_primary": "events",
+        "nav_secondary": f"event_admin_{event.slug}",
+        "my_ticket": my_ticket.get_dto(user=request.user) if my_ticket else None,
+        "now": timezone.now(),
+        "stats": {
+            "tickets_sold": result[0] or 0,
+            "ticket_revenue": ticket_revenue,
+            "donations_art": donations_art,
+            "donations_venue": donations_venue,
+            "donations_grant": donations_grant,
+            "total_revenue": total_revenue,
+            "net_received_amount": net_received_amount,
+            "total_orders": result[7] or 0,
+            "percentage_sold": percentage_sold,
+            "net_ratio": net_ratio,
+            "ticket_revenue_net": ticket_revenue_net,
+            "donations_art_net": donations_art_net,
+            "donations_venue_net": donations_venue_net,
+            "donations_grant_net": donations_grant_net,
+        }
+    }
+    
+    return render(request, "mi_fuego/event_admin.html", context)

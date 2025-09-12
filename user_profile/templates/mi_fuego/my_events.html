@@ -1,0 +1,409 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+
+{% block submenu %}
+    <!-- Mobile menu toggle button -->
+    <div class="mobile-menu-toggle d-lg-none mb-3">
+        <button class="btn btn-outline-secondary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-expanded="false" aria-controls="sidebarMenu">
+            <i class="fas fa-bars me-2"></i>
+            Menú de Administración
+        </button>
+    </div>
+    
+    <div class="sidebar-menu collapse d-lg-block" id="sidebarMenu">
+        <div class="menu-section">
+            <h6 class="menu-section-title">
+                <i class="fas fa-chart-bar me-2"></i>
+                Reportes por Evento
+            </h6>
+            <ul class="menu-list">
+                {% for event in admin_events %}
+                    <li class="menu-item">
+                        <a class="menu-link"
+                           href="{% url "event_admin" event.slug %}">
+                            <i class="fas fa-chart-line me-2"></i>
+                            {{ event.name }}
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    
+    <style>
+        .sidebar-menu {
+            background: transparent;
+            padding: 0;
+            margin-bottom: 1rem;
+        }
+        
+        .menu-section {
+            margin-bottom: 1.5rem;
+        }
+        
+        .menu-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .menu-section-title {
+            color: #1e1e1e;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #d9d9d9;
+        }
+        
+        .menu-section-link {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            padding: 1rem;
+            text-align: left;
+            color: #1e1e1e !important;
+            text-decoration: none;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #d9d9d9;
+        }
+        
+        .menu-section-link:hover {
+            font-weight: 600;
+            text-decoration: none !important;
+            background-color: #f8f9fa;
+            color: #1e1e1e !important;
+        }
+        
+        .menu-section-link.active {
+            background-color: #e9f5f0;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            color: #289e6d !important;
+        }
+        
+        .menu-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .menu-item {
+            margin-bottom: 0.25rem;
+            width: 100%;
+        }
+        
+        .menu-link {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            padding: 1rem;
+            text-align: left;
+            color: #1e1e1e !important;
+            text-decoration: none;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+        
+        .menu-link:hover {
+            font-weight: 500;
+            text-decoration: none !important;
+            background-color: #f8f9fa;
+        }
+        
+        .menu-link.active {
+            background-color: #e9f5f0;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            color: #289e6d !important;
+        }
+        
+        .menu-link i {
+            width: 16px;
+            text-align: center;
+            margin-right: 0.5rem;
+        }
+        
+        /* Mobile menu toggle button */
+        .mobile-menu-toggle .btn {
+            border-radius: 0.5rem;
+            font-weight: 500;
+        }
+        
+        @media (max-width: 991.98px) {
+            .sidebar-menu {
+                margin-top: 1rem;
+            }
+        }
+    </style>
+{% endblock submenu %}
+{% load static %}
+{% load humanize %}
+
+{% block truecontent %}
+    <style>
+        .event-card {
+            background: #fff;
+            border: 1px solid #d9d9d9;
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .event-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .event-header {
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem 0.75rem 0 0;
+        }
+        
+        .event-body {
+            padding: 1.5rem;
+        }
+        
+        .event-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .event-dates {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .event-location {
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+        
+        .event-status {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-top: 1rem;
+        }
+        
+        .status-active {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .status-main {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-past {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .admin-actions {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .btn-admin {
+            background-color: #ff6b35;
+            border-color: #ff6b35;
+            color: white;
+            font-size: 0.875rem;
+            padding: 0.5rem 1rem;
+        }
+        
+        .btn-admin:hover {
+            background-color: #e55a2b;
+            border-color: #e55a2b;
+            color: white;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #6c757d;
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        
+        .events-table {
+            background: #fff;
+            border: 1px solid #d9d9d9;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .events-table .table {
+            margin-bottom: 0;
+        }
+        
+        .events-table th {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #d9d9d9;
+            font-weight: 600;
+            color: #1e1e1e;
+            padding: 1rem;
+        }
+        
+        .events-table td {
+            border-bottom: 1px solid #e9ecef;
+            padding: 1rem;
+            vertical-align: middle;
+        }
+        
+        .events-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .events-table tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .event-info {
+            min-width: 200px;
+        }
+        
+        .event-name {
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .event-location {
+            font-size: 0.875rem;
+        }
+        
+        .event-dates {
+            min-width: 120px;
+        }
+        
+        .badge {
+            font-size: 0.75rem;
+            padding: 0.375rem 0.75rem;
+        }
+        
+        .btn-primary {
+            background-color: #ff6b35;
+            border-color: #ff6b35;
+        }
+        
+        .btn-primary:hover {
+            background-color: #e55a2b;
+            border-color: #e55a2b;
+        }
+    </style>
+
+    <div class="container-fluid">
+        <div class="container">
+            <div class="row">
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <h1 class="h3 mb-1">
+                                <i class="fas fa-cogs me-2"></i>
+                                Mis Eventos
+                            </h1>
+                            <p class="text-muted mb-0">Eventos que administrás</p>
+                        </div>
+                    </div>
+
+                    {% if admin_events %}
+                        <div class="events-table">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Evento</th>
+                                        <th>Fecha</th>
+                                        <th>Estado</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for event in admin_events %}
+                                        <tr>
+                                            <td>
+                                                <div class="event-info">
+                                                    <div class="event-name">
+                                                        {% if event.is_main %}
+                                                            <i class="fas fa-star me-2 text-warning"></i>
+                                                        {% endif %}
+                                                        <strong>{{ event.name }}</strong>
+                                                    </div>
+                                                    {% if event.location %}
+                                                        <div class="event-location text-muted small">
+                                                            <i class="fas fa-map-marker-alt me-1"></i>
+                                                            {{ event.location }}
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="event-dates">
+                                                    <div>{{ event.start|date:'d/m/Y' }}</div>
+                                                    <div class="text-muted small">al {{ event.end|date:'d/m/Y' }}</div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                {% if event.active %}
+                                                    {% if event.end < now %}
+                                                        <span class="badge bg-secondary">
+                                                            <i class="fas fa-clock me-1"></i>
+                                                            Finalizado
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="badge bg-success">
+                                                            <i class="fas fa-check-circle me-1"></i>
+                                                            Activo
+                                                        </span>
+                                                    {% endif %}
+                                                {% else %}
+                                                    <span class="badge bg-warning">
+                                                        <i class="fas fa-pause-circle me-1"></i>
+                                                        Inactivo
+                                                    </span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-center">
+                                                <a href="{% url 'event_admin' event.slug %}" 
+                                                   class="btn btn-primary btn-sm">
+                                                    <i class="fas fa-chart-line me-1"></i>
+                                                    Ver Reporte
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="empty-state">
+                            <i class="fas fa-calendar-times"></i>
+                            <h4>No administrás ningún evento</h4>
+                            <p>Cuando seas asignado como administrador de un evento, aparecerá aquí.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock truecontent %}

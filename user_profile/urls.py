@@ -9,6 +9,8 @@ from .views import (
     transferable_tickets_view,
     volunteering,
     my_orders_view,
+    my_events_view,
+    event_admin_view,
 )
 
 urlpatterns = [
@@ -20,6 +22,8 @@ urlpatterns = [
     # Specific paths (must come before generic slug pattern)
     path("mis-bonos/eventos-anteriores/", my_ticket_view, {"event_slug": "eventos-anteriores"}, name="my_ticket_past"),
     path("mis-bonos/ordenes/", my_orders_view, name="my_orders"),
+    path("mis-eventos/", my_events_view, name="my_events"),
+    path("mis-eventos/<slug:event_slug>/", event_admin_view, name="event_admin"),
     # Event-specific paths
     path("mis-bonos/<slug:event_slug>/volunteering/", volunteering, name="volunteering"),
     path("mis-bonos/<slug:event_slug>/bonos-transferibles/", transferable_tickets_view, name="transferable_tickets"),

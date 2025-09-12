@@ -199,6 +199,9 @@ class Order(BaseModel):
         on_delete=models.RESTRICT,
         help_text="Usuario admin que generó la orden",
     )
+    
+    processor_callback = models.JSONField(null=True, blank=True, help_text="Payment processor callback data")
+    net_received_amount = models.DecimalField(decimal_places=2, max_digits=10, null=True, blank=True, help_text="Net amount received after fees")
 
     class Meta:
         permissions = [

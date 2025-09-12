@@ -115,6 +115,8 @@ def order_approved(payment):
             return
 
         order.status = Order.OrderStatus.PROCESSING
+        order.processor_callback = payment
+        order.net_received_amount = payment.get('transaction_details', {}).get('net_received_amount')
         order.save()
 
     except Order.DoesNotExist as e:
