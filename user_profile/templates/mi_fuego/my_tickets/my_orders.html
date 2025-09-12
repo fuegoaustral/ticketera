@@ -119,8 +119,8 @@
                 <div class="order-card">
                     <div class="order-header">
                         <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h5 class="mb-1">Orden #{{ order.pk }}</h5>
+                            <div class="d-flex align-items-center">
+                                <h5 class="mb-0 me-2">Orden #{{ order.pk }}</h5>
                                 <small class="text-muted">{{ order.created_at|date:"d/m/Y H:i" }}</small>
                             </div>
                             <div>
@@ -162,7 +162,7 @@
                             {% for order_ticket in order.order_tickets.all %}
                                 <div class="ticket-type-item">
                                     <span>{{ order_ticket.ticket_type.name }}</span>
-                                    <span class="badge bg-secondary text-white">{{ order_ticket.quantity }}</span>
+                                    <span>{{ order_ticket.quantity }}</span>
                                 </div>
                             {% endfor %}
                         </div>
