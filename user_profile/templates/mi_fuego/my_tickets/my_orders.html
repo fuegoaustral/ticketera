@@ -161,7 +161,7 @@
                             <h6 class="mb-3">Bonos incluidos:</h6>
                             {% for order_ticket in order.order_tickets.all %}
                                 <div class="ticket-type-item text-end">
-                                    <span>{{ order_ticket.ticket_type.name }} {{ order_ticket.quantity }}</span>
+                                    <span>{{ order_ticket.quantity }} x {{ order_ticket.ticket_type.name }}</span>
                                 </div>
                             {% endfor %}
                         </div>
