@@ -99,22 +99,31 @@
         
         <div class="menu-section">
             <h6 class="menu-section-title">
-                <i class="fas fa-list me-2"></i>
-                Otros
+                <i class="fas fa-archive me-2"></i>
+                Eventos Anteriores
             </h6>
             <ul class="menu-list">
                 <li class="menu-item">
                     <a class="menu-link{% if nav_primary == "tickets" and "eventos-anteriores" in request.path %} active{% endif %}"
                        href="{% url "my_ticket_past" %}">
                         <i class="fas fa-archive me-2"></i>
-                        Eventos Anteriores
+                        Ver todos
                     </a>
                 </li>
+            </ul>
+        </div>
+        
+        <div class="menu-section">
+            <h6 class="menu-section-title">
+                <i class="fas fa-receipt me-2"></i>
+                Órdenes
+            </h6>
+            <ul class="menu-list">
                 <li class="menu-item">
                     <a class="menu-link{% if nav_primary == "orders" %} active{% endif %}"
                        href="{% url "my_orders" %}">
                         <i class="fas fa-receipt me-2"></i>
-                        Órdenes
+                        Ver todas
                     </a>
                 </li>
             </ul>
