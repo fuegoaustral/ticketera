@@ -193,49 +193,49 @@
                         </div>
                         {% endif %}
                         
-                        {% if order.response and order.order_type == 'online' %}
+                        {% if order.ticket_order.response and order.status == 'confirmed' and order.order_type == 'online' %}
                         <div class="mt-3">
                             <h6 class="mb-2">Información de Pago:</h6>
                             <div class="row">
-                                {% if order.response.payer %}
+                                {% if order.ticket_order.response.payer %}
                                 <div class="col-md-6">
                                     <small class="text-muted">Pagador:</small>
-                                    <div>{{ order.response.payer.name }} {{ order.response.payer.surname }}</div>
+                                    <div>{{ order.ticket_order.response.payer.name }} {{ order.ticket_order.response.payer.surname }}</div>
                                 </div>
                                 {% endif %}
                                 
-                                {% if order.response.payer.email %}
+                                {% if order.ticket_order.response.payer.email %}
                                 <div class="col-md-6">
                                     <small class="text-muted">Email:</small>
-                                    <div>{{ order.response.payer.email }}</div>
+                                    <div>{{ order.ticket_order.response.payer.email }}</div>
                                 </div>
                                 {% endif %}
                                 
-                                {% if order.response.payer.phone %}
+                                {% if order.ticket_order.response.payer.phone %}
                                 <div class="col-md-6">
                                     <small class="text-muted">Teléfono:</small>
-                                    <div>{{ order.response.payer.phone.area_code }}{{ order.response.payer.phone.number }}</div>
+                                    <div>{{ order.ticket_order.response.payer.phone.area_code }}{{ order.ticket_order.response.payer.phone.number }}</div>
                                 </div>
                                 {% endif %}
                                 
-                                {% if order.response.payer.identification %}
+                                {% if order.ticket_order.response.payer.identification %}
                                 <div class="col-md-6">
                                     <small class="text-muted">Documento:</small>
-                                    <div>{{ order.response.payer.identification.type }} {{ order.response.payer.identification.number }}</div>
+                                    <div>{{ order.ticket_order.response.payer.identification.type }} {{ order.ticket_order.response.payer.identification.number }}</div>
                                 </div>
                                 {% endif %}
                                 
-                                {% if order.response.id %}
+                                {% if order.ticket_order.response.id %}
                                 <div class="col-md-6">
                                     <small class="text-muted">ID de Pago:</small>
-                                    <div><small class="text-muted">{{ order.response.id }}</small></div>
+                                    <div><small class="text-muted">{{ order.ticket_order.response.id }}</small></div>
                                 </div>
                                 {% endif %}
                                 
-                                {% if order.response.date_created %}
+                                {% if order.ticket_order.response.date_created %}
                                 <div class="col-md-6">
                                     <small class="text-muted">Fecha de Pago:</small>
-                                    <div>{{ order.response.date_created|date:"d/m/Y H:i" }}</div>
+                                    <div>{{ order.ticket_order.response.date_created|date:"d/m/Y H:i" }}</div>
                                 </div>
                                 {% endif %}
                             </div>
