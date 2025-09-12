@@ -119,8 +119,8 @@
                 <div class="order-card">
                     <div class="order-header">
                         <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h5 class="mb-1">Orden #{{ order.pk }}</h5>
+                            <div class="d-flex align-items-center">
+                                <h5 class="mb-0 me-2">Orden #{{ order.pk }}</h5>
                                 <small class="text-muted">{{ order.created_at|date:"d/m/Y H:i" }}</small>
                             </div>
                             <div>
@@ -160,9 +160,8 @@
                         <div class="ticket-types">
                             <h6 class="mb-3">Bonos incluidos:</h6>
                             {% for order_ticket in order.order_tickets.all %}
-                                <div class="ticket-type-item">
-                                    <span>{{ order_ticket.ticket_type.name }}</span>
-                                    <span class="badge bg-secondary text-white">{{ order_ticket.quantity }}</span>
+                                <div class="ticket-type-item text-end">
+                                    <span>{{ order_ticket.quantity }} x {{ order_ticket.ticket_type.name }}</span>
                                 </div>
                             {% endfor %}
                         </div>
@@ -188,6 +187,19 @@
                                 <div class="col-md-4">
                                     <small class="text-muted">Beca Inclusión Radical:</small>
                                     <div>${{ order.donation_grant|floatformat:0 }}</div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if order.response and order.status == 'CONFIRMED' and order.order_type == 'ONLINE_PURCHASE' %}
+                        <div class="mt-3">
+                            <div class="row">
+                                {% if order.response.id %}
+                                <div class="col-md-6">
+                                    <small class="text-muted">ID de Pago:</small>
+                                    <div><small class="text-muted">{{ order.response.id }}</small></div>
                                 </div>
                                 {% endif %}
                             </div>
