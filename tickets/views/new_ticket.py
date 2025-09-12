@@ -162,13 +162,18 @@ def assign_ticket(request, ticket_key):
     ticket.owner = request.user
     ticket.save()
 
-    return redirect(reverse('my_ticket'))
+    # Redirect to the next URL if provided, otherwise to the event-specific page
+    next_url = request.GET.get('next')
+    if next_url:
+        return redirect(next_url)
+    else:
+        return redirect(reverse('my_ticket_event', kwargs={'event_slug': ticket.event.slug}))
 
 
 @login_required()
 def unassign_ticket(request, ticket_key):
-    if request.method != 'GET':
-        return HttpResponseNotAllowed()
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
 
     ticket = NewTicket.objects.get(key=ticket_key)
     if ticket is None:
@@ -190,4 +195,5 @@ def unassign_ticket(request, ticket_key):
 
     ticket.save()
 
-    return redirect(reverse('transferable_tickets'))
+    # Redirect to the event-specific page instead of transferable_tickets
+    return redirect(reverse('my_ticket_event', kwargs={'event_slug': ticket.event.slug}))

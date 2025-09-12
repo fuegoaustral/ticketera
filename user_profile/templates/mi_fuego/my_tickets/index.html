@@ -45,7 +45,7 @@
                             </div>
                             <div>
                                 <a class="btn btn-secondary text-nowrap"
-                                   href="{% url "transferable_tickets" %}">Bonos para transferir</a>
+                                   href="{% url "transferable_tickets" event.slug %}">Bonos para transferir</a>
                             </div>
                         </div>
                     </div>
@@ -81,17 +81,6 @@
                         
                         {% comment %} Sub-items for this event {% endcomment %}
                         <ul class="menu-sublist">
-                            {% comment %} Bonos adicionales - only show if attendee_must_be_registered {% endcomment %}
-                            {% if event.attendee_must_be_registered %}
-                                <li class="menu-subitem">
-                                    <a class="menu-sublink{% if nav_secondary == "transferable_tickets" and event.slug in request.path %} active{% endif %}"
-                                       href="{% url 'transferable_tickets' event.slug %}">
-                                        <i class="fas fa-share-alt me-2"></i>
-                                        Bonos adicionales
-                                    </a>
-                                </li>
-                            {% endif %}
-                            
                             {% comment %} Voluntariado - only show if event has volunteers {% endcomment %}
                             {% if event.has_volunteers %}
                                 <li class="menu-subitem">

@@ -121,6 +121,19 @@ def my_ticket_view(request, event_slug=None):
                 event=current_event
             ).order_by("owner").all()
             
+            # Also get tickets that were transferred from this user (completed transfers)
+            from tickets.models import NewTicketTransfer
+            transferred_tickets = NewTicketTransfer.objects.filter(
+                tx_from=request.user,
+                status='COMPLETED',
+                ticket__event=current_event
+            ).select_related('ticket').all()
+            
+            # Add transferred tickets to the list
+            for transfer in transferred_tickets:
+                if transfer.ticket not in all_tickets:
+                    all_tickets = list(all_tickets) + [transfer.ticket]
+            
             # Get the first ticket for this event (for backward compatibility)
             my_ticket = NewTicket.objects.filter(
                 holder=request.user, event=current_event, owner=request.user
@@ -148,7 +161,44 @@ def my_ticket_view(request, event_slug=None):
                         'dni': request.user.profile.document_number
                     }
                     all_unassigned = False
+                else:
+                    # For Guest tickets, add transfer information similar to transferable_tickets
+                    from tickets.models import NewTicketTransfer
+                    transfer_pending = NewTicketTransfer.objects.filter(
+                        ticket=ticket, 
+                        tx_from=request.user, 
+                        status='PENDING'
+                    ).first()
+                    transfer_completed = NewTicketTransfer.objects.filter(
+                        ticket=ticket, 
+                        tx_from=request.user, 
+                        status='COMPLETED'
+                    ).first()
+                    
+                    if transfer_pending:
+                        ticket_dto['is_transfer_pending'] = True
+                        ticket_dto['transferring_to'] = transfer_pending.tx_to_email
+                        ticket_dto['is_transfer_completed'] = False
+                        ticket_dto['transferred_to'] = None
+                    elif transfer_completed:
+                        ticket_dto['is_transfer_pending'] = False
+                        ticket_dto['transferring_to'] = None
+                        ticket_dto['is_transfer_completed'] = True
+                        ticket_dto['transferred_to'] = transfer_completed.tx_to_email
+                    else:
+                        ticket_dto['is_transfer_pending'] = False
+                        ticket_dto['transferring_to'] = None
+                        ticket_dto['is_transfer_completed'] = False
+                        ticket_dto['transferred_to'] = None
                 tickets_dto.append(ticket_dto)
+            
+            # Count unshared tickets (Guest tickets that are not transferred and not pending)
+            unshared_tickets_count = 0
+            for ticket_dto in tickets_dto:
+                if (ticket_dto['tag'] == 'Guest' and 
+                    not ticket_dto.get('is_transfer_pending', False) and 
+                    not ticket_dto.get('is_transfer_completed', False)):
+                    unshared_tickets_count += 1
             
             # Get events where user has tickets, prioritizing main event
             user_events = Event.get_active_events().filter(
@@ -169,6 +219,7 @@ def my_ticket_view(request, event_slug=None):
                     'tickets_dto': tickets_dto,  # Simple list for single event
                     'attendee_must_be_registered': current_event.attendee_must_be_registered,
                     'all_unassigned': all_unassigned and not current_event.attendee_must_be_registered,
+                    'unshared_tickets_count': unshared_tickets_count,
                 },
             )
         except Event.DoesNotExist:
