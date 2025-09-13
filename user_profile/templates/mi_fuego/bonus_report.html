@@ -1,0 +1,875 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block submenu %}
+    {% include 'mi_fuego/partials/event_admin_menu.html' %}
+{% endblock submenu %}
+
+{% block truecontent %}
+    <style>
+        .stats-card {
+            background: #fff;
+            border: 1px solid #d9d9d9;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 0.5rem;
+            border: 1px solid #e9ecef;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #ff6b35;
+            margin-bottom: 0.25rem;
+        }
+        
+        .stat-label {
+            font-size: 0.875rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .event-header {
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            margin-bottom: 2rem;
+        }
+        
+        .event-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .event-dates {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+        
+        .event-location {
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+        
+        .ticket-card {
+            background: #fff;
+            border: 1px solid #d9d9d9;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
+        }
+        
+        .ticket-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .ticket-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        
+        .ticket-type {
+            display: flex;
+            align-items: center;
+        }
+        
+        .ticket-type-name {
+            font-weight: 600;
+            color: #1e1e1e;
+        }
+        
+        .ticket-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .ticket-status.used {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .ticket-status.unused {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .ticket-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .info-group {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid #e9ecef;
+        }
+        
+        .info-label {
+            font-size: 0.8rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.25rem;
+            font-weight: 600;
+        }
+        
+        .info-value {
+            font-size: 0.9rem;
+            color: #1e1e1e;
+            font-weight: 500;
+        }
+        
+        .info-value.email {
+            color: #007bff;
+            word-break: break-all;
+        }
+        
+        .ticket-notes {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .ticket-notes-label {
+            font-size: 0.8rem;
+            color: #856404;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .ticket-notes-content {
+            color: #856404;
+            font-size: 0.9rem;
+        }
+        
+        .ticket-photos {
+            margin-top: 1rem;
+        }
+        
+        .ticket-photos-label {
+            font-size: 0.8rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 0.5rem;
+        }
+        
+        .photo-item {
+            position: relative;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            border: 1px solid #e9ecef;
+        }
+        
+        .photo-item img {
+            width: 100%;
+            height: 100px;
+            object-fit: cover;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        
+        .photo-item img:hover {
+            transform: scale(1.05);
+        }
+        
+        .photo-info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 0.25rem;
+            font-size: 0.7rem;
+            text-align: center;
+        }
+        
+        .no-tickets {
+            text-align: center;
+            padding: 3rem;
+            color: #6c757d;
+        }
+        
+        .no-tickets i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        
+        /* Table View Styles */
+        .tickets-table {
+            background: #fff;
+            border: 1px solid #d9d9d9;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: none;
+        }
+        
+        .tickets-table.show {
+            display: block;
+        }
+        
+        .tickets-table table {
+            margin: 0;
+            width: 100%;
+        }
+        
+        .tickets-table th {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #d9d9d9;
+            font-weight: 600;
+            color: #1e1e1e;
+            padding: 1rem 0.75rem;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .tickets-table td {
+            border-bottom: 1px solid #e9ecef;
+            padding: 0.75rem;
+            vertical-align: middle;
+            font-size: 0.9rem;
+        }
+        
+        .tickets-table tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .tickets-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .table-ticket-type {
+            display: flex;
+            align-items: center;
+        }
+        
+        .table-ticket-name {
+            font-weight: 500;
+        }
+        
+        .table-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: inline-block;
+            white-space: nowrap;
+        }
+        
+        .table-status.used {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .table-status.unused {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .table-user-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .table-user-name {
+            font-weight: 500;
+            color: #1e1e1e;
+        }
+        
+        .table-user-email {
+            font-size: 0.8rem;
+            color: #6c757d;
+            word-break: break-all;
+        }
+        
+        .table-notes {
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .table-notes:hover {
+            white-space: normal;
+            overflow: visible;
+            background: #fff3cd;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            z-index: 10;
+            position: relative;
+        }
+        
+        .table-photos {
+            display: flex;
+            gap: 0.25rem;
+            flex-wrap: wrap;
+        }
+        
+        .table-photo {
+            width: 30px;
+            height: 30px;
+            border-radius: 0.25rem;
+            object-fit: cover;
+            cursor: pointer;
+            border: 1px solid #e9ecef;
+        }
+        
+        .table-photo:hover {
+            transform: scale(1.1);
+            z-index: 10;
+            position: relative;
+        }
+        
+        
+        /* Automatic view switching based on device */
+        .tickets-cards {
+            display: block;
+        }
+        
+        .tickets-table {
+            display: none;
+        }
+        
+        /* Desktop: Show table, hide cards */
+        @media (min-width: 992px) {
+            .tickets-cards {
+                display: none !important;
+            }
+            
+            .tickets-table {
+                display: block !important;
+            }
+        }
+        
+        .search-filters {
+            background: #fff;
+            border: 1px solid #d9d9d9;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .filter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .filter-group {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .filter-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .filter-item label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #1e1e1e;
+            margin: 0;
+        }
+        
+        .filter-item select,
+        .filter-item input {
+            border: 1px solid #d9d9d9;
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        /* Make status filter wider */
+        .filter-item:first-child select {
+            min-width: 120px;
+        }
+        
+        /* Table responsive styles */
+        @media (max-width: 1200px) {
+            .tickets-table {
+                overflow-x: auto;
+            }
+            
+            .tickets-table table {
+                min-width: 800px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .ticket-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .ticket-info {
+                grid-template-columns: 1fr;
+            }
+            
+            .filter-header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 1rem;
+            }
+            
+            .filter-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .filter-item {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            /* Mobile: Show cards, hide table (already handled by default styles) */
+        }
+        
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .ticket-card {
+                padding: 1rem;
+            }
+            
+            .event-header {
+                padding: 1.5rem;
+            }
+        }
+        
+        /* Desktop optimizations */
+        @media (min-width: 992px) {
+            .tickets-table th,
+            .tickets-table td {
+                padding: 0.75rem 0.5rem;
+                font-size: 0.85rem;
+            }
+            
+            .table-notes {
+                max-width: 150px;
+            }
+            
+            .table-photo {
+                width: 25px;
+                height: 25px;
+            }
+        }
+    </style>
+
+    <div class="container-fluid">
+        <div class="container">
+            <div class="row">
+                <div class="col-12">
+                    <div class="event-header">
+                        <div class="event-title">
+                            {% if event.is_main %}
+                                <i class="fas fa-star me-2"></i>
+                            {% endif %}
+                            Reporte de Bonos - {{ event.name }}
+                        </div>
+                        <div class="event-dates">
+                            <i class="fas fa-calendar me-1"></i>
+                            {{ event.start|date:'d/m/Y' }} - {{ event.end|date:'d/m/Y' }}
+                        </div>
+                        {% if event.location %}
+                            <div class="event-location">
+                                <i class="fas fa-map-marker-alt me-1"></i>
+                                {% if event.location_url %}
+                                    <a href="{{ event.location_url }}" target="_blank" class="text-white text-decoration-none">
+                                        {{ event.location }}
+                                    </a>
+                                {% else %}
+                                    {{ event.location }}
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Stats Grid -->
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value">{{ stats.total_tickets }}</div>
+                            <div class="stat-label">Total de Bonos</div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <div class="stat-value">{{ stats.used_tickets }}</div>
+                            <div class="stat-label">Bonos Usados</div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <div class="stat-value">{{ stats.unused_tickets }}</div>
+                            <div class="stat-label">Bonos Sin Usar</div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <div class="stat-value">{{ stats.usage_percentage|floatformat:1 }}%</div>
+                            <div class="stat-label">% de Uso</div>
+                        </div>
+                    </div>
+
+                    <!-- Search and Filters -->
+                    <div class="search-filters">
+                        <div class="filter-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-filter me-2"></i>
+                                Filtros
+                            </h6>
+                            <div class="filter-group">
+                                <div class="filter-item">
+                                    <label for="statusFilter">Estado:</label>
+                                    <select id="statusFilter" class="form-select">
+                                        <option value="">Todos</option>
+                                        <option value="used">Usados</option>
+                                        <option value="unused">Sin usar</option>
+                                    </select>
+                                </div>
+                                <div class="filter-item">
+                                    <label for="searchInput">Buscar:</label>
+                                    <input type="text" id="searchInput" class="form-control" placeholder="Nombre, email o tipo de bono...">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tickets List -->
+                    {% if tickets %}
+                        <!-- Cards View -->
+                        <div id="ticketsCards" class="tickets-cards">
+                            {% for ticket in tickets %}
+                                <div class="ticket-card" data-status="{% if ticket.is_used %}used{% else %}unused{% endif %}" data-search="{{ ticket.holder_name|lower }} {{ ticket.holder_email|lower }} {{ ticket.owner_name|lower }} {{ ticket.owner_email|lower }} {{ ticket.ticket_type|lower }}">
+                                    <div class="ticket-header">
+                                        <div class="ticket-type">
+                                            <span class="ticket-type-name">{{ ticket.ticket_type }}</span>
+                                        </div>
+                                        <div class="ticket-status {% if ticket.is_used %}used{% else %}unused{% endif %}">
+                                            {% if ticket.is_used %}
+                                                <i class="fas fa-check-circle me-1"></i>Usado
+                                            {% else %}
+                                                <i class="fas fa-clock me-1"></i>Sin usar
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="ticket-info">
+                                        <div class="info-group">
+                                            <div class="info-label">Titular del Bono</div>
+                                            <div class="info-value">{{ ticket.holder_name }}</div>
+                                            {% if ticket.holder_email %}
+                                                <div class="info-value email">{{ ticket.holder_email }}</div>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        <div class="info-group">
+                                            <div class="info-label">Invitado por</div>
+                                            <div class="info-value">{{ ticket.owner_name }}</div>
+                                            {% if ticket.owner_email %}
+                                                <div class="info-value email">{{ ticket.owner_email }}</div>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        {% if ticket.is_used %}
+                                            <div class="info-group">
+                                                <div class="info-label">Escaneado por</div>
+                                                <div class="info-value">{{ ticket.scanned_by_name }}</div>
+                                                {% if ticket.scanned_by_email %}
+                                                    <div class="info-value email">{{ ticket.scanned_by_email }}</div>
+                                                {% endif %}
+                                            </div>
+                                            
+                                            <div class="info-group">
+                                                <div class="info-label">Hora de entrada</div>
+                                                <div class="info-value">{{ ticket.used_at|date:'d/m/Y H:i' }}</div>
+                                            </div>
+                                        {% endif %}
+                                        
+                                        <div class="info-group">
+                                            <div class="info-label">Orden</div>
+                                            <div class="info-value">{{ ticket.order_key }}</div>
+                                        </div>
+                                        
+                                        <div class="info-group">
+                                            <div class="info-label">Fecha de compra</div>
+                                            <div class="info-value">{{ ticket.created_at|date:'d/m/Y H:i' }}</div>
+                                        </div>
+                                    </div>
+                                    
+                                    {% if ticket.notes %}
+                                        <div class="ticket-notes">
+                                            <div class="ticket-notes-label">Notas</div>
+                                            <div class="ticket-notes-content">{{ ticket.notes }}</div>
+                                        </div>
+                                    {% endif %}
+                                    
+                                    {% if ticket.photos %}
+                                        <div class="ticket-photos">
+                                            <div class="ticket-photos-label">Archivos adjuntos</div>
+                                            <div class="photo-grid">
+                                                {% for photo in ticket.photos %}
+                                                    <div class="photo-item">
+                                                        <img src="{{ photo.url }}" alt="{{ photo.name }}" onclick="openPhotoModal('{{ photo.url }}', '{{ photo.name }}', '{{ photo.uploaded_by }}', '{{ photo.uploaded_at|date:"d/m/Y H:i" }}')">
+                                                        <div class="photo-info">
+                                                            {{ photo.name|truncatechars:15 }}
+                                                        </div>
+                                                    </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Table View -->
+                        <div id="ticketsTable" class="tickets-table">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Tipo</th>
+                                        <th>Estado</th>
+                                        <th>Titular</th>
+                                        <th>Invitado por</th>
+                                        <th>Escaneado por</th>
+                                        <th>Hora entrada</th>
+                                        <th>Notas</th>
+                                        <th>Archivos</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for ticket in tickets %}
+                                        <tr data-status="{% if ticket.is_used %}used{% else %}unused{% endif %}" data-search="{{ ticket.holder_name|lower }} {{ ticket.holder_email|lower }} {{ ticket.owner_name|lower }} {{ ticket.owner_email|lower }} {{ ticket.ticket_type|lower }}">
+                                            <td>
+                                                <div class="table-ticket-type">
+                                                    <span class="table-ticket-name">{{ ticket.ticket_type }}</span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="table-status {% if ticket.is_used %}used{% else %}unused{% endif %}">
+                                                    {% if ticket.is_used %}
+                                                        Usado
+                                                    {% else %}
+                                                        Sin usar
+                                                    {% endif %}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="table-user-info">
+                                                    <div class="table-user-name">{{ ticket.holder_name }}</div>
+                                                    {% if ticket.holder_email %}
+                                                        <div class="table-user-email">{{ ticket.holder_email }}</div>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                {% if ticket.owner_name != "Sin asignar" %}
+                                                    <div class="table-user-info">
+                                                        <div class="table-user-name">{{ ticket.owner_name }}</div>
+                                                        {% if ticket.owner_email %}
+                                                            <div class="table-user-email">{{ ticket.owner_email }}</div>
+                                                        {% endif %}
+                                                    </div>
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if ticket.is_used and ticket.scanned_by_name %}
+                                                    <div class="table-user-info">
+                                                        <div class="table-user-name">{{ ticket.scanned_by_name }}</div>
+                                                        {% if ticket.scanned_by_email %}
+                                                            <div class="table-user-email">{{ ticket.scanned_by_email }}</div>
+                                                        {% endif %}
+                                                    </div>
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if ticket.is_used %}
+                                                    <div class="table-datetime">{{ ticket.used_at|date:'d/m/Y H:i' }}</div>
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if ticket.notes %}
+                                                    <div class="table-notes" title="{{ ticket.notes }}">{{ ticket.notes }}</div>
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if ticket.photos %}
+                                                    <div class="table-photos">
+                                                        {% for photo in ticket.photos %}
+                                                            <img src="{{ photo.url }}" alt="{{ photo.name }}" class="table-photo" onclick="openPhotoModal('{{ photo.url }}', '{{ photo.name }}', '{{ photo.uploaded_by }}', '{{ photo.uploaded_at|date:"d/m/Y H:i" }}')">
+                                                        {% endfor %}
+                                                    </div>
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="no-tickets">
+                            <i class="fas fa-ticket-alt"></i>
+                            <h5>No hay bonos vendidos para este evento</h5>
+                            <p>Los bonos aparecerán aquí una vez que se realicen las compras.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Photo Modal -->
+    <div class="modal fade" id="photoModal" tabindex="-1" aria-labelledby="photoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="photoModalLabel">Archivo adjunto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img id="modalPhoto" src="" alt="" class="img-fluid rounded">
+                    <div class="mt-3">
+                        <p class="mb-1"><strong>Archivo:</strong> <span id="modalPhotoName"></span></p>
+                        <p class="mb-1"><strong>Subido por:</strong> <span id="modalPhotoUploader"></span></p>
+                        <p class="mb-0"><strong>Fecha:</strong> <span id="modalPhotoDate"></span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Filter functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const statusFilter = document.getElementById('statusFilter');
+            const searchInput = document.getElementById('searchInput');
+            
+            // Get all ticket elements (both cards and table rows)
+            const ticketCards = document.querySelectorAll('.ticket-card');
+            const ticketRows = document.querySelectorAll('#ticketsTable tbody tr');
+            
+            function filterTickets() {
+                const statusValue = statusFilter.value;
+                const searchValue = searchInput.value.toLowerCase();
+                
+                // Filter cards
+                ticketCards.forEach(card => {
+                    const status = card.dataset.status;
+                    const searchData = card.dataset.search;
+                    
+                    const statusMatch = !statusValue || status === statusValue;
+                    const searchMatch = !searchValue || searchData.includes(searchValue);
+                    
+                    if (statusMatch && searchMatch) {
+                        card.style.display = 'block';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+                
+                // Filter table rows
+                ticketRows.forEach(row => {
+                    const status = row.dataset.status;
+                    const searchData = row.dataset.search;
+                    
+                    const statusMatch = !statusValue || status === statusValue;
+                    const searchMatch = !searchValue || searchData.includes(searchValue);
+                    
+                    if (statusMatch && searchMatch) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            }
+            
+            // Event listeners
+            statusFilter.addEventListener('change', filterTickets);
+            searchInput.addEventListener('input', filterTickets);
+        });
+        
+        // Photo modal functionality
+        function openPhotoModal(photoUrl, photoName, uploadedBy, uploadedAt) {
+            document.getElementById('modalPhoto').src = photoUrl;
+            document.getElementById('modalPhoto').alt = photoName;
+            document.getElementById('modalPhotoName').textContent = photoName;
+            document.getElementById('modalPhotoUploader').textContent = uploadedBy;
+            document.getElementById('modalPhotoDate').textContent = uploadedAt;
+            
+            const modal = new bootstrap.Modal(document.getElementById('photoModal'));
+            modal.show();
+        }
+    </script>
+{% endblock truecontent %}

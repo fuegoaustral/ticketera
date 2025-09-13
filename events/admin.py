@@ -18,12 +18,16 @@ class EventAdminForm(ModelForm):
                 verbose_name='Administradores',
                 is_stacked=False
             ),
+            'access_scanner': FilteredSelectMultiple(
+                verbose_name='Usuarios con Acceso al Scanner',
+                is_stacked=False
+            ),
         }
 
 
 class EventAdmin(admin.ModelAdmin):
     form = EventAdminForm
-    filter_horizontal = ('admins',)  # Esto también ayuda con la interfaz
+    filter_horizontal = ('admins', 'access_scanner')  # Esto también ayuda con la interfaz
     list_display = (
         "name",
         "slug",

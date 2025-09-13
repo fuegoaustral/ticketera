@@ -26,7 +26,7 @@
       {% endblock title %}
     Fuego Austral &#8211; La experiencia será lo que hagamos de ella</title>
     {% block extrahead %}{% endblock %}
-    {% if user.is_authenticated and user.profile.profile_completion == 'COMPLETE' %}
+    {% if user.is_authenticated and user.profile.profile_completion == 'COMPLETE' and not request.resolver_match.url_name == 'scan_tickets' and not request.resolver_match.url_name == 'scan_tickets_event' %}
       <script>
             (function (d, t) {
                 window.chatwootSettings = {
@@ -116,6 +116,9 @@
               <a class="dropdown-item" href="{% url "profile" %}"><i class="fa-solid fa-gear"></i> Configuración</a>
               {% if user.admin_events.exists %}
               <a class="dropdown-item" href="{% url "my_events" %}"><i class="fa-solid fa-cogs"></i> Administrador de eventos</a>
+              {% endif %}
+              {% if user.scanner_events.exists %}
+              <a class="dropdown-item" href="{% url "scanner_events" %}"><i class="fa-solid fa-qrcode"></i> Scanner</a>
               {% endif %}
               <a class="dropdown-item" href="https://fuegoaustral.org/el-evento/10-principios/" target="_blank">10 principios</a>
               <a class="dropdown-item" href="https://fuegoaustral.org/faq/" target="_blank">Preguntas frecuentes</a>
