@@ -55,6 +55,9 @@ urlpatterns = [
     path('ping/', home.ping, name='ping'),
 
     path('scan/', admin.scan_tickets, name='scan_tickets'),
+    path('scan/<slug:event_slug>/', admin.scan_tickets_event, name='scan_tickets_event'),
     path('api/tickets/<str:ticket_key>/check/', admin.check_ticket, name='check_ticket'),
     path('api/tickets/<str:ticket_key>/mark-used/', admin.mark_ticket_used, name='mark_ticket_used'),
+    path('api/tickets/<str:ticket_key>/update-notes/', admin.update_ticket_notes, name='update_ticket_notes'),
+    path('api/tickets/<str:ticket_key>/delete-photo/', admin.delete_ticket_photo, name='delete_ticket_photo'),
 ]

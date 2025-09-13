@@ -1,0 +1,184 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% load static %}
+
+{% block submenu %}
+    {% include 'mi_fuego/partials/event_admin_menu.html' %}
+    
+{% endblock %}
+
+{% block truecontent %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1">
+                        <i class="fas fa-qrcode me-2"></i>
+                        Administración de Scanner
+                    </h1>
+                    <p class="text-muted mb-0">Gestiona los usuarios que pueden acceder al scanner para {{ event.name }}</p>
+                </div>
+                <div>
+                    <a href="{% url 'event_admin' event.slug %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Volver a Administración
+                    </a>
+                </div>
+            </div>
+
+            <!-- Messages -->
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <!-- Add User Form -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-user-plus me-2"></i>
+                        Agregar Usuario al Scanner
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="form-group">
+                                    <label for="email" class="form-label">Email del Usuario</label>
+                                    <input type="email" 
+                                           class="form-control" 
+                                           id="email" 
+                                           name="email" 
+                                           placeholder="usuario@ejemplo.com"
+                                           required>
+                                    <div class="form-text">Ingresa el email del usuario que quieres agregar al scanner.</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 d-flex align-items-end">
+                                <button type="submit" name="add_user" class="btn btn-primary w-100" style="margin-bottom: 1.5rem;">
+                                    <i class="fas fa-plus me-2"></i>
+                                    Agregar Usuario
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Current Scanner Users -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-users me-2"></i>
+                        Usuarios con Acceso al Scanner
+                        <span class="badge bg-success ms-2" style="color: white !important;">{{ all_scanner_users|length }}</span>
+                    </h5>
+                    <small class="text-muted">Los administradores del evento tienen acceso automático al scanner</small>
+                </div>
+                <div class="card-body">
+                    {% if all_scanner_users %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Tipo</th>
+                                        <th>Email</th>
+                                        <th>Nombre</th>
+                                        <th>Apellido</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for user in all_scanner_users %}
+                                        <tr>
+                                            <td>
+                                                {% if user in admin_users %}
+                                                    <span class="badge bg-primary" style="color: white !important;">
+                                                        <i class="fas fa-crown me-1"></i>
+                                                        Admin
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge bg-success">
+                                                        <i class="fas fa-qrcode me-1"></i>
+                                                        Scanner
+                                                    </span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ user.email }}</td>
+                                            <td>{{ user.first_name|default:"-" }}</td>
+                                            <td>{{ user.last_name|default:"-" }}</td>
+                                            <td>
+                                                {% if user not in admin_users %}
+                                                    <form method="post" style="display: inline;">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="user_id" value="{{ user.id }}">
+                                                        <button type="submit" 
+                                                                name="remove_user" 
+                                                                class="btn btn-sm btn-outline-danger"
+                                                                onclick="return confirm('¿Estás seguro de que quieres remover a {{ user.email }} del scanner?')">
+                                                            <i class="fas fa-trash me-1"></i>
+                                                            Remover
+                                                        </button>
+                                                    </form>
+                                                {% else %}
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-lock me-1"></i>
+                                                        Admin
+                                                    </small>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No hay usuarios con acceso al scanner</h5>
+                            <p class="text-muted">Agrega usuarios usando el formulario de arriba para que puedan acceder al scanner de este evento.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Instructions -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Instrucciones
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Tipos de Usuarios:</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-crown text-primary me-2"></i><strong>Administradores:</strong> Tienen acceso automático al scanner</li>
+                                <li><i class="fas fa-qrcode text-success me-2"></i><strong>Scanner:</strong> Solo acceso al scanner (se pueden remover)</li>
+                                <li><i class="fas fa-plus text-info me-2"></i>Agrega usuarios adicionales con el formulario de arriba</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Acceso al Scanner:</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success me-2"></i>Los usuarios verán una opción "Scanner" en su menú</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Podrán escanear tickets solo para este evento</li>
+                                <li><i class="fas fa-check text-success me-2"></i>El acceso es específico por evento</li>
+                                <li><i class="fas fa-lock text-warning me-2"></i>Los administradores no se pueden remover desde aquí</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

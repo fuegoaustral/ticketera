@@ -8,6 +8,7 @@ from io import BytesIO
 import jsonfield
 import qrcode
 from auditlog.registry import auditlog
+from django.utils import timezone
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
@@ -300,6 +301,15 @@ class Order(BaseModel):
         return f'Order #{self.pk}  {self.last_name} - {self.email} - {self.status} - {self.amount}'
 
 
+class TicketPhoto(BaseModel):
+    ticket = models.ForeignKey('NewTicket', on_delete=models.CASCADE, related_name='ticket_photos')
+    photo = models.ImageField(upload_to='ticket_photos/', help_text="Photo related to ticket usage")
+    uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE, help_text="User who uploaded the photo")
+    
+    def __str__(self):
+        return f"Photo for ticket {self.ticket.key}"
+
+
 class NewTicket(BaseModel):
     key = models.UUIDField(default=uuid.uuid4, editable=False)
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
@@ -308,6 +318,9 @@ class NewTicket(BaseModel):
     owner = models.ForeignKey(User, related_name='owned_tickets', null=True, blank=True, on_delete=models.SET_NULL)
     holder = models.ForeignKey(User, related_name='held_tickets', null=True, blank=True, on_delete=models.CASCADE)
     is_used = models.BooleanField(default=False)
+    used_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when the ticket was marked as used")
+    scanned_by = models.ForeignKey(User, related_name='scanned_tickets', null=True, blank=True, on_delete=models.SET_NULL, help_text="User who scanned/marked the ticket as used")
+    notes = models.TextField(null=True, blank=True, help_text="Notes about the ticket usage")
 
     volunteer_ranger = models.BooleanField('Rangers', null=True, blank=True, )
     volunteer_transmutator = models.BooleanField('Transmutadores', null=True, blank=True, )
@@ -353,6 +366,24 @@ class NewTicket(BaseModel):
             'volunteer_umpalumpa': self.volunteer_umpalumpa,
             'qr_code': self.generate_qr_code(),
             'is_used': self.is_used,
+            'used_at': self.used_at,
+            'scanned_by': {
+                'id': self.scanned_by.id,
+                'username': self.scanned_by.username,
+                'full_name': self.scanned_by.get_full_name() or self.scanned_by.username,
+                'email': self.scanned_by.email
+            } if self.scanned_by else None,
+            'notes': self.notes,
+            'photos': [
+                {
+                    'id': photo.id,
+                    'url': photo.photo.url,
+                    'name': photo.photo.name.split('/')[-1],  # Get filename
+                    'uploaded_at': photo.created_at.isoformat() if photo.created_at else None,
+                    'uploaded_by': photo.uploaded_by.get_full_name() or photo.uploaded_by.username
+                }
+                for photo in self.ticket_photos.all()
+            ],
         }
 
     def is_volunteer(self):

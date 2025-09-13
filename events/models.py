@@ -43,6 +43,7 @@ class Event(BaseModel):
     attendee_must_be_registered = models.BooleanField(default=True, help_text="If checked, all attendees must be registered users")
     
     admins = models.ManyToManyField(User, blank=True, related_name='admin_events', help_text="Users who can administer this event")
+    access_scanner = models.ManyToManyField(User, blank=True, related_name='scanner_events', help_text="Users who can access the scanner for this event")
 
     class Meta:
         constraints = [

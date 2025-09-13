@@ -9,16 +9,41 @@
 
 {% block innercontent %}
     {% csrf_token %}
-    <div class="container py-4">
+    <div class="container">
+        <!-- Alerts section - shown above camera -->
+        <div class="row justify-content-center mb-3">
+            <div class="col-md-8 col-lg-6">
+                <div id="error-message" class="alert alert-danger d-none">
+                </div>
+                <div id="success-message" class="alert alert-success d-none">
+                </div>
+            </div>
+        </div>
+
+        {% if event %}
+        <div class="row justify-content-center mb-2">
+            <div class="col-md-8 col-lg-6">
+                <div class="alert alert-info">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <div>
+                                <strong>Scanner para:</strong> {{ event.name }}
+                            </div>
+                        </div>
+                        <button id="toggleCamera" class="btn btn-primary d-none">
+                            <i class="fas fa-camera me-2"></i>Iniciar Cámara
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
         <div id="scanner-view">
             <div class="row justify-content-center">
                 <div class="col-md-8 col-lg-6">
                     <div class="card">
-                        <div class="d-flex justify-content-end">
-                            <button id="toggleCamera" class="btn btn-primary d-none">
-                                <i class="fas fa-camera me-2"></i>Iniciar Cámara
-                            </button>
-                        </div>
                         <div class="card-body">
                             <div class="video-container mb-4" style="border-radius: 8px; overflow: hidden; min-height: 300px; display: flex; align-items: center; justify-content: center;">
                                 <video id="qr-video" class="w-100" style="background-color: #000; display: none;"></video>
@@ -48,6 +73,9 @@
                             <button id="backToScanner" class="btn btn-outline-secondary">
                                 <i class="fas fa-arrow-left"></i> Volver a escanear
                             </button>
+                        </div>
+                        <div id="ticket-used-alert" class="alert alert-warning d-none mx-3 mt-3 mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Usado
                         </div>
                         <div class="card-body">
                             <div id="ticket-info">
@@ -83,14 +111,75 @@
                                                 <h6 id="ticket-holder" class="mb-0"></h6>
                                             </div>
                                         </div>
+                                        <div class="col-sm-6 d-none" id="scanned-by-container">
+                                            <div class="detail-item">
+                                                <label class="text-muted">Escaneado por</label>
+                                                <h6 id="ticket-scanned-by" class="mb-0"></h6>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div id="ticket-actions" class="d-flex justify-content-center">
                                     <button id="mark-is-used" class="btn btn-success btn-lg d-none">
                                         <i class="fas fa-check-circle me-2"></i>Marcar como Usado
                                     </button>
-                                    <div id="already-is-used" class="alert alert-warning d-none w-100 text-center">
-                                        <i class="fas fa-exclamation-triangle me-2"></i>Este bono ya fue usado
+                                </div>
+                                
+                                <!-- Notes and Photos Section -->
+                                <div id="notes-photos-section" class="d-none mt-4">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h6 class="mb-0"><i class="fas fa-edit me-2"></i>Agregar Información</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <form id="notes-photos-form">
+                                                <div class="mb-3">
+                                                    <label for="ticket-notes" class="form-label">Notas</label>
+                                                    <textarea id="ticket-notes" class="form-control" rows="3" placeholder="Agregar notas sobre el uso del bono..."></textarea>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="ticket-photos" class="form-label">Agregar Fotos</label>
+                                                    <input type="file" id="ticket-photos" class="form-control" multiple accept="image/*">
+                                                    <div class="form-text">Puedes seleccionar múltiples fotos para agregar a las existentes</div>
+                                                    <div id="existing-photos" class="mt-2"></div>
+                                                </div>
+                                                <div class="d-flex justify-content-between">
+                                                    <button type="button" id="save-notes-photos" class="btn btn-primary">
+                                                        <i class="fas fa-save me-2"></i>Guardar
+                                                    </button>
+                                                    <button type="button" id="skip-notes-photos" class="btn btn-outline-secondary">
+                                                        <i class="fas fa-times me-2"></i>Cancelar
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Saved Information Display -->
+                                <div id="saved-info-section" class="d-none mt-4">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h6 class="mb-0"><i class="fas fa-check-circle me-2 text-success"></i>Información Guardada</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="saved-notes-display" class="mb-3">
+                                                <h6 class="text-muted mb-2"><i class="fas fa-sticky-note me-2"></i>Notas:</h6>
+                                                <div id="saved-notes-content" class="p-3 bg-light rounded"></div>
+                                            </div>
+                                            <div id="saved-photos-display" class="mb-3">
+                                                <h6 class="text-muted mb-2"><i class="fas fa-images me-2"></i>Fotos:</h6>
+                                                <div id="saved-photos-content" class="p-3 bg-light rounded"></div>
+                                            </div>
+                                            <div class="d-flex justify-content-between">
+                                                <button type="button" id="add-more-info" class="btn btn-outline-primary">
+                                                    <i class="fas fa-plus me-2"></i>Agregar Más
+                                                </button>
+                                                <button type="button" id="close-saved-info" class="btn btn-outline-secondary">
+                                                    <i class="fas fa-times me-2"></i>Cerrar
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -99,8 +188,23 @@
                 </div>
             </div>
         </div>
+    </div>
 
-        <div id="error-message" class="alert alert-danger d-none">
+    <!-- Photo Modal -->
+    <div class="modal fade" id="photoModal" tabindex="-1" aria-labelledby="photoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="photoModalLabel">Imagen</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img id="modalPhoto" src="" alt="Imagen" class="img-fluid">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -202,6 +306,57 @@
         .alert {
             margin-top: 1rem;
         }
+        
+        /* Hide WhatsApp widget in scanner */
+        .wa-widget {
+            display: none !important;
+        }
+        
+        /* Alternative selectors for WhatsApp widgets */
+        [class*="whatsapp"],
+        [id*="whatsapp"],
+        [class*="wa-"],
+        [id*="wa-"] {
+            display: none !important;
+        }
+        
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+            .container {
+                padding-left: 0.5rem;
+                padding-right: 0.5rem;
+                padding-top: 0;
+                padding-bottom: 0;
+            }
+            .row {
+                margin-left: 0;
+                margin-right: 0;
+            }
+            .col-md-8, .col-lg-6 {
+                padding-left: 0.25rem;
+                padding-right: 0.25rem;
+            }
+            .card {
+                margin-bottom: 0.5rem;
+            }
+            .card-body {
+                padding: 0.75rem;
+            }
+            .alert {
+                margin-top: 0.25rem;
+                margin-bottom: 0.25rem;
+            }
+            .row.justify-content-center {
+                margin-bottom: 0.5rem !important;
+            }
+            .btn {
+                font-size: 0.8rem;
+                padding: 0.375rem 0.75rem;
+            }
+            .btn i {
+                font-size: 0.7rem;
+            }
+        }
     </style>
     <script>
         let selectedDeviceId;
@@ -216,12 +371,30 @@
             document.getElementById('scanner-view').classList.remove('d-none');
             document.getElementById('ticket-view').classList.add('d-none');
             document.getElementById('error-message').classList.add('d-none');
+            document.getElementById('success-message').classList.add('d-none');
+            document.getElementById('notes-photos-section').classList.add('d-none');
+            document.getElementById('saved-info-section').classList.add('d-none');
+            // Show the scanner alert when returning to scanner
+            const scannerAlertRow = document.querySelector('.row.justify-content-center:first-of-type');
+            if (scannerAlertRow && scannerAlertRow.querySelector('.alert-info')) {
+                scannerAlertRow.classList.remove('d-none');
+            }
         }
 
         function showTicketView() {
             document.getElementById('scanner-view').classList.add('d-none');
             document.getElementById('ticket-view').classList.remove('d-none');
             document.getElementById('error-message').classList.add('d-none');
+            document.getElementById('success-message').classList.add('d-none');
+            
+            // Don't hide saved-info-section here - let showSavedInformation handle it
+            // The saved-info-section visibility should be managed by showSavedInformation function
+            
+            // Hide only the scanner alert, not error messages
+            const scannerAlertRow = document.querySelector('.row.justify-content-center:first-of-type');
+            if (scannerAlertRow && scannerAlertRow.querySelector('.alert-info')) {
+                scannerAlertRow.classList.add('d-none');
+            }
         }
 
         async function initializeScanner() {
@@ -338,7 +511,13 @@
 
         async function checkTicket(ticketKey) {
             try {
-                const response = await fetch(`/api/tickets/${ticketKey}/check/`, {
+                // Get current event slug if available
+                const eventSlug = '{{ event.slug|default:"" }}';
+                const url = eventSlug ? 
+                    `/api/tickets/${ticketKey}/check/?event_slug=${eventSlug}` : 
+                    `/api/tickets/${ticketKey}/check/`;
+                
+                const response = await fetch(url, {
                     headers: {
                         'X-CSRFToken': getCSRFToken(),
                         'Content-Type': 'application/json',
@@ -379,6 +558,8 @@
                 
                 if (response.ok) {
                     displayTicketInfo(data);
+                    // Show the "Usado" alert
+                    document.getElementById('ticket-used-alert').classList.remove('d-none');
                 } else {
                     showError(data.error || 'Error al marcar el bono como usado');
                 }
@@ -396,8 +577,10 @@
             const ticketStatus = document.getElementById('ticket-status');
             const ticketKey = document.getElementById('ticket-key');
             const invitadoPor = document.getElementById('invited-by-container');
+            const scannedByContainer = document.getElementById('scanned-by-container');
+            const ticketScannedBy = document.getElementById('ticket-scanned-by');
             const markIsUsedButton = document.getElementById('mark-is-used');
-            const alreadyIsUsedDiv = document.getElementById('already-is-used');
+            const ticketUsedAlert = document.getElementById('ticket-used-alert');
             
             ticketInfo.style.display = 'block';
             ticketOwner.textContent = ticket.owner_name || 'Invitado';
@@ -413,13 +596,38 @@
                 invitadoPor.classList.add('d-none');
             }
 
+            // Show scanned by information if available
+            if (ticket.scanned_by && ticket.scanned_by.full_name) {
+                scannedByContainer.classList.remove('d-none');
+                ticketScannedBy.textContent = ticket.scanned_by.full_name;
+            } else {
+                scannedByContainer.classList.add('d-none');
+            }
+
+            // Check if ticket has existing data (notes or photos)
+            const hasNotes = ticket.notes && ticket.notes.trim();
+            const hasPhotos = ticket.photos && ticket.photos.length > 0;
+            
             if (ticket.is_used) {
                 markIsUsedButton.classList.add('d-none');
-                alreadyIsUsedDiv.classList.remove('d-none');
+                ticketUsedAlert.classList.remove('d-none');
+                
+                if (hasNotes || hasPhotos) {
+                    // Show saved information if ticket has data
+                    showSavedInformation(ticket, ticket.key);
+                } else {
+                    // Always show the information section for used tickets, even if empty
+                    showSavedInformation(ticket, ticket.key);
+                }
             } else {
                 markIsUsedButton.classList.remove('d-none');
-                alreadyIsUsedDiv.classList.add('d-none');
+                ticketUsedAlert.classList.add('d-none');
                 markIsUsedButton.onclick = () => markTicketAsUsed(ticket.key);
+                
+                // For unused tickets, show existing information if available
+                if (hasNotes || hasPhotos) {
+                    showSavedInformation(ticket, ticket.key);
+                }
             }
         }
 
@@ -429,7 +637,349 @@
             errorMessage.classList.remove('d-none');
         }
 
-        document.addEventListener('DOMContentLoaded', initializeScanner);
+        function showSuccess(message) {
+            const successMessage = document.getElementById('success-message');
+            successMessage.textContent = message;
+            successMessage.classList.remove('d-none');
+        }
+
+        function showNotesPhotosSection(ticketKey, existingData = null) {
+            const notesPhotosSection = document.getElementById('notes-photos-section');
+            notesPhotosSection.classList.remove('d-none');
+            
+            // Show the close button when entering edit mode
+            const closeButton = document.getElementById('close-saved-info');
+            closeButton.style.display = 'block';
+            
+            // Store current ticket key for saving
+            notesPhotosSection.dataset.ticketKey = ticketKey;
+            
+            // Load existing notes and photos if any
+            const notesTextarea = document.getElementById('ticket-notes');
+            const photosInput = document.getElementById('ticket-photos');
+            
+            if (existingData) {
+                // Load existing notes
+                notesTextarea.value = existingData.notes || '';
+                
+                // Show existing photos if any (but don't duplicate if we're editing)
+                if (existingData.photos && existingData.photos.length > 0) {
+                    showExistingPhotos(existingData.photos);
+                }
+                
+                // Store current data to avoid duplication
+                currentPhotosData = existingData.photos || [];
+                currentTicketKey = ticketKey;
+            } else {
+                // Clear previous values
+                notesTextarea.value = '';
+                photosInput.value = '';
+                // Clear existing photos display
+                document.getElementById('existing-photos').innerHTML = '';
+                // Clear global data
+                currentPhotosData = [];
+                currentTicketKey = ticketKey;
+            }
+            
+            // Add event listeners
+            document.getElementById('save-notes-photos').onclick = () => saveNotesPhotos(ticketKey);
+            document.getElementById('skip-notes-photos').onclick = () => skipNotesPhotos();
+            
+            // Restore close button functionality when in edit mode
+            document.getElementById('close-saved-info').onclick = () => {
+                document.getElementById('notes-photos-section').classList.add('d-none');
+                document.getElementById('saved-info-section').classList.remove('d-none');
+            };
+        }
+
+        async function saveNotesPhotos(ticketKey) {
+            try {
+                const formData = new FormData();
+                const notes = document.getElementById('ticket-notes').value;
+                const photos = document.getElementById('ticket-photos').files;
+                
+                formData.append('notes', notes);
+                
+                // Add photos to form data
+                for (let i = 0; i < photos.length; i++) {
+                    formData.append('photos', photos[i]);
+                }
+                
+                // Note: We no longer need to send existing_photos as JSON since they're stored in the database
+                
+                const response = await fetch(`/api/tickets/${ticketKey}/update-notes/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCSRFToken(),
+                    },
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Hide the notes section but keep saved information visible
+                    document.getElementById('notes-photos-section').classList.add('d-none');
+                    
+                    // Update the saved information display with new data
+                    showSavedInformation(data, ticketKey);
+                    
+                    const photosCount = photos.length;
+                    let successMessage = 'Notas actualizadas exitosamente';
+                    if (photosCount > 0) {
+                        successMessage += ` y ${photosCount} foto${photosCount > 1 ? 's' : ''} agregada${photosCount > 1 ? 's' : ''}`;
+                    }
+                    showSuccess(successMessage);
+                    setTimeout(() => {
+                        document.getElementById('success-message').classList.add('d-none');
+                    }, 3000);
+                } else {
+                    showError(data.error || 'Error al guardar la información');
+                }
+            } catch (err) {
+                console.error('Save notes error:', err);
+                showError('Error al guardar la información: ' + (err.message || 'Error desconocido'));
+            }
+        }
+
+        function skipNotesPhotos() {
+            // Hide the notes/photos form inputs
+            document.getElementById('notes-photos-section').classList.add('d-none');
+            
+            // Check if we have current ticket data and show saved information if available
+            if (currentTicketKey && currentPhotosData !== undefined) {
+                // Create a data object with current information
+                const currentData = {
+                    key: currentTicketKey,
+                    notes: document.getElementById('ticket-notes').value || '',
+                    photos: currentPhotosData || []
+                };
+                
+                // Show saved information section if there's any data
+                if (currentData.notes.trim() || currentData.photos.length > 0) {
+                    showSavedInformation(currentData, currentTicketKey);
+                }
+            }
+        }
+
+        function showSavedInformation(data, ticketKey = null) {
+            // Store current data globally
+            currentPhotosData = data.photos || [];
+            currentTicketKey = ticketKey || data.key;
+            
+            const savedInfoSection = document.getElementById('saved-info-section');
+            const savedNotesContent = document.getElementById('saved-notes-content');
+            const savedPhotosContent = document.getElementById('saved-photos-content');
+            const savedNotesDisplay = document.getElementById('saved-notes-display');
+            const savedPhotosDisplay = document.getElementById('saved-photos-display');
+            
+            // Check if there's any data to show
+            const hasNotes = data.notes && data.notes.trim();
+            const hasPhotos = data.photos && data.photos.length > 0;
+            
+            // Show notes if they exist
+            if (hasNotes) {
+                savedNotesContent.innerHTML = `<p class="mb-0">${data.notes}</p>`;
+                savedNotesDisplay.classList.remove('d-none');
+            } else {
+                savedNotesContent.innerHTML = '<p class="mb-0 text-muted"><em>No hay notas guardadas</em></p>';
+                savedNotesDisplay.classList.remove('d-none');
+            }
+            
+            // Show photos if they exist
+            if (hasPhotos) {
+                savedPhotosContent.innerHTML = '';
+                data.photos.forEach((photo, index) => {
+                    const photoItem = document.createElement('div');
+                    photoItem.className = 'd-flex align-items-center mb-2 p-2 bg-white rounded border';
+                    photoItem.dataset.photoIndex = index;
+                    
+                    let uploadDate = '';
+                    if (photo.uploaded_at) {
+                        const date = new Date(photo.uploaded_at);
+                        uploadDate = ` - ${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+                    }
+                    
+                    // Use real photo URL or placeholder
+                    const thumbnail = photo.url || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xNiAxNkgxNlYyNEgyNFYxNkgxNloiIGZpbGw9IiM5Q0EzQUYiLz4KPC9zdmc+';
+                    
+                    photoItem.innerHTML = `
+                        <img src="${thumbnail}" alt="Thumbnail" class="me-3" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; cursor: pointer;" onclick="showPhotoInModal('${photo.name}', ${photo.id}, '${photo.url}')">
+                        <div class="flex-grow-1">
+                            <small class="text-muted">${photo.name}</small>
+                            <br>
+                            <small class="text-muted">${uploadDate}</small>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deletePhoto(${photo.id}, '${ticketKey || data.key}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    `;
+                    savedPhotosContent.appendChild(photoItem);
+                });
+                savedPhotosDisplay.classList.remove('d-none');
+            } else {
+                savedPhotosContent.innerHTML = '<p class="mb-0 text-muted"><em>No hay fotos guardadas</em></p>';
+                savedPhotosDisplay.classList.remove('d-none');
+            }
+            
+            // Show the saved info section
+            savedInfoSection.classList.remove('d-none');
+            
+            // Store ticket key for adding more info
+            if (ticketKey) {
+                savedInfoSection.dataset.ticketKey = ticketKey;
+            } else if (data.key) {
+                savedInfoSection.dataset.ticketKey = data.key;
+            }
+            
+            // Add event listeners for buttons
+            const addMoreButton = document.getElementById('add-more-info');
+            if (hasNotes || hasPhotos) {
+                addMoreButton.innerHTML = '<i class="fas fa-plus me-2"></i>Agregar Más';
+            } else {
+                addMoreButton.innerHTML = '<i class="fas fa-plus me-2"></i>Agregar Información';
+            }
+            
+            addMoreButton.onclick = () => {
+                const currentTicketKey = savedInfoSection.dataset.ticketKey;
+                savedInfoSection.classList.add('d-none');
+                showNotesPhotosSection(currentTicketKey, data);
+            };
+            
+            // Hide the close button when we're not in edit mode
+            const closeButton = document.getElementById('close-saved-info');
+            closeButton.style.display = 'none';
+        }
+
+        function showExistingPhotos(photos) {
+            const existingPhotosContainer = document.getElementById('existing-photos');
+            existingPhotosContainer.innerHTML = '';
+            
+            if (photos && photos.length > 0) {
+                const photosTitle = document.createElement('div');
+                photosTitle.className = 'mb-2';
+                photosTitle.innerHTML = `<small class="text-muted"><i class="fas fa-images me-1"></i>Fotos existentes (${photos.length}):</small>`;
+                existingPhotosContainer.appendChild(photosTitle);
+                
+                photos.forEach((photo, index) => {
+                    const photoItem = document.createElement('div');
+                    photoItem.className = 'd-flex align-items-center mb-1 p-2 bg-light rounded';
+                    
+                    // Use real photo URL or placeholder
+                    const thumbnail = photo.url || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMzAiIHZpZXdCb3g9IjAgMCAzMCAzMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMwIiBoZWlnaHQ9IjMwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xMiAxMkgxMlYxOEgxOFYxMkgxMloiIGZpbGw9IiM5Q0EzQUYiLz4KPC9zdmc+';
+                    
+                    // Format upload date if available
+                    let uploadDate = '';
+                    if (photo.uploaded_at) {
+                        const date = new Date(photo.uploaded_at);
+                        uploadDate = ` - ${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+                    }
+                    
+                    photoItem.innerHTML = `
+                        <img src="${thumbnail}" alt="Thumbnail" class="me-2" style="width: 30px; height: 30px; object-fit: cover; border-radius: 4px; cursor: pointer;" onclick="showPhotoInModal('${photo.name}', ${photo.id}, '${photo.url}')">
+                        <div class="flex-grow-1">
+                            <small class="text-muted">${photo.name}</small>
+                            <br>
+                            <small class="text-muted">Subida por: ${photo.uploaded_by}${uploadDate}</small>
+                        </div>
+                    `;
+                    existingPhotosContainer.appendChild(photoItem);
+                });
+                
+                // Add note about adding more photos
+                const addMoreNote = document.createElement('div');
+                addMoreNote.className = 'mt-2';
+                addMoreNote.innerHTML = '<small class="text-info"><i class="fas fa-info-circle me-1"></i>Puedes agregar más fotos seleccionando archivos arriba</small>';
+                existingPhotosContainer.appendChild(addMoreNote);
+            }
+        }
+
+        // Hide WhatsApp widgets
+        function hideWhatsAppWidgets() {
+            const whatsappSelectors = [
+                '.wa-widget',
+                '[class*="whatsapp"]',
+                '[id*="whatsapp"]',
+                '[class*="wa-"]',
+                '[id*="wa-"]',
+                'iframe[src*="whatsapp"]',
+                'div[data-whatsapp]'
+            ];
+            
+            whatsappSelectors.forEach(selector => {
+                const elements = document.querySelectorAll(selector);
+                elements.forEach(element => {
+                    element.style.display = 'none !important';
+                    element.style.visibility = 'hidden !important';
+                });
+            });
+        }
+
+        // Global variables to store current photos data
+        let currentPhotosData = [];
+        let currentTicketKey = '';
+
+        function showPhotoInModal(photoName, photoId, photoUrl) {
+            const modalPhoto = document.getElementById('modalPhoto');
+            const modalTitle = document.getElementById('photoModalLabel');
+            
+            modalTitle.textContent = photoName;
+            
+            // Use real photo URL or placeholder
+            if (photoUrl) {
+                modalPhoto.src = photoUrl;
+            } else {
+                modalPhoto.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xNjAgMTIwSDE2MFYxODBIMjQwVjEyMEgxNjBaIiBmaWxsPSIjOUNBM0FGIi8+Cjx0ZXh0IHg9IjIwMCIgeT0iMjAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNjY2IiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiPkltYWdlbiBubyBkaXNwb25pYmxlPC90ZXh0Pgo8L3N2Zz4=';
+            }
+            modalPhoto.alt = photoName;
+            
+            // Show the modal
+            const modal = new bootstrap.Modal(document.getElementById('photoModal'));
+            modal.show();
+        }
+
+        async function deletePhoto(photoId, ticketKey) {
+            if (!confirm('¿Estás seguro de que quieres eliminar esta foto?')) {
+                return;
+            }
+            
+            try {
+                const formData = new FormData();
+                formData.append('photo_id', photoId);
+                
+                const response = await fetch(`/api/tickets/${ticketKey}/delete-photo/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCSRFToken(),
+                    },
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Refresh the saved information display
+                    showSavedInformation(data, ticketKey);
+                    showSuccess('Foto eliminada exitosamente');
+                    setTimeout(() => {
+                        document.getElementById('success-message').classList.add('d-none');
+                    }, 3000);
+                } else {
+                    showError(data.error || 'Error al eliminar la foto');
+                }
+            } catch (err) {
+                console.error('Delete photo error:', err);
+                showError('Error al eliminar la foto: ' + (err.message || 'Error desconocido'));
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeScanner();
+            hideWhatsAppWidgets();
+            
+            // Hide WhatsApp widgets periodically in case they load dynamically
+            setInterval(hideWhatsAppWidgets, 1000);
+        });
     </script>
 {% endblock innercontent %} 
 

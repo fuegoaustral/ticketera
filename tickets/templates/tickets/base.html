@@ -89,7 +89,7 @@
 
     {% block extrahead %}{% endblock %}
 
-    {% if user.is_authenticated and user.profile.profile_completion == 'COMPLETE' %}
+    {% if user.is_authenticated and user.profile.profile_completion == 'COMPLETE' and not request.resolver_match.url_name == 'scan_tickets' and not request.resolver_match.url_name == 'scan_tickets_event' %}
         <script>
             (function (d, t) {
                 window.chatwootSettings = {

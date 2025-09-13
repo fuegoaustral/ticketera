@@ -1,0 +1,129 @@
+{% extends 'tickets/barbu_base.html' %}
+{% load static %}
+
+{% block page_title %}Scanner de Tickets{% endblock %}
+
+{% block menu %}{% endblock %}
+
+{% block innercontent %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            {% if scanner_events %}
+                <div class="row">
+                    {% for scanner_event in scanner_events %}
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card h-100">
+                                <div class="card-body d-flex flex-column">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="flex-shrink-0">
+                                            <div class="scanner-icon">
+                                                <i class="fas fa-qrcode fa-2x text-white"></i>
+                                            </div>
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <h5 class="card-title mb-1">{{ scanner_event.name }}</h5>
+                                            <p class="card-text text-muted small mb-0">
+                                                <i class="fas fa-calendar me-1"></i>
+                                                {{ scanner_event.start|date:"d/m/Y H:i" }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    
+                                    {% if scanner_event.location %}
+                                        <p class="card-text text-muted small mb-3">
+                                            <i class="fas fa-map-marker-alt me-1"></i>
+                                            {{ scanner_event.location }}
+                                        </p>
+                                    {% endif %}
+                                    
+                                    <div class="mt-auto">
+                                        <a href="{% url 'scan_tickets_event' scanner_event.slug %}" 
+                                           class="btn btn-primary w-100">
+                                            <i class="fas fa-qrcode me-2"></i>
+                                            Abrir Scanner
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-qrcode fa-4x text-muted mb-4"></i>
+                    <h4 class="text-muted">No tienes acceso al scanner</h4>
+                    <p class="text-muted">No tienes permisos para acceder al scanner de ningún evento.</p>
+                    <p class="text-muted">Contacta a un administrador de eventos para obtener acceso.</p>
+                </div>
+            {% endif %}
+
+            <!-- Instructions -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Instrucciones de Uso
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>¿Cómo usar el scanner?</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success me-2"></i>Selecciona el evento para el que quieres escanear</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Haz clic en "Iniciar Cámara"</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Apunta la cámara al código QR del ticket</li>
+                                <li><i class="fas fa-check text-success me-2"></i>El sistema verificará y marcará el ticket como usado</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Información del Ticket</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success me-2"></i>Verás el tipo de ticket y el propietario</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Podrás marcar el ticket como usado</li>
+                                <li><i class="fas fa-check text-success me-2"></i>El sistema previene el uso duplicado</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Podrás agregar notas y fotos al ticket</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .scanner-icon {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #007bff, #0056b3);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+    }
+    
+    .card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: 1px solid #e9ecef;
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #007bff, #0056b3);
+        border: none;
+        transition: all 0.2s ease;
+    }
+    
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #0056b3, #004085);
+        transform: translateY(-1px);
+    }
+</style>
+{% endblock innercontent %}

@@ -21,7 +21,7 @@ from events.models import Event
 from utils.direct_sales import direct_sales_existing_user, direct_sales_new_user
 from .forms import TicketPurchaseForm
 from .models import TicketType, Order, OrderTicket, NewTicket, NewTicketTransfer, DirectTicketTemplate, \
-    DirectTicketTemplateStatus
+    DirectTicketTemplateStatus, TicketPhoto
 from .processing import mint_tickets
 from .views import webhooks
 
@@ -351,9 +351,19 @@ class TicketTypeAdmin(admin.ModelAdmin):
     search_fields = ['name', 'event__name']
 
 
+class TicketPhotoInline(admin.TabularInline):
+    model = TicketPhoto
+    extra = 0
+    readonly_fields = ['photo', 'uploaded_by', 'created_at']
+    fields = ['photo', 'uploaded_by', 'created_at']
+    
+    def has_add_permission(self, request, obj=None):
+        return False  # Prevent adding photos through admin
+
+
 class NewTicketAdmin(admin.ModelAdmin):
-    list_display = ['owner', 'ticket_type', 'holder', 'order_id', 'event', 'created_at']
-    list_filter = ['event__name', 'ticket_type__name', 'order__status']
+    list_display = ['owner', 'ticket_type', 'holder', 'order_id', 'event', 'is_used', 'scanned_by', 'used_at', 'created_at']
+    list_filter = ['event__name', 'ticket_type__name', 'order__status', 'is_used', 'scanned_by']
     search_fields = [
         'holder__first_name',
         'holder__last_name',
@@ -361,8 +371,25 @@ class NewTicketAdmin(admin.ModelAdmin):
         'owner__first_name',
         'owner__last_name',
         'owner__email',
+        'scanned_by__first_name',
+        'scanned_by__last_name',
+        'scanned_by__email',
         'key',
     ]
+    readonly_fields = ['key', 'used_at', 'scanned_by']
+    inlines = [TicketPhotoInline]
+    fieldsets = (
+        ('Información del Ticket', {
+            'fields': ('key', 'event', 'ticket_type', 'order', 'owner', 'holder')
+        }),
+        ('Estado de Uso', {
+            'fields': ('is_used', 'used_at', 'scanned_by', 'notes')
+        }),
+        ('Voluntariado', {
+            'fields': ('volunteer_ranger', 'volunteer_transmutator', 'volunteer_umpalumpa'),
+            'classes': ('collapse',)
+        }),
+    )
 
 
 class NewTicketInline(admin.StackedInline):
@@ -418,7 +445,26 @@ class OrderAdmin(ExportActionMixin, ExportMixin, admin.ModelAdmin):
         )
 
 
+class TicketPhotoAdmin(admin.ModelAdmin):
+    list_display = ['ticket', 'uploaded_by', 'created_at']
+    list_filter = ['ticket__event__name', 'uploaded_by', 'created_at']
+    search_fields = [
+        'ticket__key',
+        'ticket__holder__first_name',
+        'ticket__holder__last_name',
+        'ticket__holder__email',
+        'uploaded_by__first_name',
+        'uploaded_by__last_name',
+        'uploaded_by__email',
+    ]
+    readonly_fields = ['ticket', 'uploaded_by', 'created_at']
+    
+    def has_add_permission(self, request):
+        return False  # Prevent adding photos through admin
+
+
 admin.site.register(Order, OrderAdmin)
 admin.site.register(TicketType, TicketTypeAdmin)
 admin.site.register(NewTicket, NewTicketAdmin)
 admin.site.register(NewTicketTransfer)
+admin.site.register(TicketPhoto, TicketPhotoAdmin)

@@ -323,9 +323,9 @@ git push origin feature/nueva-funcionalidad
 - ✅ PRs de `dev` a `main`
 
 #### 🚫 **Prohibido**
-- 🚫 Push directo a `dev` (excepto hotfixes críticos)
+- 🚫 Push directo a `dev` (excepto hotfixes críticos o que estes vibrando expresion radical ✨ y sepas lo que estas haciendo. Mandale cumbia rey)
 - 🚫 Push directo a `main` (NUNCA)
-- 🚫 Deploys manuales con Zappa
+- 🚫 Deploys manuales con Zappa 
 
 ### 🆘 **Hotfixes Críticos**
 

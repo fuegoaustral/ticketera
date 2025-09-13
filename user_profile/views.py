@@ -8,6 +8,7 @@ from django.utils import timezone
 from django.contrib.auth import update_session_auth_hash
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from django.contrib.auth.models import User
 import json
 
 from events.models import Event
@@ -815,6 +816,9 @@ def event_admin_view(request, event_slug):
     if not event.admins.filter(id=request.user.id).exists():
         return HttpResponseForbidden("You don't have permission to view this event")
     
+    # Check if user has scanner access for this event
+    has_scanner_access = event.access_scanner.filter(id=request.user.id).exists()
+    
     # Get tickets sold data for this specific event
     with connection.cursor() as cursor:
         query = """
@@ -868,6 +872,11 @@ def event_admin_view(request, event_slug):
     
     # Get the main event for context
     main_event = Event.get_main_event()
+    
+    # Get events where the user is an admin
+    admin_events = Event.objects.filter(
+        admins=request.user
+    ).order_by('-is_main', 'name')
     
     # Get events where user has tickets, prioritizing main event
     user_events = Event.get_active_events().filter(
@@ -944,20 +953,17 @@ def event_admin_view(request, event_slug):
             'commission': ticket_type_commission,
         })
     
-    # Debug: Print ticket type totals
-    print(f"DEBUG - Ticket Type Gross Total: {total_ticket_type_gross}")
-    print(f"DEBUG - Ticket Type Net Total: {total_ticket_type_net}")
-    print(f"DEBUG - Ticket Revenue from main query: {ticket_revenue}")
-    print(f"DEBUG - Ticket Revenue Net from main query: {ticket_revenue_net}")
     
     context = {
         "event": event,
         "main_event": main_event,
+        "admin_events": admin_events,
         "active_events": user_events,
         "nav_primary": "events",
         "nav_secondary": f"event_admin_{event.slug}",
         "my_ticket": my_ticket.get_dto(user=request.user) if my_ticket else None,
         "now": timezone.now(),
+        "has_scanner_access": has_scanner_access,
         "stats": {
             "tickets_sold": result[0] or 0,
             "tickets_used": tickets_used,
@@ -985,3 +991,219 @@ def event_admin_view(request, event_slug):
     }
     
     return render(request, "mi_fuego/event_admin.html", context)
+
+
+@login_required
+def puerta_admin_view(request, event_slug):
+    """Manage scanner access for a specific event"""
+    # Get the event and check if user is admin
+    try:
+        event = Event.objects.get(slug=event_slug)
+    except Event.DoesNotExist:
+        raise Http404("Event not found")
+    
+    # Check if user is admin of this event
+    if not event.admins.filter(id=request.user.id).exists():
+        return HttpResponseForbidden("You don't have permission to manage scanner access for this event")
+    
+    # Handle form submissions
+    if request.method == 'POST':
+        if 'add_user' in request.POST:
+            email = request.POST.get('email', '').strip()
+            if email:
+                try:
+                    user = User.objects.get(email__iexact=email)
+                    if not event.access_scanner.filter(id=user.id).exists():
+                        event.access_scanner.add(user)
+                        messages.success(request, f'Usuario {email} agregado al scanner exitosamente.')
+                    else:
+                        messages.warning(request, f'El usuario {email} ya tiene acceso al scanner.')
+                except User.DoesNotExist:
+                    messages.error(request, f'No se encontró un usuario con el email {email}.')
+            else:
+                messages.error(request, 'Por favor ingresa un email válido.')
+        
+        elif 'remove_user' in request.POST:
+            user_id = request.POST.get('user_id')
+            if user_id:
+                try:
+                    user = User.objects.get(id=user_id)
+                    event.access_scanner.remove(user)
+                    messages.success(request, f'Usuario {user.email} removido del scanner exitosamente.')
+                except User.DoesNotExist:
+                    messages.error(request, 'Usuario no encontrado.')
+        
+        return redirect('puerta_admin', event_slug=event_slug)
+    
+    # Get current scanner users (including admins automatically)
+    scanner_users = event.access_scanner.all().order_by('email')
+    admin_users = event.admins.all().order_by('email')
+    
+    # Combine scanner users and admin users, removing duplicates
+    all_scanner_users = list(scanner_users) + [admin for admin in admin_users if admin not in scanner_users]
+    
+    # Get the main event for context
+    main_event = Event.get_main_event()
+    
+    # Get events where the user is an admin
+    admin_events = Event.objects.filter(
+        admins=request.user
+    ).order_by('-is_main', 'name')
+    
+    # Get events where user has tickets, prioritizing main event
+    user_events = Event.get_active_events().filter(
+        newticket__holder=request.user
+    ).distinct().order_by('-is_main', 'name')
+    
+    # Get the first ticket for the main event (for backward compatibility)
+    my_ticket = NewTicket.objects.filter(
+        holder=request.user, event=main_event, owner=request.user
+    ).first() if main_event else None
+    
+    context = {
+        "event": event,
+        "main_event": main_event,
+        "admin_events": admin_events,
+        "active_events": user_events,
+        "nav_primary": "events",
+        "nav_secondary": f"puerta_admin_{event.slug}",
+        "my_ticket": my_ticket.get_dto(user=request.user) if my_ticket else None,
+        "now": timezone.now(),
+        "scanner_users": scanner_users,
+        "admin_users": admin_users,
+        "all_scanner_users": all_scanner_users,
+    }
+    
+    return render(request, "mi_fuego/puerta_admin.html", context)
+
+
+@login_required
+def scanner_events_view(request):
+    """Show events where the user has scanner access"""
+    # Get events where the user has scanner access (either as admin or explicit scanner access)
+    admin_events = Event.objects.filter(admins=request.user)
+    scanner_access_events = Event.objects.filter(access_scanner=request.user)
+    
+    # Combine both querysets and remove duplicates
+    scanner_events = (admin_events | scanner_access_events).distinct().order_by('-is_main', 'name')
+    
+    # Get the main event for context
+    main_event = Event.get_main_event()
+    
+    # Get events where user has tickets, prioritizing main event
+    user_events = Event.get_active_events().filter(
+        newticket__holder=request.user
+    ).distinct().order_by('-is_main', 'name')
+    
+    # Get the first ticket for the main event (for backward compatibility)
+    my_ticket = NewTicket.objects.filter(
+        holder=request.user, event=main_event, owner=request.user
+    ).first() if main_event else None
+    
+    context = {
+        "scanner_events": scanner_events,
+        "event": main_event,
+        "active_events": user_events,
+        "nav_primary": "scanner",
+        "nav_secondary": "scanner_events",
+        "my_ticket": my_ticket.get_dto(user=request.user) if my_ticket else None,
+        "now": timezone.now(),
+    }
+    
+    return render(request, "mi_fuego/scanner_events.html", context)
+
+
+@login_required
+def bonus_report_view(request, event_slug):
+    """Show report of all sold bonuses for a specific event"""
+    # Get the event and check if user is admin
+    try:
+        event = Event.objects.get(slug=event_slug)
+    except Event.DoesNotExist:
+        raise Http404("Event not found")
+    
+    # Check if user is admin of this event
+    if not event.admins.filter(id=request.user.id).exists():
+        return HttpResponseForbidden("You don't have permission to view this event")
+    
+    # Get all tickets sold for this event
+    tickets = NewTicket.objects.filter(
+        event=event
+    ).select_related(
+        'holder', 'owner', 'scanned_by', 'ticket_type', 'order'
+    ).prefetch_related('ticket_photos').order_by('-created_at')
+    
+    # Get the main event for context
+    main_event = Event.get_main_event()
+    
+    # Get events where the user is an admin
+    admin_events = Event.objects.filter(
+        admins=request.user
+    ).order_by('-is_main', 'name')
+    
+    # Get events where user has tickets, prioritizing main event
+    user_events = Event.get_active_events().filter(
+        newticket__holder=request.user
+    ).distinct().order_by('-is_main', 'name')
+    
+    # Get the first ticket for the main event (for backward compatibility)
+    my_ticket = NewTicket.objects.filter(
+        holder=request.user, event=main_event, owner=request.user
+    ).first() if main_event else None
+    
+    # Prepare ticket data for the template
+    tickets_data = []
+    for ticket in tickets:
+        ticket_data = {
+            'key': ticket.key,
+            'ticket_type': ticket.ticket_type.name,
+            'ticket_type_emoji': ticket.ticket_type.emoji,
+            'ticket_type_color': ticket.ticket_type.color,
+            'holder_name': f"{ticket.holder.first_name} {ticket.holder.last_name}".strip() if ticket.holder else "Sin asignar",
+            'holder_email': ticket.holder.email if ticket.holder else None,
+            'owner_name': f"{ticket.owner.first_name} {ticket.owner.last_name}".strip() if ticket.owner else "Sin asignar",
+            'owner_email': ticket.owner.email if ticket.owner else None,
+            'is_used': ticket.is_used,
+            'used_at': ticket.used_at,
+            'scanned_by_name': f"{ticket.scanned_by.first_name} {ticket.scanned_by.last_name}".strip() if ticket.scanned_by else None,
+            'scanned_by_email': ticket.scanned_by.email if ticket.scanned_by else None,
+            'notes': ticket.notes,
+            'photos': [
+                {
+                    'id': photo.id,
+                    'url': photo.photo.url,
+                    'name': photo.photo.name.split('/')[-1],
+                    'uploaded_at': photo.created_at,
+                    'uploaded_by': f"{photo.uploaded_by.first_name} {photo.uploaded_by.last_name}".strip() if photo.uploaded_by else None
+                }
+                for photo in ticket.ticket_photos.all()
+            ],
+            'created_at': ticket.created_at,
+            'order_key': ticket.order.key if ticket.order else None,
+        }
+        tickets_data.append(ticket_data)
+    
+    # Calculate statistics
+    total_tickets = len(tickets_data)
+    used_tickets = len([t for t in tickets_data if t['is_used']])
+    unused_tickets = total_tickets - used_tickets
+    
+    context = {
+        "event": event,
+        "main_event": main_event,
+        "admin_events": admin_events,
+        "active_events": user_events,
+        "nav_primary": "events",
+        "nav_secondary": f"bonus_report_{event.slug}",
+        "my_ticket": my_ticket.get_dto(user=request.user) if my_ticket else None,
+        "now": timezone.now(),
+        "tickets": tickets_data,
+        "stats": {
+            "total_tickets": total_tickets,
+            "used_tickets": used_tickets,
+            "unused_tickets": unused_tickets,
+            "usage_percentage": (used_tickets / total_tickets * 100) if total_tickets > 0 else 0,
+        }
+    }
+    
+    return render(request, "mi_fuego/bonus_report.html", context)

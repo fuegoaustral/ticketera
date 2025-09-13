@@ -1,0 +1,280 @@
+<!-- Mobile menu toggle button -->
+<div class="mobile-menu-toggle d-lg-none mb-3">
+    <button class="btn btn-outline-secondary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-expanded="false" aria-controls="sidebarMenu">
+        <i class="fas fa-bars me-2"></i>
+        Menú de Administración
+    </button>
+</div>
+
+<div class="sidebar-menu collapse d-lg-block" id="sidebarMenu">
+    <div class="menu-section">
+        <h6 class="menu-section-title">
+            <i class="fas fa-calendar-alt me-2"></i>
+            Eventos
+        </h6>
+        <ul class="menu-list">
+            {% for admin_event in admin_events %}
+                <li class="menu-item">
+                    <div class="menu-event-title{% if event and admin_event.slug == event.slug %} active{% endif %}">
+                        <i class="fas fa-star me-2" style="{% if not admin_event.is_main %}opacity: 0.3;{% endif %}"></i>
+                        {{ admin_event.name }}
+                    </div>
+                    
+                    <ul class="menu-sublist">
+                        <li class="menu-subitem">
+                            <a class="menu-sublink{% if event and admin_event.slug == event.slug and nav_secondary == 'event_admin_'|add:admin_event.slug %} active{% endif %}"
+                               href="{% url 'event_admin' admin_event.slug %}">
+                                <i class="fas fa-chart-line me-2"></i>
+                                Reporte de ventas
+                            </a>
+                        </li>
+                        <li class="menu-subitem">
+                            <a class="menu-sublink{% if nav_secondary == 'bonus_report_'|add:admin_event.slug %} active{% endif %}"
+                               href="{% url 'bonus_report' admin_event.slug %}">
+                                <i class="fas fa-chart-bar me-2"></i>
+                                Reporte de bonos
+                            </a>
+                        </li>
+                        <li class="menu-subitem">
+                            <a class="menu-sublink{% if nav_secondary == 'puerta_admin_'|add:admin_event.slug %} active{% endif %}"
+                               href="{% url 'puerta_admin' admin_event.slug %}">
+                                <i class="fas fa-qrcode me-2"></i>
+                                Administrar Scanner
+                            </a>
+                        </li>
+                        <li class="menu-subitem">
+                            <a class="menu-sublink" href="{% url 'scan_tickets_event' admin_event.slug %}">
+                                <i class="fas fa-camera me-2"></i>
+                                Abrir Scanner
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<style>
+    .sidebar-menu {
+        background: transparent;
+        padding: 0;
+        margin-bottom: 1rem;
+    }
+    
+    .menu-section {
+        margin-bottom: 1.5rem;
+    }
+    
+    .menu-section:last-child {
+        margin-bottom: 0;
+    }
+    
+    .menu-section-title {
+        color: #1e1e1e;
+        font-weight: 600;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #d9d9d9;
+    }
+    
+    .menu-section-link {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        padding: 1rem;
+        text-align: left;
+        color: #1e1e1e !important;
+        text-decoration: none;
+        border-radius: 0.5rem;
+        transition: all 0.2s ease;
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #d9d9d9;
+    }
+    
+    .menu-section-link:hover {
+        font-weight: 600;
+        text-decoration: none !important;
+        background-color: #f8f9fa;
+        color: #1e1e1e !important;
+    }
+    
+    .menu-section-link.active {
+        background-color: #e9f5f0;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        color: #289e6d !important;
+    }
+    
+    .menu-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .menu-item {
+        margin-bottom: 0.25rem;
+        width: 100%;
+    }
+    
+    .menu-sublist {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        margin-left: 1rem;
+        margin-top: 0.25rem;
+    }
+    
+    .menu-subitem {
+        margin-bottom: 0.125rem;
+    }
+    
+    .menu-link {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        padding: 1rem;
+        text-align: left;
+        color: #1e1e1e !important;
+        text-decoration: none;
+        border-radius: 0.5rem;
+        transition: all 0.2s ease;
+        font-size: 0.9rem;
+    }
+    
+    .menu-event-title {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        padding: 1rem;
+        text-align: left;
+        color: #1e1e1e;
+        border-radius: 0.5rem;
+        transition: all 0.2s ease;
+        font-size: 0.9rem;
+        font-weight: 600;
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        margin-bottom: 0.5rem;
+    }
+    
+    .menu-event-title.active {
+        background-color: #e9f5f0;
+        border-color: #289e6d;
+        color: #289e6d;
+    }
+    
+    .menu-sublink {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        padding: 0.5rem 1rem;
+        text-align: left;
+        color: #6c757d !important;
+        text-decoration: none;
+        border-radius: 0.25rem;
+        transition: all 0.2s ease;
+        font-size: 0.85rem;
+    }
+    
+    .menu-link:hover {
+        font-weight: 500;
+        text-decoration: none !important;
+        background-color: #f8f9fa;
+    }
+    
+    .menu-link.active {
+        background-color: #e9f5f0;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        color: #289e6d !important;
+    }
+    
+    .menu-sublink:hover {
+        font-weight: 500;
+        text-decoration: none !important;
+        background-color: #f8f9fa;
+        color: #1e1e1e !important;
+    }
+    
+    .menu-sublink.active {
+        background-color: #e9f5f0;
+        border-radius: 0.25rem;
+        font-weight: 500;
+        color: #289e6d !important;
+    }
+    
+    .menu-link i {
+        width: 16px;
+        text-align: center;
+        margin-right: 0.5rem;
+    }
+    
+    /* Mobile menu toggle button */
+    .mobile-menu-toggle {
+        margin-bottom: 1rem;
+        width: 100%;
+    }
+    
+    .mobile-menu-toggle .btn {
+        border-radius: 0.5rem;
+        font-size: 0.9rem;
+        padding: 0.75rem 1rem;
+        width: 100% !important;
+        display: block;
+        font-weight: 500;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 991.98px) {
+        .sidebar-menu {
+            margin-bottom: 2rem;
+            background: #f8f9fa;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            border: 1px solid #e9ecef;
+            width: 100%;
+        }
+        
+        .sidebar-menu.collapse:not(.show) {
+            display: none;
+        }
+        
+        .sidebar-menu.collapse.show {
+            display: block;
+        }
+        
+        .menu-section {
+            margin-bottom: 1rem;
+        }
+        
+        .menu-section-title {
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.25rem;
+        }
+        
+        .menu-event-title {
+            padding: 0.75rem;
+            font-size: 0.85rem;
+            border-radius: 0.375rem;
+        }
+        
+        .menu-sublink {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.8rem;
+        }
+        
+        .menu-sublist {
+            margin-left: 0.5rem;
+        }
+    }
+</style>
