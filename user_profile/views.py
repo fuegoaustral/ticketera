@@ -1,14 +1,19 @@
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.db import transaction
-from django.http import Http404, HttpResponseNotAllowed, HttpResponseForbidden
+from django.http import Http404, HttpResponseNotAllowed, HttpResponseForbidden, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
+from django.contrib.auth import update_session_auth_hash
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+import json
 
 from events.models import Event
 from events.utils import get_event_from_request
 from tickets.models import NewTicket, NewTicketTransfer, Order
-from .forms import ProfileStep1Form, ProfileStep2Form, VolunteeringForm
+from .forms import ProfileStep1Form, ProfileStep2Form, VolunteeringForm, ProfileUpdateForm, CustomPasswordChangeForm, AddEmailForm, PhoneUpdateForm
 
 
 @login_required
@@ -466,6 +471,200 @@ def profile_congrats(request):
 
 def verification_congrats(request):
     return render(request, "account/verification_congrats.html")
+
+
+@login_required
+def profile_view(request):
+    """Vista completa para la página de perfil del usuario"""
+    from allauth.account.models import EmailAddress
+    from allauth.account.utils import send_email_confirmation
+    
+    user = request.user
+    profile = user.profile
+    
+    # Get all email addresses for the user
+    email_addresses = EmailAddress.objects.filter(user=user).order_by('-primary', 'email')
+    
+    # Initialize forms
+    profile_form = ProfileUpdateForm(instance=profile, user=user)
+    password_form = CustomPasswordChangeForm()
+    add_email_form = AddEmailForm()
+    
+    # Handle profile update
+    if request.method == 'POST':
+        if 'update_profile' in request.POST:
+            profile_form = ProfileUpdateForm(request.POST, instance=profile, user=user)
+            if profile_form.is_valid():
+                profile_form.save()
+                messages.success(request, 'Tu perfil ha sido actualizado exitosamente.')
+                return redirect('profile')
+        
+        # Handle password change
+        elif 'change_password' in request.POST:
+            password_form = CustomPasswordChangeForm(request.POST)
+            if password_form.is_valid():
+                new_password = password_form.cleaned_data['password1']
+                user.set_password(new_password)
+                user.save()
+                update_session_auth_hash(request, user)  # Important!
+                messages.success(request, 'Contraseña actualizada exitosamente.')
+            return redirect('profile')
+        
+        # Handle add email
+        elif 'add_email' in request.POST:
+            add_email_form = AddEmailForm(request.POST)
+            if add_email_form.is_valid():
+                email = add_email_form.cleaned_data['email']
+                # Check if email already exists
+                if EmailAddress.objects.filter(email=email).exists():
+                    messages.error(request, 'Este email ya está registrado.')
+                else:
+                    # Create new email address
+                    email_address = EmailAddress.objects.create(
+                        user=user,
+                        email=email,
+                        primary=False,
+                        verified=False
+                    )
+                    # Send confirmation email
+                    send_email_confirmation(request, user, email=email)
+                    messages.success(request, f'Se ha enviado un email de confirmación a {email}.')
+                return redirect('profile')
+        
+        # Handle set primary email
+        elif 'set_primary' in request.POST:
+            email_id = request.POST.get('email_id')
+            try:
+                email_address = EmailAddress.objects.get(id=email_id, user=user)
+                if email_address.verified:
+                    # Set all other emails as non-primary
+                    EmailAddress.objects.filter(user=user).update(primary=False)
+                    # Set this one as primary
+                    email_address.primary = True
+                    email_address.save()
+                    messages.success(request, f'{email_address.email} es ahora tu email principal.')
+                else:
+                    messages.error(request, 'Solo puedes establecer como principal un email verificado.')
+            except EmailAddress.DoesNotExist:
+                messages.error(request, 'Email no encontrado.')
+            return redirect('profile')
+        
+        # Handle remove email
+        elif 'remove_email' in request.POST:
+            email_id = request.POST.get('email_id')
+            try:
+                email_address = EmailAddress.objects.get(id=email_id, user=user)
+                if not email_address.primary:
+                    email_address.delete()
+                    messages.success(request, f'Email {email_address.email} eliminado exitosamente.')
+                else:
+                    messages.error(request, 'No puedes eliminar tu email principal.')
+            except EmailAddress.DoesNotExist:
+                messages.error(request, 'Email no encontrado.')
+            return redirect('profile')
+        
+    
+    context = {
+        'profile_form': profile_form,
+        'password_form': password_form,
+        'add_email_form': add_email_form,
+        'email_addresses': email_addresses,
+        'user': user,
+        'profile': profile,
+    }
+    
+    return render(request, "mi_fuego/profile.html", context)
+
+
+@login_required
+@require_POST
+def send_phone_code_ajax(request):
+    """Vista AJAX para enviar código de verificación SMS"""
+    try:
+        data = json.loads(request.body)
+        phone = data.get('phone')
+        
+        if not phone:
+            return JsonResponse({'success': False, 'error': 'Número de teléfono requerido'})
+        
+        # Create form instance to use Twilio methods
+        profile = request.user.profile
+        form_data = {'phone': phone}
+        phone_form = PhoneUpdateForm(form_data, instance=profile)
+        
+        if phone_form.is_valid():
+            try:
+                phone_form.send_verification_code()
+                return JsonResponse({
+                    'success': True, 
+                    'message': 'Código de verificación enviado por SMS'
+                })
+            except Exception as e:
+                return JsonResponse({
+                    'success': False, 
+                    'error': f'Error al enviar el código: {str(e)}'
+                })
+        else:
+            errors = phone_form.errors.get('phone', [])
+            return JsonResponse({
+                'success': False, 
+                'error': errors[0] if errors else 'Número de teléfono inválido'
+            })
+            
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Datos inválidos'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': 'Error interno del servidor'})
+
+
+@login_required
+@require_POST
+def verify_phone_code_ajax(request):
+    """Vista AJAX para verificar código SMS y actualizar teléfono"""
+    try:
+        data = json.loads(request.body)
+        phone = data.get('phone')
+        code = data.get('code')
+        
+        if not phone or not code:
+            return JsonResponse({'success': False, 'error': 'Teléfono y código requeridos'})
+        
+        # Create form instance to use Twilio methods
+        profile = request.user.profile
+        form_data = {'phone': phone, 'code': code}
+        phone_form = PhoneUpdateForm(form_data, instance=profile, code_sent=True)
+        
+        if phone_form.is_valid():
+            if phone_form.verify_code():
+                phone_form.save()
+                return JsonResponse({
+                    'success': True, 
+                    'message': 'Número de teléfono actualizado exitosamente',
+                    'new_phone': phone
+                })
+            else:
+                return JsonResponse({
+                    'success': False, 
+                    'error': 'Código de verificación inválido'
+                })
+        else:
+            errors = []
+            if phone_form.errors.get('phone'):
+                errors.extend(phone_form.errors['phone'])
+            if phone_form.errors.get('code'):
+                errors.extend(phone_form.errors['code'])
+            if phone_form.non_field_errors():
+                errors.extend(phone_form.non_field_errors())
+            
+            return JsonResponse({
+                'success': False, 
+                'error': errors[0] if errors else 'Datos inválidos'
+            })
+            
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Datos inválidos'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': 'Error interno del servidor'})
 
 
 @login_required

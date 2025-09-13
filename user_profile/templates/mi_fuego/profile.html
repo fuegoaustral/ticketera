@@ -4,150 +4,288 @@
 
 {% block title %}Mi Perfil - {% endblock %}
 
-{% block page_title %}Configuración de Cuenta{% endblock %}
+{% block page_title %}Mi Perfil{% endblock %}
 
 {% block extrahead %}
 <!-- Include intl-tel-input CSS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/css/intlTelInput.css">
 <!-- Include intl-tel-input JS -->
 <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/js/intlTelInput.min.js"></script>
+{% endblock %}
+
+{% block menu %}
+    <!-- Navigation moved to sidebar menu -->
+{% endblock menu %}
+
+{% block submenu %}
+{% endblock submenu %}
+
+{% block innercontent %}
+<!-- Messages -->
+{% if messages %}
+    <div class="container-fluid">
+        <div class="container">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show mt-3" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endif %}
+
 <style>
+    .profile-container {
+        min-height: 100vh;
+        padding-top: 1rem;
+    }
+    
+    
     .card {
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
         border: none;
-        border-radius: 15px;
+        border-radius: 0.75rem;
+    }
+    
+    .card-body {
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .card-body::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image: url("data:image/svg+xml,%3Csvg width='48' height='49' viewBox='0 0 48 49' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cmask id='mask0_41_1237' style='mask-type:alpha' maskUnits='userSpaceOnUse' x='0' y='0' width='48' height='49'%3E%3Crect y='0.5' width='48' height='48' fill='%23D9D9D9'/%3E%3C/mask%3E%3Cg mask='url(%23mask0_41_1237)'%3E%3Cpath d='M24.0999 28.5461H24.098C22.2663 28.5461 20.7803 27.0598 20.7803 25.2276C20.7803 23.3961 22.2663 21.9089 24.098 21.9089H24.0999C25.9317 21.9099 27.4167 23.3961 27.4167 25.2276C27.4167 27.0598 25.9317 28.5461 24.0999 28.5461ZM30.7372 21.9089V18.5905H27.4186V15.2715H24.0999H20.7803V18.5905H17.4607V21.9089H14.1421V25.2276V28.547H17.4607V31.8647H20.7803V35.1853H24.0999H27.4186V31.8647H30.7372V28.547H34.0559V25.2276V21.9089H30.7372Z' fill='%23e0e0e0'/%3E%3Cpath d='M10.5992 7.07482C10.5992 7.07482 10.9 20.8707 12.2657 34.2834C12.2657 34.2834 18.8741 38.7346 20.7999 39.8673C20.7999 39.8673 21.4614 44.8686 21.7284 59.6545L16.321 62.3183C16.321 62.3183 18.0368 79.2153 18.8383 88.7484C18.8383 88.7484 18.3964 89.3145 15.9883 88.7484C15.9883 88.7484 12.1931 73.426 11.0692 59.3691C11.0692 59.3691 13.8207 57.406 17.9149 55.7327C17.9149 55.7327 16.7106 47.0245 16.7106 44.6008C16.7106 44.6008 10.2964 40.4259 6.72773 37.6824C6.72773 37.6824 4.4876 29.4119 3 7.07482C3 7.07482 6.21701 5.78147 10.5992 7.07482Z' fill='%23e0e0e0'/%3E%3Cpath d='M37.5993 7.07482C37.5993 7.07482 37.2996 20.8707 35.9341 34.2834C35.9341 34.2834 29.3267 38.7346 27.3983 39.8673C27.3983 39.8673 26.7389 44.8686 26.4697 59.6545L31.8799 62.3183C31.8799 62.3183 30.164 79.2153 29.3604 88.7484C29.3604 88.7484 29.8025 89.3145 32.2106 88.7484C32.2106 88.7484 36.0055 73.426 37.1304 59.3691C37.1304 59.3691 34.3789 57.406 30.2852 55.7327C30.2852 55.7327 31.489 47.0245 31.489 44.6008C31.489 44.6008 37.9031 40.4259 41.4706 37.6824C41.4706 37.6824 43.7104 29.4119 45.1982 7.07482C45.1982 7.07482 41.9823 5.78147 37.5993 7.07482Z' fill='%23e0e0e0'/%3E%3C/g%3E%3C/svg%3E");
+        background-repeat: repeat;
+        opacity: 0.2;
+        z-index: 0;
+    }
+    
+    .card-body > * {
+        position: relative;
+        z-index: 1;
     }
     
     .card-header {
-        border-radius: 15px 15px 0 0 !important;
+        background: linear-gradient(135deg, #289e6d 0%, #1e7a5a 100%);
+        color: white;
         border: none;
+        border-radius: 0.75rem 0.75rem 0 0 !important;
+        padding: 1.25rem 1.5rem;
     }
     
-    .form-control, .form-select {
-        border-radius: 10px;
-        border: 2px solid #e9ecef;
-        transition: all 0.3s ease;
+    .card-header h5 {
+        margin: 0;
+        font-weight: 600;
+        font-size: 1.1rem;
     }
     
-    .form-control:focus, .form-select:focus {
-        border-color: #0d6efd;
-        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    .card-header i {
+        opacity: 0.9;
+    }
+    
+    .profile-section {
+        margin-bottom: 2rem;
+    }
+    
+    .profile-section:last-child {
+        margin-bottom: 0;
+    }
+    
+    .form-control {
+        border-radius: 0.5rem;
+        border: 1px solid #d9d9d9;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+    }
+    
+    .form-control:focus {
+        border-color: #289e6d;
+        box-shadow: 0 0 0 0.2rem rgba(40, 158, 109, 0.25);
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #1e1e1e;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
     }
     
     .btn {
-        border-radius: 10px;
+        border-radius: 0.5rem;
         font-weight: 500;
-        transition: all 0.3s ease;
+        padding: 0.75rem 1.5rem;
+        transition: all 0.2s ease;
     }
     
-    .list-group-item {
-        border-radius: 10px !important;
-        margin-bottom: 5px;
-        border: 1px solid #e9ecef;
-    }
-    
-    .badge {
-        font-size: 0.75em;
-        color: white !important;
-    }
-    
-    .badge.bg-warning {
-        color: #000 !important;
-    }
-    
-    .alert {
-        border-radius: 10px;
+    .btn-primary {
+        background: linear-gradient(135deg, #289e6d 0%, #1e7a5a 100%);
         border: none;
     }
     
-    .display-6 {
-        color: #0d6efd;
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #1e7a5a 0%, #155a42 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(40, 158, 109, 0.3);
     }
     
-    .text-primary {
-        color: #0d6efd !important;
+    .btn-outline-primary {
+        border-color: #289e6d;
+        color: #289e6d;
     }
     
-    .bg-primary {
-        background-color: #0d6efd !important;
+    .btn-outline-primary:hover {
+        background-color: #289e6d;
+        border-color: #289e6d;
+        color: white;
     }
     
-    .bg-success {
-        background-color: #198754 !important;
+    .btn-warning {
+        background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+        border: none;
+        color: #000;
     }
     
-    .bg-info {
-        background-color: #0dcaf0 !important;
+    .btn-warning:hover {
+        background: linear-gradient(135deg, #e0a800 0%, #c69500 100%);
+        color: #000;
     }
     
-    .phone-input {
-        padding-left: 60px;
+    .btn-success {
+        background: linear-gradient(135deg, #198754 0%, #146c43 100%);
+        border: none;
+    }
+    
+    .btn-success:hover {
+        background: linear-gradient(135deg, #146c43 0%, #0f5132 100%);
+    }
+    
+    .table {
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+    
+    .table thead th {
+        background-color: #f8f9fa;
+        border: none;
+        font-weight: 600;
+        color: #1e1e1e;
+        padding: 1rem;
+    }
+    
+    .table tbody td {
+        border: none;
+        padding: 1rem;
+        vertical-align: middle;
+    }
+    
+    .table tbody tr {
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .table tbody tr:last-child {
+        border-bottom: none;
+    }
+    
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.375rem;
+        font-weight: 500;
+    }
+    
+    .alert {
+        border-radius: 0.5rem;
+        border: none;
+        padding: 1rem 1.25rem;
+    }
+    
+    .alert-info {
+        background-color: #e7f3ff;
+        color: #0c5460;
+    }
+    
+    .alert-success {
+        background-color: #d1edff;
+        color: #0c5460;
+        border: 1px solid #b8daff;
+    }
+    
+    .alert-danger {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    
+    .alert-warning {
+        background-color: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeaa7;
     }
     
     .input-hint {
-        font-size: 0.875rem;
+        font-size: 0.8rem;
         color: #6c757d;
+        margin-top: 0.25rem;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .profile-container {
+            padding-top: 1rem;
+        }
+        
+        .card-header {
+            padding: 1rem;
+        }
+        
+        .card-header h5 {
+            font-size: 1rem;
+        }
+        
+        .form-control {
+            padding: 0.625rem 0.875rem;
+        }
+        
+        .btn {
+            padding: 0.625rem 1.25rem;
+            font-size: 0.9rem;
+        }
+        
+        .table thead th,
+        .table tbody td {
+            padding: 0.75rem;
+        }
     }
 </style>
 
-<script>
-    // Initialize phone input with Twilio component when DOM is loaded
-    document.addEventListener('DOMContentLoaded', function() {
-        const phoneInput = document.querySelector("#phone");
-        if (phoneInput) {
-            const iti = window.intlTelInput(phoneInput, {
-                utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/js/utils.js",
-                initialCountry: "AR",
-                customPlaceholder: function (selectedCountryPlaceholder, selectedCountryData) {
-                    if (selectedCountryData.iso2 === "ar") {
-                        return "11 1234 5678";
-                    }
-                    return selectedCountryPlaceholder;
-                },
-            });
-
-            // Update hidden field with full phone number on form submit
-            const profileForm = document.querySelector('form[action*="profile"]');
-            if (profileForm) {
-                profileForm.addEventListener('submit', function (event) {
-                    document.getElementById('fullPhoneNumber').value = iti.getNumber();
-                });
-            }
-        }
-    });
-</script>
-{% endblock %}
-
-{% block menu_container %}{% endblock %}
-
-{% block innercontent %}
-<div class="container mt-4">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-
-            <!-- Messages -->
-            {% if messages %}
-                {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
-
-            <!-- Profile Information Card -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-user me-2"></i>Información Personal
+<div class="profile-container">
+    <div class="container-fluid">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-12 col-lg-11 col-xl-10">
+                    <!-- Información Personal -->
+                    <div class="card profile-section">
+                        <div class="card-header">
+                            <h5>
+                                <i class="fas fa-user me-2"></i>
+                                Información Personal
                     </h5>
                 </div>
                 <div class="card-body">
                     <form method="post" action="{% url 'profile' %}">
                         {% csrf_token %}
-                        <input type="hidden" name="update_profile" value="1">
-                        
                         <div class="row">
-                            <div class="col-md-6 mb-3">
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
                                 <label for="{{ profile_form.first_name.id_for_label }}" class="form-label">
                                     {{ profile_form.first_name.label }}
                                 </label>
@@ -160,7 +298,9 @@
                                     </div>
                                 {% endif %}
                             </div>
-                            <div class="col-md-6 mb-3">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
                                 <label for="{{ profile_form.last_name.id_for_label }}" class="form-label">
                                     {{ profile_form.last_name.label }}
                                 </label>
@@ -172,11 +312,13 @@
                                         {% endfor %}
                                     </div>
                                 {% endif %}
+                                        </div>
                             </div>
                         </div>
 
                         <div class="row">
-                            <div class="col-md-6 mb-3">
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
                                 <label for="{{ profile_form.document_type.id_for_label }}" class="form-label">
                                     {{ profile_form.document_type.label }}
                                 </label>
@@ -189,7 +331,9 @@
                                     </div>
                                 {% endif %}
                             </div>
-                            <div class="col-md-6 mb-3">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
                                 <label for="{{ profile_form.document_number.id_for_label }}" class="form-label">
                                     {{ profile_form.document_number.label }}
                                 </label>
@@ -202,30 +346,6 @@
                                     </div>
                                 {% endif %}
                             </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="phone" class="form-label">
-                                    Teléfono
-                                </label>
-                                <!-- Hidden input to store the full international phone number -->
-                                <input type="hidden" id="fullPhoneNumber" name="phone">
-                                <input type="tel"
-                                       id="phone"
-                                       class="phone-input form-control"
-                                       name="phone_input"
-                                       value="{{ profile_form.phone_input.value|default:profile.phone }}">
-                                <div class="input-hint text-muted small mt-1">
-                                    Ingresá tu teléfono sin 0 ni 15. Por ejemplo: 11 030 3456
-                                </div>
-                                {% if profile_form.phone.errors %}
-                                    <div class="text-danger small mt-1">
-                                        {% for error in profile_form.phone.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
                             </div>
                         </div>
 
@@ -237,91 +357,98 @@
                             </div>
                         {% endif %}
 
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-2"></i>Actualizar Perfil
+                                <div class="d-flex justify-content-end">
+                                    <button type="submit" name="update_profile" class="btn btn-primary">
+                                        <i class="fas fa-save me-2"></i>Guardar Cambios
                             </button>
                         </div>
                     </form>
                 </div>
             </div>
 
-            <!-- Email Management Card -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-success text-white">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-envelope me-2"></i>Gestión de Emails
+                    <!-- Actualizar Teléfono -->
+                    <div class="card profile-section">
+                        <div class="card-header">
+                            <h5>
+                                <i class="fas fa-phone me-2"></i>
+                                Actualizar Teléfono
                     </h5>
                 </div>
                 <div class="card-body">
-                    <!-- Current Emails -->
-                    <div class="mb-4">
-                        <h6 class="fw-bold mb-3">Emails Asociados</h6>
-                        {% if email_addresses %}
-                            <div class="list-group">
-                                {% for email_obj in email_addresses %}
-                                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                                        <div class="d-flex align-items-center">
-                                            <i class="fas fa-envelope me-2 text-muted"></i>
-                                            <span class="fw-medium">{{ email_obj.email }}</span>
-                                            {% if email_obj.primary %}
-                                                <span class="badge bg-primary ms-2">Principal</span>
-                                            {% endif %}
-                                            {% if email_obj.verified %}
-                                                <span class="badge bg-success ms-2">
-                                                    <i class="fas fa-check me-1"></i>Verificado
-                                                </span>
-                                            {% else %}
-                                                <span class="badge bg-warning ms-2">
-                                                    <i class="fas fa-clock me-1"></i>Pendiente
-                                                </span>
-                                            {% endif %}
-                                        </div>
-                                        <div class="btn-group" role="group">
-                                            {% if not email_obj.primary and email_obj.verified %}
-                                                <form method="post" action="{% url 'profile' %}" class="d-inline">
-                                                    {% csrf_token %}
-                                                    <input type="hidden" name="set_primary" value="1">
-                                                    <input type="hidden" name="email_id" value="{{ email_obj.id }}">
-                                                    <button type="submit" class="btn btn-sm btn-outline-primary" 
-                                                            title="Establecer como principal">
-                                                        <i class="fas fa-star"></i>
-                                                    </button>
-                                                </form>
-                                            {% endif %}
-                                            {% if not email_obj.primary %}
-                                                <form method="post" action="{% url 'profile' %}" class="d-inline">
-                                                    {% csrf_token %}
-                                                    <input type="hidden" name="remove_email" value="1">
-                                                    <input type="hidden" name="email_id" value="{{ email_obj.id }}">
-                                                    <button type="submit" class="btn btn-sm btn-outline-danger" 
-                                                            title="Eliminar email"
-                                                            onclick="return confirm('¿Estás seguro de que quieres eliminar este email?')">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
-                                                </form>
-                                            {% endif %}
+                            <div class="mb-3">
+                                <strong>Teléfono actual:</strong> {{ profile.phone }}
+                            </div>
+                            
+                            <div id="phoneForm">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="phoneInput" class="form-label">
+                                                Nuevo teléfono
+                                            </label>
+                                            <input type="tel" 
+                                                   class="form-control" 
+                                                   id="phoneInput" 
+                                                   placeholder="+54 11 1234 5678">
+                                            <div class="input-hint">
+                                                Ingresá tu teléfono con código de país. Por ejemplo: +54 11 1234 5678
+                                            </div>
+                                            <div id="phoneError" class="text-danger small mt-1" style="display: none;"></div>
                                         </div>
                                     </div>
-                                {% endfor %}
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="codeInput" class="form-label">
+                                                Código de verificación
+                                            </label>
+                                            <input type="text" 
+                                                   class="form-control" 
+                                                   id="codeInput" 
+                                                   placeholder="123456"
+                                                   maxlength="6"
+                                                   style="display: none;">
+                                            <div id="codeError" class="text-danger small mt-1" style="display: none;"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="phoneAlert" class="alert" style="display: none;"></div>
+
+                                <div class="d-flex gap-2 mt-3">
+                                    <button type="button" class="btn btn-primary" id="sendPhoneCodeBtn">
+                                        <i class="fas fa-sms me-2"></i>Enviar Código SMS
+                                    </button>
+                                    <button type="button" class="btn btn-success" id="verifyPhoneCodeBtn" style="display: none;">
+                                        <i class="fas fa-check me-2"></i>Verificar Código
+                                    </button>
+                                </div>
                             </div>
-                        {% else %}
-                            <div class="text-center text-muted py-3">
-                                <i class="fas fa-inbox fa-2x mb-2"></i>
-                                <p>No hay emails asociados</p>
+                            
+                            <div class="alert alert-info mt-3">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Para cambiar tu número de teléfono, primero enviamos un código de verificación por SMS al nuevo número. Una vez verificado, se actualizará automáticamente.
                             </div>
-                        {% endif %}
+                        </div>
                     </div>
 
-                    <!-- Add New Email -->
-                    <div class="border-top pt-3">
-                        <h6 class="fw-bold mb-3">Agregar Nuevo Email</h6>
-                        <form method="post" action="{% url 'profile' %}">
+                    <!-- Gestión de Emails -->
+                    <div class="card profile-section">
+                        <div class="card-header">
+                            <h5>
+                                <i class="fas fa-envelope me-2"></i>
+                                Gestión de Emails
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Agregar nuevo email -->
+                            <form method="post" action="{% url 'profile' %}" class="mb-4">
                             {% csrf_token %}
-                            <input type="hidden" name="add_email" value="1">
-                            
                             <div class="row">
-                                <div class="col-md-8 mb-3">
+                                    <div class="col-md-8">
+                                        <div class="form-group">
+                                            <label for="{{ add_email_form.email.id_for_label }}" class="form-label">
+                                                {{ add_email_form.email.label }}
+                                            </label>
                                     {{ add_email_form.email }}
                                     {% if add_email_form.email.errors %}
                                         <div class="text-danger small mt-1">
@@ -331,61 +458,138 @@
                                         </div>
                                     {% endif %}
                                 </div>
-                                <div class="col-md-4 mb-3">
-                                    <button type="submit" class="btn btn-success w-100">
+                                    </div>
+                                    <div class="col-md-4 d-flex align-items-end">
+                                        <button type="submit" name="add_email" class="btn btn-outline-primary w-100">
                                         <i class="fas fa-plus me-2"></i>Agregar Email
                                     </button>
                                 </div>
                             </div>
                         </form>
-                        <small class="text-muted">
-                            <i class="fas fa-info-circle me-1"></i>
-                            Se enviará un email de verificación al nuevo email agregado.
-                        </small>
+
+                            <!-- Lista de emails -->
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Email</th>
+                                            <th>Estado</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for email in email_addresses %}
+                                            <tr>
+                                                <td>{{ email.email }}</td>
+                                                <td>
+                                                    {% if email.primary %}
+                                                        <span class="badge bg-primary" style="color: white !important;">Principal</span>
+                                                    {% elif email.verified %}
+                                                        <span class="badge bg-success" style="color: white !important;">Verificado</span>
+                                                    {% else %}
+                                                        <span class="badge bg-warning" style="color: #000 !important;">Pendiente</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <div class="d-flex gap-2" role="group">
+                                                        {% if not email.primary and email.verified %}
+                                                            <form method="post" action="{% url 'profile' %}" style="display: inline;">
+                                                                {% csrf_token %}
+                                                                <input type="hidden" name="email_id" value="{{ email.id }}">
+                                                                <button type="submit" name="set_primary" class="btn btn-outline-primary btn-sm">
+                                                                    <i class="fas fa-star"></i>
+                                                                </button>
+                                                            </form>
+                                                        {% endif %}
+                                                        {% if not email.verified %}
+                                                            <form method="post" action="{% url 'profile' %}" style="display: inline;">
+                                                                {% csrf_token %}
+                                                                <input type="hidden" name="email_id" value="{{ email.id }}">
+                                                                <button type="submit" name="send_confirmation" class="btn btn-outline-info btn-sm">
+                                                                    <i class="fas fa-paper-plane"></i>
+                                                                </button>
+                                                            </form>
+                                                        {% endif %}
+                                                        {% if not email.primary %}
+                                                            <form method="post" action="{% url 'profile' %}" style="display: inline;" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este email?')">
+                                                                {% csrf_token %}
+                                                                <input type="hidden" name="email_id" value="{{ email.id }}">
+                                                                <button type="submit" name="remove_email" class="btn btn-outline-danger btn-sm">
+                                                                    <i class="fas fa-trash"></i>
+                                                                </button>
+                                                            </form>
+                                                        {% endif %}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
                     </div>
                 </div>
             </div>
 
-            <!-- Account Information Card -->
-            <div class="card shadow-sm">
-                <div class="card-header bg-info text-white">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-info-circle me-2"></i>Información de Cuenta
+                    <!-- Cambiar Contraseña -->
+                    <div class="card profile-section">
+                        <div class="card-header">
+                            <h5>
+                                <i class="fas fa-lock me-2"></i>
+                                Cambiar Contraseña
                     </h5>
                 </div>
                 <div class="card-body">
+                            <form method="post" action="{% url 'profile' %}">
+                                {% csrf_token %}
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Nombre de Usuario</label>
-                            <p class="form-control-plaintext">{{ user.username }}</p>
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label for="{{ password_form.password1.id_for_label }}" class="form-label">
+                                                {{ password_form.password1.label }}
+                                            </label>
+                                            {{ password_form.password1 }}
+                                            {% if password_form.password1.help_text %}
+                                                <div class="form-text">{{ password_form.password1.help_text }}</div>
+                                            {% endif %}
+                                            {% if password_form.password1.errors %}
+                                                <div class="text-danger small mt-1">
+                                                    {% for error in password_form.password1.errors %}
+                                                        {{ error }}
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label for="{{ password_form.password2.id_for_label }}" class="form-label">
+                                                {{ password_form.password2.label }}
+                                            </label>
+                                            {{ password_form.password2 }}
+                                            {% if password_form.password2.errors %}
+                                                <div class="text-danger small mt-1">
+                                                    {% for error in password_form.password2.errors %}
+                                                        {{ error }}
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {% if password_form.non_field_errors %}
+                                    <div class="alert alert-danger">
+                                        {% for error in password_form.non_field_errors %}
+                                            {{ error }}
+                                        {% endfor %}
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Estado del Perfil</label>
-                            <p class="form-control-plaintext">
-                                {% if profile.profile_completion == 'COMPLETE' %}
-                                    <span class="badge bg-success">
-                                        <i class="fas fa-check me-1"></i>Completo
-                                    </span>
-                                {% elif profile.profile_completion == 'INITIAL_STEP' %}
-                                    <span class="badge bg-warning">
-                                        <i class="fas fa-clock me-1"></i>En Progreso
-                                    </span>
-                                {% else %}
-                                    <span class="badge bg-danger">
-                                        <i class="fas fa-exclamation me-1"></i>Incompleto
-                                    </span>
                                 {% endif %}
-                            </p>
+
+                                <div class="d-flex justify-content-end">
+                                    <button type="submit" name="change_password" class="btn btn-warning">
+                                        <i class="fas fa-key me-2"></i>Cambiar Contraseña
+                                    </button>
                         </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Miembro desde</label>
-                            <p class="form-control-plaintext">{{ user.date_joined|date:"d/m/Y" }}</p>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Último acceso</label>
-                            <p class="form-control-plaintext">{{ user.last_login|date:"d/m/Y H:i" }}</p>
+                            </form>
                         </div>
                     </div>
                 </div>
@@ -393,4 +597,141 @@
         </div>
     </div>
 </div>
+
+<script>
+    // Initialize phone input with intl-tel-input when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        const phoneInput = document.querySelector("#phoneInput");
+        if (phoneInput) {
+            const iti = window.intlTelInput(phoneInput, {
+                utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/js/utils.js",
+                initialCountry: "AR",
+                customPlaceholder: function (selectedCountryPlaceholder, selectedCountryData) {
+                    if (selectedCountryData.iso2 === "ar") {
+                        return "11 1234 5678";
+                    }
+                    return selectedCountryPlaceholder;
+                },
+            });
+
+            // Send SMS Code Button
+            const sendBtn = document.getElementById('sendPhoneCodeBtn');
+            const verifyBtn = document.getElementById('verifyPhoneCodeBtn');
+            const codeInput = document.getElementById('codeInput');
+            const phoneError = document.getElementById('phoneError');
+            const codeError = document.getElementById('codeError');
+            const phoneAlert = document.getElementById('phoneAlert');
+
+            // Clear errors function
+            function clearErrors() {
+                phoneError.style.display = 'none';
+                codeError.style.display = 'none';
+                phoneAlert.style.display = 'none';
+            }
+
+            // Show alert function
+            function showAlert(message, type = 'success') {
+                phoneAlert.className = `alert alert-${type}`;
+                phoneAlert.innerHTML = message;
+                phoneAlert.style.display = 'block';
+            }
+
+            // Send SMS Code
+            sendBtn.addEventListener('click', function() {
+                clearErrors();
+                
+                const phone = iti.getNumber();
+                if (!phone) {
+                    phoneError.textContent = 'Por favor ingresa un número de teléfono válido';
+                    phoneError.style.display = 'block';
+                    return;
+                }
+
+                sendBtn.disabled = true;
+                sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Enviando...';
+
+                fetch('{% url "send_phone_code_ajax" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    },
+                    body: JSON.stringify({ phone: phone })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert(data.message, 'success');
+                        // Show code input and verify button
+                        codeInput.style.display = 'block';
+                        verifyBtn.style.display = 'inline-block';
+                        sendBtn.style.display = 'none';
+                        phoneInput.disabled = true;
+                    } else {
+                        showAlert(data.error, 'danger');
+                    }
+                })
+                .catch(error => {
+                    showAlert('Error de conexión. Por favor intenta de nuevo.', 'danger');
+                })
+                .finally(() => {
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = '<i class="fas fa-sms me-2"></i>Enviar Código SMS';
+                });
+            });
+
+            // Verify Code
+            verifyBtn.addEventListener('click', function() {
+                clearErrors();
+                
+                const phone = iti.getNumber();
+                const code = codeInput.value.trim();
+                
+                if (!code) {
+                    codeError.textContent = 'Por favor ingresa el código de verificación';
+                    codeError.style.display = 'block';
+                    return;
+                }
+
+                verifyBtn.disabled = true;
+                verifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Verificando...';
+
+                fetch('{% url "verify_phone_code_ajax" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    },
+                    body: JSON.stringify({ phone: phone, code: code })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert(data.message, 'success');
+                        // Update the current phone display
+                        document.querySelector('.mb-3 strong').nextSibling.textContent = ' ' + data.new_phone;
+                        // Reset form
+                        phoneInput.value = '';
+                        codeInput.value = '';
+                        codeInput.style.display = 'none';
+                        verifyBtn.style.display = 'none';
+                        sendBtn.style.display = 'inline-block';
+                        phoneInput.disabled = false;
+                    } else {
+                        showAlert(data.error, 'danger');
+                    }
+                })
+                .catch(error => {
+                    showAlert('Error de conexión. Por favor intenta de nuevo.', 'danger');
+                })
+                .finally(() => {
+                    verifyBtn.disabled = false;
+                    verifyBtn.innerHTML = '<i class="fas fa-check me-2"></i>Verificar Código';
+                });
+            });
+        }
+    });
+</script>
 {% endblock innercontent %}
+
+{% block menu_container %}{% endblock %}
