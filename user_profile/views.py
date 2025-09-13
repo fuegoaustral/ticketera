@@ -1080,10 +1080,12 @@ def puerta_admin_view(request, event_slug):
 @login_required
 def scanner_events_view(request):
     """Show events where the user has scanner access"""
-    # Get events where the user has scanner access
-    scanner_events = Event.objects.filter(
-        access_scanner=request.user
-    ).order_by('-is_main', 'name')
+    # Get events where the user has scanner access (either as admin or explicit scanner access)
+    admin_events = Event.objects.filter(admins=request.user)
+    scanner_access_events = Event.objects.filter(access_scanner=request.user)
+    
+    # Combine both querysets and remove duplicates
+    scanner_events = (admin_events | scanner_access_events).distinct().order_by('-is_main', 'name')
     
     # Get the main event for context
     main_event = Event.get_main_event()

@@ -1,187 +1,14 @@
-{% extends 'mi_fuego/my_tickets/index.html' %}
+{% extends 'tickets/barbu_base.html' %}
 {% load static %}
 
-{% block submenu %}
-    <!-- Mobile menu toggle button -->
-    <div class="mobile-menu-toggle d-lg-none mb-3">
-        <button class="btn btn-outline-secondary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-expanded="false" aria-controls="sidebarMenu">
-            <i class="fas fa-bars me-2"></i>
-            Menú de Scanner
-        </button>
-    </div>
-    
-    <div class="sidebar-menu collapse d-lg-block" id="sidebarMenu">
-        <div class="menu-section">
-            <h6 class="menu-section-title">
-                <i class="fas fa-qrcode me-2"></i>
-                Eventos con Acceso al Scanner
-            </h6>
-            <ul class="menu-list">
-                {% for scanner_event in scanner_events %}
-                    <li class="menu-item">
-                        <a class="menu-link{% if scanner_event.slug in request.path %} active{% endif %}"
-                           href="{% url 'scan_tickets_event' scanner_event.slug %}">
-                            <i class="fas fa-qrcode me-2"></i>
-                            {{ scanner_event.name }}
-                        </a>
-                    </li>
-                {% endfor %}
-            </ul>
-        </div>
-    </div>
-    
-    <style>
-        .sidebar-menu {
-            background: transparent;
-            padding: 0;
-            margin-bottom: 1rem;
-        }
-        
-        .menu-section {
-            margin-bottom: 1.5rem;
-        }
-        
-        .menu-section:last-child {
-            margin-bottom: 0;
-        }
-        
-        .menu-section-title {
-            color: #1e1e1e;
-            font-weight: 600;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 0.75rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid #d9d9d9;
-        }
-        
-        .menu-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-        
-        .menu-item {
-            margin-bottom: 0.25rem;
-        }
-        
-        .menu-link {
-            display: flex;
-            align-items: center;
-            width: 100%;
-            padding: 1rem;
-            text-align: left;
-            color: #1e1e1e !important;
-            text-decoration: none;
-            border-radius: 0.5rem;
-            transition: all 0.2s ease;
-            font-size: 0.9rem;
-        }
-        
-        .menu-link:hover {
-            font-weight: 500;
-            text-decoration: none !important;
-            background-color: #f8f9fa;
-        }
-        
-        .menu-link.active {
-            background-color: #e9f5f0;
-            border-radius: 0.5rem;
-            font-weight: 500;
-            color: #289e6d !important;
-        }
-        
-        .menu-link i {
-            width: 16px;
-            text-align: center;
-            margin-right: 0.5rem;
-        }
-        
-        /* Mobile menu toggle button */
-        .mobile-menu-toggle {
-            margin-bottom: 1rem;
-            width: 100%;
-        }
-        
-        .mobile-menu-toggle .btn {
-            border-radius: 0.5rem;
-            font-size: 0.9rem;
-            padding: 0.75rem 1rem;
-            width: 100% !important;
-            display: block;
-            font-weight: 500;
-        }
-        
-        /* Responsive adjustments */
-        @media (max-width: 991.98px) {
-            .sidebar-menu {
-                margin-bottom: 2rem;
-                background: #f8f9fa;
-                border-radius: 0.75rem;
-                padding: 1rem;
-                border: 1px solid #e9ecef;
-                width: 100%;
-            }
-            
-            .sidebar-menu.collapse:not(.show) {
-                display: none;
-            }
-            
-            .sidebar-menu.collapse.show {
-                display: block;
-            }
-            
-            .menu-section {
-                margin-bottom: 1rem;
-            }
-            
-            .menu-section-title {
-                font-size: 0.8rem;
-                margin-bottom: 0.5rem;
-                padding-bottom: 0.25rem;
-            }
-            
-            .menu-link {
-                padding: 0.75rem;
-                font-size: 0.85rem;
-                border-radius: 0.375rem;
-            }
-        }
-        
-        /* Extra small devices */
-        @media (max-width: 575.98px) {
-            .sidebar-menu {
-                padding: 0.75rem;
-                margin-bottom: 1.5rem;
-            }
-            
-            .menu-link {
-                padding: 0.625rem;
-                font-size: 0.8rem;
-            }
-            
-            .menu-section-title {
-                font-size: 0.75rem;
-            }
-        }
-    </style>
-{% endblock %}
+{% block page_title %}Scanner de Tickets{% endblock %}
 
-{% block content %}
+{% block menu %}{% endblock %}
+
+{% block innercontent %}
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h1 class="h3 mb-1">
-                        <i class="fas fa-qrcode me-2"></i>
-                        Scanner de Tickets
-                    </h1>
-                    <p class="text-muted mb-0">Accede al scanner para los eventos donde tienes permisos</p>
-                </div>
-            </div>
-
             {% if scanner_events %}
                 <div class="row">
                     {% for scanner_event in scanner_events %}
@@ -191,7 +18,7 @@
                                     <div class="d-flex align-items-center mb-3">
                                         <div class="flex-shrink-0">
                                             <div class="scanner-icon">
-                                                <i class="fas fa-qrcode fa-2x text-primary"></i>
+                                                <i class="fas fa-qrcode fa-2x text-white"></i>
                                             </div>
                                         </div>
                                         <div class="flex-grow-1 ms-3">
@@ -256,7 +83,7 @@
                                 <li><i class="fas fa-check text-success me-2"></i>Verás el tipo de ticket y el propietario</li>
                                 <li><i class="fas fa-check text-success me-2"></i>Podrás marcar el ticket como usado</li>
                                 <li><i class="fas fa-check text-success me-2"></i>El sistema previene el uso duplicado</li>
-                                <li><i class="fas fa-check text-success me-2"></i>Los tickets usados se registran automáticamente</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Podrás agregar notas y fotos al ticket</li>
                             </ul>
                         </div>
                     </div>
@@ -299,4 +126,4 @@
         transform: translateY(-1px);
     }
 </style>
-{% endblock %}
+{% endblock innercontent %}

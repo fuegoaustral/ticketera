@@ -41,6 +41,17 @@ def check_ticket(request, ticket_key):
     try:
         ticket = NewTicket.objects.get(key=ticket_key)
         
+        # Get the current event from the request (passed from the scanner page)
+        current_event_slug = request.GET.get('event_slug')
+        if current_event_slug:
+            try:
+                current_event = Event.objects.get(slug=current_event_slug)
+                # Check if the ticket belongs to the current event
+                if ticket.event != current_event:
+                    return JsonResponse({'error': f'Este bono pertenece al evento "{ticket.event.name}" pero estás escaneando para el evento "{current_event.name}"'}, status=400)
+            except Event.DoesNotExist:
+                return JsonResponse({'error': 'Evento no encontrado'}, status=404)
+        
         # Check if user has scanner access for this ticket's event
         if not has_scanner_access(request.user, ticket.event):
             return JsonResponse({'error': 'No tienes permisos para verificar tickets de este evento'}, status=403)

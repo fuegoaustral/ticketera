@@ -10,6 +10,16 @@
 {% block innercontent %}
     {% csrf_token %}
     <div class="container">
+        <!-- Alerts section - shown above camera -->
+        <div class="row justify-content-center mb-3">
+            <div class="col-md-8 col-lg-6">
+                <div id="error-message" class="alert alert-danger d-none">
+                </div>
+                <div id="success-message" class="alert alert-success d-none">
+                </div>
+            </div>
+        </div>
+
         {% if event %}
         <div class="row justify-content-center mb-2">
             <div class="col-md-8 col-lg-6">
@@ -177,11 +187,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-
-        <div id="error-message" class="alert alert-danger d-none">
-        </div>
-        <div id="success-message" class="alert alert-success d-none">
         </div>
     </div>
 
@@ -506,7 +511,13 @@
 
         async function checkTicket(ticketKey) {
             try {
-                const response = await fetch(`/api/tickets/${ticketKey}/check/`, {
+                // Get current event slug if available
+                const eventSlug = '{{ event.slug|default:"" }}';
+                const url = eventSlug ? 
+                    `/api/tickets/${ticketKey}/check/?event_slug=${eventSlug}` : 
+                    `/api/tickets/${ticketKey}/check/`;
+                
+                const response = await fetch(url, {
                     headers: {
                         'X-CSRFToken': getCSRFToken(),
                         'Content-Type': 'application/json',
