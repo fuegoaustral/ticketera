@@ -1155,7 +1155,8 @@ def bonus_report_view(request, event_slug):
     tickets_data = []
     for ticket in tickets:
         # Determine if ticket is unassigned (has holder but no owner)
-        is_unassigned = ticket.holder and not ticket.owner
+        # If attendee_must_be_registered is False, treat unassigned tickets as unused
+        is_unassigned = ticket.holder and not ticket.owner and event.attendee_must_be_registered
         
         ticket_data = {
             'key': ticket.key,
