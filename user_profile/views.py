@@ -563,6 +563,20 @@ def profile_view(request):
                 messages.error(request, 'Email no encontrado.')
             return redirect('profile')
         
+        # Handle resend confirmation email
+        elif 'send_confirmation' in request.POST:
+            email_id = request.POST.get('email_id')
+            try:
+                email_address = EmailAddress.objects.get(id=email_id, user=user)
+                if not email_address.verified:
+                    # Send confirmation email (allauth will show its own message)
+                    send_email_confirmation(request, user, email=email_address.email)
+                else:
+                    messages.error(request, 'Este email ya está verificado.')
+            except EmailAddress.DoesNotExist:
+                messages.error(request, 'Email no encontrado.')
+            return redirect('profile')
+        
     
     context = {
         'profile_form': profile_form,

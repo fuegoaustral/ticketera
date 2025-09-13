@@ -505,7 +505,7 @@
                                                             <form method="post" action="{% url 'profile' %}" style="display: inline;">
                                                                 {% csrf_token %}
                                                                 <input type="hidden" name="email_id" value="{{ email.id }}">
-                                                                <button type="submit" name="send_confirmation" class="btn btn-outline-info btn-sm">
+                                                                <button type="submit" name="send_confirmation" class="btn btn-outline-info btn-sm" title="Reenviar email de confirmación">
                                                                     <i class="fas fa-paper-plane"></i>
                                                                 </button>
                                                             </form>
