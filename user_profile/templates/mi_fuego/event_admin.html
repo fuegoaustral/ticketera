@@ -308,12 +308,12 @@
                         </div>
                         
                         <div class="stat-item">
-                            <div class="stat-value">${{ stats.total_revenue|floatformat:0 }}</div>
+                            <div class="stat-value">${{ stats.total_revenue|floatformat:2 }}</div>
                             <div class="stat-label">Ingresos Totales</div>
                         </div>
                         
                         <div class="stat-item">
-                            <div class="stat-value">${{ stats.net_received_amount|floatformat:0 }}</div>
+                            <div class="stat-value">${{ stats.net_received_amount|floatformat:2 }}</div>
                             <div class="stat-label">Neto Recibido</div>
                         </div>
                     </div>
@@ -377,15 +377,15 @@
                                         {{ ticket_type.name }}
                                     </td>
                                     <td class="text-end">{{ ticket_type.quantity_sold }} tickets</td>
-                                    <td class="text-end">${{ ticket_type.gross_amount|floatformat:0 }}</td>
+                                    <td class="text-end">${{ ticket_type.gross_amount|floatformat:2 }}</td>
                                     <td class="text-end">${{ ticket_type.net_amount|floatformat:2 }}</td>
                                 </tr>
                                 {% endfor %}
                                 <tr>
                                     <td><i class="fas fa-ticket-alt me-2"></i>Ingresos por Entradas</td>
                                     <td class="text-end">{{ stats.tickets_sold }} tickets</td>
-                                    <td class="text-end">${{ stats.ticket_revenue|floatformat:0 }}</td>
-                                    <td class="text-end">${{ stats.ticket_revenue_net|floatformat:0 }}</td>
+                                    <td class="text-end">${{ stats.ticket_revenue|floatformat:2 }}</td>
+                                    <td class="text-end">${{ stats.ticket_revenue_net|floatformat:2 }}</td>
                                 </tr>
                                 <tr class="separator-row">
                                     <td colspan="4" class="border-0 py-2"></td>
@@ -393,26 +393,26 @@
                                 <tr>
                                     <td><i class="fas fa-palette me-2"></i>Donaciones Arte</td>
                                     <td class="text-end">-</td>
-                                    <td class="text-end">${{ stats.donations_art|floatformat:0 }}</td>
+                                    <td class="text-end">${{ stats.donations_art|floatformat:2 }}</td>
                                     <td class="text-end">${{ stats.donations_art_net|floatformat:2 }}</td>
                                 </tr>
                                 <tr>
                                     <td><i class="fas fa-building me-2"></i>Donaciones Sede</td>
                                     <td class="text-end">-</td>
-                                    <td class="text-end">${{ stats.donations_venue|floatformat:0 }}</td>
+                                    <td class="text-end">${{ stats.donations_venue|floatformat:2 }}</td>
                                     <td class="text-end">${{ stats.donations_venue_net|floatformat:2 }}</td>
                                 </tr>
                                 <tr>
                                     <td><i class="fas fa-heart me-2"></i>Donaciones Beca</td>
                                     <td class="text-end">-</td>
-                                    <td class="text-end">${{ stats.donations_grant|floatformat:0 }}</td>
+                                    <td class="text-end">${{ stats.donations_grant|floatformat:2 }}</td>
                                     <td class="text-end">${{ stats.donations_grant_net|floatformat:2 }}</td>
                                 </tr>
                                 <tr class="highlight-row">
                                     <td><i class="fas fa-calculator me-2"></i><strong>Total Bruto</strong></td>
                                     <td class="text-end"><strong>{{ stats.total_orders }} órdenes</strong></td>
-                                    <td class="text-end"><strong>${{ stats.total_revenue|floatformat:0 }}</strong></td>
-                                    <td class="text-end"><strong>${{ stats.net_received_amount|floatformat:0 }}</strong></td>
+                                    <td class="text-end"><strong>${{ stats.total_revenue|floatformat:2 }}</strong></td>
+                                    <td class="text-end"><strong>${{ stats.net_received_amount|floatformat:2 }}</strong></td>
                                 </tr>
                             </tbody>
                         </table>
@@ -425,7 +425,7 @@
                             <div class="col-md-6">
                                 <small class="text-muted">Comisiones Totales:</small>
                                 <div class="fw-bold">${{ stats.total_commissions|floatformat:2 }}</div>
-                                <small class="text-muted">({{ stats.total_revenue|floatformat:0 }} - {{ stats.net_received_amount|floatformat:0 }})</small>
+                                <small class="text-muted">({{ stats.total_revenue|floatformat:2 }} - {{ stats.net_received_amount|floatformat:2 }})</small>
                             </div>
                             <div class="col-md-6">
                                 <small class="text-muted">Porcentaje de Comisión:</small>
@@ -438,7 +438,7 @@
                             {% for ticket_type in ticket_type_breakdown %}
                             <div class="col-md-4 mb-2">
                                 <small class="text-muted">{{ ticket_type.name }}:</small>
-                                <div>Bruto: ${{ ticket_type.gross_amount|floatformat:0 }}</div>
+                                <div>Bruto: ${{ ticket_type.gross_amount|floatformat:2 }}</div>
                                 <div>Comisión: ${{ ticket_type.commission|floatformat:2 }}</div>
                                 <div class="fw-bold">Neto: ${{ ticket_type.net_amount|floatformat:2 }}</div>
                             </div>
@@ -449,19 +449,19 @@
                         <div class="row">
                             <div class="col-md-4">
                                 <small class="text-muted">Donaciones Arte:</small>
-                                <div>Bruto: ${{ stats.donations_art|floatformat:0 }}</div>
+                                <div>Bruto: ${{ stats.donations_art|floatformat:2 }}</div>
                                 <div>Comisión: ${{ stats.donations_art_commission|floatformat:2 }}</div>
                                 <div class="fw-bold">Neto: ${{ stats.donations_art_net|floatformat:2 }}</div>
                             </div>
                             <div class="col-md-4">
                                 <small class="text-muted">Donaciones Sede:</small>
-                                <div>Bruto: ${{ stats.donations_venue|floatformat:0 }}</div>
+                                <div>Bruto: ${{ stats.donations_venue|floatformat:2 }}</div>
                                 <div>Comisión: ${{ stats.donations_venue_commission|floatformat:2 }}</div>
                                 <div class="fw-bold">Neto: ${{ stats.donations_venue_net|floatformat:2 }}</div>
                             </div>
                             <div class="col-md-4">
                                 <small class="text-muted">Donaciones Beca:</small>
-                                <div>Bruto: ${{ stats.donations_grant|floatformat:0 }}</div>
+                                <div>Bruto: ${{ stats.donations_grant|floatformat:2 }}</div>
                                 <div>Comisión: ${{ stats.donations_grant_commission|floatformat:2 }}</div>
                                 <div class="fw-bold">Neto: ${{ stats.donations_grant_net|floatformat:2 }}</div>
                             </div>
