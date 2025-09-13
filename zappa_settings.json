@@ -8,16 +8,22 @@
     "runtime": "python3.13",
     "timeout_seconds": 300,
     "memory_size": 1024,
-    "s3_bucket": "faticketera-zappa-dev",
+    "s3_bucket": "faprivate",
     "keep_warm": true,
     "route53_enabled": false,
     "extra_permissions": [
       {
         "Effect": "Allow",
         "Action": [
-          "s3:*"
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:DeleteObject",
+          "s3:ListBucket"
         ],
-        "Resource": "arn:aws:s3:::faticketera-zappa-dev/*"
+        "Resource": [
+          "arn:aws:s3:::faprivate",
+          "arn:aws:s3:::faprivate/*"
+        ]
       }
     ],
     "domain": "dev.fuegoaustral.org",
@@ -32,7 +38,7 @@
     "runtime": "python3.13",
     "timeout_seconds": 300,
     "memory_size": 1024,
-    "s3_bucket": "faticketera-zappa-prod",
+    "s3_bucket": "faprivate",
     "keep_warm": true,
     "domain": "eventos.fuegoaustral.org",
     "route53_enabled": false,
@@ -41,10 +47,14 @@
         "Effect": "Allow",
         "Action": [
           "s3:PutObject",
-          "s3:GetObjectAcl",
-          "s3:GetObject"
+          "s3:GetObject",
+          "s3:DeleteObject",
+          "s3:ListBucket"
         ],
-        "Resource": "arn:aws:s3:::faticketera-zappa-prod/*"
+        "Resource": [
+          "arn:aws:s3:::faprivate",
+          "arn:aws:s3:::faprivate/*"
+        ]
       }
     ],
     "certificate_arn": "arn:aws:acm:us-east-1:251799394474:certificate/84e0a65b-041f-49f0-8fb5-f440fb700aef"

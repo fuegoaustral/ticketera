@@ -11,6 +11,9 @@ from .views import (
     my_orders_view,
     my_events_view,
     event_admin_view,
+    profile_view,
+    send_phone_code_ajax,
+    verify_phone_code_ajax,
 )
 
 urlpatterns = [
@@ -18,6 +21,9 @@ urlpatterns = [
     path("complete-profile/", complete_profile, name="complete_profile"),
     path("verification-congrats/", verification_congrats, name="verification_congrats"),
     path("profile-congrats/", profile_congrats, name="profile_congrats"),
+    path("perfil/", profile_view, name="profile"),
+    path("perfil/send-phone-code/", send_phone_code_ajax, name="send_phone_code_ajax"),
+    path("perfil/verify-phone-code/", verify_phone_code_ajax, name="verify_phone_code_ajax"),
     path("", my_fire_view, name="mi_fuego"),
     # Specific paths (must come before generic slug pattern)
     path("mis-bonos/eventos-anteriores/", my_ticket_view, {"event_slug": "eventos-anteriores"}, name="my_ticket_past"),
