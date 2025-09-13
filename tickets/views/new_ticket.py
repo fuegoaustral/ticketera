@@ -167,7 +167,7 @@ def assign_ticket(request, ticket_key):
     if next_url:
         return redirect(next_url)
     else:
-        return redirect(reverse('my_ticket_event', kwargs={'event_slug': ticket.event.slug}))
+        return redirect(reverse('user_profile:my_ticket_event', kwargs={'event_slug': ticket.event.slug}))
 
 
 @login_required()

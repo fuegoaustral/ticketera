@@ -1,0 +1,111 @@
+{% extends "tickets/barbu_base.html" %}
+
+{% block extrahead %}
+    <style>
+        .profile-nav {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+
+        .profile-nav-list {
+            display: flex;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .profile-nav-item {
+            flex: 1;
+        }
+
+        .profile-nav-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 1rem 1.5rem;
+            text-decoration: none;
+            color: #6b7280;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            border-right: 1px solid #e5e7eb;
+        }
+
+        .profile-nav-item:last-child .profile-nav-link {
+            border-right: none;
+        }
+
+        .profile-nav-link:hover {
+            background: #f8f9fa;
+            color: #374151;
+        }
+
+        .profile-nav-link.active {
+            background: #289e6d;
+            color: white;
+        }
+
+        .profile-nav-link i {
+            font-size: 1.1rem;
+        }
+
+        @media (max-width: 768px) {
+            .profile-nav-list {
+                flex-direction: column;
+            }
+            
+            .profile-nav-link {
+                border-right: none;
+                border-bottom: 1px solid #e5e7eb;
+                justify-content: flex-start;
+            }
+            
+            .profile-nav-item:last-child .profile-nav-link {
+                border-bottom: none;
+            }
+        }
+    </style>
+{% endblock extrahead %}
+
+{% block full_content %}
+<div class="container-fluid innercontent">
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <!-- Profile Navigation -->
+                <div class="profile-nav">
+                    <ul class="profile-nav-list">
+                        <li class="profile-nav-item">
+                            <a href="{% url 'user_profile:forum_profile' %}" 
+                               class="profile-nav-link{% if request.resolver_match.url_name == 'forum_profile' %} active{% endif %}">
+                                <i class="fas fa-user"></i>
+                                Perfil Público
+                            </a>
+                        </li>
+                        <li class="profile-nav-item">
+                            <a href="{% url 'account_email' %}" 
+                               class="profile-nav-link{% if 'email' in request.path %} active{% endif %}">
+                                <i class="fas fa-envelope"></i>
+                                Email
+                            </a>
+                        </li>
+                        <li class="profile-nav-item">
+                            <a href="{% url 'user_profile:phone_profile' %}" 
+                               class="profile-nav-link{% if 'telefono' in request.path %} active{% endif %}">
+                                <i class="fas fa-phone"></i>
+                                Teléfono
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Page Content -->
+                {% block profile_content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

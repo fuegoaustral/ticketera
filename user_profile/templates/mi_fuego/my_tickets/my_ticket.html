@@ -157,7 +157,7 @@
                     </div>
                     <div>
                         <a class="btn btn-secondary text-nowrap"
-                           href="{% url "volunteering" %}">Quiero ser voluntario</a>
+                           href="{% url "user_profile:volunteering" event.slug %}">Quiero ser voluntario</a>
                     </div>
                 </div>
             </div>
@@ -168,7 +168,7 @@
                 <div class="d-flex align-items-center gap-2">
                     <i class="fas fa-info-circle"></i>
                     <div>
-                        Tenés tiempo para <a href="{% url 'volunteering' event.slug %}" class="alert-link">postularte como voluntario</a> hasta el
+                        Tenés tiempo para <a href="{% url 'user_profile:volunteering' event.slug %}" class="alert-link">postularte como voluntario</a> hasta el
                         <strong>{{ event.volunteers_enabled_until|date:'d/m' }}</strong> a las <strong>{{ event.volunteers_enabled_until|date:'H:i' }}</strong>.
                     </div>
                 </div>
@@ -332,7 +332,7 @@
                                                 <span class="badge bg-secondary" style="color: white !important;">Sin asignar</span>
                                                 {% if not my_ticket %}
                                                     <a class="btn btn-sm btn-outline-success text-success" href="{% url 'assign_ticket' ticket.key %}?next={{ request.get_full_path|urlencode }}" style="color: #198754 !important;">
-                                                        <i class="fas fa-user-plus" style="color: #198754 !important;"></i> Asignarme este bono
+                                                        <i class="fas fa-user-plus" style="color: #198754 !important;"></i> Vincular
                                                     </a>
                                                 {% endif %}
                                                 {% if event.transfers_enabled_until >= now and not ticket.is_used %}

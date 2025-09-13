@@ -1,5 +1,7 @@
 from django.urls import path
 
+app_name = 'user_profile'
+
 from .views import (
     complete_profile,
     verification_congrats,
@@ -11,6 +13,9 @@ from .views import (
     my_orders_view,
     my_events_view,
     event_admin_view,
+    forum_profile,
+    phone_profile,
+    update_private_profile_ajax,
 )
 
 urlpatterns = [
@@ -18,6 +23,9 @@ urlpatterns = [
     path("complete-profile/", complete_profile, name="complete_profile"),
     path("verification-congrats/", verification_congrats, name="verification_congrats"),
     path("profile-congrats/", profile_congrats, name="profile_congrats"),
+    path("perfil/", forum_profile, name="forum_profile"),
+    path("telefono/", phone_profile, name="phone_profile"),
+    path("perfil/update-private/", update_private_profile_ajax, name="update_private_profile_ajax"),
     path("", my_fire_view, name="mi_fuego"),
     # Specific paths (must come before generic slug pattern)
     path("mis-bonos/eventos-anteriores/", my_ticket_view, {"event_slug": "eventos-anteriores"}, name="my_ticket_past"),

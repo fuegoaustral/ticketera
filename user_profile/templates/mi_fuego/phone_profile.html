@@ -1,0 +1,500 @@
+{% extends "mi_fuego/profile_base.html" %}
+
+{% block title %}Gestión de Teléfono{% endblock %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@18.2.1/build/css/intlTelInput.css">
+    <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@18.2.1/build/js/intlTelInput.min.js"></script>
+    <style>
+        .profile-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+        }
+
+        .profile-header {
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .profile-header h1 {
+            margin: 0;
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .profile-header p {
+            margin: 0.5rem 0 0 0;
+            opacity: 0.9;
+        }
+
+        .profile-section {
+            padding: 2rem;
+        }
+
+        .section-header {
+            background: #dc2626;
+            color: white;
+            padding: 1rem 1.5rem;
+            margin: -2rem -2rem 1.5rem -2rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+            align-items: flex-end;
+        }
+
+        .phone-input-container {
+            flex: 1;
+            position: relative;
+        }
+
+        .phone-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            padding-left: 60px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s ease;
+        }
+
+        .phone-input:focus {
+            outline: none;
+            border-color: #dc2626;
+            box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+        }
+
+        .phone-flag {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 2;
+        }
+
+        .btn {
+            padding: 0.75rem 1rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: #dc2626;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #b91c1c;
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-success {
+            background: #059669;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #047857;
+            transform: translateY(-1px);
+        }
+
+        .btn-success:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .help-text {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-top: 0.5rem;
+        }
+
+        .verification-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-top: 1rem;
+            border: 1px solid #e5e7eb;
+        }
+
+        .verification-section h6 {
+            margin-bottom: 1rem;
+            color: #374151;
+            font-weight: 600;
+        }
+
+        .verification-input-group {
+            display: flex;
+            gap: 0.5rem;
+            align-items: flex-end;
+        }
+
+        .verification-input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            text-align: center;
+            letter-spacing: 0.1em;
+        }
+
+        .verification-input:focus {
+            outline: none;
+            border-color: #dc2626;
+            box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+        }
+
+        .success-message, .error-message {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-weight: 500;
+        }
+
+        .success-message {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .error-message {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .current-phone-display {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            margin-bottom: 1rem;
+        }
+
+        .phone-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .phone-number {
+            font-weight: 500;
+            color: #1f2937;
+        }
+
+        .badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        @media (max-width: 768px) {
+            .input-group, .verification-input-group {
+                flex-direction: column;
+                width: 100%;
+            }
+            
+            .input-group .btn, .verification-input-group .btn {
+                width: 100% !important;
+                justify-content: center;
+                box-sizing: border-box;
+            }
+            
+            .phone-input-container {
+                width: 100% !important;
+                flex: none !important;
+            }
+            
+            .phone-input {
+                width: 100% !important;
+                min-width: 0;
+                box-sizing: border-box;
+                padding-left: 60px !important;
+            }
+            
+            .verification-input {
+                width: 100% !important;
+                min-width: 0;
+                box-sizing: border-box;
+            }
+            
+            /* Override intl-tel-input styles on mobile */
+            .iti {
+                width: 100% !important;
+            }
+            
+            .iti__selected-flag {
+                width: 60px !important;
+            }
+        }
+    </style>
+{% endblock extrahead %}
+
+{% block profile_content %}
+<div class="profile-container">
+                    <div class="profile-header">
+                        <h1>Gestión de Teléfono</h1>
+                        <p>Administra tu número de teléfono para recibir notificaciones</p>
+                    </div>
+                    
+                    <div class="profile-section">
+                        <h2 class="section-header">Teléfono Actual</h2>
+                        
+                        <div class="success-message" id="successMessage" style="display: none;"></div>
+                        <div class="error-message" id="errorMessage" style="display: none;"></div>
+                        
+                        {% if user.profile.phone %}
+                            <div class="current-phone-display">
+                                <div class="phone-info">
+                                    <span class="phone-number">{{ user.profile.phone }}</span>
+                                    <span class="badge badge-success">Verificado</span>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="current-phone-display">
+                                <div class="phone-info">
+                                    <span class="phone-number">No configurado</span>
+                                    <span class="badge badge-warning">Sin verificar</span>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        <div class="form-group">
+                            <label class="form-label" for="phoneInput">Número de teléfono</label>
+                            <div class="input-group">
+                                <div class="phone-input-container">
+                                    <input type="tel" id="phoneInput" class="phone-input" placeholder="Ingresa tu número de teléfono">
+                                    <div class="phone-flag" id="phoneFlag"></div>
+                                </div>
+                                <button type="button" class="btn btn-primary" id="sendCodeBtn">
+                                    <i class="fas fa-sms"></i>
+                                    Enviar SMS
+                                </button>
+                            </div>
+                            <div class="help-text">Ingresa tu número de teléfono con código de país. Recibirás un SMS con el código de verificación.</div>
+                        </div>
+
+                        <div class="verification-section" id="verificationSection" style="display: none;">
+                            <h6>Verificación por SMS</h6>
+                            <div class="verification-input-group">
+                                <input type="text" id="verificationCode" class="verification-input" 
+                                       placeholder="Código de 6 dígitos" maxlength="6">
+                                <button type="button" class="btn btn-success" id="verifyCodeBtn">
+                                    <i class="fas fa-check"></i>
+                                    Verificar
+                                </button>
+                            </div>
+                            <div class="help-text">Ingresa el código de 6 dígitos que recibiste por SMS.</div>
+                        </div>
+                    </div>
+</div>
+
+<script>
+    let iti;
+    let currentPhone = '';
+
+    // Initialize international telephone input
+    document.addEventListener('DOMContentLoaded', function() {
+        const phoneInput = document.getElementById('phoneInput');
+        iti = window.intlTelInput(phoneInput, {
+            initialCountry: 'ar',
+            preferredCountries: ['ar', 'us', 'br', 'cl', 'uy', 'py', 'bo'],
+            utilsScript: 'https://cdn.jsdelivr.net/npm/intl-tel-input@18.2.1/build/js/utils.js'
+        });
+
+        // Update flag display
+        const flagContainer = document.getElementById('phoneFlag');
+        phoneInput.addEventListener('countrychange', function() {
+            const countryData = iti.getSelectedCountryData();
+            flagContainer.innerHTML = `<span class="iti-flag ${countryData.iso2}"></span>`;
+        });
+        
+        // Initial flag display
+        const countryData = iti.getSelectedCountryData();
+        flagContainer.innerHTML = `<span class="iti-flag ${countryData.iso2}"></span>`;
+    });
+
+    // Message display functions
+    function showMessage(message, isError = false) {
+        const successMsg = document.getElementById('successMessage');
+        const errorMsg = document.getElementById('errorMessage');
+        
+        if (isError) {
+            successMsg.style.display = 'none';
+            errorMsg.textContent = message;
+            errorMsg.style.display = 'block';
+        } else {
+            errorMsg.style.display = 'none';
+            successMsg.textContent = message;
+            successMsg.style.display = 'block';
+        }
+        
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            successMsg.style.display = 'none';
+            errorMsg.style.display = 'none';
+        }, 5000);
+    }
+
+    // AJAX helper function
+    async function makeRequest(url, data) {
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify(data)
+            });
+            return await response.json();
+        } catch (error) {
+            return { success: false, error: 'Error de conexión' };
+        }
+    }
+
+    // Send SMS code
+    document.getElementById('sendCodeBtn').addEventListener('click', async function() {
+        const phone = iti.getNumber();
+        const btn = this;
+        const originalText = btn.innerHTML;
+        
+        if (!phone) {
+            showMessage('Por favor ingresa un número de teléfono válido', true);
+            return;
+        }
+        
+        btn.disabled = true;
+        btn.innerHTML = '<div class="loading"></div> Enviando...';
+        
+        const result = await makeRequest('{% url "user_profile:update_private_profile_ajax" %}', {
+            action: 'send_code',
+            phone: phone
+        });
+        
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        
+        if (result.success) {
+            currentPhone = phone;
+            document.getElementById('verificationSection').style.display = 'block';
+            document.getElementById('verificationCode').focus();
+            showMessage('Código enviado correctamente');
+        } else {
+            showMessage(result.error, true);
+        }
+    });
+
+    // Verify code
+    document.getElementById('verifyCodeBtn').addEventListener('click', async function() {
+        const code = document.getElementById('verificationCode').value;
+        const btn = this;
+        const originalText = btn.innerHTML;
+        
+        if (!code || code.length !== 6) {
+            showMessage('Por favor ingresa el código de 6 dígitos', true);
+            return;
+        }
+        
+        btn.disabled = true;
+        btn.innerHTML = '<div class="loading"></div> Verificando...';
+        
+        const result = await makeRequest('{% url "user_profile:update_private_profile_ajax" %}', {
+            action: 'verify_code',
+            phone: currentPhone,
+            code: code
+        });
+        
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        
+        if (result.success) {
+            showMessage('Teléfono verificado y actualizado correctamente');
+            document.getElementById('verificationSection').style.display = 'none';
+            document.getElementById('verificationCode').value = '';
+            // Reload page to show updated phone
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } else {
+            showMessage(result.error, true);
+        }
+    });
+
+    // Auto-format verification code input
+    document.getElementById('verificationCode').addEventListener('input', function(e) {
+        // Only allow numbers
+        e.target.value = e.target.value.replace(/[^0-9]/g, '');
+        
+        // Auto-submit when 6 digits are entered
+        if (e.target.value.length === 6) {
+            document.getElementById('verifyCodeBtn').click();
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,277 @@
+{% extends "mi_fuego/profile_base.html" %}
+
+{% block title %}Perfil Público{% endblock %}
+
+{% block profile_content %}
+<div class="profile-container">
+    <div class="profile-header">
+        <h1>Perfil Público</h1>
+        <p>Configura tu información visible en el foro</p>
+    </div>
+    
+    <div class="profile-section">
+        <h2 class="section-header">Información del Foro</h2>
+        
+        <form method="post" enctype="multipart/form-data" id="forumForm">
+            {% csrf_token %}
+            <input type="hidden" name="forum_submit" value="1">
+            
+            <div class="avatar-section">
+                <div class="avatar-container">
+                    {% if profile.avatar %}
+                        <img src="{{ profile.avatar.url }}" alt="Avatar actual" class="avatar-preview" id="avatarPreview">
+                    {% else %}
+                        <div class="no-avatar" id="noAvatar">Sin avatar</div>
+                    {% endif %}
+                    <button type="button" class="avatar-upload" onclick="document.getElementById('avatarInput').click()">
+                        <i class="fas fa-camera"></i>
+                    </button>
+                    <input type="file" name="avatar" id="avatarInput" accept="image/*" style="display: none;">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="{{ forum_form.forum_username.id_for_label }}">Nombre de usuario del foro</label>
+                    <input type="text" name="forum_username" id="{{ forum_form.forum_username.id_for_label }}" 
+                           class="form-control" value="{{ forum_form.forum_username.value|default:'' }}"
+                           placeholder="Ingresa tu nombre de usuario para el foro">
+                    <div class="help-text">Este será tu nombre visible en el foro. Puedes cambiarlo más tarde.</div>
+                    {% if forum_form.forum_username.errors %}
+                        <ul class="errorlist">
+                            {% for error in forum_form.forum_username.errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i>
+                    Guardar Cambios
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .profile-container {
+        max-width: 800px;
+        margin: 0 auto;
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        overflow: hidden;
+    }
+
+    .profile-header {
+        background: linear-gradient(135deg, #289e6d, #1e7a56);
+        color: white;
+        padding: 2rem;
+        text-align: center;
+    }
+
+    .profile-header h1 {
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 700;
+    }
+
+    .profile-header p {
+        margin: 0.5rem 0 0 0;
+        opacity: 0.9;
+    }
+
+    .profile-section {
+        padding: 2rem;
+    }
+
+    .section-header {
+        background: #289e6d;
+        color: white;
+        padding: 1rem 1.5rem;
+        margin: -2rem -2rem 1.5rem -2rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #374151;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: border-color 0.2s ease;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #289e6d;
+        box-shadow: 0 0 0 3px rgba(40, 158, 109, 0.1);
+    }
+
+    .help-text {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-top: 0.5rem;
+    }
+
+    .btn {
+        padding: 0.75rem 1rem;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-primary {
+        background: #289e6d;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #1e7a56;
+        transform: translateY(-1px);
+    }
+
+    .avatar-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .avatar-container {
+        position: relative;
+        display: inline-block;
+    }
+
+    .avatar-preview {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid #e5e7eb;
+    }
+
+    .no-avatar {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: #f3f4f6;
+        border: 4px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #9ca3af;
+        font-size: 0.875rem;
+    }
+
+    .avatar-upload {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: #289e6d;
+        color: white;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: all 0.2s ease;
+    }
+
+    .avatar-upload:hover {
+        background: #1e7a56;
+        transform: scale(1.1);
+    }
+
+    .form-actions {
+        margin-top: 2rem;
+        text-align: center;
+    }
+
+    .errorlist {
+        list-style: none;
+        padding: 0;
+        margin: 0.5rem 0 0 0;
+    }
+
+    .errorlist li {
+        color: #dc2626;
+        font-size: 0.875rem;
+        background: #fee2e2;
+        padding: 0.5rem;
+        border-radius: 4px;
+        border: 1px solid #fca5a5;
+    }
+
+    @media (max-width: 768px) {
+        .profile-container {
+            margin: 1rem;
+            border-radius: 12px;
+        }
+        
+        .profile-header {
+            padding: 1.5rem;
+        }
+        
+        .profile-section {
+            padding: 1.5rem;
+        }
+    }
+</style>
+
+<script>
+    // Avatar preview
+    document.addEventListener('DOMContentLoaded', function() {
+        const avatarInput = document.getElementById('avatarInput');
+        const avatarPreview = document.getElementById('avatarPreview');
+        const noAvatar = document.getElementById('noAvatar');
+
+        avatarInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    if (avatarPreview) {
+                        avatarPreview.src = e.target.result;
+                        avatarPreview.style.display = 'block';
+                        noAvatar.style.display = 'none';
+                    } else {
+                        // Create new avatar preview if it doesn't exist
+                        const newAvatar = document.createElement('img');
+                        newAvatar.src = e.target.result;
+                        newAvatar.className = 'avatar-preview';
+                        newAvatar.id = 'avatarPreview';
+                        noAvatar.parentNode.insertBefore(newAvatar, noAvatar);
+                        noAvatar.style.display = 'none';
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    });
+</script>
+{% endblock %}

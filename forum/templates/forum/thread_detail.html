@@ -1,0 +1,733 @@
+{% extends "tickets/barbu_base.html" %}
+{% load static %}
+
+{% block title %}{{ thread.title }} - Foro{% endblock %}
+
+{% block full_content %}
+<div class="container-fluid innercontent">
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+<style>
+/* vBulletin 2005 Thread Detail Style with site colors */
+.vbulletin-forum {
+    font-family: "Inter", sans-serif;
+    font-size: 16px;
+    color: #1e1e1e;
+}
+
+.vbulletin-breadcrumb {
+    background: #f8f7f4;
+    padding: 8px;
+    border: 1px solid #b2b2b2;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.vbulletin-breadcrumb a {
+    color: #289e6d;
+    text-decoration: none;
+}
+
+.vbulletin-breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.vbulletin-thread-header {
+    background: #E8E8E8;
+    padding: 8px;
+    border: 1px solid #C0C0C0;
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+.vbulletin-thread-title {
+    color: #289e6d;
+    font-size: 18px;
+    margin: 0;
+}
+
+.vbulletin-thread-meta {
+    color: #666666;
+    font-size: 14px;
+    font-weight: normal;
+    margin-top: 4px;
+}
+
+.vbulletin-thread-actions {
+    background: #f8f7f4;
+    padding: 8px;
+    border: 1px solid #b2b2b2;
+    margin-bottom: 10px;
+    text-align: right;
+}
+
+.vbulletin-thread-actions a {
+    background: #289e6d;
+    color: #FFFFFF;
+    padding: 4px 8px;
+    text-decoration: none;
+    font-weight: bold;
+    border: 1px solid #289e6d;
+    margin-left: 4px;
+}
+
+.vbulletin-thread-actions a:hover {
+    background: #33b37d;
+}
+
+.vbulletin-post {
+    background: #FFFFFF;
+    border: 1px solid #b2b2b2;
+    margin-bottom: 10px;
+}
+
+.vbulletin-post-header {
+    background: #f8f7f4;
+    padding: 8px;
+    border-bottom: 1px solid #b2b2b2;
+    font-weight: bold;
+}
+
+.vbulletin-post-author {
+    color: #289e6d;
+    font-weight: bold;
+}
+
+.vbulletin-post-date {
+    color: #666666;
+    font-size: 14px;
+    font-weight: normal;
+}
+
+.vbulletin-post-content {
+    padding: 12px;
+    line-height: 1.5;
+}
+
+.vbulletin-post-actions {
+    background: #f8f7f4;
+    padding: 6px 12px;
+    border-top: 1px solid #b2b2b2;
+    text-align: right;
+    font-size: 14px;
+}
+
+.vbulletin-post-actions a {
+    color: #289e6d;
+    text-decoration: none;
+    margin-left: 8px;
+}
+
+.vbulletin-post-actions a:hover {
+    text-decoration: underline;
+}
+
+.vbulletin-reply-form {
+    background: #f8f7f4;
+    padding: 8px;
+    border: 1px solid #b2b2b2;
+    margin-top: 20px;
+}
+
+.vbulletin-reply-form h5 {
+    color: #289e6d;
+    margin: 0 0 10px 0;
+    font-size: 16px;
+}
+
+.vbulletin-form-group {
+    margin-bottom: 10px;
+}
+
+.vbulletin-form-control {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #b2b2b2;
+    font-family: "Inter", sans-serif;
+    font-size: 14px;
+    resize: vertical;
+    min-height: 100px;
+}
+
+.vbulletin-form-control:focus {
+    outline: none;
+    border-color: #289e6d;
+    box-shadow: 0 0 3px rgba(40, 158, 109, 0.3);
+}
+
+.vbulletin-btn {
+    background: #289e6d;
+    color: #FFFFFF;
+    padding: 6px 12px;
+    border: 1px solid #289e6d;
+    font-weight: bold;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.vbulletin-btn:hover {
+    background: #33b37d;
+    color: #FFFFFF;
+    text-decoration: none;
+}
+
+.vbulletin-btn-danger {
+    background: #CC0000;
+    border-color: #CC0000;
+}
+
+.vbulletin-btn-danger:hover {
+    background: #FF0000;
+}
+
+.vbulletin-pinned {
+    color: #FF6600;
+    font-weight: bold;
+}
+
+.vbulletin-locked {
+    color: #CC0000;
+}
+
+.vbulletin-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.vbulletin-dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #f9f9f9;
+    min-width: 120px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 1;
+    border: 1px solid #b2b2b2;
+}
+
+.vbulletin-dropdown-content a {
+    color: #289e6d;
+    padding: 8px 12px;
+    text-decoration: none;
+    display: block;
+    font-size: 14px;
+}
+
+.vbulletin-dropdown-content a:hover {
+    background-color: #f1f1f1;
+}
+
+.vbulletin-dropdown:hover .vbulletin-dropdown-content {
+    display: block;
+}
+
+.vbulletin-dropdown-btn {
+    background: #f8f7f4;
+    color: #666666;
+    padding: 4px 8px;
+    border: 1px solid #b2b2b2;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.vbulletin-dropdown-btn:hover {
+    background: #e8e8e8;
+}
+
+.vbulletin-quote-btn {
+    color: #289e6d;
+    text-decoration: none;
+    margin-right: 8px;
+    font-size: 14px;
+}
+
+.vbulletin-quote-btn:hover {
+    text-decoration: underline;
+}
+
+.vbulletin-quote {
+    background: #f8f7f4;
+    border-left: 4px solid #289e6d;
+    padding: 10px;
+    margin: 10px 0 10px 20px;
+    font-style: italic;
+    border-radius: 4px;
+    position: relative;
+}
+
+.vbulletin-quote-header {
+    font-weight: bold;
+    color: #289e6d;
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+.vbulletin-quote-content {
+    color: #666666;
+    line-height: 1.4;
+}
+
+/* Citas anidadas con más indentación */
+.vbulletin-quote .vbulletin-quote {
+    margin-left: 30px;
+    background: #f0f0f0;
+    border-left-color: #1e7a5a;
+}
+
+.vbulletin-quote .vbulletin-quote .vbulletin-quote {
+    margin-left: 40px;
+    background: #e8e8e8;
+    border-left-color: #0f5a3a;
+}
+
+/* Estilos para citas en el editor Quill - fondo más distintivo */
+.ql-editor blockquote {
+    background: #e8f5e8 !important;
+    border-left: 4px solid #289e6d !important;
+    padding: 10px !important;
+    margin: 5px 0 5px 15px !important;
+    border-radius: 4px !important;
+    border: none !important;
+    color: #666 !important;
+    font-style: normal !important;
+    display: block !important;
+    position: relative !important;
+}
+
+/* Forzar estilos en el editor Quill */
+#reply-editor .ql-editor blockquote {
+    background: #e8f5e8 !important;
+    border-left: 4px solid #289e6d !important;
+    padding: 10px !important;
+    margin: 5px 0 5px 15px !important;
+    border-radius: 4px !important;
+    border: none !important;
+    color: #666 !important;
+    font-style: normal !important;
+    display: block !important;
+}
+
+.ql-editor blockquote p {
+    margin: 0 !important;
+    line-height: 1.2 !important;
+}
+
+.ql-editor blockquote p:first-child {
+    font-weight: bold !important;
+    color: #289e6d !important;
+    margin-bottom: 3px !important;
+    font-size: 14px !important;
+    margin-top: 0 !important;
+}
+
+/* Estilos específicos para el editor de respuesta */
+#reply-editor .ql-editor blockquote p {
+    margin: 0 !important;
+    line-height: 1.2 !important;
+}
+
+#reply-editor .ql-editor blockquote p:first-child {
+    font-weight: bold !important;
+    color: #289e6d !important;
+    margin-bottom: 3px !important;
+    font-size: 14px !important;
+    margin-top: 0 !important;
+}
+
+/* Estilos para blockquotes en mensajes publicados - fondo original */
+.vbulletin-post-content blockquote {
+    background: #f8f7f4 !important;
+    border-left: 4px solid #289e6d !important;
+    padding: 10px !important;
+    margin: 0px 0 0px 15px !important;
+    border-radius: 4px !important;
+    border: none !important;
+    color: #666 !important;
+    font-style: normal !important;
+}
+
+.vbulletin-post-content blockquote p {
+    margin: 0 !important;
+    line-height: 1.2 !important;
+}
+
+.vbulletin-post-content blockquote p:first-child {
+    font-weight: bold !important;
+    color: #289e6d !important;
+    margin-bottom: 3px !important;
+    font-size: 14px !important;
+    margin-top: 0 !important;
+}
+
+/* Estilos para paginación */
+.vbulletin-pagination {
+    background: #f8f7f4;
+    border: 1px solid #b2b2b2;
+    padding: 15px;
+    margin: 20px 0;
+    text-align: center;
+}
+
+.pagination-info {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+.pagination-links {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.pagination-links .vbulletin-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+    min-width: 35px;
+}
+</style>
+
+<div class="vbulletin-forum">
+    <div class="vbulletin-breadcrumb">
+        <a href="{% url 'forum:forum_index' %}">Foro</a> &raquo; 
+        <a href="{% url 'forum:section_detail' thread.section.id %}">{{ thread.section.name }}</a> &raquo; 
+        {{ thread.title }}
+    </div>
+    
+    <div class="vbulletin-thread-header">
+        <div class="vbulletin-thread-title">{{ thread.title }}</div>
+        <div class="vbulletin-thread-meta">
+            Creado por <strong>{{ thread.get_author_display_name }}</strong> 
+            {{ thread.created_at|timesince }} atrás
+            {% if thread.is_pinned %}
+                <span class="vbulletin-pinned" title="Hilo fijado">📌</span>
+            {% endif %}
+            {% if thread.is_locked %}
+                <span class="vbulletin-locked" title="Hilo bloqueado">🔒</span>
+            {% endif %}
+        </div>
+    </div>
+    
+    {% if not thread.is_locked %}
+    <div class="vbulletin-thread-actions">
+        <a href="#reply-form">Responder</a>
+    </div>
+    {% endif %}
+    
+    <!-- Lista de mensajes -->
+    {% for message in messages_list %}
+    <div class="vbulletin-post" data-message-id="{{ message.id }}"{% if forloop.last %} id="last"{% endif %}>
+        <div class="vbulletin-post-header">
+            <span class="vbulletin-post-author">{{ message.get_author_display_name }}</span>
+            <span class="vbulletin-post-date">
+                {{ message.created_at|date:"d/m/Y H:i" }}
+                {% if message.is_edited %}
+                    (editado {{ message.edited_at|date:"d/m/Y H:i" }})
+                {% endif %}
+            </span>
+        </div>
+        <div class="vbulletin-post-content">
+            {{ message.content|safe }}
+        </div>
+        <div class="vbulletin-post-actions">
+            <a href="#" class="vbulletin-quote-btn" 
+               data-message-id="{{ message.id }}"
+               data-author-name="{{ message.get_author_display_name }}"
+               data-date="{{ message.created_at|date:'d/m/Y H:i' }}"
+               data-content="{{ message.content }}">
+                Citar
+            </a>
+            {% if message.author == user %}
+            <div class="vbulletin-dropdown">
+                <button class="vbulletin-dropdown-btn">⋮</button>
+                <div class="vbulletin-dropdown-content">
+                    <a href="{% url 'forum:edit_message' message.id %}">Editar</a>
+                    <a href="#" class="delete-message-btn" data-message-id="{{ message.id }}" style="color: #CC0000;">Eliminar</a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+    
+    <!-- Paginación -->
+    {% if page_obj.has_other_pages %}
+    <div class="vbulletin-pagination">
+        <div class="pagination-info">
+            Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+            ({{ page_obj.paginator.count }} mensajes en total)
+        </div>
+        <div class="pagination-links">
+            {% if page_obj.has_previous %}
+                <a href="?page=1" class="vbulletin-btn">« Primera</a>
+                <a href="?page={{ page_obj.previous_page_number }}" class="vbulletin-btn">‹ Anterior</a>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <span class="vbulletin-btn vbulletin-btn-primary">{{ num }}</span>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <a href="?page={{ num }}" class="vbulletin-btn">{{ num }}</a>
+                {% endif %}
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}" class="vbulletin-btn">Siguiente ›</a>
+                <a href="?page={{ page_obj.paginator.num_pages }}" class="vbulletin-btn">Última »</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Formulario de respuesta -->
+    {% if not thread.is_locked %}
+    <div class="vbulletin-reply-form" id="reply-form">
+        <h5>Responder</h5>
+        <form method="post">
+            {% csrf_token %}
+            <div class="vbulletin-form-group">
+                <!-- Contenedor para Quill.js -->
+                <div id="reply-editor" style="height: 200px; border: 1px solid #b2b2b2; border-radius: 4px;"></div>
+                <!-- Textarea oculto para el formulario -->
+                <textarea name="content" id="reply-content" style="display: none;" required></textarea>
+                {% if form.content.errors %}
+                    <div style="color: #CC0000; font-size: 14px; margin-top: 4px;">
+                        {% for error in form.content.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+            <div style="text-align: right;">
+                <button type="submit" class="vbulletin-btn">
+                    Publicar Respuesta
+                </button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- Quill.js CSS -->
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<!-- Quill.js JS -->
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+
+<script>
+// Initialize Quill.js for reply form
+const replyQuill = new Quill('#reply-editor', {
+    theme: 'snow',
+    placeholder: 'Escribe tu respuesta aquí...',
+    modules: {
+        toolbar: [
+            [{ 'header': [1, 2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'color': [] }, { 'background': [] }],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            [{ 'align': [] }],
+            ['link', 'blockquote', 'code-block'],
+            ['clean']
+        ]
+    }
+});
+
+// Sync content to hidden textarea
+replyQuill.on('text-change', function() {
+    const content = replyQuill.root.innerHTML;
+    document.querySelector('#reply-content').value = content;
+    console.log('Text change detected, content synced:', content);
+});
+
+// Handle form submission to ensure content is synced
+document.querySelector('form').addEventListener('submit', function(e) {
+    // Force sync content before submission
+    const content = replyQuill.root.innerHTML;
+    const textarea = document.querySelector('#reply-content');
+    textarea.value = content;
+    console.log('Form submitted with content:', content);
+    console.log('Textarea value:', textarea.value);
+    
+    // Double check the content is properly set
+    if (!textarea.value || textarea.value.trim() === '') {
+        console.error('Content is empty in textarea!');
+        e.preventDefault();
+        alert('Error: El contenido está vacío. Por favor, intenta de nuevo.');
+        return false;
+    }
+    
+    // Check if content contains quote
+    if (textarea.value.includes('<blockquote>') || textarea.value.includes('border-left: 4px solid #289e6d')) {
+        console.log('Content contains quote, should be preserved');
+    } else {
+        console.warn('Content does not contain quote, may be lost');
+    }
+});
+
+console.log('Quill.js para respuestas cargado correctamente');
+
+// Add event listeners for quote buttons
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.vbulletin-quote-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const messageId = this.getAttribute('data-message-id');
+            const authorName = this.getAttribute('data-author-name');
+            const date = this.getAttribute('data-date');
+            const content = this.getAttribute('data-content');
+            quoteMessage(messageId, authorName, date, content);
+        });
+    });
+    
+    // Add event listeners for delete buttons
+    document.querySelectorAll('.delete-message-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const messageId = this.getAttribute('data-message-id');
+            deleteMessage(messageId);
+        });
+    });
+});
+
+// Function to handle quoting messages
+function quoteMessage(messageId, authorName, date, content) {
+    // Decode HTML entities if they are escaped
+    const decodedContent = content.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+    console.log('Quote function called with:', { messageId, authorName, date, content: decodedContent });
+    
+    // Check if Quill is initialized
+    if (!replyQuill) {
+        console.error('Quill editor not initialized');
+        alert('Error: El editor no está listo. Por favor, recarga la página.');
+        return;
+    }
+    
+    // Get current content
+    let currentContent = replyQuill.root.innerHTML;
+    
+    // Create quote using blockquote with inline styles for better Quill compatibility
+    const quoteHtml = '<blockquote style="background: #e8f5e8; border-left: 4px solid #289e6d; padding: 10px; margin: 5px 0 5px 15px; border-radius: 4px; border: none; font-style: normal; display: block;">' +
+        '<p style="font-weight: bold; color: #289e6d; margin-bottom: 3px; font-size: 14px; margin-top: 0; line-height: 1.2;">' + authorName + ' escribió el ' + date + ':</p>' +
+        '<p style="color: #666666; line-height: 1.2; margin: 0;">' + decodedContent + '</p>' +
+        '</blockquote>' +
+        '<p><br></p>';
+    
+    // If there's existing content, add the quote at the end
+    if (currentContent && currentContent.trim() !== '<p><br></p>') {
+        currentContent += quoteHtml;
+    } else {
+        currentContent = quoteHtml;
+    }
+    
+    // Set the content using Quill's API
+    replyQuill.clipboard.dangerouslyPasteHTML(currentContent);
+    
+    // Force a re-render to ensure styles are applied
+    setTimeout(() => {
+        replyQuill.update();
+    }, 50);
+    
+    // Focus on editor
+    replyQuill.focus();
+    
+    // Move cursor to end and add a new line for the user's response
+    const length = replyQuill.getLength();
+    replyQuill.setSelection(length);
+    
+    // Insert a new line after the quote for the user's response
+    replyQuill.insertText(length - 1, '\n\n');
+    
+    // Move cursor to the new line (after the quote) - this is where user will type
+    const newLength = replyQuill.getLength();
+    replyQuill.setSelection(newLength);
+    
+    // Exit quote mode by removing blockquote formatting
+    replyQuill.format('blockquote', false);
+    
+    // Force sync content to textarea immediately
+    const finalContent = replyQuill.root.innerHTML;
+    document.querySelector('#reply-content').value = finalContent;
+    console.log('Quote added, content synced:', finalContent);
+    
+    // Ensure cursor is visible and positioned correctly, and exit quote mode
+    setTimeout(() => {
+        replyQuill.focus();
+        replyQuill.setSelection(newLength);
+        replyQuill.format('blockquote', false);
+        
+        // Force sync again after formatting changes
+        const updatedContent = replyQuill.root.innerHTML;
+        document.querySelector('#reply-content').value = updatedContent;
+        console.log('Final quote content synced:', updatedContent);
+        
+        // Verify the textarea has the content
+        const textareaValue = document.querySelector('#reply-content').value;
+        console.log('Textarea verification:', textareaValue);
+        
+        // Force styles to be applied to blockquotes in the editor
+        const blockquotes = replyQuill.root.querySelectorAll('blockquote');
+        blockquotes.forEach(blockquote => {
+            blockquote.style.background = '#e8f5e8';
+            blockquote.style.borderLeft = '4px solid #289e6d';
+            blockquote.style.padding = '10px';
+            blockquote.style.margin = '5px 0 5px 15px';
+            blockquote.style.borderRadius = '4px';
+            blockquote.style.border = 'none';
+            blockquote.style.color = '#666';
+            blockquote.style.fontStyle = 'normal';
+            blockquote.style.display = 'block';
+        });
+    }, 100);
+    
+    // Scroll directly to the bottom of the page
+    setTimeout(() => {
+        // Scroll to the absolute bottom of the page
+        window.scrollTo({ 
+            top: document.documentElement.scrollHeight, 
+            behavior: 'smooth' 
+        });
+    }, 100);
+    
+    console.log('Quote added successfully with cursor positioned for response');
+    
+    // Show visual feedback that quote was added
+    const editor = document.getElementById('reply-editor');
+    if (editor) {
+        editor.style.border = '2px solid #289e6d';
+        setTimeout(() => {
+            editor.style.border = '1px solid #b2b2b2';
+        }, 1000);
+    }
+}
+
+function deleteMessage(messageId) {
+    if (confirm('¿Estás seguro de que quieres eliminar este mensaje?')) {
+        fetch(`/foro/mensaje/${messageId}/eliminar/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error al eliminar el mensaje: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al eliminar el mensaje');
+        });
+    }
+}
+</script>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock full_content %}

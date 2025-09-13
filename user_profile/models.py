@@ -32,6 +32,8 @@ class Profile(BaseModel):
     document_number = models.CharField(max_length=50)
     phone = models.CharField(max_length=15, validators=[RegexValidator(r'^\+?1?\d{9,15}$')])
     profile_completion = models.CharField(max_length=15, choices=PROFILE_COMPLETION_CHOICES, default=NONE)
+    forum_username = models.CharField(max_length=50, null=True, blank=True, unique=True, help_text="Nombre de usuario para el foro")
+    avatar = models.ImageField(upload_to='avatars/', null=True, blank=True, help_text="Avatar del usuario")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

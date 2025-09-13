@@ -1,19 +1,22 @@
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.http import Http404, HttpResponseNotAllowed, HttpResponseForbidden
+from django.http import Http404, HttpResponseNotAllowed, HttpResponseForbidden, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+import json
 
 from events.models import Event
 from events.utils import get_event_from_request
 from tickets.models import NewTicket, NewTicketTransfer, Order
-from .forms import ProfileStep1Form, ProfileStep2Form, VolunteeringForm
+from .forms import ProfileStep1Form, ProfileStep2Form, VolunteeringForm, ForumProfileForm, PrivateProfileForm
 
 
 @login_required
 def my_fire_view(request):
-    return redirect(reverse("my_ticket"))
+    return redirect(reverse("user_profile:my_ticket"))
 
 
 def show_past_events(request):
@@ -113,7 +116,7 @@ def my_ticket_view(request, event_slug=None):
             # Check if event was found
             if not current_event:
                 # If event doesn't exist, redirect to main event
-                return redirect('my_ticket')
+                return redirect('user_profile:my_ticket')
                 
             # Get tickets for this specific event
             all_tickets = NewTicket.objects.filter(
@@ -224,7 +227,7 @@ def my_ticket_view(request, event_slug=None):
             )
         except Event.DoesNotExist:
             # If event doesn't exist, redirect to main event
-            return redirect('my_ticket')
+            return redirect('user_profile:my_ticket')
     
     # If no event_slug, determine what to show by default
     # Priority: 1) Main event if user has tickets, 2) Any active event if user has tickets, 3) Past events
@@ -237,7 +240,7 @@ def my_ticket_view(request, event_slug=None):
     # If user has tickets in active events, redirect to the first one (main event priority)
     if user_events.exists():
         main_event_with_tickets = user_events.first()
-        return redirect('my_ticket_event', event_slug=main_event_with_tickets.slug)
+        return redirect('user_profile:my_ticket_event', event_slug=main_event_with_tickets.slug)
     
     # If no active events with tickets, show past events
     past_events = Event.get_active_events().filter(
@@ -330,7 +333,7 @@ def transferable_tickets_view(request, event_slug=None):
     
     # If attendees don't need to be registered, redirect to my_ticket view
     if not (current_event and current_event.attendee_must_be_registered):
-        return redirect(reverse("my_ticket_event", kwargs={"event_slug": current_event.slug}))
+        return redirect(reverse("user_profile:my_ticket_event", kwargs={"event_slug": current_event.slug}))
 
     # Get tickets for the specific event only
     tickets = (
@@ -479,7 +482,22 @@ def volunteering(request, event_slug=None):
         current_event = Event.get_main_event()
     
     # Get ticket for the specific event
-    ticket = get_object_or_404(NewTicket, holder=request.user, owner=request.user, event=current_event)
+    # For volunteering, prefer the ticket where the user is both holder and owner (their main ticket)
+    # If no such ticket exists, use any ticket where they are the holder
+    ticket = NewTicket.objects.filter(
+        holder=request.user, 
+        owner=request.user, 
+        event=current_event
+    ).first()
+    
+    if not ticket:
+        ticket = NewTicket.objects.filter(
+            holder=request.user, 
+            event=current_event
+        ).first()
+    
+    if not ticket:
+        raise Http404("No ticket found for this event")
     show_congrats = False
 
     if request.method == "POST":
@@ -772,3 +790,92 @@ def event_admin_view(request, event_slug):
     }
     
     return render(request, "mi_fuego/event_admin.html", context)
+
+
+@login_required
+def phone_profile(request):
+    """Vista para gestión de teléfono"""
+    profile = request.user.profile
+    return render(request, 'mi_fuego/phone_profile.html', {
+        'profile': profile,
+    })
+
+@login_required
+def forum_profile(request):
+    """Vista para editar el perfil del foro"""
+    profile, created = request.user.profile, False
+    if not hasattr(request.user, 'profile'):
+        from .models import Profile
+        profile = Profile.objects.create(user=request.user)
+    
+    # Initialize form for forum profile only
+    forum_form = ForumProfileForm(instance=profile)
+    
+    if request.method == 'POST' and 'forum_submit' in request.POST:
+        forum_form = ForumProfileForm(request.POST, request.FILES, instance=profile)
+        if forum_form.is_valid():
+            forum_form.save()
+            from django.contrib import messages
+            messages.success(request, "Perfil público actualizado correctamente.")
+            return redirect('user_profile:forum_profile')
+    
+    context = {
+        'forum_form': forum_form,
+        'profile': profile,
+    }
+    return render(request, 'mi_fuego/forum_profile.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def update_private_profile_ajax(request):
+    """AJAX endpoint para actualizar perfil privado"""
+    try:
+        data = json.loads(request.body)
+        profile = request.user.profile
+        
+        # Handle phone verification
+        if 'action' in data:
+            if data['action'] == 'send_code':
+                phone = data.get('phone')
+                if not phone:
+                    return JsonResponse({'success': False, 'error': 'Número de teléfono requerido.'})
+                
+                # Check for duplicate phone
+                if Profile.objects.filter(phone=phone).exclude(user=request.user).exists():
+                    return JsonResponse({'success': False, 'error': 'Otro usuario ya tiene este número de teléfono.'})
+                
+                # Send verification code
+                from .forms import PrivateProfileForm
+                form = PrivateProfileForm({'phone': phone}, instance=profile, user=request.user)
+                if form.is_valid():
+                    form.send_verification_code()
+                    return JsonResponse({'success': True, 'message': 'Código enviado correctamente.'})
+                else:
+                    return JsonResponse({'success': False, 'error': 'Número de teléfono inválido.'})
+            
+            elif data['action'] == 'verify_code':
+                phone = data.get('phone')
+                code = data.get('code')
+                
+                if not phone or not code:
+                    return JsonResponse({'success': False, 'error': 'Teléfono y código requeridos.'})
+                
+                # Verify code
+                from .forms import PrivateProfileForm
+                form = PrivateProfileForm({'phone': phone, 'code': code}, instance=profile, user=request.user)
+                if form.is_valid():
+                    if form.verify_code():
+                        form.save()
+                        return JsonResponse({'success': True, 'message': 'Teléfono verificado y actualizado correctamente.'})
+                    else:
+                        return JsonResponse({'success': False, 'error': 'Código inválido.'})
+                else:
+                    return JsonResponse({'success': False, 'error': 'Datos inválidos.'})
+        
+        return JsonResponse({'success': False, 'error': 'Acción no válida.'})
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Datos JSON inválidos.'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': f'Error del servidor: {str(e)}'})

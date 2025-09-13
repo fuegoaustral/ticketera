@@ -79,6 +79,7 @@ INSTALLED_APPS = [
 
     'tickets.apps.TicketsConfig',
     'events.apps.EventsConfig',
+    'forum.apps.ForumConfig',
 ]
 
 MIDDLEWARE = [
@@ -89,6 +90,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'utils.forum_message_filter.ForumMessageFilterMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'auditlog.middleware.AuditlogMiddleware',
     "allauth.account.middleware.AccountMiddleware",
@@ -289,7 +291,7 @@ ACCOUNT_USERNAME_REQUIRED = False
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 
 # Login settings
-LOGIN_REDIRECT_URL = 'mi_fuego'
+LOGIN_REDIRECT_URL = 'user_profile:mi_fuego'
 LOGIN_URL = '/mi-fuego/login/'
 ACCOUNT_LOGOUT_REDIRECT_URL = APP_URL
 ACCOUNT_AUTHENTICATION_METHOD = 'email'  # 'username_email', 'username'
@@ -297,6 +299,9 @@ ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 3
 
 SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
 SOCIALACCOUNT_LOGIN_ON_GET = True
+SOCIALACCOUNT_CONNECT_ON_GET = True
+SOCIALACCOUNT_CONNECT_REDIRECT_URL = '/mi-fuego/email/'
+SOCIALACCOUNT_ADAPTER = 'user_profile.adapters.CustomSocialAccountAdapter'
 ACCOUNT_LOGOUT_ON_GET = True
 ACCOUNT_CONFIRM_EMAIL_ON_GET = True
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True

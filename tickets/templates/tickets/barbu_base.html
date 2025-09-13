@@ -83,7 +83,7 @@
           </svg>
           <div class="d-none d-sm-block">EVENTOS</div>
         </a>
-        <a class="nav-link btn btn-secondary"
+        <a class="nav-link btn btn-donar"
            href="https://donaronline.org/asociacion-civil-fuego-austral/becas-de-arte-fuego-austral-2025"
            target="_blank">Quiero Donar</a>
       </div>
@@ -98,7 +98,7 @@
         <!-- Ticket counter for mobile -->
         {% if request.user.is_authenticated %}
           <li class="nav-item d-sm-none">
-            <a href="{% url 'my_ticket' %}" class="nav-link p-0">
+            <a href="{% url 'user_profile:my_ticket' %}" class="nav-link p-0">
               <div class="d-flex align-items-center gap-2 ticket-counter">
                 <i class="fa-solid fa-ticket text-white fs-5"></i>
                 <span class="text-white me-2">{{ total_tickets }}</span>
@@ -112,9 +112,11 @@
               Mi cuenta
             </a>
             <div class="dropdown-menu" aria-labelledby="dropdownProfileButton">
-              <a class="dropdown-item" href="{% url "my_ticket" %}"><i class="fa-solid fa-user"></i> Mi perfil ({{ user.email }})</a>
+              <a class="dropdown-item" href="{% url "user_profile:forum_profile" %}"><i class="fa-solid fa-user"></i> Perfil</a>
+              <a class="dropdown-item" href="{% url "user_profile:my_ticket" %}"><i class="fa-solid fa-ticket"></i> Bonos y Eventos</a>
+              
               {% if user.admin_events.exists %}
-              <a class="dropdown-item" href="{% url "my_events" %}"><i class="fa-solid fa-cogs"></i> Mis eventos</a>
+              <a class="dropdown-item" href="{% url "user_profile:my_events" %}"><i class="fa-solid fa-cogs"></i> Mis eventos</a>
               {% endif %}
               <a class="dropdown-item" href="https://fuegoaustral.org/el-evento/10-principios/" target="_blank">10 principios</a>
               <a class="dropdown-item" href="https://fuegoaustral.org/faq/" target="_blank">Preguntas frecuentes</a>
@@ -133,7 +135,7 @@
         <!-- Ticket counter for desktop -->
         <li class="nav-item d-none d-sm-block no-border">
           {% if request.user.is_authenticated %}
-            <a href="{% url 'my_ticket' %}" class="nav-link p-0">
+            <a href="{% url 'user_profile:my_ticket' %}" class="nav-link p-0">
               <div class="d-flex align-items-center gap-2 ticket-counter">
                 <i class="fa-solid fa-ticket text-white fs-5"></i>
                 <span class="text-white me-2">{{ total_tickets }}</span>
@@ -144,6 +146,22 @@
       </ul>
     </header>
     <style>
+      .btn-donar {
+        background-color: white !important;
+        color: #333 !important;
+        border: 1px solid #ddd !important;
+      }
+      .btn-donar:hover {
+        background-color: #f8f9fa !important;
+        color: #333 !important;
+        border-color: #ccc !important;
+      }
+      .btn-donar:focus {
+        background-color: white !important;
+        color: #333 !important;
+        border-color: #ddd !important;
+        box-shadow: 0 0 0 0.2rem rgba(0,0,0,0.1) !important;
+      }
       .ticket-counter {
         transition: transform 0.3s ease;
         cursor: pointer;

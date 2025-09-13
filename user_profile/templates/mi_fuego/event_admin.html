@@ -21,7 +21,7 @@
                 {% for admin_event in user.admin_events.all %}
                     <li class="menu-item">
                         <a class="menu-link{% if admin_event.slug == event.slug %} active{% endif %}"
-                           href="{% url "event_admin" admin_event.slug %}">
+                           href="{% url "user_profile:event_admin" admin_event.slug %}">
                             <i class="fas fa-chart-line me-2"></i>
                             {{ admin_event.name }}
                         </a>

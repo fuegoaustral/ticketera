@@ -19,7 +19,7 @@
                 {% for event in admin_events %}
                     <li class="menu-item">
                         <a class="menu-link"
-                           href="{% url "event_admin" event.slug %}">
+                           href="{% url "user_profile:event_admin" event.slug %}">
                             <i class="fas fa-chart-line me-2"></i>
                             {{ event.name }}
                         </a>
@@ -384,7 +384,7 @@
                                                 {% endif %}
                                             </td>
                                             <td class="text-center">
-                                                <a href="{% url 'event_admin' event.slug %}" 
+                                                <a href="{% url 'user_profile:event_admin' event.slug %}" 
                                                    class="btn btn-primary btn-sm">
                                                     <i class="fas fa-chart-line me-1"></i>
                                                     Ver Reporte

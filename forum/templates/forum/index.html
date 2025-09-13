@@ -1,0 +1,216 @@
+{% extends "tickets/barbu_base.html" %}
+{% load static %}
+
+{% block title %}Foro - {% endblock %}
+
+{% block full_content %}
+<div class="container-fluid innercontent">
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+<style>
+/* vBulletin 2005 Style with site colors */
+.vbulletin-forum {
+    font-family: "Inter", sans-serif;
+    font-size: 16px;
+    color: #1e1e1e;
+}
+
+.vbulletin-header {
+    background: #289e6d;
+    color: #FFFFFF;
+    padding: 8px;
+    font-weight: bold;
+    border: 1px solid #289e6d;
+}
+
+.vbulletin-category {
+    background: #f8f7f4;
+    color: #1e1e1e;
+    padding: 6px 8px;
+    font-weight: bold;
+    border: 1px solid #b2b2b2;
+    border-top: none;
+}
+
+.vbulletin-forum-row {
+    background: #f8f7f4;
+    border: 1px solid #b2b2b2;
+    border-top: none;
+}
+
+.vbulletin-forum-row:hover {
+    background: #f0f0f0;
+}
+
+.vbulletin-forum-row-alt {
+    background: #FFFFFF;
+    border: 1px solid #b2b2b2;
+    border-top: none;
+}
+
+.vbulletin-forum-row-alt:hover {
+    background: #f8f7f4;
+}
+
+.vbulletin-forum-icon {
+    width: 40px;
+    text-align: center;
+    padding: 8px 4px;
+}
+
+.vbulletin-forum-info {
+    padding: 8px;
+    vertical-align: top;
+}
+
+.vbulletin-forum-title {
+    font-weight: bold;
+    color: #289e6d;
+    text-decoration: none;
+}
+
+.vbulletin-forum-title:hover {
+    text-decoration: underline;
+}
+
+.vbulletin-forum-desc {
+    color: #666666;
+    font-size: 14px;
+    margin-top: 2px;
+}
+
+.vbulletin-stats {
+    width: 80px;
+    text-align: center;
+    padding: 8px 4px;
+    vertical-align: top;
+    border-left: 1px solid #b2b2b2;
+}
+
+.vbulletin-lastpost {
+    width: 200px;
+    padding: 8px;
+    vertical-align: top;
+    border-left: 1px solid #b2b2b2;
+    font-size: 14px;
+}
+
+.vbulletin-lastpost-title {
+    color: #289e6d;
+    text-decoration: none;
+}
+
+.vbulletin-lastpost-title:hover {
+    text-decoration: underline;
+}
+
+.vbulletin-lastpost-info {
+    color: #666666;
+    margin-top: 2px;
+}
+
+.vbulletin-user-info {
+    background: #f8f7f4;
+    padding: 8px;
+    border: 1px solid #b2b2b2;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.vbulletin-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.vbulletin-table td {
+    border: 1px solid #b2b2b2;
+}
+
+.vbulletin-table th {
+    background: #289e6d;
+    color: #FFFFFF;
+    padding: 6px 8px;
+    font-weight: bold;
+    text-align: left;
+    border: 1px solid #289e6d;
+}
+</style>
+
+<div class="vbulletin-forum">
+    <div class="vbulletin-user-info">
+        <strong>Conectado como:</strong> {{ user.profile.forum_username }} | 
+        <a href="{% url 'user_profile:forum_profile' %}" style="color: #0066CC;">Mi Perfil</a>
+    </div>
+    
+    <div style="background: #f8f7f4; padding: 8px; border: 1px solid #b2b2b2; margin-bottom: 10px; text-align: center;">
+        <strong>Estadísticas del Foro:</strong> 
+        <span style="color: #289e6d; font-weight: bold;">{{ total_threads }}</span> hilos | 
+        <span style="color: #289e6d; font-weight: bold;">{{ total_messages }}</span> mensajes
+    </div>
+    
+    {% if sections %}
+        <table class="vbulletin-table">
+            <thead>
+                <tr>
+                    <th colspan="2">Foro</th>
+                    <th>Hilos / Mensajes</th>
+                    <th>Último Mensaje</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for section in sections %}
+                <tr class="{% cycle 'vbulletin-forum-row' 'vbulletin-forum-row-alt' %}">
+                    <td class="vbulletin-forum-icon">
+                        <img src="{% static 'img/forum_folder.png' %}" alt="Foro" style="width: 24px; height: 24px;" 
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+                        <span style="display: none; font-size: 18px;">📁</span>
+                    </td>
+                    <td class="vbulletin-forum-info">
+                        <div style="margin-bottom: 4px;">
+                            <a href="{% url 'forum:section_detail' section.id %}" class="vbulletin-forum-title">
+                                {{ section.name }}
+                            </a>
+                        </div>
+                        <div class="vbulletin-forum-desc">{{ section.description }}</div>
+                    </td>
+                    <td class="vbulletin-stats">
+                        <div style="text-align: center;">
+                            <div style="font-size: 12px; font-weight: bold; color: #289e6d;">{{ section.get_thread_count }}</div>
+                            <div style="font-size: 9px; color: #666666;">Hilos</div>
+                            <div style="font-size: 12px; font-weight: bold; color: #666666; margin-top: 2px;">{{ section.get_message_count }}</div>
+                            <div style="font-size: 9px; color: #666666;">Mensajes</div>
+                        </div>
+                    </td>
+                    <td class="vbulletin-lastpost">
+                        {% if section.get_last_activity %}
+                            <div style="text-align: center;">
+                                <div style="font-size: 10px; color: #666666;">Última actividad</div>
+                                <div style="font-size: 10px; color: #999999; margin-top: 2px;">
+                                    {{ section.get_last_activity|timesince }} atrás
+                                </div>
+                            </div>
+                        {% else %}
+                            <div style="text-align: center;">
+                                <div style="font-size: 10px; color: #666666;">Última actividad</div>
+                                <div style="font-size: 10px; color: #999999; margin-top: 2px;">-</div>
+                            </div>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div style="text-align: center; padding: 40px; color: #666666;">
+            <h3>No hay secciones disponibles</h3>
+            <p>Las secciones del foro aparecerán aquí cuando estén disponibles.</p>
+        </div>
+    {% endif %}
+</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock full_content %}

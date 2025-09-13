@@ -1,0 +1,272 @@
+{% extends "tickets/barbu_base.html" %}
+{% load static %}
+
+{% block title %}{{ section.name }} - Foro{% endblock %}
+
+{% block full_content %}
+<div class="container-fluid innercontent">
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+<style>
+/* vBulletin 2005 Thread Listing Style with site colors */
+.vbulletin-forum {
+    font-family: "Inter", sans-serif;
+    font-size: 16px;
+    color: #1e1e1e;
+}
+
+.vbulletin-header {
+    background: #289e6d;
+    color: #FFFFFF;
+    padding: 8px;
+    font-weight: bold;
+    border: 1px solid #289e6d;
+}
+
+.vbulletin-thread-row {
+    background: #f8f7f4;
+    border: 1px solid #b2b2b2;
+    border-top: none;
+}
+
+.vbulletin-thread-row:hover {
+    background: #f0f0f0;
+}
+
+.vbulletin-thread-row-alt {
+    background: #FFFFFF;
+    border: 1px solid #b2b2b2;
+    border-top: none;
+}
+
+.vbulletin-thread-row-alt:hover {
+    background: #f8f7f4;
+}
+
+.vbulletin-thread-icon {
+    width: 40px;
+    text-align: center;
+    padding: 8px 4px;
+}
+
+.vbulletin-thread-info {
+    padding: 8px;
+    vertical-align: top;
+}
+
+.vbulletin-thread-title {
+    font-weight: bold;
+    color: #289e6d;
+    text-decoration: none;
+}
+
+.vbulletin-thread-title:hover {
+    text-decoration: underline;
+}
+
+.vbulletin-thread-meta {
+    color: #666666;
+    font-size: 14px;
+    margin-top: 2px;
+}
+
+.vbulletin-thread-author {
+    width: 120px;
+    text-align: center;
+    padding: 8px 4px;
+    vertical-align: top;
+    border-left: 1px solid #b2b2b2;
+}
+
+.vbulletin-thread-replies {
+    width: 60px;
+    text-align: center;
+    padding: 8px 4px;
+    vertical-align: top;
+    border-left: 1px solid #b2b2b2;
+}
+
+.vbulletin-thread-views {
+    width: 60px;
+    text-align: center;
+    padding: 8px 4px;
+    vertical-align: top;
+    border-left: 1px solid #b2b2b2;
+}
+
+.vbulletin-thread-lastpost {
+    width: 200px;
+    padding: 8px;
+    vertical-align: top;
+    border-left: 1px solid #b2b2b2;
+    font-size: 14px;
+}
+
+.vbulletin-thread-lastpost-title {
+    color: #289e6d;
+    text-decoration: none;
+}
+
+.vbulletin-thread-lastpost-title:hover {
+    text-decoration: underline;
+}
+
+.vbulletin-thread-lastpost-info {
+    color: #666666;
+    margin-top: 2px;
+}
+
+.vbulletin-breadcrumb {
+    background: #f8f7f4;
+    padding: 8px;
+    border: 1px solid #b2b2b2;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.vbulletin-breadcrumb a {
+    color: #289e6d;
+    text-decoration: none;
+}
+
+.vbulletin-breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.vbulletin-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.vbulletin-table td {
+    border: 1px solid #b2b2b2;
+}
+
+.vbulletin-table th {
+    background: #289e6d;
+    color: #FFFFFF;
+    padding: 6px 8px;
+    font-weight: bold;
+    text-align: left;
+    border: 1px solid #289e6d;
+}
+
+.vbulletin-new-thread {
+    background: #f8f7f4;
+    padding: 8px;
+    border: 1px solid #b2b2b2;
+    margin-bottom: 10px;
+    text-align: right;
+}
+
+.vbulletin-new-thread a {
+    background: #289e6d;
+    color: #FFFFFF;
+    padding: 4px 8px;
+    text-decoration: none;
+    font-weight: bold;
+    border: 1px solid #289e6d;
+}
+
+.vbulletin-new-thread a:hover {
+    background: #33b37d;
+}
+
+.vbulletin-pinned {
+    color: #FF6600;
+    font-weight: bold;
+}
+
+.vbulletin-locked {
+    color: #CC0000;
+}
+</style>
+
+<div class="vbulletin-forum">
+    <div class="vbulletin-breadcrumb">
+        <a href="{% url 'forum:forum_index' %}">Foro</a> &raquo; {{ section.name }}
+    </div>
+    
+    <div class="vbulletin-new-thread">
+        <a href="{% url 'forum:new_thread' section.id %}">Nuevo Hilo</a>
+    </div>
+    
+    <div style="background: #E8E8E8; padding: 6px 8px; border: 1px solid #C0C0C0; font-weight: bold; margin-bottom: 0;">
+        {{ section.name }} - {{ section.description }}
+    </div>
+    
+    {% if threads %}
+        <table class="vbulletin-table">
+            <thead>
+                <tr>
+                    <th colspan="2">Hilo</th>
+                    <th>Autor</th>
+                    <th>Resp.</th>
+                    <th>Vistas</th>
+                    <th>Último Mensaje</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for thread in threads %}
+                <tr class="{% cycle 'vbulletin-thread-row' 'vbulletin-thread-row-alt' %}">
+                    <td class="vbulletin-thread-icon">
+                        {% if thread.is_pinned %}
+                            <span class="vbulletin-pinned" title="Hilo fijado">📌</span>
+                        {% elif thread.is_locked %}
+                            <span class="vbulletin-locked" title="Hilo bloqueado">🔒</span>
+                        {% else %}
+                            <span style="font-size: 16px;">💬</span>
+                        {% endif %}
+                    </td>
+                    <td class="vbulletin-thread-info">
+                        <a href="{% url 'forum:thread_detail' thread.id %}" class="vbulletin-thread-title">
+                            {{ thread.title }}
+                        </a>
+                        <div class="vbulletin-thread-meta">
+                            Creado por <strong>{{ thread.get_author_display_name }}</strong> 
+                            {{ thread.created_at|timesince }} atrás
+                        </div>
+                    </td>
+                    <td class="vbulletin-thread-author">
+                        {{ thread.get_author_display_name }}
+                    </td>
+                    <td class="vbulletin-thread-replies">
+                        {{ thread.get_message_count }}
+                    </td>
+                    <td class="vbulletin-thread-views">
+                        -
+                    </td>
+                    <td class="vbulletin-thread-lastpost">
+                        {% if thread.get_last_message %}
+                            <a href="{% url 'forum:thread_detail' thread.id %}?page={{ thread.last_page }}#last" class="vbulletin-thread-lastpost-title">
+                                Ver último mensaje
+                            </a>
+                            <div class="vbulletin-thread-lastpost-info">
+                                por <strong>{{ thread.get_last_message.get_author_display_name }}</strong><br>
+                                {{ thread.get_last_message.created_at|timesince }} atrás
+                            </div>
+                        {% else %}
+                            <span style="color: #999999;">Ninguno</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div style="text-align: center; padding: 40px; color: #666666;">
+            <h3>No hay hilos en esta sección</h3>
+            <p>Sé el primero en crear un hilo de discusión.</p>
+            <a href="{% url 'forum:new_thread' section.id %}" style="background: #289e6d; color: #FFFFFF; padding: 8px 16px; text-decoration: none; font-weight: bold; border: 1px solid #289e6d;">
+                Crear Primer Hilo
+            </a>
+        </div>
+    {% endif %}
+</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock full_content %}

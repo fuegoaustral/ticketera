@@ -1,0 +1,448 @@
+{% extends "mi_fuego/profile_base.html" %}
+{% load i18n %}
+{% load static %}
+{% load ticket_filters %}
+
+{% block title %}Gestión de Emails{% endblock %}
+
+{% block profile_content %}
+<div class="profile-container">
+                    <div class="profile-header">
+                        <h1>Gestión de Emails</h1>
+                        <p>Administra las direcciones de email asociadas a tu cuenta</p>
+                    </div>
+                    
+                    <div class="profile-section">
+                        <h2 class="section-header">Emails Asociados</h2>
+                        
+                        {% if user.emailaddress_set.all %}
+                            <div class="email-list">
+                                {% for emailaddress in user.emailaddress_set.all %}
+                                    <div class="email-item">
+                                        <div class="email-info">
+                                            <div class="email-provider">
+                                                <i class="fas fa-envelope"></i>
+                                            </div>
+                                            <span class="email-address">{{ emailaddress.email }}</span>
+                                            {% if emailaddress.verified %}
+                                                <span class="badge badge-success">Verificado</span>
+                                            {% else %}
+                                                <span class="badge badge-warning">Pendiente</span>
+                                            {% endif %}
+                                            {% if emailaddress.primary %}
+                                                <span class="badge badge-primary">Principal</span>
+                                            {% endif %}
+                                            {% comment %} Mostrar badge de Google si está conectado {% endcomment %}
+                                            {% for social_account in user.socialaccount_set.all %}
+                                                {% if social_account.provider == 'google' and social_account.extra_data.email == emailaddress.email %}
+                                                    <span class="badge badge-info">Google</span>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                        <div class="email-actions">
+                                            {% if not emailaddress.verified %}
+                                                <form method="post" action="{% url 'account_email' %}" style="display: inline;">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="email" value="{{ emailaddress.email }}">
+                                                    <button type="submit" name="action_send" class="btn btn-sm btn-outline-primary">
+                                                        Reenviar verificación
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                            {% if emailaddress.verified and not emailaddress.primary %}
+                                                <form method="post" action="{% url 'account_email' %}" style="display: inline;">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="email" value="{{ emailaddress.email }}">
+                                                    <button type="submit" name="action_primary" class="btn btn-sm btn-primary">
+                                                        Hacer principal
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                            {% if not emailaddress.primary %}
+                                                <form method="post" action="{% url 'account_email' %}" style="display: inline;">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="email" value="{{ emailaddress.email }}">
+                                                    <button type="submit" name="action_remove" class="btn btn-sm btn-outline-danger">
+                                                        Eliminar
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-muted">No tienes emails asociados a tu cuenta.</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="profile-section">
+                        <h2 class="section-header">Agregar Nuevo Email</h2>
+                        
+                        <form method="post" action="{% url 'account_email' %}">
+                            {% csrf_token %}
+                            <div class="form-group">
+                                <label for="{{ form.email.id_for_label }}">Nuevo Email</label>
+                                <div class="input-group">
+                                    <input type="email" name="email" id="{{ form.email.id_for_label }}" 
+                                           class="form-control" placeholder="Ingresa tu nuevo email"
+                                           value="{{ form.email.value|default:'' }}">
+                                    <button type="submit" name="action_add" class="btn btn-primary">
+                                        <i class="fas fa-plus"></i>
+                                        Agregar Email
+                                    </button>
+                                </div>
+                                {% if form.email.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.email.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="help-text">
+                                    Se enviará un email de verificación al nuevo email agregado.
+                                </div>
+                            </div>
+                        </form>
+                        
+                        <div class="mt-3">
+                            {% load socialaccount %}
+                            <a href="{% provider_login_url 'google' process='connect' next='/mi-fuego/email/' %}"
+                               class="btn btn-google w-100 d-flex align-items-center justify-content-center">
+                                <img src="{% static 'img/google.png' %}"
+                                     alt="Google"
+                                     class="me-2"
+                                     style="width: 20px; height: 20px">
+                                <span>Conectar con Google</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="profile-section">
+                        <h2 class="section-header">Cambiar Contraseña</h2>
+                        
+                        <form method="post" action="{% url 'account_change_password' %}">
+                            {% csrf_token %}
+                            <div class="form-group">
+                                <label for="id_oldpassword">Contraseña actual</label>
+                                <input type="password" name="oldpassword" id="id_oldpassword" class="form-control" 
+                                       placeholder="Ingresa tu contraseña actual" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="id_password1">Nueva contraseña</label>
+                                <input type="password" name="password1" id="id_password1" class="form-control" 
+                                       placeholder="Ingresa tu nueva contraseña" required>
+                                <div class="help-text">
+                                    Su contraseña debe contener por lo menos 8 caracteres.
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="id_password2">Contraseña (de nuevo)</label>
+                                <input type="password" name="password2" id="id_password2" class="form-control" 
+                                       placeholder="Confirma tu nueva contraseña" required>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-key"></i>
+                                    Establecer contraseña
+                                </button>
+                            </div>
+                        </form>
+                        
+                        <div class="help-text">
+                            <i class="fas fa-shield-alt"></i>
+                            Te recomendamos usar una contraseña segura con al menos 8 caracteres, incluyendo letras, números y símbolos.
+                        </div>
+                    </div>
+</div>
+
+<style>
+    .profile-container {
+        max-width: 800px;
+        margin: 0 auto;
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        overflow: hidden;
+    }
+
+    .profile-header {
+        background: linear-gradient(135deg, #289e6d, #1e7a56);
+        color: white;
+        padding: 2rem;
+        text-align: center;
+    }
+
+    .profile-header h1 {
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 700;
+    }
+
+    .profile-header p {
+        margin: 0.5rem 0 0 0;
+        opacity: 0.9;
+    }
+
+    .profile-section {
+        padding: 2rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .profile-section:last-child {
+        border-bottom: none;
+    }
+
+    .section-header {
+        background: #289e6d;
+        color: white;
+        padding: 1rem 1.5rem;
+        margin: -2rem -2rem 1.5rem -2rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+
+    .email-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .email-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+    }
+
+        .email-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .email-provider {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .provider-logo {
+            width: 20px;
+            height: 20px;
+        }
+
+        .email-provider i {
+            color: #6b7280;
+            font-size: 1rem;
+        }
+
+        .email-address {
+            font-weight: 500;
+            color: #1f2937;
+        }
+
+    .badge {
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .badge-success {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .badge-warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .badge-primary {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .badge-info {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .email-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #374151;
+    }
+
+    .input-group {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .form-control {
+        flex: 1;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: border-color 0.2s ease;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #289e6d;
+        box-shadow: 0 0 0 3px rgba(40, 158, 109, 0.1);
+    }
+
+    .btn {
+        padding: 0.75rem 1rem;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-primary {
+        background: #289e6d;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #1e7a56;
+        transform: translateY(-1px);
+    }
+
+    .btn-outline-primary {
+        background: transparent;
+        color: #289e6d;
+        border: 2px solid #289e6d;
+    }
+
+    .btn-outline-primary:hover {
+        background: #289e6d;
+        color: white;
+    }
+
+    .btn-outline-danger {
+        background: transparent;
+        color: #dc2626;
+        border: 2px solid #dc2626;
+    }
+
+    .btn-outline-danger:hover {
+        background: #dc2626;
+        color: white;
+    }
+
+    .btn-sm {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+        .help-text {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-top: 0.5rem;
+        }
+
+
+        .btn-outline-primary {
+            background: transparent;
+            color: #289e6d;
+            border: 2px solid #289e6d;
+        }
+
+        .btn-outline-primary:hover {
+            background: #289e6d;
+            color: white;
+        }
+
+        .btn-outline-secondary {
+            background: transparent;
+            color: #6b7280;
+            border: 2px solid #6b7280;
+        }
+
+        .btn-outline-secondary:hover {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-google {
+            background: #fff;
+            color: #333;
+            border: 1px solid #dadce0;
+            font-weight: 500;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-google:hover {
+            background: #f8f9fa;
+            color: #333;
+            border-color: #dadce0;
+            box-shadow: 0 1px 2px 0 rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);
+        }
+
+        .form-actions {
+            margin-top: 1.5rem;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .email-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .email-actions {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .input-group {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .form-control {
+                width: 100% !important;
+                min-width: 0;
+                box-sizing: border-box;
+            }
+
+            .input-group .btn {
+                width: 100% !important;
+                justify-content: center;
+                box-sizing: border-box;
+            }
+        }
+</style>
+{% endblock %}

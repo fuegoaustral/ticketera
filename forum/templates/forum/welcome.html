@@ -1,0 +1,84 @@
+{% extends "tickets/barbu_base.html" %}
+{% load static %}
+
+{% block title %}Bienvenido al Foro - {% endblock %}
+
+{% block full_content %}
+<div class="container-fluid innercontent">
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+<div class="mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-comments me-2"></i>
+                        ¡Bienvenido al Foro de Fuego Austral!
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h5><i class="fas fa-info-circle me-2"></i>¿Qué es el foro?</h5>
+                        <p class="mb-0">
+                            El foro es un espacio donde la comunidad de Fuego Austral puede compartir ideas, 
+                            hacer preguntas, organizar actividades y conectarse entre todos. Aquí podrás:
+                        </p>
+                        <ul class="mt-2">
+                            <li>Participar en discusiones sobre el evento</li>
+                            <li>Compartir experiencias y consejos</li>
+                            <li>Organizar actividades y encuentros</li>
+                            <li>Hacer preguntas a la comunidad</li>
+                            <li>Conocer a otros participantes</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <h5><i class="fas fa-user me-2"></i>Configura tu nombre de usuario</h5>
+                        <p class="mb-3">
+                            Para participar en el foro, necesitas elegir un nombre de usuario que será visible 
+                            para todos los demás participantes. Este nombre puede ser diferente a tu nombre real 
+                            y puedes cambiarlo más tarde si lo deseas.
+                        </p>
+                        
+                        <form method="post">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                {{ form.forum_username.label_tag }}
+                                {{ form.forum_username }}
+                                {% if form.forum_username.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.forum_username.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">{{ form.forum_username.help_text }}</div>
+                            </div>
+                            
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-rocket me-2"></i>
+                                    ¡Entrar al Foro!
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <small class="text-muted">
+                            <i class="fas fa-shield-alt me-1"></i>
+                            Recuerda mantener un ambiente respetuoso y constructivo en todas tus participaciones.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock full_content %}

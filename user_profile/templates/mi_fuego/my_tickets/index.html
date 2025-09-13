@@ -45,7 +45,7 @@
                             </div>
                             <div>
                                 <a class="btn btn-secondary text-nowrap"
-                                   href="{% url "transferable_tickets" event.slug %}">Bonos para transferir</a>
+                                   href="{% url "user_profile:transferable_tickets" event.slug %}">Bonos para transferir</a>
                             </div>
                         </div>
                     </div>
@@ -74,7 +74,7 @@
                 {% for event in active_events %}
                     <li class="menu-item">
                         <a class="menu-link{% if nav_primary == "tickets" and event.slug in request.path %} active{% endif %}"
-                           href="{% url "my_ticket_event" event.slug %}">
+                           href="{% url "user_profile:my_ticket_event" event.slug %}">
                             <i class="fas fa-fire me-2"></i>
                             {{ event.name }}
                         </a>
@@ -85,7 +85,7 @@
                             {% if event.has_volunteers %}
                                 <li class="menu-subitem">
                                     <a class="menu-sublink{% if nav_primary == "volunteering" and event.slug in request.path %} active{% endif %}"
-                                       href="{% url 'volunteering' event.slug %}">
+                                       href="{% url 'user_profile:volunteering' event.slug %}">
                                         <i class="fas fa-heart me-2"></i>
                                         Voluntariado
                                     </a>
@@ -99,7 +99,7 @@
         
         <div class="menu-section">
             <a class="menu-section-title menu-section-link{% if nav_primary == "tickets" and "eventos-anteriores" in request.path %} active{% endif %}"
-               href="{% url "my_ticket_past" %}">
+               href="{% url "user_profile:my_ticket_past" %}">
                 <i class="fas fa-archive me-2"></i>
                 Eventos Anteriores
             </a>
@@ -107,7 +107,7 @@
         
         <div class="menu-section">
             <a class="menu-section-title menu-section-link{% if nav_primary == "orders" %} active{% endif %}"
-               href="{% url "my_orders" %}">
+               href="{% url "user_profile:my_orders" %}">
                 <i class="fas fa-receipt me-2"></i>
                 Órdenes
             </a>

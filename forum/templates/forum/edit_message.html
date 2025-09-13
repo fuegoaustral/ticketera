@@ -1,0 +1,118 @@
+{% extends "tickets/barbu_base.html" %}
+{% load static %}
+
+{% block title %}Editar Mensaje - Foro{% endblock %}
+
+{% block full_content %}
+<div class="container-fluid innercontent">
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+<div class="mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">
+                        <i class="fas fa-edit me-2"></i>
+                        Editar Mensaje
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'forum:forum_index' %}">Foro</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'forum:section_detail' message.thread.section.id %}">{{ message.thread.section.name }}</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'forum:thread_detail' message.thread.id %}">{{ message.thread.title }}</a></li>
+                            <li class="breadcrumb-item active">Editar Mensaje</li>
+                        </ol>
+                    </nav>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Hilo:</strong> {{ message.thread.title }}
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.content.id_for_label }}" class="form-label">
+                                <strong>Contenido del Mensaje</strong>
+                            </label>
+                            <!-- Contenedor para Quill.js -->
+                            <div id="edit-editor" style="height: 300px; border: 1px solid #b2b2b2; border-radius: 4px;"></div>
+                            <!-- Textarea oculto para el formulario -->
+                            <textarea name="content" id="edit-content" style="display: none;" required>{{ form.content.value|default:'' }}</textarea>
+                            {% if form.content.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.content.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                El mensaje será marcado como editado cuando lo guardes.
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'forum:thread_detail' message.thread.id %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>
+                                Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-warning">
+                                <i class="fas fa-save me-1"></i>
+                                Guardar Cambios
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quill.js CSS -->
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<!-- Quill.js JS -->
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+
+<script>
+// Initialize Quill.js for edit form
+const editQuill = new Quill('#edit-editor', {
+    theme: 'snow',
+    placeholder: 'Edita el contenido del mensaje...',
+    modules: {
+        toolbar: [
+            [{ 'header': [1, 2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'color': [] }, { 'background': [] }],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            [{ 'align': [] }],
+            ['link', 'blockquote', 'code-block'],
+            ['clean']
+        ]
+    }
+});
+
+// Load existing content
+const existingContent = document.querySelector('#edit-content').value;
+if (existingContent) {
+    editQuill.root.innerHTML = existingContent;
+}
+
+// Sync content to hidden textarea
+editQuill.on('text-change', function() {
+    const content = editQuill.root.innerHTML;
+    document.querySelector('#edit-content').value = content;
+});
+
+console.log('Quill.js para edición cargado correctamente');
+</script>
+
+{% endblock full_content %}

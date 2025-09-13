@@ -135,7 +135,7 @@
         <div class="container">
             <div class="d-flex flex-row justify-content-end mt-4">
                 {% if user.is_authenticated %}
-                    <a class="btn btn-danger text-white mb-2 mx-2" href="{% url 'my_ticket' %}">
+                    <a class="btn btn-danger text-white mb-2 mx-2" href="{% url 'user_profile:my_ticket' %}">
                         Mis bonos
                     </a>
                     {% if user.is_staff %}
