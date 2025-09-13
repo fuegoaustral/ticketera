@@ -77,7 +77,6 @@
                     <h5 class="card-title mb-0">
                         <i class="fas fa-users me-2"></i>
                         Usuarios con Acceso al Scanner
-                        <span class="badge bg-success ms-2" style="color: white !important;">{{ all_scanner_users|length }}</span>
                     </h5>
                     <small class="text-muted">Los administradores del evento tienen acceso automático al scanner</small>
                 </div>
@@ -87,7 +86,6 @@
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
-                                        <th>Tipo</th>
                                         <th>Email</th>
                                         <th>Nombre</th>
                                         <th>Apellido</th>
@@ -97,19 +95,6 @@
                                 <tbody>
                                     {% for user in all_scanner_users %}
                                         <tr>
-                                            <td>
-                                                {% if user in admin_users %}
-                                                    <span class="badge bg-primary" style="color: white !important;">
-                                                        <i class="fas fa-crown me-1"></i>
-                                                        Admin
-                                                    </span>
-                                                {% else %}
-                                                    <span class="badge bg-success">
-                                                        <i class="fas fa-qrcode me-1"></i>
-                                                        Scanner
-                                                    </span>
-                                                {% endif %}
-                                            </td>
                                             <td>{{ user.email }}</td>
                                             <td>{{ user.first_name|default:"-" }}</td>
                                             <td>{{ user.last_name|default:"-" }}</td>
