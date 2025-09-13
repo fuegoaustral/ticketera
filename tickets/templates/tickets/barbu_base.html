@@ -117,7 +117,7 @@
               {% if user.admin_events.exists %}
               <a class="dropdown-item" href="{% url "my_events" %}"><i class="fa-solid fa-cogs"></i> Administrador de eventos</a>
               {% endif %}
-              {% if user.scanner_events.exists %}
+              {% if user.scanner_events.exists or user.admin_events.exists %}
               <a class="dropdown-item" href="{% url "scanner_events" %}"><i class="fa-solid fa-qrcode"></i> Scanner</a>
               {% endif %}
               <a class="dropdown-item" href="https://fuegoaustral.org/el-evento/10-principios/" target="_blank">10 principios</a>

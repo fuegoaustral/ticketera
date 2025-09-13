@@ -122,6 +122,11 @@
             color: #721c24;
         }
         
+        .ticket-status.unassigned {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        
         .ticket-info {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -313,6 +318,11 @@
         .table-status.unused {
             background-color: #f8d7da;
             color: #721c24;
+        }
+        
+        .table-status.unassigned {
+            background-color: #fff3cd;
+            color: #856404;
         }
         
         .table-user-info {
@@ -566,6 +576,13 @@
                             <div class="stat-label">Bonos Sin Usar</div>
                         </div>
                         
+                        {% if event.attendee_must_be_registered %}
+                            <div class="stat-item">
+                                <div class="stat-value">{{ stats.unassigned_tickets }}</div>
+                                <div class="stat-label">Bonos Sin Asignar</div>
+                            </div>
+                        {% endif %}
+                        
                         <div class="stat-item">
                             <div class="stat-value">{{ stats.usage_percentage|floatformat:1 }}%</div>
                             <div class="stat-label">% de Uso</div>
@@ -586,6 +603,7 @@
                                         <option value="">Todos</option>
                                         <option value="used">Usados</option>
                                         <option value="unused">Sin usar</option>
+                                        <option value="unassigned">Sin asignar</option>
                                     </select>
                                 </div>
                                 <div class="filter-item">
@@ -606,9 +624,11 @@
                                         <div class="ticket-type">
                                             <span class="ticket-type-name">{{ ticket.ticket_type }}</span>
                                         </div>
-                                        <div class="ticket-status {% if ticket.is_used %}used{% else %}unused{% endif %}">
+                                        <div class="ticket-status {% if ticket.is_used %}used{% elif ticket.is_unassigned %}unassigned{% else %}unused{% endif %}">
                                             {% if ticket.is_used %}
                                                 <i class="fas fa-check-circle me-1"></i>Usado
+                                            {% elif ticket.is_unassigned %}
+                                                <i class="fas fa-exclamation-triangle me-1"></i>Sin asignar
                                             {% else %}
                                                 <i class="fas fa-clock me-1"></i>Sin usar
                                             {% endif %}
@@ -616,21 +636,40 @@
                                     </div>
                                     
                                     <div class="ticket-info">
-                                        <div class="info-group">
-                                            <div class="info-label">Titular del Bono</div>
-                                            <div class="info-value">{{ ticket.holder_name }}</div>
-                                            {% if ticket.holder_email %}
-                                                <div class="info-value email">{{ ticket.holder_email }}</div>
-                                            {% endif %}
-                                        </div>
+                                        {% if event.attendee_must_be_registered %}
+                                            <div class="info-group">
+                                                <div class="info-label">Titular</div>
+                                                {% if ticket.is_unassigned %}
+                                                    <div class="info-value">-</div>
+                                                {% else %}
+                                                    <div class="info-value">{{ ticket.owner_name }}</div>
+                                                    {% if ticket.owner_email %}
+                                                        <div class="info-value email">{{ ticket.owner_email }}</div>
+                                                    {% endif %}
+                                                {% endif %}
+                                            </div>
+                                            
+                                            <div class="info-group">
+                                                <div class="info-label">Custodiado por</div>
+                                                {% if ticket.is_unassigned %}
+                                                    <div class="info-value">{{ ticket.holder_name }}</div>
+                                                    {% if ticket.holder_email %}
+                                                        <div class="info-value email">{{ ticket.holder_email }}</div>
+                                                    {% endif %}
+                                                {% else %}
+                                                    <div class="info-value">-</div>
+                                                {% endif %}
+                                            </div>
+                                        {% else %}
+                                            <div class="info-group">
+                                                <div class="info-label">Adquirido por</div>
+                                                <div class="info-value">{{ ticket.holder_name }}</div>
+                                                {% if ticket.holder_email %}
+                                                    <div class="info-value email">{{ ticket.holder_email }}</div>
+                                                {% endif %}
+                                            </div>
+                                        {% endif %}
                                         
-                                        <div class="info-group">
-                                            <div class="info-label">Invitado por</div>
-                                            <div class="info-value">{{ ticket.owner_name }}</div>
-                                            {% if ticket.owner_email %}
-                                                <div class="info-value email">{{ ticket.owner_email }}</div>
-                                            {% endif %}
-                                        </div>
                                         
                                         {% if ticket.is_used %}
                                             <div class="info-group">
@@ -671,7 +710,11 @@
                                             <div class="photo-grid">
                                                 {% for photo in ticket.photos %}
                                                     <div class="photo-item">
-                                                        <img src="{{ photo.url }}" alt="{{ photo.name }}" onclick="openPhotoModal('{{ photo.url }}', '{{ photo.name }}', '{{ photo.uploaded_by }}', '{{ photo.uploaded_at|date:"d/m/Y H:i" }}')">
+                                                        <img src="{{ photo.url }}" alt="{{ photo.name }}" class="photo-clickable" 
+                                                             data-url="{{ photo.url }}" 
+                                                             data-name="{{ photo.name }}" 
+                                                             data-uploader="{{ photo.uploaded_by }}" 
+                                                             data-date="{{ photo.uploaded_at|date:'d/m/Y H:i' }}">
                                                         <div class="photo-info">
                                                             {{ photo.name|truncatechars:15 }}
                                                         </div>
@@ -691,8 +734,12 @@
                                     <tr>
                                         <th>Tipo</th>
                                         <th>Estado</th>
-                                        <th>Titular</th>
-                                        <th>Invitado por</th>
+                                        {% if event.attendee_must_be_registered %}
+                                            <th>Titular</th>
+                                            <th>Custodiado por</th>
+                                        {% else %}
+                                            <th>Adquirido por</th>
+                                        {% endif %}
                                         <th>Escaneado por</th>
                                         <th>Hora entrada</th>
                                         <th>Notas</th>
@@ -701,41 +748,58 @@
                                 </thead>
                                 <tbody>
                                     {% for ticket in tickets %}
-                                        <tr data-status="{% if ticket.is_used %}used{% else %}unused{% endif %}" data-search="{{ ticket.holder_name|lower }} {{ ticket.holder_email|lower }} {{ ticket.owner_name|lower }} {{ ticket.owner_email|lower }} {{ ticket.ticket_type|lower }}">
+                                        <tr data-status="{% if ticket.is_used %}used{% elif ticket.is_unassigned %}unassigned{% else %}unused{% endif %}" data-search="{{ ticket.holder_name|lower }} {{ ticket.holder_email|lower }} {{ ticket.owner_name|lower }} {{ ticket.owner_email|lower }} {{ ticket.ticket_type|lower }}">
                                             <td>
                                                 <div class="table-ticket-type">
                                                     <span class="table-ticket-name">{{ ticket.ticket_type }}</span>
                                                 </div>
                                             </td>
                                             <td>
-                                                <span class="table-status {% if ticket.is_used %}used{% else %}unused{% endif %}">
+                                                <span class="table-status {% if ticket.is_used %}used{% elif ticket.is_unassigned %}unassigned{% else %}unused{% endif %}">
                                                     {% if ticket.is_used %}
                                                         Usado
+                                                    {% elif ticket.is_unassigned %}
+                                                        Sin asignar
                                                     {% else %}
                                                         Sin usar
                                                     {% endif %}
                                                 </span>
                                             </td>
-                                            <td>
-                                                <div class="table-user-info">
-                                                    <div class="table-user-name">{{ ticket.holder_name }}</div>
-                                                    {% if ticket.holder_email %}
-                                                        <div class="table-user-email">{{ ticket.holder_email }}</div>
+                                            {% if event.attendee_must_be_registered %}
+                                                <td>
+                                                    {% if ticket.is_unassigned %}
+                                                        <span class="text-muted">-</span>
+                                                    {% else %}
+                                                        <div class="table-user-info">
+                                                            <div class="table-user-name">{{ ticket.owner_name }}</div>
+                                                            {% if ticket.owner_email %}
+                                                                <div class="table-user-email">{{ ticket.owner_email }}</div>
+                                                            {% endif %}
+                                                        </div>
                                                     {% endif %}
-                                                </div>
-                                            </td>
-                                            <td>
-                                                {% if ticket.owner_name != "Sin asignar" %}
+                                                </td>
+                                                <td>
+                                                    {% if ticket.is_unassigned %}
+                                                        <div class="table-user-info">
+                                                            <div class="table-user-name">{{ ticket.holder_name }}</div>
+                                                            {% if ticket.holder_email %}
+                                                                <div class="table-user-email">{{ ticket.holder_email }}</div>
+                                                            {% endif %}
+                                                        </div>
+                                                    {% else %}
+                                                        <span class="text-muted">-</span>
+                                                    {% endif %}
+                                                </td>
+                                            {% else %}
+                                                <td>
                                                     <div class="table-user-info">
-                                                        <div class="table-user-name">{{ ticket.owner_name }}</div>
-                                                        {% if ticket.owner_email %}
-                                                            <div class="table-user-email">{{ ticket.owner_email }}</div>
+                                                        <div class="table-user-name">{{ ticket.holder_name }}</div>
+                                                        {% if ticket.holder_email %}
+                                                            <div class="table-user-email">{{ ticket.holder_email }}</div>
                                                         {% endif %}
                                                     </div>
-                                                {% else %}
-                                                    <span class="text-muted">-</span>
-                                                {% endif %}
-                                            </td>
+                                                </td>
+                                            {% endif %}
                                             <td>
                                                 {% if ticket.is_used and ticket.scanned_by_name %}
                                                     <div class="table-user-info">
@@ -766,7 +830,11 @@
                                                 {% if ticket.photos %}
                                                     <div class="table-photos">
                                                         {% for photo in ticket.photos %}
-                                                            <img src="{{ photo.url }}" alt="{{ photo.name }}" class="table-photo" onclick="openPhotoModal('{{ photo.url }}', '{{ photo.name }}', '{{ photo.uploaded_by }}', '{{ photo.uploaded_at|date:"d/m/Y H:i" }}')">
+                                                            <img src="{{ photo.url }}" alt="{{ photo.name }}" class="table-photo photo-clickable" 
+                                                                 data-url="{{ photo.url }}" 
+                                                                 data-name="{{ photo.name }}" 
+                                                                 data-uploader="{{ photo.uploaded_by }}" 
+                                                                 data-date="{{ photo.uploaded_at|date:'d/m/Y H:i' }}">
                                                         {% endfor %}
                                                     </div>
                                                 {% else %}
@@ -871,5 +939,16 @@
             const modal = new bootstrap.Modal(document.getElementById('photoModal'));
             modal.show();
         }
+        
+        // Handle photo clicks using data attributes
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('photo-clickable')) {
+                const url = e.target.dataset.url;
+                const name = e.target.dataset.name;
+                const uploader = e.target.dataset.uploader;
+                const date = e.target.dataset.date;
+                openPhotoModal(url, name, uploader, date);
+            }
+        });
     </script>
 {% endblock truecontent %}
