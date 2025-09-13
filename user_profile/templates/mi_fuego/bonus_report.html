@@ -676,16 +676,6 @@
                                                 <div class="info-value">{{ ticket.used_at|date:'d/m/Y H:i' }}</div>
                                             </div>
                                         {% endif %}
-                                        
-                                        <div class="info-group">
-                                            <div class="info-label">Orden</div>
-                                            <div class="info-value">{{ ticket.order_key }}</div>
-                                        </div>
-                                        
-                                        <div class="info-group">
-                                            <div class="info-label">Fecha de compra</div>
-                                            <div class="info-value">{{ ticket.created_at|date:'d/m/Y H:i' }}</div>
-                                        </div>
                                     </div>
                                     
                                     {% if ticket.notes %}
