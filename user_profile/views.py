@@ -602,6 +602,11 @@ def send_phone_code_ajax(request):
         if not phone:
             return JsonResponse({'success': False, 'error': 'Número de teléfono requerido'})
         
+        # Debug logging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"SEND CODE - Phone received: {phone}")
+        
         # Create form instance to use Twilio methods
         profile = request.user.profile
         form_data = {'phone': phone}
@@ -644,23 +649,34 @@ def verify_phone_code_ajax(request):
         if not phone or not code:
             return JsonResponse({'success': False, 'error': 'Teléfono y código requeridos'})
         
+        # Debug logging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"VERIFY CODE - Phone received: {phone}, Code: {code}")
+        
         # Create form instance to use Twilio methods
         profile = request.user.profile
         form_data = {'phone': phone, 'code': code}
         phone_form = PhoneUpdateForm(form_data, instance=profile, code_sent=True)
         
         if phone_form.is_valid():
-            if phone_form.verify_code():
-                phone_form.save()
-                return JsonResponse({
-                    'success': True, 
-                    'message': 'Número de teléfono actualizado exitosamente',
-                    'new_phone': phone
-                })
-            else:
+            try:
+                if phone_form.verify_code():
+                    phone_form.save()
+                    return JsonResponse({
+                        'success': True, 
+                        'message': 'Número de teléfono actualizado exitosamente',
+                        'new_phone': phone
+                    })
+                else:
+                    return JsonResponse({
+                        'success': False, 
+                        'error': 'Código de verificación inválido'
+                    })
+            except Exception as e:
                 return JsonResponse({
                     'success': False, 
-                    'error': 'Código de verificación inválido'
+                    'error': f'Error al verificar el código: {str(e)}'
                 })
         else:
             errors = []

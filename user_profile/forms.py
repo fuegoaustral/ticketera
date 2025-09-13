@@ -134,11 +134,20 @@ class ProfileStep2Form(forms.ModelForm):
         if settings.ENV == "local" or settings.MOCK_PHONE_VERIFICATION:
             return True
 
-        client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-        verification_check = client.verify.v2.services(
-            settings.TWILIO_VERIFY_SERVICE_SID
-        ).verification_checks.create(to=phone, code=code)
-        return verification_check.status == "approved"
+        try:
+            client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+            verification_check = client.verify.v2.services(
+                settings.TWILIO_VERIFY_SERVICE_SID
+            ).verification_checks.create(to=phone, code=code)
+            return verification_check.status == "approved"
+        except Exception as e:
+            # Log the error for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Twilio verification error: {str(e)}")
+            logger.error(f"Phone: {phone}, Code: {code}, Service SID: {settings.TWILIO_VERIFY_SERVICE_SID}")
+            # Re-raise the exception so it can be caught by the view
+            raise e
 
 
 class VolunteeringForm(forms.ModelForm):
@@ -324,6 +333,12 @@ class PhoneUpdateForm(forms.ModelForm):
         full_phone_number = self.cleaned_data.get("full_phone_number")
         if full_phone_number:
             return full_phone_number
+        
+        # If phone field is disabled (code_sent=True), use the phone from form data
+        if self.fields["phone"].disabled:
+            # Get the phone from the original form data, not the cleaned data
+            return self.data.get("phone")
+        
         return self.cleaned_data["phone"]
 
     def clean(self):
@@ -359,8 +374,24 @@ class PhoneUpdateForm(forms.ModelForm):
         if settings.ENV == "local" or settings.MOCK_PHONE_VERIFICATION:
             return True
 
-        client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-        verification_check = client.verify.v2.services(
-            settings.TWILIO_VERIFY_SERVICE_SID
-        ).verification_checks.create(to=phone, code=code)
-        return verification_check.status == "approved"
+        try:
+            # Log the verification attempt
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"FORM VERIFY - Attempting verification with phone: {phone}, code: {code}")
+            
+            client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+            verification_check = client.verify.v2.services(
+                settings.TWILIO_VERIFY_SERVICE_SID
+            ).verification_checks.create(to=phone, code=code)
+            
+            logger.info(f"FORM VERIFY - Twilio response status: {verification_check.status}")
+            return verification_check.status == "approved"
+        except Exception as e:
+            # Log the error for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Twilio verification error: {str(e)}")
+            logger.error(f"Phone: {phone}, Code: {code}, Service SID: {settings.TWILIO_VERIFY_SERVICE_SID}")
+            # Re-raise the exception so it can be caught by the view
+            raise e
