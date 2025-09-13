@@ -1,6 +1,6 @@
 from deprepagos.settings import *  # noqa
 
-MOCK_PHONE_VERIFICATION = True
+MOCK_PHONE_VERIFICATION = False
 
 CSRF_TRUSTED_ORIGINS = ['dev.fuegoaustral.org']
 

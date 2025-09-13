@@ -412,7 +412,7 @@
                                     </div>
                                 </div>
 
-                                <div id="phoneAlert" class="alert" style="display: none;"></div>
+                                <div id="phoneAlert" class="alert pt-2" style="display: none;"></div>
 
                                 <div class="d-flex gap-2 mt-3">
                                     <button type="button" class="btn btn-primary" id="sendPhoneCodeBtn">
@@ -634,6 +634,7 @@
                 phoneAlert.className = `alert alert-${type}`;
                 phoneAlert.innerHTML = message;
                 phoneAlert.style.display = 'block';
+                phoneAlert.style.paddingTop = '15px';
             }
 
             // Send SMS Code
