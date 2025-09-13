@@ -3,148 +3,7 @@
 {% load humanize %}
 
 {% block submenu %}
-    <!-- Mobile menu toggle button -->
-    <div class="mobile-menu-toggle d-lg-none mb-3">
-        <button class="btn btn-outline-secondary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-expanded="false" aria-controls="sidebarMenu">
-            <i class="fas fa-bars me-2"></i>
-            Menú de Administración
-        </button>
-    </div>
-    
-    <div class="sidebar-menu collapse d-lg-block" id="sidebarMenu">
-        <div class="menu-section">
-            <h6 class="menu-section-title">
-                <i class="fas fa-chart-bar me-2"></i>
-                Reportes por Evento
-            </h6>
-            <ul class="menu-list">
-                {% for admin_event in user.admin_events.all %}
-                    <li class="menu-item">
-                        <a class="menu-link{% if admin_event.slug == event.slug %} active{% endif %}"
-                           href="{% url "event_admin" admin_event.slug %}">
-                            <i class="fas fa-chart-line me-2"></i>
-                            {{ admin_event.name }}
-                        </a>
-                    </li>
-                {% endfor %}
-            </ul>
-        </div>
-    </div>
-    
-    <style>
-        .sidebar-menu {
-            background: transparent;
-            padding: 0;
-            margin-bottom: 1rem;
-        }
-        
-        .menu-section {
-            margin-bottom: 1.5rem;
-        }
-        
-        .menu-section:last-child {
-            margin-bottom: 0;
-        }
-        
-        .menu-section-title {
-            color: #1e1e1e;
-            font-weight: 600;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 0.75rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid #d9d9d9;
-        }
-        
-        .menu-section-link {
-            display: flex;
-            align-items: center;
-            width: 100%;
-            padding: 1rem;
-            text-align: left;
-            color: #1e1e1e !important;
-            text-decoration: none;
-            border-radius: 0.5rem;
-            transition: all 0.2s ease;
-            font-size: 0.9rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 0.75rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid #d9d9d9;
-        }
-        
-        .menu-section-link:hover {
-            font-weight: 600;
-            text-decoration: none !important;
-            background-color: #f8f9fa;
-            color: #1e1e1e !important;
-        }
-        
-        .menu-section-link.active {
-            background-color: #e9f5f0;
-            border-radius: 0.5rem;
-            font-weight: 600;
-            color: #289e6d !important;
-        }
-        
-        .menu-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-        
-        .menu-item {
-            margin-bottom: 0.25rem;
-            width: 100%;
-        }
-        
-        .menu-link {
-            display: flex;
-            align-items: center;
-            width: 100%;
-            padding: 1rem;
-            text-align: left;
-            color: #1e1e1e !important;
-            text-decoration: none;
-            border-radius: 0.5rem;
-            transition: all 0.2s ease;
-            font-size: 0.9rem;
-        }
-        
-        .menu-link:hover {
-            font-weight: 500;
-            text-decoration: none !important;
-            background-color: #f8f9fa;
-        }
-        
-        .menu-link.active {
-            background-color: #e9f5f0;
-            border-radius: 0.5rem;
-            font-weight: 500;
-            color: #289e6d !important;
-        }
-        
-        .menu-link i {
-            width: 16px;
-            text-align: center;
-            margin-right: 0.5rem;
-        }
-        
-        /* Mobile menu toggle button */
-        .mobile-menu-toggle .btn {
-            border-radius: 0.5rem;
-            font-weight: 500;
-        }
-        
-        @media (max-width: 991.98px) {
-            .sidebar-menu {
-                margin-top: 1rem;
-            }
-        }
-    </style>
+    {% include 'mi_fuego/partials/event_admin_menu.html' %}
 {% endblock submenu %}
 
 {% block truecontent %}
@@ -289,6 +148,7 @@
                         {% endif %}
                         
                     </div>
+
 
                     <!-- Stats Grid -->
                     <div class="stats-grid">
