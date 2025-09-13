@@ -1154,6 +1154,9 @@ def bonus_report_view(request, event_slug):
     # Prepare ticket data for the template
     tickets_data = []
     for ticket in tickets:
+        # Determine if ticket is unassigned (has holder but no owner)
+        is_unassigned = ticket.holder and not ticket.owner
+        
         ticket_data = {
             'key': ticket.key,
             'ticket_type': ticket.ticket_type.name,
@@ -1168,6 +1171,7 @@ def bonus_report_view(request, event_slug):
             'scanned_by_name': f"{ticket.scanned_by.first_name} {ticket.scanned_by.last_name}".strip() if ticket.scanned_by else None,
             'scanned_by_email': ticket.scanned_by.email if ticket.scanned_by else None,
             'notes': ticket.notes,
+            'is_unassigned': is_unassigned,
             'photos': [
                 {
                     'id': photo.id,
@@ -1186,7 +1190,8 @@ def bonus_report_view(request, event_slug):
     # Calculate statistics
     total_tickets = len(tickets_data)
     used_tickets = len([t for t in tickets_data if t['is_used']])
-    unused_tickets = total_tickets - used_tickets
+    unassigned_tickets = len([t for t in tickets_data if t['is_unassigned']])
+    unused_tickets = total_tickets - used_tickets - unassigned_tickets
     
     context = {
         "event": event,
@@ -1202,6 +1207,7 @@ def bonus_report_view(request, event_slug):
             "total_tickets": total_tickets,
             "used_tickets": used_tickets,
             "unused_tickets": unused_tickets,
+            "unassigned_tickets": unassigned_tickets,
             "usage_percentage": (used_tickets / total_tickets * 100) if total_tickets > 0 else 0,
         }
     }
