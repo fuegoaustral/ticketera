@@ -619,7 +619,7 @@
                         <!-- Cards View -->
                         <div id="ticketsCards" class="tickets-cards">
                             {% for ticket in tickets %}
-                                <div class="ticket-card" data-status="{% if ticket.is_used %}used{% else %}unused{% endif %}" data-search="{{ ticket.holder_name|lower }} {{ ticket.holder_email|lower }} {{ ticket.owner_name|lower }} {{ ticket.owner_email|lower }} {{ ticket.ticket_type|lower }}">
+                                <div class="ticket-card" data-status="{% if ticket.is_used %}used{% else %}unused{% endif %}" data-search="{{ ticket.holder_name|lower }} {{ ticket.owner_name|lower }} {{ ticket.ticket_type|lower }}">
                                     <div class="ticket-header">
                                         <div class="ticket-type">
                                             <span class="ticket-type-name">{{ ticket.ticket_type }}</span>
@@ -643,9 +643,6 @@
                                                     <div class="info-value">-</div>
                                                 {% else %}
                                                     <div class="info-value">{{ ticket.owner_name }}</div>
-                                                    {% if ticket.owner_email %}
-                                                        <div class="info-value email">{{ ticket.owner_email }}</div>
-                                                    {% endif %}
                                                 {% endif %}
                                             </div>
                                             
@@ -653,9 +650,6 @@
                                                 <div class="info-label">Custodiado por</div>
                                                 {% if ticket.is_unassigned %}
                                                     <div class="info-value">{{ ticket.holder_name }}</div>
-                                                    {% if ticket.holder_email %}
-                                                        <div class="info-value email">{{ ticket.holder_email }}</div>
-                                                    {% endif %}
                                                 {% else %}
                                                     <div class="info-value">-</div>
                                                 {% endif %}
@@ -664,9 +658,6 @@
                                             <div class="info-group">
                                                 <div class="info-label">Adquirido por</div>
                                                 <div class="info-value">{{ ticket.holder_name }}</div>
-                                                {% if ticket.holder_email %}
-                                                    <div class="info-value email">{{ ticket.holder_email }}</div>
-                                                {% endif %}
                                             </div>
                                         {% endif %}
                                         
@@ -748,7 +739,7 @@
                                 </thead>
                                 <tbody>
                                     {% for ticket in tickets %}
-                                        <tr data-status="{% if ticket.is_used %}used{% elif ticket.is_unassigned %}unassigned{% else %}unused{% endif %}" data-search="{{ ticket.holder_name|lower }} {{ ticket.holder_email|lower }} {{ ticket.owner_name|lower }} {{ ticket.owner_email|lower }} {{ ticket.ticket_type|lower }}">
+                                        <tr data-status="{% if ticket.is_used %}used{% elif ticket.is_unassigned %}unassigned{% else %}unused{% endif %}" data-search="{{ ticket.holder_name|lower }} {{ ticket.owner_name|lower }} {{ ticket.ticket_type|lower }}">
                                             <td>
                                                 <div class="table-ticket-type">
                                                     <span class="table-ticket-name">{{ ticket.ticket_type }}</span>
@@ -772,9 +763,6 @@
                                                     {% else %}
                                                         <div class="table-user-info">
                                                             <div class="table-user-name">{{ ticket.owner_name }}</div>
-                                                            {% if ticket.owner_email %}
-                                                                <div class="table-user-email">{{ ticket.owner_email }}</div>
-                                                            {% endif %}
                                                         </div>
                                                     {% endif %}
                                                 </td>
@@ -782,9 +770,6 @@
                                                     {% if ticket.is_unassigned %}
                                                         <div class="table-user-info">
                                                             <div class="table-user-name">{{ ticket.holder_name }}</div>
-                                                            {% if ticket.holder_email %}
-                                                                <div class="table-user-email">{{ ticket.holder_email }}</div>
-                                                            {% endif %}
                                                         </div>
                                                     {% else %}
                                                         <span class="text-muted">-</span>
@@ -794,9 +779,6 @@
                                                 <td>
                                                     <div class="table-user-info">
                                                         <div class="table-user-name">{{ ticket.holder_name }}</div>
-                                                        {% if ticket.holder_email %}
-                                                            <div class="table-user-email">{{ ticket.holder_email }}</div>
-                                                        {% endif %}
                                                     </div>
                                                 </td>
                                             {% endif %}
@@ -804,9 +786,6 @@
                                                 {% if ticket.is_used and ticket.scanned_by_name %}
                                                     <div class="table-user-info">
                                                         <div class="table-user-name">{{ ticket.scanned_by_name }}</div>
-                                                        {% if ticket.scanned_by_email %}
-                                                            <div class="table-user-email">{{ ticket.scanned_by_email }}</div>
-                                                        {% endif %}
                                                     </div>
                                                 {% else %}
                                                     <span class="text-muted">-</span>
