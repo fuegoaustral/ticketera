@@ -212,8 +212,23 @@
         }
         
         
+        .progress {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            height: 30px;
+        }
+        
         .progress-bar {
             background-color: #ff6b35;
+            border-radius: 7px;
+            min-width: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
         }
         
         .summary-table {
@@ -283,6 +298,11 @@
                         </div>
                         
                         <div class="stat-item">
+                            <div class="stat-value">{{ stats.tickets_used }}</div>
+                            <div class="stat-label">Tickets Usados</div>
+                        </div>
+                        
+                        <div class="stat-item">
                             <div class="stat-value">{{ stats.total_orders }}</div>
                             <div class="stat-label">Total de Órdenes</div>
                         </div>
@@ -305,7 +325,7 @@
                                 <i class="fas fa-chart-pie me-2"></i>
                                 Progreso de Ventas
                             </h5>
-                            <div class="progress mb-2" style="height: 25px;">
+                            <div class="progress mb-2">
                                 <div class="progress-bar" role="progressbar" 
                                      style="width: {{ stats.percentage_sold }}%"
                                      aria-valuenow="{{ stats.percentage_sold }}" 
@@ -321,6 +341,25 @@
                     {% endif %}
 
                     <!-- Detailed Summary Table -->
+                    <style>
+                        .ticket-type-breakdown {
+                            background-color: #f8f9fa;
+                            font-size: 0.9em;
+                        }
+                        .ticket-type-breakdown td {
+                            border-top: 1px solid #dee2e6;
+                            padding: 0.5rem 0.75rem;
+                        }
+                        .ticket-type-emoji {
+                            font-size: 1.1em;
+                        }
+                        .separator-row td {
+                            border-top: 2px solid #dee2e6;
+                            border-bottom: 2px solid #dee2e6;
+                            background-color: #e9ecef;
+                            height: 8px;
+                        }
+                    </style>
                     <div class="summary-table">
                         <table class="table table-hover mb-0">
                             <thead>
@@ -332,29 +371,42 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                {% for ticket_type in ticket_type_breakdown %}
+                                <tr class="ticket-type-breakdown">
+                                    <td class="ps-4">
+                                        {{ ticket_type.name }}
+                                    </td>
+                                    <td class="text-end">{{ ticket_type.quantity_sold }} tickets</td>
+                                    <td class="text-end">${{ ticket_type.gross_amount|floatformat:0 }}</td>
+                                    <td class="text-end">${{ ticket_type.net_amount|floatformat:2 }}</td>
+                                </tr>
+                                {% endfor %}
                                 <tr>
                                     <td><i class="fas fa-ticket-alt me-2"></i>Ingresos por Entradas</td>
                                     <td class="text-end">{{ stats.tickets_sold }} tickets</td>
                                     <td class="text-end">${{ stats.ticket_revenue|floatformat:0 }}</td>
                                     <td class="text-end">${{ stats.ticket_revenue_net|floatformat:0 }}</td>
                                 </tr>
+                                <tr class="separator-row">
+                                    <td colspan="4" class="border-0 py-2"></td>
+                                </tr>
                                 <tr>
                                     <td><i class="fas fa-palette me-2"></i>Donaciones Arte</td>
                                     <td class="text-end">-</td>
                                     <td class="text-end">${{ stats.donations_art|floatformat:0 }}</td>
-                                    <td class="text-end">${{ stats.donations_art_net|floatformat:0 }}</td>
+                                    <td class="text-end">${{ stats.donations_art_net|floatformat:2 }}</td>
                                 </tr>
                                 <tr>
                                     <td><i class="fas fa-building me-2"></i>Donaciones Sede</td>
                                     <td class="text-end">-</td>
                                     <td class="text-end">${{ stats.donations_venue|floatformat:0 }}</td>
-                                    <td class="text-end">${{ stats.donations_venue_net|floatformat:0 }}</td>
+                                    <td class="text-end">${{ stats.donations_venue_net|floatformat:2 }}</td>
                                 </tr>
                                 <tr>
                                     <td><i class="fas fa-heart me-2"></i>Donaciones Beca</td>
                                     <td class="text-end">-</td>
                                     <td class="text-end">${{ stats.donations_grant|floatformat:0 }}</td>
-                                    <td class="text-end">${{ stats.donations_grant_net|floatformat:0 }}</td>
+                                    <td class="text-end">${{ stats.donations_grant_net|floatformat:2 }}</td>
                                 </tr>
                                 <tr class="highlight-row">
                                     <td><i class="fas fa-calculator me-2"></i><strong>Total Bruto</strong></td>
@@ -364,6 +416,56 @@
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                    
+                    <!-- Debug Section - Commission Calculation Details -->
+                    <div class="mt-4 p-3 bg-light rounded">
+                        <h6 class="mb-3"><i class="fas fa-info-circle me-2"></i>Detalle del Cálculo Proporcional de comisiones de MercadoPago</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <small class="text-muted">Comisiones Totales:</small>
+                                <div class="fw-bold">${{ stats.total_commissions|floatformat:2 }}</div>
+                                <small class="text-muted">({{ stats.total_revenue|floatformat:0 }} - {{ stats.net_received_amount|floatformat:0 }})</small>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-muted">Porcentaje de Comisión:</small>
+                                <div class="fw-bold">{{ stats.commission_percentage|floatformat:2 }}%</div>
+                            </div>
+                        </div>
+                        <hr class="my-3">
+                        <h6 class="mb-2">Desglose por Tipo de Ticket:</h6>
+                        <div class="row mb-3">
+                            {% for ticket_type in ticket_type_breakdown %}
+                            <div class="col-md-4 mb-2">
+                                <small class="text-muted">{{ ticket_type.name }}:</small>
+                                <div>Bruto: ${{ ticket_type.gross_amount|floatformat:0 }}</div>
+                                <div>Comisión: ${{ ticket_type.commission|floatformat:2 }}</div>
+                                <div class="fw-bold">Neto: ${{ ticket_type.net_amount|floatformat:2 }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <hr class="my-3">
+                        <h6 class="mb-2">Desglose por Donaciones:</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <small class="text-muted">Donaciones Arte:</small>
+                                <div>Bruto: ${{ stats.donations_art|floatformat:0 }}</div>
+                                <div>Comisión: ${{ stats.donations_art_commission|floatformat:2 }}</div>
+                                <div class="fw-bold">Neto: ${{ stats.donations_art_net|floatformat:2 }}</div>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted">Donaciones Sede:</small>
+                                <div>Bruto: ${{ stats.donations_venue|floatformat:0 }}</div>
+                                <div>Comisión: ${{ stats.donations_venue_commission|floatformat:2 }}</div>
+                                <div class="fw-bold">Neto: ${{ stats.donations_venue_net|floatformat:2 }}</div>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted">Donaciones Beca:</small>
+                                <div>Bruto: ${{ stats.donations_grant|floatformat:0 }}</div>
+                                <div>Comisión: ${{ stats.donations_grant_commission|floatformat:2 }}</div>
+                                <div class="fw-bold">Neto: ${{ stats.donations_grant_net|floatformat:2 }}</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -621,6 +621,38 @@ def event_admin_view(request, event_slug):
         cursor.execute(query, [event.id])
         result = cursor.fetchone()
     
+    # Get ticket type breakdown for this specific event
+    with connection.cursor() as cursor:
+        ticket_type_query = """
+            SELECT 
+                tt.name as ticket_type_name,
+                tt.emoji as ticket_type_emoji,
+                tt.color as ticket_type_color,
+                COALESCE(SUM(tot.quantity), 0) as quantity_sold,
+                COALESCE(SUM(tot.quantity * COALESCE(tt.price, 0)), 0) as gross_amount,
+                COALESCE(SUM(tot.quantity * COALESCE(tt.price_with_coupon, tt.price, 0)), 0) as gross_amount_with_coupon
+            FROM tickets_orderticket tot
+            INNER JOIN tickets_order too ON tot.order_id = too.id
+            INNER JOIN tickets_tickettype tt ON tot.ticket_type_id = tt.id
+            WHERE too.event_id = %s AND too.status = 'CONFIRMED'
+            GROUP BY tt.id, tt.name, tt.emoji, tt.color, tt.price, tt.price_with_coupon
+            ORDER BY tt.cardinality, tt.price
+        """
+        cursor.execute(ticket_type_query, [event.id])
+        ticket_type_results = cursor.fetchall()
+    
+    # Get tickets used count for this specific event
+    with connection.cursor() as cursor:
+        tickets_used_query = """
+            SELECT COUNT(*) as tickets_used
+            FROM tickets_newticket nt
+            INNER JOIN tickets_order too ON nt.order_id = too.id
+            WHERE too.event_id = %s AND nt.is_used = true
+        """
+        cursor.execute(tickets_used_query, [event.id])
+        tickets_used_result = cursor.fetchone()
+        tickets_used = tickets_used_result[0] if tickets_used_result else 0
+    
     # Get the main event for context
     main_event = Event.get_main_event()
     
@@ -639,13 +671,10 @@ def event_admin_view(request, event_slug):
     if event.max_tickets and event.max_tickets > 0:
         percentage_sold = (result[0] / event.max_tickets) * 100
     
-    # Calculate net ratio for proportional distribution
+    # Calculate proportional distribution of commissions
     total_revenue = result[5] or Decimal('0')
     net_received_amount = result[6] or Decimal('0')
-    net_ratio = Decimal('0')
-    
-    if total_revenue > 0 and net_received_amount > 0:
-        net_ratio = net_received_amount / total_revenue
+    total_commissions = total_revenue - net_received_amount
     
     # Calculate net amounts for each category
     ticket_revenue = result[1] or Decimal('0')
@@ -653,10 +682,60 @@ def event_admin_view(request, event_slug):
     donations_venue = result[3] or Decimal('0')
     donations_grant = result[4] or Decimal('0')
     
-    ticket_revenue_net = ticket_revenue * net_ratio if net_ratio > 0 else Decimal('0')
-    donations_art_net = donations_art * net_ratio if net_ratio > 0 else Decimal('0')
-    donations_venue_net = donations_venue * net_ratio if net_ratio > 0 else Decimal('0')
-    donations_grant_net = donations_grant * net_ratio if net_ratio > 0 else Decimal('0')
+    # Calculate proportional commission distribution
+    if total_revenue > 0:
+        ticket_commission = (ticket_revenue / total_revenue) * total_commissions
+        donations_art_commission = (donations_art / total_revenue) * total_commissions
+        donations_venue_commission = (donations_venue / total_revenue) * total_commissions
+        donations_grant_commission = (donations_grant / total_revenue) * total_commissions
+    else:
+        ticket_commission = donations_art_commission = donations_venue_commission = donations_grant_commission = Decimal('0')
+    
+    # Calculate net amounts (gross - proportional commission)
+    # Round to 2 decimal places for ticket revenue, 0 decimal places for donations
+    ticket_revenue_net = (ticket_revenue - ticket_commission).quantize(Decimal('0.01'))
+    
+    # For donations, let's not round to integers to see the real proportional calculation
+    donations_art_net = donations_art - donations_art_commission
+    donations_venue_net = donations_venue - donations_venue_commission
+    donations_grant_net = donations_grant - donations_grant_commission
+    
+    # Process ticket type breakdown data
+    ticket_type_breakdown = []
+    total_ticket_type_gross = Decimal('0')
+    total_ticket_type_net = Decimal('0')
+    
+    for row in ticket_type_results:
+        ticket_type_name, emoji, color, quantity_sold, gross_amount, gross_amount_with_coupon = row
+        gross_amount_decimal = Decimal(str(gross_amount))
+        
+        # Calculate proportional commission for this ticket type
+        if total_revenue > 0:
+            ticket_type_commission = (gross_amount_decimal / total_revenue) * total_commissions
+        else:
+            ticket_type_commission = Decimal('0')
+        
+        # Round to 2 decimal places for ticket types
+        net_amount = (gross_amount_decimal - ticket_type_commission).quantize(Decimal('0.01'))
+        
+        total_ticket_type_gross += gross_amount_decimal
+        total_ticket_type_net += net_amount
+        
+        ticket_type_breakdown.append({
+            'name': ticket_type_name,
+            'emoji': emoji,
+            'color': color,
+            'quantity_sold': quantity_sold,
+            'gross_amount': gross_amount_decimal,
+            'net_amount': net_amount,
+            'commission': ticket_type_commission,
+        })
+    
+    # Debug: Print ticket type totals
+    print(f"DEBUG - Ticket Type Gross Total: {total_ticket_type_gross}")
+    print(f"DEBUG - Ticket Type Net Total: {total_ticket_type_net}")
+    print(f"DEBUG - Ticket Revenue from main query: {ticket_revenue}")
+    print(f"DEBUG - Ticket Revenue Net from main query: {ticket_revenue_net}")
     
     context = {
         "event": event,
@@ -668,6 +747,7 @@ def event_admin_view(request, event_slug):
         "now": timezone.now(),
         "stats": {
             "tickets_sold": result[0] or 0,
+            "tickets_used": tickets_used,
             "ticket_revenue": ticket_revenue,
             "donations_art": donations_art,
             "donations_venue": donations_venue,
@@ -676,12 +756,19 @@ def event_admin_view(request, event_slug):
             "net_received_amount": net_received_amount,
             "total_orders": result[7] or 0,
             "percentage_sold": percentage_sold,
-            "net_ratio": net_ratio,
             "ticket_revenue_net": ticket_revenue_net,
             "donations_art_net": donations_art_net,
             "donations_venue_net": donations_venue_net,
             "donations_grant_net": donations_grant_net,
-        }
+            # Debug info for commission calculation
+            "total_commissions": total_commissions,
+            "ticket_commission": ticket_commission,
+            "donations_art_commission": donations_art_commission,
+            "donations_venue_commission": donations_venue_commission,
+            "donations_grant_commission": donations_grant_commission,
+            "commission_percentage": (total_commissions / total_revenue * 100) if total_revenue > 0 else 0,
+        },
+        "ticket_type_breakdown": ticket_type_breakdown,
     }
     
     return render(request, "mi_fuego/event_admin.html", context)
