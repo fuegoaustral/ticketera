@@ -112,8 +112,8 @@
               Mi cuenta
             </a>
             <div class="dropdown-menu" aria-labelledby="dropdownProfileButton">
-              <a class="dropdown-item" href="{% url "my_ticket" %}"><i class="fa-solid fa-ticket"></i> Mis Bonos / Eventos</a>
-              <a class="dropdown-item" href="{% url "profile" %}"><i class="fa-solid fa-gear"></i> Configuración</a>
+              <a class="dropdown-item" href="{% url "my_ticket" %}"><i class="fa-solid fa-ticket"></i> Mis Bonos | Eventos</a>
+              <a class="dropdown-item" href="{% url "profile" %}"><i class="fa-solid fa-user"></i> Perfil</a>
               {% if user.admin_events.exists %}
               <a class="dropdown-item" href="{% url "my_events" %}"><i class="fa-solid fa-cogs"></i> Administrador de eventos</a>
               {% endif %}
