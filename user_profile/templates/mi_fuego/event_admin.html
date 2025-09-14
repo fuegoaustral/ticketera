@@ -35,7 +35,7 @@
         .stat-value {
             font-size: 1.5rem;
             font-weight: 600;
-            color: #ff6b35;
+            color: #289e6d;
             margin-bottom: 0.25rem;
         }
         
@@ -47,7 +47,7 @@
         }
         
         .event-header {
-            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            background: linear-gradient(135deg, #289e6d 0%, #1e7a5a 100%);
             color: white;
             padding: 2rem;
             border-radius: 0.75rem;
@@ -72,22 +72,27 @@
         
         
         .progress {
+            height: 30px;
             background-color: #f8f9fa;
             border: 1px solid #dee2e6;
             border-radius: 8px;
-            height: 30px;
         }
         
         .progress-bar {
-            background-color: #ff6b35;
+            background-color: #289e6d;
             border-radius: 7px;
-            min-width: 20px;
+            transition: width 0.3s ease;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
             font-weight: 600;
             font-size: 0.9rem;
+        }
+        
+        /* Force width calculation */
+        .progress-bar[style*="width"] {
+            width: var(--bar-width) !important;
         }
         
         .summary-table {
@@ -185,11 +190,12 @@
                                 <i class="fas fa-chart-pie me-2"></i>
                                 Progreso de Ventas
                             </h5>
-                            <div class="progress mb-2">
-                                <div class="progress-bar" role="progressbar" 
-                                     style="width: {{ stats.percentage_sold }}%"
-                                     aria-valuenow="{{ stats.percentage_sold }}" 
-                                     aria-valuemin="0" aria-valuemax="100">
+                            <div class="progress mb-2" role="progressbar" 
+                                 aria-label="Progreso de ventas" 
+                                 aria-valuenow="{{ stats.percentage_sold }}" 
+                                 aria-valuemin="0" aria-valuemax="100">
+                                <div class="progress-bar" 
+                                     style="width: {{ stats.percentage_sold|floatformat:0 }}% !important; --bar-width: {{ stats.percentage_sold|floatformat:0 }}%; min-width: 0; flex: none;">
                                     {{ stats.percentage_sold|floatformat:1 }}%
                                 </div>
                             </div>
