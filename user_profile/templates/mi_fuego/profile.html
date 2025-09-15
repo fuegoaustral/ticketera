@@ -1,6 +1,7 @@
 {% extends "tickets/barbu_base.html" %}
 {% load static %}
 {% load account %}
+{% load message_filters %}
 
 {% block title %}Mi Perfil - {% endblock %}
 
@@ -25,7 +26,7 @@
 {% if messages %}
     <div class="container-fluid">
         <div class="container">
-            {% for message in messages %}
+            {% for message in messages|filter_confusing_messages %}
                 <div class="alert alert-{{ message.tags }} alert-dismissible fade show mt-3" role="alert">
                     {{ message }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
