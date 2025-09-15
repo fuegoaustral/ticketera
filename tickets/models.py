@@ -361,6 +361,7 @@ class NewTicket(BaseModel):
             'is_transfer_pending': transfer_pending is not None,
             'transferring_to': transfer_pending.tx_to_email if transfer_pending else None,
             'is_owners': self.holder == self.owner,
+            'owner': self.owner.id if self.owner else None,  # Add owner field for AJAX
             'volunteer_ranger': self.volunteer_ranger,
             'volunteer_transmutator': self.volunteer_transmutator,
             'volunteer_umpalumpa': self.volunteer_umpalumpa,

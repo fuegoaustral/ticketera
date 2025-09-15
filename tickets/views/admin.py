@@ -36,7 +36,18 @@ def scan_tickets_event(request, event_slug):
     }
     return render(request, 'mi_fuego/admin/scan_tickets.html', context)
 
-@login_required
+def check_ticket_public(request, ticket_key):
+    """
+    Public endpoint to check only if a ticket is used (for polling on public ticket page)
+    """
+    try:
+        ticket = NewTicket.objects.get(key=ticket_key)
+        return JsonResponse({
+            'is_used': ticket.is_used,
+        })
+    except NewTicket.DoesNotExist:
+        return JsonResponse({'error': 'Ticket no encontrado'}, status=404)
+
 def check_ticket(request, ticket_key):
     try:
         ticket = NewTicket.objects.get(key=ticket_key)

@@ -90,7 +90,7 @@
       <ul class="nav d-flex flex-row align-items-center flex-nowrap">
         <li class="nav-item d-none d-md-block">
           {% if has_multiple_events %}
-            <a class="nav-link" href="{% url 'events_listing' %}">Otros eventos</a>
+            <a class="nav-link" href="{% url 'events_listing' %}">Eventos</a>
           {% else %}
             <a class="nav-link" href="https://fuegoaustral.org" target="_blank">fuegoaustral.org</a>
           {% endif %}
@@ -115,10 +115,10 @@
               <a class="dropdown-item" href="{% url "my_ticket" %}"><i class="fa-solid fa-ticket"></i> Mis Bonos | Eventos</a>
               <a class="dropdown-item" href="{% url "profile" %}"><i class="fa-solid fa-user"></i> Perfil</a>
               {% if user.admin_events.exists %}
-              <a class="dropdown-item" href="{% url "my_events" %}"><i class="fa-solid fa-cogs"></i> Administrador de eventos</a>
+              <a class="dropdown-item text-success" href="{% url "my_events" %}"><i class="fa-solid fa-cogs text-success"></i> Administrador de eventos</a>
               {% endif %}
               {% if user.scanner_events.exists or user.admin_events.exists %}
-              <a class="dropdown-item" href="{% url "scanner_events" %}"><i class="fa-solid fa-qrcode"></i> Scanner</a>
+              <a class="dropdown-item text-success" href="{% url "scanner_events" %}"><i class="fa-solid fa-qrcode text-success"></i> Scanner</a>
               {% endif %}
               <a class="dropdown-item" href="https://fuegoaustral.org/el-evento/10-principios/" target="_blank">10 principios</a>
               <a class="dropdown-item" href="https://fuegoaustral.org/faq/" target="_blank">Preguntas frecuentes</a>

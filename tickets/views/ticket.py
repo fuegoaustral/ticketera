@@ -80,8 +80,7 @@ def public_ticket_detail(request, ticket_key, event_slug=None):
         
         is_valid = (
             not ticket.is_used and
-            current_event and
-            ticket.event == current_event
+            ticket.event.active
         )
         
         # Get ticket DTO for QR code

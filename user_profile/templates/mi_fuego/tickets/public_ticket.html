@@ -59,7 +59,7 @@
         .card {
             position: relative;
             overflow: hidden;
-            box-shadow: var(--card-shadow);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
             background-color: var(--card-bg);
             transition: all 0.3s ease;
             backdrop-filter: blur(8px);
@@ -77,33 +77,14 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-image: url("data:image/svg+xml,%3Csvg width='48' height='49' viewBox='0 0 48 49' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cmask id='mask0_41_1237' style='mask-type:alpha' maskUnits='userSpaceOnUse' x='0' y='0' width='48' height='49'%3E%3Crect y='0.5' width='48' height='48' fill='%23D9D9D9'/%3E%3C/mask%3E%3Cg mask='url(%23mask0_41_1237)'%3E%3Cpath d='M24.0999 28.5461H24.098C22.2663 28.5461 20.7803 27.0598 20.7803 25.2276C20.7803 23.3961 22.2663 21.9089 24.098 21.9089H24.0999C25.9317 21.9099 27.4167 23.3961 27.4167 25.2276C27.4167 27.0598 25.9317 28.5461 24.0999 28.5461ZM30.7372 21.9089V18.5905H27.4186V15.2715H24.0999H20.7803V18.5905H17.4607V21.9089H14.1421V25.2276V28.547H17.4607V31.8647H20.7803V35.1853H24.0999H27.4186V31.8647H30.7372V28.547H34.0559V25.2276V21.9089H30.7372Z' fill='%23614b45'/%3E%3Cpath d='M10.5992 7.07482C10.5992 7.07482 10.9 20.8707 12.2657 34.2834C12.2657 34.2834 18.8741 38.7346 20.7999 39.8673C20.7999 39.8673 21.4614 44.8686 21.7284 59.6545L16.321 62.3183C16.321 62.3183 18.0368 79.2153 18.8383 88.7484C18.8383 88.7484 18.3964 89.3145 15.9883 88.7484C15.9883 88.7484 12.1931 73.426 11.0692 59.3691C11.0692 59.3691 13.8207 57.406 17.9149 55.7327C17.9149 55.7327 16.7106 47.0245 16.7106 44.6008C16.7106 44.6008 10.2964 40.4259 6.72773 37.6824C6.72773 37.6824 4.4876 29.4119 3 7.07482C3 7.07482 6.21701 5.78147 10.5992 7.07482Z' fill='%23614b45'/%3E%3Cpath d='M37.5993 7.07482C37.5993 7.07482 37.2996 20.8707 35.9341 34.2834C35.9341 34.2834 29.3267 38.7346 27.3983 39.8673C27.3983 39.8673 26.7389 44.8686 26.4697 59.6545L31.8799 62.3183C31.8799 62.3183 30.164 79.2153 29.3604 88.7484C29.3604 88.7484 29.8025 89.3145 32.2106 88.7484C32.2106 88.7484 36.0055 73.426 37.1304 59.3691C37.1304 59.3691 34.3789 57.406 30.2852 55.7327C30.2852 55.7327 31.489 47.0245 31.489 44.6008C31.489 44.6008 37.9031 40.4259 41.4706 37.6824C41.4706 37.6824 43.7104 29.4119 45.1982 7.07482C45.1982 7.07482 41.9823 5.78147 37.5993 7.07482Z' fill='%23614b45'/%3E%3C/g%3E%3C/svg%3E");
+            background-image: url("data:image/svg+xml,%3Csvg width='48' height='49' viewBox='0 0 48 49' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cmask id='mask0_41_1237' style='mask-type:alpha' maskUnits='userSpaceOnUse' x='0' y='0' width='48' height='49'%3E%3Crect y='0.5' width='48' height='48' fill='%23D9D9D9'/%3E%3C/mask%3E%3Cg mask='url(%23mask0_41_1237)'%3E%3Cpath d='M24.0999 28.5461H24.098C22.2663 28.5461 20.7803 27.0598 20.7803 25.2276C20.7803 23.3961 22.2663 21.9089 24.098 21.9089H24.0999C25.9317 21.9099 27.4167 23.3961 27.4167 25.2276C27.4167 27.0598 25.9317 28.5461 24.0999 28.5461ZM30.7372 21.9089V18.5905H27.4186V15.2715H24.0999H20.7803V18.5905H17.4607V21.9089H14.1421V25.2276V28.547H17.4607V31.8647H20.7803V35.1853H24.0999H27.4186V31.8647H30.7372V28.547H34.0559V25.2276V21.9089H30.7372Z' fill='%23e0e0e0'/%3E%3Cpath d='M10.5992 7.07482C10.5992 7.07482 10.9 20.8707 12.2657 34.2834C12.2657 34.2834 18.8741 38.7346 20.7999 39.8673C20.7999 39.8673 21.4614 44.8686 21.7284 59.6545L16.321 62.3183C16.321 62.3183 18.0368 79.2153 18.8383 88.7484C18.8383 88.7484 18.3964 89.3145 15.9883 88.7484C15.9883 88.7484 12.1931 73.426 11.0692 59.3691C11.0692 59.3691 13.8207 57.406 17.9149 55.7327C17.9149 55.7327 16.7106 47.0245 16.7106 44.6008C16.7106 44.6008 10.2964 40.4259 6.72773 37.6824C6.72773 37.6824 4.4876 29.4119 3 7.07482C3 7.07482 6.21701 5.78147 10.5992 7.07482Z' fill='%23e0e0e0'/%3E%3Cpath d='M37.5993 7.07482C37.5993 7.07482 37.2996 20.8707 35.9341 34.2834C35.9341 34.2834 29.3267 38.7346 27.3983 39.8673C27.3983 39.8673 26.7389 44.8686 26.4697 59.6545L31.8799 62.3183C31.8799 62.3183 30.164 79.2153 29.3604 88.7484C29.3604 88.7484 29.8025 89.3145 32.2106 88.7484C32.2106 88.7484 36.0055 73.426 37.1304 59.3691C37.1304 59.3691 34.3789 57.406 30.2852 55.7327C30.2852 55.7327 31.489 47.0245 31.489 44.6008C31.489 44.6008 37.9031 40.4259 41.4706 37.6824C41.4706 37.6824 43.7104 29.4119 45.1982 7.07482C45.1982 7.07482 41.9823 5.78147 37.5993 7.07482Z' fill='%23e0e0e0'/%3E%3C/g%3E%3C/svg%3E");
             background-repeat: repeat;
-            opacity: 0.3;
+            opacity: 0.2;
             z-index: 0;
         }
         .card-body > * {
             position: relative;
             z-index: 1;
-        }
-        .qr-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1rem;
-        }
-        .qr {
-            background: var(--qr-bg);
-            padding: 1.25rem;
-            border-radius: 1.25rem;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
         .qr img {
             max-width: 280px !important;
@@ -172,60 +153,31 @@
             color: #ffd970;
         }
         
-        .info-item {
-            display: flex;
-            align-items: center;
-            background-color: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
-            padding: 0.5rem 1rem;
-            border-radius: 0.75rem;
-            margin-bottom: 0.75rem;
-            width: fit-content;
-            transition: all 0.3s ease;
-        }
-
-        [data-theme="dark"] .info-item {
-            background-color: rgba(0, 0, 0, 0.2);
-        }
-
-        .info-item i {
-            margin-right: 0.5rem;
-            width: 16px;
-            text-align: center;
-        }
-
-        .info-item a {
-            color: inherit;
-            text-decoration: underline;
-        }
-
-        .info-item a:hover {
-            text-decoration: underline;
-        }
-
         .btn-semi-white {
-            background-color: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
-            border: 1px solid var(--border-color);
-            color: var(--text-color);
-            transition: all 0.3s ease;
-            padding: 0.5rem 1rem;
-            border-radius: 0.75rem;
+            background-color: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(0, 0, 0, 0.1);
         }
-
         .btn-semi-white:hover {
-            background-color: rgba(255, 255, 255, 0.25);
-            transform: translateY(-1px);
+            background-color: rgba(255, 255, 255, 0.9);
         }
 
-        [data-theme="dark"] .btn-semi-white {
-            background-color: rgba(0, 0, 0, 0.2);
+        .calendar-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background-color: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 0.5rem;
+            color: #212529;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
         }
 
-        [data-theme="dark"] .btn-semi-white:hover {
-            background-color: rgba(0, 0, 0, 0.3);
+        .calendar-btn:hover {
+            background-color: rgba(255, 255, 255, 0.9);
+            color: #212529;
         }
 
         .location-link {
@@ -235,6 +187,12 @@
 
         .location-link:hover {
             text-decoration: underline;
+        }
+
+        .ticket-id {
+            font-weight: bold;
+            margin-right: 0.5em;
+            color: inherit;
         }
 
         @keyframes swarm {
@@ -266,12 +224,6 @@
         .swarm-element.emoji {
             font-size: 3rem;
         }
-
-        .ticket-id {
-            font-weight: bold;
-            margin-right: 0.5em;
-            color: inherit;
-        }
     </style>
 </head>
 <body>
@@ -281,61 +233,78 @@
     <div class="container py-5">
         <div class="row justify-content-center">
             <div class="col-md-10">
-                <div class="card">
-                    <div class="card-header {% if is_valid %}bg-success text-white{% endif %}">
-                        <span class="ticket-id">#{{ ticket.key|stringformat:"s"|slice:"-2:" }}</span> {{ event.name }}
+                <div class="card my-4 border" data-ticket-key="{{ ticket.key }}" style="position: relative;">
+                    {% if ticket.is_used %}
+                        <div class="used-tag" style="position: absolute; top: 10px; right: 10px; background: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; z-index: 10; text-transform: uppercase; letter-spacing: 0.5px;">USADO</div>
+                    {% endif %}
+                    <div class="card-header {% if not ticket.is_used %}bg-success text-white{% endif %} d-flex justify-content-between align-items-center">
+                        <span><span class="ticket-id">#{{ ticket.key|stringformat:"s"|slice:"-2:" }}</span> {{ event.name }}</span>
+                        {% if not ticket.is_used %}
+                            <span class="badge" style="background-color: white !important; color: #198754 !important; border: 1px solid #198754;">Válido</span>
+                        {% endif %}
                     </div>
                     <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <div class="info-item">
-                                        <i class="fas fa-user text-muted"></i>
-                                        <span>Invitado</span>
-                                    </div>
-                                    <a href="https://calendar.google.com/calendar/render?action=TEMPLATE&text={{ event.name|urlencode }}&dates={{ event.start|date:'Ymd\THis' }}/{{ event.end|date:'Ymd\THis' }}&details=Bono: <a href='{{ request.scheme }}://{{ request.get_host }}/bono/{{ ticket.key }}/'>{{ request.scheme }}://{{ request.get_host }}/bono/{{ ticket.key }}/</a>&location={{ event.location|urlencode }}" 
-                                       target="_blank" 
-                                       class="btn btn-sm btn-semi-white"
-                                       style="text-decoration: none;">
-                                        <i class="fas fa-calendar-plus"></i> Agendar
-                                    </a>
-                                </div>
-                                <div class="info-item">
-                                    <i class="fas fa-map-marker-alt text-muted"></i>
-                                    <span>
-                                        {% if event.location_url %}
-                                            <a href="{{ event.location_url }}" target="_blank" class="location-link">
-                                                {{ event.location|safe }}
+                        <div class="ticket-item mb-4">
+                            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start">
+                                <div class="ticket-info w-100">
+                                    <div class="d-flex flex-column gap-2">
+                                        <div class="text-muted d-flex align-items-center gap-2">
+                                            <span class="fw-bold">Invitado</span>
+                                            <a href="https://calendar.google.com/calendar/render?action=TEMPLATE&text={{ event.name|urlencode }}&dates={{ event.start|date:'Ymd\THis' }}/{{ event.end|date:'Ymd\THis' }}&details=Bono: <a href='{{ request.scheme }}://{{ request.get_host }}/bono/{{ ticket.key }}/'>{{ request.scheme }}://{{ request.get_host }}/bono/{{ ticket.key }}/</a>&location={{ event.location|urlencode }}" 
+                                               target="_blank" 
+                                               class="btn btn-sm btn-semi-white"
+                                               style="text-decoration: none;">
+                                                <i class="fas fa-calendar-plus"></i> Agendar
                                             </a>
-                                        {% else %}
-                                            {{ event.location|safe }}
-                                        {% endif %}
-                                    </span>
+                                        </div>
+                                        <div class="ticket-details mt-2">
+                                            {% if event.location %}
+                                            <div class="d-flex align-items-center gap-2 mb-2">
+                                                <i class="fas fa-map-marker-alt text-muted"></i>
+                                                <span class="text-muted">
+                                                    {% if event.location_url %}
+                                                        <a href="{{ event.location_url }}" target="_blank" class="location-link">
+                                                            {{ event.location|safe }}
+                                                        </a>
+                                                    {% else %}
+                                                        {{ event.location|safe }}
+                                                    {% endif %}
+                                                </span>
+                                            </div>
+                                            {% endif %}
+                                            <div class="d-flex align-items-center gap-2 mb-2">
+                                                <i class="fas fa-calendar-alt text-muted"></i>
+                                                <span class="text-muted">{{ event.start|date:"d/m/Y H:i" }}</span>
+                                            </div>
+                                            <div class="d-flex align-items-center gap-2 mb-2">
+                                                <i class="fas fa-tag text-muted"></i>
+                                                <span class="text-muted">{{ ticket.ticket_type }} - ${{ ticket.price|floatformat:0|intcomma }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="info-item">
-                                    <i class="fas fa-calendar-alt text-muted"></i>
-                                    <span>{{ event.start|date:"d/m/Y H:i" }}</span>
-                                </div>
-                            </div>
-                            <div class="col-md-6 text-center">
-                                <div class="qr-container mb-4">
+                                <div class="qr-container my-3 my-md-0 mx-auto">
                                     <div class="qr d-flex flex-column align-items-center">
                                         <img src="data:image/png;base64,{{ ticket_dto.qr_code }}"
                                              class="img-fluid"
                                              alt="QR Code"/>
                                         <div class="text-center mt-2">
-                                            <small class="text-muted">{{ ticket.key|last_uuid_part }}</small>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <small class="text-muted">{{ ticket.key|last_uuid_part }}</small>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                                {% if not is_valid %}
-                                <div class="alert alert-warning">
-                                    <i class="fas fa-exclamation-triangle"></i>
-                                    Este bono no es válido para el evento actual o ya ha sido utilizado.
-                                </div>
-                                {% endif %}
                             </div>
                         </div>
+                        {% if not is_valid %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Este bono no es válido para el evento actual o ya ha sido utilizado.
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -345,6 +314,8 @@
     <script>
         let themeChangeCount = 0;
         let lastChangeTime = 0;
+        let isUsedPollingInterval;
+        let lastIsUsedState = {{ ticket.is_used|lower }};
 
         // Function to set theme and store preference
         function setTheme(isDark) {
@@ -424,6 +395,144 @@
         // Initialize theme from localStorage or default to light
         const savedTheme = localStorage.getItem('theme');
         setTheme(savedTheme === 'dark');
+
+        // Polling functions for ticket status
+        function startIsUsedPolling() {
+            if (isUsedPollingInterval) {
+                clearInterval(isUsedPollingInterval);
+            }
+            
+            isUsedPollingInterval = setInterval(async () => {
+                await checkTicketUsedStatus();
+            }, 2000); // Check every 2 seconds
+        }
+
+        function stopIsUsedPolling() {
+            if (isUsedPollingInterval) {
+                clearInterval(isUsedPollingInterval);
+                isUsedPollingInterval = null;
+            }
+        }
+
+        async function checkTicketUsedStatus() {
+            try {
+                const ticketKey = '{{ ticket.key }}';
+                const response = await fetch(`/api/tickets/${ticketKey}/check-public/`, {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Cache-Control': 'no-cache',
+                    },
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const currentIsUsed = data.is_used;
+                    
+                    // Check if status changed from false to true (ticket was just used)
+                    if (!lastIsUsedState && currentIsUsed) {
+                        console.log('Ticket was just used! Triggering animation...');
+                        triggerFireAnimation();
+                        updateTicketDisplay(true);
+                    }
+                    
+                    lastIsUsedState = currentIsUsed;
+                }
+            } catch (error) {
+                console.error('Error checking ticket status:', error);
+            }
+        }
+
+        function updateTicketDisplay(isUsed) {
+            const card = document.querySelector('.card');
+            const header = card.querySelector('.card-header');
+            const badge = card.querySelector('.badge');
+            
+            if (isUsed) {
+                // Add "USADO" tag
+                if (!card.querySelector('.used-tag')) {
+                    const usedTag = document.createElement('div');
+                    usedTag.className = 'used-tag';
+                    usedTag.style.cssText = 'position: absolute; top: 10px; right: 10px; background: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; z-index: 10; text-transform: uppercase; letter-spacing: 0.5px;';
+                    usedTag.textContent = 'USADO';
+                    card.appendChild(usedTag);
+                }
+                
+                // Update header styling
+                header.classList.remove('bg-success', 'text-white');
+                
+                // Update badge
+                if (badge) {
+                    badge.textContent = 'Usado';
+                    badge.className = 'badge bg-secondary';
+                    badge.style.cssText = 'color: white !important;';
+                }
+                
+                // Show warning message
+                const existingAlert = card.querySelector('.alert-warning');
+                if (!existingAlert) {
+                    const alert = document.createElement('div');
+                    alert.className = 'alert alert-warning';
+                    alert.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Este bono ya ha sido utilizado.';
+                    card.querySelector('.card-body').appendChild(alert);
+                }
+            }
+        }
+
+        function createSwarmElement() {
+            const element = document.createElement('div');
+            element.textContent = '🔥';
+            element.className = 'swarm-element emoji';
+            
+            // Random start position across the width of the screen
+            const startX = Math.random() * window.innerWidth;
+            
+            // Random end position (also across width and to bottom)
+            const endX = Math.random() * window.innerWidth;
+            const endY = window.innerHeight + 100;
+            
+            element.style.setProperty('--x-start', `${startX}px`);
+            element.style.setProperty('--x-end', `${endX}px`);
+            element.style.setProperty('--y-end', `${endY}px`);
+            
+            document.body.appendChild(element);
+            
+            // Remove element after animation
+            setTimeout(() => {
+                element.remove();
+            }, 5000);
+        }
+
+        function triggerFireAnimation() {
+            // Create 100 fire elements with slight delays
+            for (let i = 0; i < 100; i++) {
+                setTimeout(() => {
+                    createSwarmElement();
+                }, i * 50);
+            }
+        }
+
+        // Initialize polling when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Only start polling if ticket is not already used
+            if (!lastIsUsedState) {
+                startIsUsedPolling();
+            }
+        });
+
+        // Clean up when page unloads
+        window.addEventListener('beforeunload', function() {
+            stopIsUsedPolling();
+        });
+
+        // Pause polling when page is not visible
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                stopIsUsedPolling();
+            } else if (!lastIsUsedState) {
+                startIsUsedPolling();
+            }
+        });
     </script>
 </body>
 </html>
