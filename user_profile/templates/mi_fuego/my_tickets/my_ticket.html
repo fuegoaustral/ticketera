@@ -96,6 +96,12 @@
             color: #212529;
         }
 
+        .force-hidden {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+        }
+        
         .location-link {
             color: inherit;
             text-decoration: underline;
@@ -133,6 +139,44 @@
         .text-decoration-none:hover {
             text-decoration: none !important;
         }
+
+        /* Fire swarm animation keyframes */
+        @keyframes swarm {
+            0% {
+                transform: translate(var(--x-start), -100vh) rotate(0deg) scale(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+                transform: translate(var(--x-start), -80vh) rotate(90deg) scale(1);
+            }
+            80% {
+                opacity: 1;
+                transform: translate(var(--x-end), var(--y-end)) rotate(720deg) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(var(--x-end), var(--y-end)) rotate(1080deg) scale(0);
+            }
+        }
+
+        .swarm-element {
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            animation: swarm 3s ease-in-out forwards;
+        }
+
+        .swarm-element.emoji {
+            font-size: 3rem;
+        }
+
+        /* Ensure ticket cards can contain the animation */
+        .card[data-ticket-key] {
+            position: relative;
+            overflow: hidden;
+        }
+
     </style>
 
     {% if not tickets_dto %}
@@ -200,13 +244,14 @@
         {% endif %}
             
         {% for ticket in tickets_dto %}
-            <div class="card my-4 border">
+            <div class="card my-4 border" data-ticket-key="{{ ticket.key }}" style="position: relative;">
+                {% if ticket.is_used %}
+                    <div class="used-tag" style="position: absolute; top: 10px; right: 10px; background: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; z-index: 10; text-transform: uppercase; letter-spacing: 0.5px;">USADO</div>
+                {% endif %}
                 <div class="card-header {% if not ticket.is_used %}bg-success text-white{% endif %} d-flex justify-content-between align-items-center">
                     <span><span class="ticket-id">#{{ ticket.key|stringformat:"s"|slice:"-2:" }}</span> {{ ticket.event.name }}</span>
                     {% if not attendee_must_be_registered %}
-                        {% if ticket.is_used %}
-                            <span class="badge bg-dark" style="color: white !important;">Usado</span>
-                        {% else %}
+                        {% if not ticket.is_used %}
                             <span class="badge" style="background-color: white !important; color: #198754 !important; border: 1px solid #198754;">Válido</span>
                         {% endif %}
                     {% endif %}
@@ -218,13 +263,28 @@
                                 <div class="ticket-info w-100">
                                     <div class="d-flex flex-column gap-2">
                                         {% if attendee_must_be_registered %}
-                                            <div class="text-muted d-flex align-items-center gap-2">
-                                                <span class="fw-bold">{{ ticket.user_info.first_name }} {{ ticket.user_info.last_name }}</span> - DNI: <span class="fw-bold">{{ ticket.user_info.dni }}</span>
-                                                {% if event.transfers_enabled_until >= now and not ticket.is_used %}
-                                                    <button class="btn btn-sm btn-outline-danger" onclick="confirmOwnTicketTransfer('{{ ticket.key }}')">
-                                                        <i class="fas fa-unlink"></i> Desvincular
-                                                    </button>
-                                                {% endif %}
+                                            <div class="text-muted">
+                                                <!-- Name line with button on mobile and desktop -->
+                                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <span class="fw-bold">{{ ticket.user_info.first_name }} {{ ticket.user_info.last_name }}</span>
+                                                        {% if event.transfers_enabled_until >= now and not ticket.is_used %}
+                                                            <button class="btn btn-sm btn-outline-danger d-none d-md-inline-block" onclick="confirmOwnTicketTransfer('{{ ticket.key }}')">
+                                                                <i class="fas fa-unlink"></i> Desvincular
+                                                            </button>
+                                                        {% endif %}
+                                                    </div>
+                                                    {% if event.transfers_enabled_until >= now and not ticket.is_used %}
+                                                        <button class="btn btn-sm btn-outline-danger d-md-none" onclick="confirmOwnTicketTransfer('{{ ticket.key }}')">
+                                                            <i class="fas fa-unlink"></i> Desvincular
+                                                        </button>
+                                                    {% endif %}
+                                                </div>
+                                                
+                                                <!-- DNI line -->
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span class="fw-bold">DNI: {{ ticket.user_info.dni }}</span>
+                                                </div>
                                             </div>
                                         {% else %}
                                             <div class="text-muted d-flex align-items-center gap-2">
@@ -329,10 +389,10 @@
                                             {% elif ticket.is_transfer_completed %}
                                                 <span class="badge bg-success" style="color: white !important;">Transferido</span>
                                             {% else %}
-                                                <span class="badge bg-secondary" style="color: white !important;">Sin asignar</span>
-                                                {% if not my_ticket %}
+                                                <span class="badge bg-secondary" style="color: white !important;">Sin vincular</span>
+                                                {% if not my_ticket and not ticket.is_used %}
                                                     <a class="btn btn-sm btn-outline-success text-success" href="{% url 'assign_ticket' ticket.key %}?next={{ request.get_full_path|urlencode }}" style="color: #198754 !important;">
-                                                        <i class="fas fa-user-plus" style="color: #198754 !important;"></i> Asignarme este bono
+                                                        <i class="fas fa-link" style="color: #198754 !important;"></i> Vincular
                                                     </a>
                                                 {% endif %}
                                                 {% if event.transfers_enabled_until >= now and not ticket.is_used %}
@@ -650,5 +710,344 @@
                     alert('Error al copiar el link');
                 });
         }
+
+        // Auto-refresh functionality - Version 2025-01-15-01:30
+        let autoRefreshInterval;
+        let isAutoRefreshEnabled = true;
+        let lastUpdateTime = new Date().toISOString();
+        let initialTicketStates = {}; // Store initial states from Django
+        let currentTicketStates = {}; // Store current states to detect changes
+
+        function startAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+            
+            autoRefreshInterval = setInterval(async () => {
+                if (isAutoRefreshEnabled) {
+                    await checkForUpdates();
+                }
+            }, 1000); // Check every second
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+        }
+
+        async function checkForUpdates() {
+            try {
+                const eventSlug = '{{ event.slug }}';
+                if (!eventSlug) {
+                    return;
+                }
+
+                // Add cache-busting parameter and last update time
+                const timestamp = new Date().getTime();
+                const lastUpdateParam = lastUpdateTime ? `&last_update=${encodeURIComponent(lastUpdateTime)}` : '';
+                const response = await fetch(`/mi-fuego/mis-bonos/${eventSlug}/ajax/?t=${timestamp}${lastUpdateParam}`, {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Cache-Control': 'no-cache',
+                    },
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    updateTicketStatus(data);
+                    lastUpdateTime = data.now;
+                }
+            } catch (error) {
+console.error('Error checking for updates:', error);
+            }
+        }
+
+        function updateTicketStatus(data) {
+            // Check if we have tickets data
+            if (!data.tickets) {
+                return;
+            }
+
+            // Store initial states on first load
+            if (Object.keys(initialTicketStates).length === 0) {
+                data.tickets.forEach(ticket => {
+                    initialTicketStates[ticket.key] = {
+                        is_used: ticket.is_used
+                    };
+                });
+            }
+
+            // Update each ticket's status
+            data.tickets.forEach((ticket, index) => {
+                const ticketElement = document.querySelector(`[data-ticket-key="${ticket.key}"]`);
+                if (ticketElement) {
+                    updateTicketElement(ticketElement, ticket);
+                }
+            });
+        }
+
+        function updateTicketElement(ticketElement, ticket) {
+            // Check if there are any actual changes to avoid unnecessary updates
+            const currentState = currentTicketStates[ticket.key];
+            const hasChanges = !currentState || 
+                currentState.is_used !== ticket.is_used || 
+                currentState.owner !== ticket.owner;
+            
+            if (!hasChanges) {
+                return;
+            }
+            
+            // Update used status
+            const header = ticketElement.querySelector('.card-header');
+            const badge = ticketElement.querySelector('.badge');
+            
+            if (ticket.is_used) {
+                if (header) {
+                    // Remove all background classes - used tickets have no background color
+                    header.classList.remove('bg-success', 'bg-dark', 'text-white');
+                }
+                
+                // "USADO" tag is rendered natively in the template
+                
+                // Hide the "Desvincular" buttons for already used tickets (not during animation)
+                const unlinkButtons = ticketElement.querySelectorAll('button[onclick*="confirmOwnTicketTransfer"]');
+                unlinkButtons.forEach(button => {
+                    console.log('Hiding button:', button, 'Classes:', button.className);
+                    button.classList.add('force-hidden');
+                });
+                
+            } else {
+                // Check if this is an unassigned ticket (no owner)
+                const isUnassigned = !ticket.owner || ticket.owner === null;
+                
+                if (header) {
+                    // Add green background for valid tickets
+                    header.classList.remove('bg-dark', 'bg-success', 'text-white');
+                    header.classList.add('bg-success', 'text-white');
+                }
+                
+                if (badge) {
+                    if (isUnassigned) {
+                        // Unassigned ticket
+                        badge.textContent = 'Sin vincular';
+                        badge.className = 'badge bg-secondary';
+                        badge.style.cssText = 'color: white !important;';
+                    } else {
+                        // Valid assigned ticket
+                        badge.textContent = 'Válido';
+                        badge.className = 'badge';
+                        badge.style.cssText = 'background-color: white !important; color: #198754 !important; border: 1px solid #198754;';
+                    }
+                }
+                
+                // Show the "Desvincular" buttons when ticket is not used
+                const unlinkButtons = ticketElement.querySelectorAll('button[onclick*="confirmOwnTicketTransfer"]');
+                unlinkButtons.forEach(button => {
+                    button.classList.remove('force-hidden');
+                });
+                
+                // "USADO" tag is handled natively by the template
+            }
+
+            // Update transfer status
+            const transferBadge = ticketElement.querySelector('.notice.badge');
+            if (transferBadge) {
+                if (ticket.is_transfer_pending) {
+                    transferBadge.textContent = 'Invitación pendiente';
+                    transferBadge.className = 'notice badge bg-warning text-dark';
+                } else if (ticket.is_transfer_completed) {
+                    transferBadge.textContent = 'Transferido';
+                    transferBadge.className = 'notice badge bg-success';
+                    transferBadge.style.cssText = 'color: white !important;';
+                }
+            }
+            
+            // Store current state for next comparison
+            currentTicketStates[ticket.key] = {
+                is_used: ticket.is_used,
+                owner: ticket.owner
+            };
+            
+            // Trigger animation ONLY if:
+            // - ticket is now used AND
+            // - initial state was not used AND  
+            // - current state was not used (first time changing to used)
+            const initialState = initialTicketStates[ticket.key];
+            const wasNotUsedInitially = initialState && !initialState.is_used;
+            const isNowUsed = ticket.is_used;
+            const wasNotUsedCurrently = currentState && !currentState.is_used;
+            
+            if (isNowUsed && wasNotUsedInitially && wasNotUsedCurrently) {
+                // Hide the "Desvincular" buttons when animation starts
+                const unlinkButtons = ticketElement.querySelectorAll('button[onclick*="confirmOwnTicketTransfer"]');
+                unlinkButtons.forEach(button => {
+                    console.log('Hiding button during animation:', button, 'Classes:', button.className);
+                    button.classList.add('force-hidden');
+                });
+                
+                // Show the "USADO" tag
+                const badge = ticketElement.querySelector('.badge');
+                if (badge) {
+                    badge.textContent = 'Usado';
+                    badge.className = 'badge bg-secondary';
+                    badge.style.cssText = 'color: white !important;';
+                }
+                
+                showFireAnimation(ticketElement);
+            }
+        }
+
+
+        function createSwarmElement(container = null) {
+            const element = document.createElement('div');
+            
+            // Array of random emojis
+            const emojis = ['🎉', '✨', '🌟', '💫', '⭐', '🎊', '🎈', '🎁', '💎', '🌈', '🦄', '🍀', '🌸', '🌺', '🌻', '🌷', '🌹', '🌼', '🦋', '🐝', '🦆', '🦜', '🦚', '🦩', '🦢', '🦋', '🐞', '🦗', '🕊️', '🦅', '🦉', '🦇', '🦋', '🐛', '🦟', '🦗', '🕷️', '🦂', '🦀', '🦞', '🦐', '🦑', '🐙', '🦈', '🐠', '🐟', '🐡', '🐢', '🦎', '🐍', '🦕', '🦖', '🐊', '🐅', '🐆', '🦓', '🦍', '🦧', '🐘', '🦛', '🦏', '🐪', '🐫', '🦒', '🦘', '🐃', '🐂', '🐄', '🐎', '🐖', '🐏', '🐑', '🦙', '🐐', '🦌', '🐕', '🐩', '🦮', '🐕‍🦺', '🐈', '🐓', '🦃', '🦚', '🦜', '🦢', '🦩', '🕊️', '🐇', '🦝', '🦨', '🦡', '🦦', '🦥', '🐁', '🐀', '🐿️', '🦔'];
+            
+            // Pick a random emoji
+            const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+            element.textContent = randomEmoji;
+            element.className = 'swarm-element emoji';
+            
+            // If container is provided, animate within that container
+            if (container) {
+                const containerRect = container.getBoundingClientRect();
+                const startX = Math.random() * containerRect.width;
+                const endX = Math.random() * containerRect.width;
+                const endY = containerRect.height + 100;
+                
+                element.style.setProperty('--x-start', `${startX}px`);
+                element.style.setProperty('--x-end', `${endX}px`);
+                element.style.setProperty('--y-end', `${endY}px`);
+                
+                // Position relative to container
+                element.style.position = 'absolute';
+                element.style.top = '0';
+                element.style.left = '0';
+                
+                container.appendChild(element);
+            } else {
+                // Random start position across the width of the screen
+                const startX = Math.random() * window.innerWidth;
+                
+                // Random end position (also across width and to bottom)
+                const endX = Math.random() * window.innerWidth;
+                const endY = window.innerHeight + 100;
+                
+                element.style.setProperty('--x-start', `${startX}px`);
+                element.style.setProperty('--x-end', `${endX}px`);
+                element.style.setProperty('--y-end', `${endY}px`);
+                
+                document.body.appendChild(element);
+            }
+            
+            // Remove element after animation
+            setTimeout(() => {
+                element.remove();
+            }, 3000);
+        }
+
+        function triggerSwarm(container = null) {
+            // Create 200 elements with slower delays for a more gradual animation
+            for (let i = 0; i < 200; i++) {
+                setTimeout(() => {
+                    createSwarmElement(container);
+                }, i * 80);
+            }
+        }
+
+        function showFireAnimation(container = null) {
+            triggerSwarm(container);
+        }
+
+
+        function showUpdateIndicator() {
+            // Create or update a subtle indicator
+            let indicator = document.getElementById('update-indicator');
+            if (!indicator) {
+                indicator = document.createElement('div');
+                indicator.id = 'update-indicator';
+                indicator.style.cssText = `
+                    position: fixed;
+                    top: 10px;
+                    right: 10px;
+                    background: rgba(0, 123, 255, 0.8);
+                    color: white;
+                    padding: 5px 10px;
+                    border-radius: 15px;
+                    font-size: 12px;
+                    z-index: 9999;
+                    opacity: 0;
+                    transition: opacity 0.3s ease;
+                `;
+                document.body.appendChild(indicator);
+            }
+            
+            indicator.textContent = 'Actualizado';
+            indicator.style.opacity = '1';
+            
+            setTimeout(() => {
+                indicator.style.opacity = '0';
+            }, 1000);
+        }
+
+        // Verify that ticket elements have data attributes and initialize current states
+        function verifyTicketDataAttributes() {
+            const cards = document.querySelectorAll('.card[data-ticket-key]');
+            // Initialize current states for all tickets
+            cards.forEach(card => {
+                const ticketKey = card.getAttribute('data-ticket-key');
+                const badge = card.querySelector('.badge');
+                const isUsed = badge && badge.textContent === 'Usado';
+                
+                if (ticketKey) {
+                    currentTicketStates[ticketKey] = {
+                        is_used: isUsed,
+                        owner: null // We'll get this from the first AJAX call
+                    };
+                }
+            });
+        }
+
+
+        // Initialize auto-refresh when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Only start auto-refresh if we're on a specific event page
+            const eventSlug = '{{ event.slug }}';
+            if (eventSlug && eventSlug !== 'eventos-anteriores') {
+                startAutoRefresh();
+                
+                // Verify that ticket elements have data attributes
+                verifyTicketDataAttributes();
+                
+                // Tags "USADO" are now rendered natively in the template
+                
+                // Pause auto-refresh when user is interacting with modals
+                document.addEventListener('show.bs.modal', function() {
+                    isAutoRefreshEnabled = false;
+                });
+                
+                document.addEventListener('hide.bs.modal', function() {
+                    isAutoRefreshEnabled = true;
+                });
+                
+                // Pause auto-refresh when page is not visible
+                document.addEventListener('visibilitychange', function() {
+                    if (document.hidden) {
+                        isAutoRefreshEnabled = false;
+                    } else {
+                        isAutoRefreshEnabled = true;
+                    }
+                });
+            }
+        });
+
+        // Clean up when page unloads
+        window.addEventListener('beforeunload', function() {
+            stopAutoRefresh();
+        });
     </script>
 {% endblock truecontent %}
