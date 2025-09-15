@@ -1,0 +1,310 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% load static %}
+
+{% block submenu %}
+    {% include 'mi_fuego/partials/event_admin_menu.html' %}
+{% endblock submenu %}
+
+{% block truecontent %}
+    <style>
+        .config-card {
+            background: #fff;
+            border: 1px solid #d9d9d9;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .event-header {
+            background: linear-gradient(135deg, #289e6d 0%, #1e7a5a 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            margin-bottom: 2rem;
+        }
+        
+        .event-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .event-dates {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+        
+        .config-table {
+            background: #fff;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .config-table table {
+            margin-bottom: 0;
+        }
+        
+        .config-table th {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: 600;
+            color: #495057;
+            padding: 0.75rem;
+            text-align: center;
+        }
+        
+        .config-table td {
+            padding: 0.75rem;
+            vertical-align: middle;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .ticket-info {
+            display: flex;
+            align-items: center;
+        }
+        
+        .ticket-emoji {
+            font-size: 1.25rem;
+            margin-right: 0.5rem;
+        }
+        
+        .ticket-details {
+            flex: 1;
+        }
+        
+        .ticket-name {
+            font-weight: 600;
+            margin-bottom: 0.125rem;
+        }
+        
+        .ticket-price {
+            color: #6c757d;
+            font-size: 0.85rem;
+        }
+        
+        .form-check {
+            margin-bottom: 0;
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .form-check-input {
+            margin: 0;
+            transform: scale(1.2);
+        }
+        
+        .form-check-input:checked {
+            background-color: #289e6d;
+            border-color: #289e6d;
+        }
+        
+        .checkbox-label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #495057;
+        }
+        
+        .no-ticket-types {
+            text-align: center;
+            padding: 3rem;
+            color: #6c757d;
+        }
+        
+        .no-ticket-types i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        
+        .caja-checkbox.loading {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .feedback-message {
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <!-- Event Header -->
+                <div class="event-header">
+                    <div class="event-title">
+                        <i class="fas fa-cog me-2"></i>
+                        Configuración de Caja
+                    </div>
+                    <div class="event-dates">
+                        {{ event.name }}
+                    </div>
+                </div>
+
+                <!-- Configuration Form -->
+                <div class="config-card">
+                    <h5 class="mb-4">
+                        <i class="fas fa-ticket-alt me-2"></i>
+                        Configuración de Tipos de Tickets
+                    </h5>
+                    
+                    {% if ticket_types %}
+                        {% csrf_token %}
+                        
+                        <div class="config-table">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th style="text-align: left;">Tipo de Ticket</th>
+                                        <th>Mostrar en Caja</th>
+                                        <th>Ignorar Cantidad Máximo</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for ticket_type in ticket_types %}
+                                        <tr>
+                                            <td>
+                                                <div class="ticket-details">
+                                                    <div class="ticket-name">{{ ticket_type.name }}</div>
+                                                    <div class="ticket-price">
+                                                        {% if ticket_type.price %}
+                                                            ${{ ticket_type.price|floatformat:2 }}
+                                                        {% else %}
+                                                            Precio variable
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="form-check">
+                                                    <input class="form-check-input caja-checkbox" 
+                                                           type="checkbox" 
+                                                           id="show_in_caja_{{ ticket_type.id }}" 
+                                                           data-ticket-type-id="{{ ticket_type.id }}"
+                                                           data-field-name="show_in_caja"
+                                                           {% if ticket_type.show_in_caja %}checked{% endif %}>
+                                                    <label class="form-check-label checkbox-label" for="show_in_caja_{{ ticket_type.id }}">
+                                                    </label>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="form-check">
+                                                    <input class="form-check-input caja-checkbox" 
+                                                           type="checkbox" 
+                                                           id="ignore_max_amount_{{ ticket_type.id }}" 
+                                                           data-ticket-type-id="{{ ticket_type.id }}"
+                                                           data-field-name="ignore_max_amount"
+                                                           {% if ticket_type.ignore_max_amount %}checked{% endif %}>
+                                                    <label class="form-check-label checkbox-label" for="ignore_max_amount_{{ ticket_type.id }}">
+                                                    </label>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                    {% else %}
+                        <div class="no-ticket-types">
+                            <i class="fas fa-ticket-alt"></i>
+                            <h5>No hay tipos de tickets configurados</h5>
+                            <p>Este evento no tiene tipos de tickets configurados aún.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        // Add event listeners to all checkboxes
+        document.querySelectorAll('.caja-checkbox').forEach(function(checkbox) {
+            checkbox.addEventListener('change', function() {
+                const ticketTypeId = this.dataset.ticketTypeId;
+                const fieldName = this.dataset.fieldName;
+                const value = this.checked;
+                
+                // Show loading state
+                this.disabled = true;
+                const originalClass = this.className;
+                this.className = originalClass + ' loading';
+                
+                // Make AJAX request
+                fetch('{% url "caja_config_ajax" event.slug %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: new URLSearchParams({
+                        'ticket_type_id': ticketTypeId,
+                        'field_name': fieldName,
+                        'value': value
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show success feedback
+                        showFeedback(this, 'success', '✓ Guardado');
+                    } else {
+                        // Show error feedback
+                        showFeedback(this, 'error', '✗ Error');
+                        // Revert checkbox state
+                        this.checked = !value;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showFeedback(this, 'error', '✗ Error');
+                    // Revert checkbox state
+                    this.checked = !value;
+                })
+                .finally(() => {
+                    // Remove loading state
+                    this.disabled = false;
+                    this.className = originalClass;
+                });
+            });
+        });
+        
+        function showFeedback(element, type, message) {
+            // Remove any existing feedback
+            const existingFeedback = element.parentNode.querySelector('.feedback-message');
+            if (existingFeedback) {
+                existingFeedback.remove();
+            }
+            
+            // Create feedback element
+            const feedback = document.createElement('small');
+            feedback.className = `feedback-message text-${type === 'success' ? 'success' : 'danger'} ms-2`;
+            feedback.textContent = message;
+            feedback.style.fontWeight = 'bold';
+            
+            // Add to DOM
+            element.parentNode.appendChild(feedback);
+            
+            // Remove after 2 seconds
+            setTimeout(() => {
+                if (feedback.parentNode) {
+                    feedback.remove();
+                }
+            }, 2000);
+        }
+    });
+    </script>
+{% endblock truecontent %}

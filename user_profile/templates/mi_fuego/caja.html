@@ -1,0 +1,375 @@
+{% extends "tickets/barbu_base.html" %}
+{% load static %}
+{% load message_filters %}
+
+{% block title %}Caja - {{ event.name }} - {% endblock %}
+
+{% block full_content %}
+<style>
+#submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-loading {
+    display: none;
+}
+
+.fa-spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
+<div style="padding-top: 8px;">
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Messages -->
+            {% if messages %}
+                <!-- DEBUG: Hay {{ messages|length }} mensajes -->
+                {% for message in messages|filter_confusing_messages %}
+                    <!-- DEBUG: Mostrando mensaje: {{ message.tags }} -->
+                    {% if message.tags == 'error' %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show mb-3" role="alert" style="background-color: #f8d7da !important; border-color: #f5c6cb !important; color: #721c24 !important;">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show mb-3" role="alert" style="background-color: #d4edda !important; border-color: #c3e6cb !important; color: #155724 !important;">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <!-- DEBUG: No hay mensajes -->
+            {% endif %}
+            
+            <!-- Resumen de Ventas por Caja -->
+            {% if stats.caja_total_orders > 0 %}
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card border-0 bg-light">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="h5 mb-1 text-primary">{{ stats.caja_tickets_sold }}</div>
+                                    <div class="small text-muted">Emitidos por Caja</div>
+                                </div>
+                                <div class="text-end">
+                                    <i class="fas fa-cash-register fa-2x text-muted"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card border-0 bg-light">
+                        <div class="card-body p-3">
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="small text-muted">Progreso de Ventas</span>
+                                    <span class="small fw-bold">{{ stats.percentage_sold|floatformat:1 }}%</span>
+                                </div>
+                                <div class="progress mb-2" role="progressbar" 
+                                     aria-label="Progreso de ventas" 
+                                     aria-valuenow="{{ stats.percentage_sold }}" 
+                                     aria-valuemin="0" aria-valuemax="100">
+                                    <div class="progress-bar" 
+                                         style="width: {{ stats.percentage_sold|floatformat:0 }}% !important; --bar-width: {{ stats.percentage_sold|floatformat:0 }}%; min-width: 0; flex: none; background-color: #289e6d !important;">
+                                        {{ stats.percentage_sold|floatformat:1 }}%
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-between text-muted">
+                                    <small>{{ stats.tickets_sold }} vendidos</small>
+                                    <small>{{ event.max_tickets }} máximo</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="card">
+                <div class="card-body">
+                    <!-- Lista de precios de bonos disponibles -->
+                    <div class="mb-4">
+                        <h6 class="text-muted mb-3">
+                            <i class="fas fa-list me-2"></i>
+                            Tipos de Bonos Disponibles
+                        </h6>
+                        <div class="list-group">
+                            {% for ticket_type in form.ticket_type.field.queryset %}
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <span class="fw-medium">{{ ticket_type.name }}</span>
+                                        <div class="small text-muted">
+                                            Disponibles: {{ ticket_type.ticket_count }}
+                                            {% if not ticket_type.ignore_max_amount and event_limits.max_tickets %}
+                                                | Límite evento: {{ event_limits.max_tickets }}
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        <span class="fw-bold text-primary me-3">${{ ticket_type.price|floatformat:0 }}</span>
+                                        <div class="input-group" style="width: 120px;">
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" 
+                                                    onclick="decrementQuantity(this)" style="width: 30px; padding: 0;">
+                                                <i class="fas fa-minus"></i>
+                                            </button>
+                                            <input type="number" class="form-control form-control-sm text-center" 
+                                                   min="0" max="{{ ticket_type.ticket_count }}" value="0" 
+                                                   data-ticket-type="{{ ticket_type.id }}" 
+                                                   data-ticket-price="{{ ticket_type.price }}"
+                                                   data-ticket-name="{{ ticket_type.name }}"
+                                                   data-ticket-count="{{ ticket_type.ticket_count }}"
+                                                   data-ignore-max-amount="{{ ticket_type.ignore_max_amount|yesno:'true,false' }}"
+                                                   placeholder="0" style="border-left: 0; border-right: 0;">
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" 
+                                                    onclick="incrementQuantity(this)" style="width: 30px; padding: 0;">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                No hay tipos de bono disponibles para este evento.
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <form method="post" id="ticket-form">
+                        {% csrf_token %}
+                        <!-- Hidden fields for multiple ticket types -->
+                        <div id="ticket-data-container"></div>
+                        
+                        <!-- Total summary -->
+                        <div class="mb-3" id="selection-summary" style="display: none;">
+                            <div class="alert alert-info">
+                                <div id="summary-content"></div>
+                            </div>
+                        </div>
+                        
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.payment_method.id_for_label }}" class="form-label">{{ form.payment_method.label }}</label>
+                            {{ form.payment_method }}
+                            {% if form.payment_method.errors %}
+                                <div class="text-danger">{{ form.payment_method.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}</label>
+                            {{ form.email }}
+                            {% if form.email.errors %}
+                                <div class="text-danger">{{ form.email.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-text">Si se proporciona un email, se emitira el bono en la cuenta de ese usuario.</div>
+                            <div class="form-text">Si no tiene una cuenta, se creará una nueva cuenta con el email proporcionado.</div>
+                            <div class="form-text">El usuario recibirá un email para restablecer su contraseña. Debe completar su perfil antes de poder acceder a sus bonos.</div>
+
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.mark_as_used }}
+                                <label class="form-check-label" for="{{ form.mark_as_used.id_for_label }}">
+                                    {{ form.mark_as_used.label }}
+                                </label>
+                            </div>
+                            {% if form.mark_as_used.errors %}
+                                <div class="text-danger">{{ form.mark_as_used.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-text">Marcar esta opción para ventas en puerta (bonos ya usados).</div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-success" id="submit-btn">
+                            <i class="fas fa-plus me-2"></i>
+                            <span class="btn-text">Emitir Bonos</span>
+                            <span class="btn-loading" style="display: none;">
+                                <i class="fas fa-spinner fa-spin me-2"></i>
+                                Procesando...
+                            </span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Functions to handle quantity increment/decrement
+function incrementQuantity(button) {
+    const input = button.parentElement.querySelector('input[type="number"]');
+    const currentValue = parseInt(input.value) || 0;
+    const maxValue = parseInt(input.dataset.ticketCount) || 0;
+    
+    if (currentValue < maxValue) {
+        input.value = currentValue + 1;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+    } else {
+        // Show warning if trying to exceed limit
+        const ticketName = input.dataset.ticketName;
+        alert(`No se pueden solicitar más bonos de "${ticketName}". Disponibles: ${maxValue}`);
+    }
+}
+
+function decrementQuantity(button) {
+    const input = button.parentElement.querySelector('input[type="number"]');
+    const currentValue = parseInt(input.value) || 0;
+    if (currentValue > 0) {
+        input.value = currentValue - 1;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+}
+
+// Handle quantity inputs and form submission
+document.addEventListener('DOMContentLoaded', function() {
+    const quantityInputs = document.querySelectorAll('input[data-ticket-type]');
+    const ticketDataContainer = document.getElementById('ticket-data-container');
+    const selectionSummary = document.getElementById('selection-summary');
+    const summaryContent = document.getElementById('summary-content');
+    const ticketForm = document.getElementById('ticket-form');
+    
+    function updateSelection() {
+        let totalTickets = 0;
+        let totalAmount = 0;
+        let selectedItems = [];
+        
+        // Clear previous hidden inputs
+        ticketDataContainer.innerHTML = '';
+        
+        quantityInputs.forEach(input => {
+            const quantity = parseInt(input.value) || 0;
+            if (quantity > 0) {
+                const ticketTypeId = input.dataset.ticketType;
+                const ticketPrice = parseFloat(input.dataset.ticketPrice);
+                const ticketName = input.dataset.ticketName;
+                
+                totalTickets += quantity;
+                totalAmount += ticketPrice * quantity;
+                selectedItems.push({
+                    id: ticketTypeId,
+                    name: ticketName,
+                    quantity: quantity,
+                    price: ticketPrice,
+                    total: ticketPrice * quantity
+                });
+                
+                // Create hidden inputs for each ticket type
+                const ticketTypeInput = document.createElement('input');
+                ticketTypeInput.type = 'hidden';
+                ticketTypeInput.name = 'ticket_types';
+                ticketTypeInput.value = ticketTypeId;
+                ticketDataContainer.appendChild(ticketTypeInput);
+                
+                const quantityInput = document.createElement('input');
+                quantityInput.type = 'hidden';
+                quantityInput.name = 'quantities';
+                quantityInput.value = quantity;
+                ticketDataContainer.appendChild(quantityInput);
+            }
+        });
+        
+        if (totalTickets > 0) {
+            // Show only total
+            let summaryHtml = `<div class="text-center"><strong>Total: ${totalTickets} bonos - $${totalAmount.toLocaleString()}</strong></div>`;
+            
+            summaryContent.innerHTML = summaryHtml;
+            selectionSummary.style.display = 'block';
+        } else {
+            selectionSummary.style.display = 'none';
+        }
+    }
+    
+    // Add event listeners to all quantity inputs
+    quantityInputs.forEach(input => {
+        input.addEventListener('input', function() {
+            validateInput(this);
+            updateSelection();
+        });
+        input.addEventListener('change', function() {
+            validateInput(this);
+            updateSelection();
+        });
+    });
+    
+    // Function to validate individual input
+    function validateInput(input) {
+        const value = parseInt(input.value) || 0;
+        const maxValue = parseInt(input.dataset.ticketCount) || 0;
+        const ticketName = input.dataset.ticketName;
+        
+        if (value > maxValue) {
+            input.value = maxValue;
+            alert(`No se pueden solicitar más bonos de "${ticketName}". Disponibles: ${maxValue}`);
+        }
+        
+        if (value < 0) {
+            input.value = 0;
+        }
+    }
+    
+    // Handle form submission
+    ticketForm.addEventListener('submit', function(e) {
+        console.log('DEBUG: Formulario enviado');
+        const hasSelection = Array.from(quantityInputs).some(input => parseInt(input.value) > 0);
+        console.log('DEBUG: Tiene selección:', hasSelection);
+        console.log('DEBUG: Valores de inputs:', Array.from(quantityInputs).map(input => ({id: input.dataset.ticketType, value: input.value})));
+        
+        if (!hasSelection) {
+            e.preventDefault();
+            alert('Por favor selecciona al menos un bono.');
+            return false;
+        }
+        
+        // Validate event limits
+        const eventMaxTickets = {{ event_limits.max_tickets|default:"null" }};
+        if (eventMaxTickets) {
+            const totalRequested = Array.from(quantityInputs).reduce((sum, input) => {
+                const value = parseInt(input.value) || 0;
+                const ignoreMaxAmount = input.dataset.ignoreMaxAmount === 'true';
+                return ignoreMaxAmount ? sum : sum + value;
+            }, 0);
+            
+            const currentTicketsSold = {{ stats.tickets_sold|default:0 }};
+            if (currentTicketsSold + totalRequested > eventMaxTickets) {
+                e.preventDefault();
+                alert(`Se excede el límite máximo de bonos del evento (${eventMaxTickets}). Bonos ya vendidos: ${currentTicketsSold}, Solicitados: ${totalRequested}`);
+                return false;
+            }
+        }
+        
+        // Disable button and show loading state
+        const submitBtn = document.getElementById('submit-btn');
+        const btnText = submitBtn.querySelector('.btn-text');
+        const btnLoading = submitBtn.querySelector('.btn-loading');
+        
+        submitBtn.disabled = true;
+        btnText.style.display = 'none';
+        btnLoading.style.display = 'inline';
+        
+        console.log('DEBUG: Formulario enviado correctamente');
+    });
+    
+    // Initial update
+    updateSelection();
+});
+</script>
+</div>
+{% endblock full_content %}
