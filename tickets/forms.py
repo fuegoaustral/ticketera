@@ -129,7 +129,8 @@ class CheckoutTicketSelectionForm(forms.Form):
                     'field_name': field_name,
                     'quantity': initial_value,  # Pass the initial value to the template
                     'ticket_count': ticket_type.ticket_count,
-                    'is_free_ticket': ticket_type.price == 0  # Flag to identify free tickets
+                    'is_free_ticket': ticket_type.price == 0,  # Flag to identify free tickets
+                    'ignore_max_amount': ticket_type.ignore_max_amount  # Flag to check if ignores max amount
                 })
         else:
             self.ticket_data = []
@@ -146,7 +147,16 @@ class CheckoutTicketSelectionForm(forms.Form):
         available_tickets = event.max_tickets_per_order
         available_tickets = min(available_tickets, tickets_remaining)
         total_selected_tickets = sum(cleaned_data.get(field, 0) for field in self.fields if field.startswith('ticket_'))
-        if total_selected_tickets > available_tickets:
+        
+        # Check if any selected ticket type ignores max amount
+        has_ignore_max_amount = any(
+            ticket['ignore_max_amount'] 
+            for ticket in self.ticket_data 
+            if cleaned_data.get(f'ticket_{ticket["id"]}_quantity', 0) > 0
+        )
+        
+        # Only check available tickets if no ticket type ignores max amount
+        if not has_ignore_max_amount and total_selected_tickets > available_tickets:
             # merge cleaned_data values with ticket_data quantity
             self.ticket_data = [
                 {**ticket, 'quantity': cleaned_data.get(f'ticket_{ticket["id"]}_quantity', ticket['quantity'])}
