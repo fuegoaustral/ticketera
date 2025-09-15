@@ -346,8 +346,8 @@ class DirectTicketTemplateAdmin(ImportExportModelAdmin, ExportActionMixin):
 
 
 class TicketTypeAdmin(admin.ModelAdmin):
-    list_display = ['name', 'event', 'price', 'is_direct_type', 'ticket_count', 'date_from', 'date_to']
-    list_filter = ['event__name', 'is_direct_type']
+    list_display = ['name', 'event', 'price', 'is_direct_type', 'show_in_caja', 'ignore_max_amount', 'ticket_count', 'date_from', 'date_to']
+    list_filter = ['event__name', 'is_direct_type', 'show_in_caja', 'ignore_max_amount']
     search_fields = ['name', 'event__name']
 
 

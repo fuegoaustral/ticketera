@@ -44,6 +44,7 @@ class Event(BaseModel):
     
     admins = models.ManyToManyField(User, blank=True, related_name='admin_events', help_text="Users who can administer this event")
     access_scanner = models.ManyToManyField(User, blank=True, related_name='scanner_events', help_text="Users who can access the scanner for this event")
+    access_caja = models.ManyToManyField(User, blank=True, related_name='caja_events', help_text="Users who can access the caja for this event")
 
     class Meta:
         constraints = [

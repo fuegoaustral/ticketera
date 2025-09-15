@@ -84,6 +84,10 @@
             box-shadow: 0 4px 8px rgba(0,0,0,0.15);
         }
         
+        .ticket-card.caja-issued {
+            border-left: 4px solid #ffc107;
+        }
+        
         .ticket-header {
             display: flex;
             align-items: center;
@@ -497,6 +501,44 @@
             /* Mobile: Show cards, hide table (already handled by default styles) */
         }
         
+        /* Mobile and tablet styles - hide caja indicators */
+        @media (max-width: 768px) {
+            /* Remove yellow border from caja-issued stat item on mobile/tablet */
+            .stats-grid .stat-item[style*="border-left: 3px solid #ffc107"] {
+                border-left: none !important;
+            }
+            
+            /* Remove yellow border from caja-issued ticket cards on mobile/tablet */
+            .tickets-cards .ticket-card.caja-issued {
+                border-left: none !important;
+            }
+            
+            /* Hide cash register icon on mobile/tablet */
+            .tickets-cards .ticket-type .fas.fa-cash-register {
+                display: none !important;
+            }
+            
+            /* Remove yellow border from caja info group on mobile/tablet */
+            .tickets-cards .info-group[style*="border-left: 3px solid #ffc107"] {
+                border-left: none !important;
+            }
+        }
+        
+        /* Additional mobile-specific styles */
+        @media (max-width: 480px) {
+            /* Force remove any remaining yellow borders on small mobile */
+            .stat-item[style*="border-left: 3px solid #ffc107"],
+            .ticket-card.caja-issued,
+            .info-group[style*="border-left: 3px solid #ffc107"] {
+                border-left: none !important;
+            }
+            
+            /* Force hide cash register icon on small mobile */
+            .fas.fa-cash-register {
+                display: none !important;
+            }
+        }
+        
         @media (max-width: 480px) {
             .stats-grid {
                 grid-template-columns: 1fr;
@@ -583,6 +625,11 @@
                             </div>
                         {% endif %}
                         
+                        <div class="stat-item" style="border-left: 3px solid #ffc107;">
+                            <div class="stat-value">{{ stats.caja_issued_tickets }}</div>
+                            <div class="stat-label">Emitidos por Caja</div>
+                        </div>
+                        
                         <div class="stat-item">
                             <div class="stat-value">{{ stats.usage_percentage|floatformat:1 }}%</div>
                             <div class="stat-label">% de Uso</div>
@@ -607,6 +654,14 @@
                                     </select>
                                 </div>
                                 <div class="filter-item">
+                                    <label for="cajaFilter">Origen:</label>
+                                    <select id="cajaFilter" class="form-select">
+                                        <option value="">Todos</option>
+                                        <option value="caja">Emitidos por Caja</option>
+                                        <option value="online">Comprados Online</option>
+                                    </select>
+                                </div>
+                                <div class="filter-item">
                                     <label for="searchInput">Buscar:</label>
                                     <input type="text" id="searchInput" class="form-control" placeholder="Nombre, email o tipo de bono...">
                                 </div>
@@ -619,9 +674,12 @@
                         <!-- Cards View -->
                         <div id="ticketsCards" class="tickets-cards">
                             {% for ticket in tickets %}
-                                <div class="ticket-card" data-status="{% if ticket.is_used %}used{% else %}unused{% endif %}" data-search="{{ ticket.holder_name|lower }} {{ ticket.owner_name|lower }} {{ ticket.ticket_type|lower }}">
+                                <div class="ticket-card {% if ticket.is_caja_issued %}caja-issued{% endif %}" data-status="{% if ticket.is_used %}used{% else %}unused{% endif %}" data-caja="{% if ticket.is_caja_issued %}caja{% else %}online{% endif %}" data-search="{{ ticket.holder_name|lower }} {{ ticket.owner_name|lower }} {{ ticket.ticket_type|lower }}">
                                     <div class="ticket-header">
                                         <div class="ticket-type">
+                                            {% if ticket.is_caja_issued %}
+                                                <i class="fas fa-cash-register me-2 text-warning" title="Emitido por Caja"></i>
+                                            {% endif %}
                                             <span class="ticket-type-name">{{ ticket.ticket_type }}</span>
                                         </div>
                                         <div class="ticket-status {% if ticket.is_used %}used{% elif ticket.is_unassigned %}unassigned{% else %}unused{% endif %}">
@@ -661,6 +719,16 @@
                                             </div>
                                         {% endif %}
                                         
+                                        
+                                        {% if ticket.is_caja_issued %}
+                                            <div class="info-group" style="border-left: 3px solid #ffc107;">
+                                                <div class="info-label">Emitido por Caja</div>
+                                                <div class="info-value">{{ ticket.caja_admin_name }}</div>
+                                                {% if ticket.order_type %}
+                                                    <div class="info-value text-muted">{{ ticket.order_type }}</div>
+                                                {% endif %}
+                                            </div>
+                                        {% endif %}
                                         
                                         {% if ticket.is_used %}
                                             <div class="info-group">
@@ -723,13 +791,14 @@
                                         {% endif %}
                                         <th>Escaneado por</th>
                                         <th>Hora entrada</th>
+                                        <th>Origen</th>
                                         <th>Notas</th>
                                         <th>Archivos</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for ticket in tickets %}
-                                        <tr data-status="{% if ticket.is_used %}used{% elif ticket.is_unassigned %}unassigned{% else %}unused{% endif %}" data-search="{{ ticket.holder_name|lower }} {{ ticket.owner_name|lower }} {{ ticket.ticket_type|lower }}">
+                                        <tr data-status="{% if ticket.is_used %}used{% elif ticket.is_unassigned %}unassigned{% else %}unused{% endif %}" data-caja="{% if ticket.is_caja_issued %}caja{% else %}online{% endif %}" data-search="{{ ticket.holder_name|lower }} {{ ticket.owner_name|lower }} {{ ticket.ticket_type|lower }}">
                                             <td>
                                                 <div class="table-ticket-type">
                                                     <span class="table-ticket-name">{{ ticket.ticket_type }}</span>
@@ -786,6 +855,13 @@
                                                     <div class="table-datetime">{{ ticket.used_at|date:'d/m/Y H:i' }}</div>
                                                 {% else %}
                                                     <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if ticket.is_caja_issued %}
+                                                    Caja
+                                                {% else %}
+                                                    <span class="text-muted">Online</span>
                                                 {% endif %}
                                             </td>
                                             <td>
@@ -851,6 +927,7 @@
         // Filter functionality
         document.addEventListener('DOMContentLoaded', function() {
             const statusFilter = document.getElementById('statusFilter');
+            const cajaFilter = document.getElementById('cajaFilter');
             const searchInput = document.getElementById('searchInput');
             
             // Get all ticket elements (both cards and table rows)
@@ -859,17 +936,20 @@
             
             function filterTickets() {
                 const statusValue = statusFilter.value;
+                const cajaValue = cajaFilter.value;
                 const searchValue = searchInput.value.toLowerCase();
                 
                 // Filter cards
                 ticketCards.forEach(card => {
                     const status = card.dataset.status;
+                    const caja = card.dataset.caja;
                     const searchData = card.dataset.search;
                     
                     const statusMatch = !statusValue || status === statusValue;
+                    const cajaMatch = !cajaValue || caja === cajaValue;
                     const searchMatch = !searchValue || searchData.includes(searchValue);
                     
-                    if (statusMatch && searchMatch) {
+                    if (statusMatch && cajaMatch && searchMatch) {
                         card.style.display = 'block';
                     } else {
                         card.style.display = 'none';
@@ -879,12 +959,14 @@
                 // Filter table rows
                 ticketRows.forEach(row => {
                     const status = row.dataset.status;
+                    const caja = row.dataset.caja;
                     const searchData = row.dataset.search;
                     
                     const statusMatch = !statusValue || status === statusValue;
+                    const cajaMatch = !cajaValue || caja === cajaValue;
                     const searchMatch = !searchValue || searchData.includes(searchValue);
                     
-                    if (statusMatch && searchMatch) {
+                    if (statusMatch && cajaMatch && searchMatch) {
                         row.style.display = '';
                     } else {
                         row.style.display = 'none';
@@ -894,6 +976,7 @@
             
             // Event listeners
             statusFilter.addEventListener('change', filterTickets);
+            cajaFilter.addEventListener('change', filterTickets);
             searchInput.addEventListener('input', filterTickets);
         });
         

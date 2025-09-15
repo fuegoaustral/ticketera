@@ -1,397 +1,347 @@
 from django import forms
-from django.conf import settings
-from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth import get_user_model
-
-from twilio.rest import Client
-
+from django.contrib.auth.forms import PasswordChangeForm
+from django.conf import settings
+from events.models import Event
+from tickets.models import TicketType, NewTicket, Order
 from .models import Profile
-from tickets.models import NewTicket
+from twilio.rest import Client
+from twilio.base.exceptions import TwilioException
 
 User = get_user_model()
 
 
-class ProfileStep1Form(forms.ModelForm):
-    first_name = forms.CharField(max_length=30, required=True)
-    last_name = forms.CharField(max_length=30, required=True)
-
-    class Meta:
-        model = Profile
-        fields = ["document_type", "document_number"]
-
-    def __init__(self, *args, **kwargs):
-        user = kwargs.pop("user", None)
-        super(ProfileStep1Form, self).__init__(*args, **kwargs)
-        if user:
-            self.fields["first_name"].initial = user.first_name
-            self.fields["last_name"].initial = user.last_name
-
-    def clean_document_number(self):
-        document_number = self.cleaned_data.get("document_number", "")
-        # Remove periods from the document_number
-        cleaned_document_number = document_number.replace(".", "")
-        return cleaned_document_number
-
+class CajaEmitirBonoForm(forms.Form):
+    """Formulario para emitir bonos desde caja"""
+    
+    PAYMENT_METHODS = [
+        ('efectivo', 'Efectivo'),
+        ('transferencia', 'Transferencia'),
+        ('transferencia_internacional', 'Transferencia Internacional'),
+    ]
+    
+    ticket_type = forms.ModelChoiceField(
+        queryset=TicketType.objects.none(),
+        label="Tipo de Bono",
+        required=False,  # Hacer opcional para el nuevo sistema
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    
+    quantity = forms.IntegerField(
+        label="Cantidad",
+        min_value=1,
+        max_value=10,
+        initial=1,
+        required=False,  # Hacer opcional para el nuevo sistema
+        widget=forms.NumberInput(attrs={'class': 'form-control'})
+    )
+    
+    payment_method = forms.ChoiceField(
+        choices=PAYMENT_METHODS,
+        label="Forma de Pago",
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    
+    email = forms.EmailField(
+        label="Email (Opcional)",
+        required=False,
+        widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'usuario@ejemplo.com'})
+    )
+    
+    mark_as_used = forms.BooleanField(
+        label="Marcar como usada (venta en puerta)",
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    
+    def __init__(self, event, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Filtrar tipos de ticket solo para este evento y que estén marcados para mostrar en caja
+        self.fields['ticket_type'].queryset = TicketType.objects.filter(event=event, show_in_caja=True)
+    
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        # No validamos si el usuario ya tiene bonos aquí
+        # La lógica de owner vs holder se maneja en la vista
+        return email
+    
+    def clean_quantity(self):
+        quantity = self.cleaned_data.get('quantity')
+        if quantity and quantity > 10:
+            raise forms.ValidationError("No se pueden emitir más de 10 bonos a la vez.")
+        return quantity
+    
     def clean(self):
-        cleaned_data = super(ProfileStep1Form, self).clean()
-        document_type = cleaned_data.get("document_type")
-        document_number = self.clean_document_number()
-
-        # Check for duplicate document number and type
-        if (
-            document_number and
-            Profile.objects.filter(
-                document_type=document_type, document_number=document_number
-            )
-            .exclude(user=self.instance.user)
-            .exists()
-        ):
-            raise forms.ValidationError(
-                "Otro usuario ya tiene este tipo de documento y número."
-            )
-
+        cleaned_data = super().clean()
+        ticket_type = cleaned_data.get('ticket_type')
+        quantity = cleaned_data.get('quantity')
+        
+        # Verificar que al menos uno de los sistemas tenga datos
+        # (esto se validará en la vista con los datos POST)
         return cleaned_data
 
+
+class ProfileStep1Form(forms.ModelForm):
+    """Formulario para el paso 1 del perfil"""
+    first_name = forms.CharField(max_length=30, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    last_name = forms.CharField(max_length=30, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    
+    class Meta:
+        model = Profile
+        fields = ['document_type', 'document_number']
+        widgets = {
+            'document_type': forms.Select(attrs={'class': 'form-select'}),
+            'document_number': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        if self.user:
+            self.fields['first_name'].initial = self.user.first_name
+            self.fields['last_name'].initial = self.user.last_name
+    
     def save(self, commit=True):
-        # Create a profile instance, but don't save it yet
-        profile = super(ProfileStep1Form, self).save(commit=False)
-
-        # Clean document_number before saving
-        profile.document_number = self.clean_document_number()
-
-        # Update the user's first and last name
-        user = profile.user
-        user.first_name = self.cleaned_data["first_name"]
-        user.last_name = self.cleaned_data["last_name"]
-
-        # If we are saving, also update and save the profile instance
+        profile = super().save(commit=False)
+        if self.user:
+            self.user.first_name = self.cleaned_data['first_name']
+            self.user.last_name = self.cleaned_data['last_name']
+            if commit:
+                self.user.save()
         if commit:
-            user.save()
             profile.save()
-
         return profile
 
 
 class ProfileStep2Form(forms.ModelForm):
-    code = forms.CharField(max_length=6, required=False, label="Código de verificación")
-    full_phone_number = forms.CharField(widget=forms.HiddenInput(), required=False)
-
+    """Formulario para el paso 2 del perfil"""
+    code = forms.CharField(
+        max_length=6,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ingresa el código'}),
+        label='Código de verificación'
+    )
+    
     class Meta:
         model = Profile
-        fields = ["phone"]
-
+        fields = ['phone']
+        widgets = {
+            'phone': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+    
     def __init__(self, *args, **kwargs):
-        code_sent = kwargs.pop("code_sent", False)
-        super(ProfileStep2Form, self).__init__(*args, **kwargs)
-
-        if code_sent:
-            self.fields["phone"].required = (
-                False  # Make phone non-required if code is sent
-            )
-            self.fields["phone"].disabled = (
-                True  # Disable the phone field if code is sent
-            )
-
-    def clean_phone(self):
-        # Use the full_phone_number if provided
-        full_phone_number = self.cleaned_data.get("full_phone_number")
-        if full_phone_number:
-            return full_phone_number
-        return self.cleaned_data["phone"]
-
-    def clean(self):
-        cleaned_data = super(ProfileStep2Form, self).clean()
-        phone = cleaned_data.get("phone")
-
-        # Check for duplicate phone number
-        if (
-            Profile.objects.filter(phone=phone)
-            .exclude(user=self.instance.user)
-            .exists()
-        ):
-            raise forms.ValidationError(
-                "Otro usuario ya tiene este número de teléfono."
-            )
-
-        return cleaned_data
-
+        self.code_sent = kwargs.pop('code_sent', False)
+        super().__init__(*args, **kwargs)
+        
+        # Only show code field if code was sent
+        if not self.code_sent:
+            self.fields.pop('code', None)
+    
     def send_verification_code(self):
-        phone = self.cleaned_data["phone"]
-
-        if settings.ENV == "local" or settings.MOCK_PHONE_VERIFICATION:
-            return "123456"
-
-        client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-        verification = client.verify.v2.services(
-            settings.TWILIO_VERIFY_SERVICE_SID
-        ).verifications.create(to=phone, channel="sms")
-        return verification.sid
-
-    def verify_code(self):
-        phone = self.cleaned_data["phone"]
-        code = self.cleaned_data.get("code")
-
-        if settings.ENV == "local" or settings.MOCK_PHONE_VERIFICATION:
-            return True
-
-        try:
-            client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-            verification_check = client.verify.v2.services(
-                settings.TWILIO_VERIFY_SERVICE_SID
-            ).verification_checks.create(to=phone, code=code)
-            return verification_check.status == "approved"
-        except Exception as e:
-            # Log the error for debugging
+        """Send SMS verification code using Twilio"""
+        if not self.instance.phone:
+            raise ValueError("Phone number is required")
+        
+        # Check if phone verification is mocked
+        if getattr(settings, 'MOCK_PHONE_VERIFICATION', False):
+            # In mock mode, just return a mock verification object
             import logging
             logger = logging.getLogger(__name__)
-            logger.error(f"Twilio verification error: {str(e)}")
-            logger.error(f"Phone: {phone}, Code: {code}, Service SID: {settings.TWILIO_VERIFY_SERVICE_SID}")
-            # Re-raise the exception so it can be caught by the view
-            raise e
+            logger.info(f"MOCK MODE: SMS verification code would be sent to {self.instance.phone}")
+            return type('MockVerification', (), {'status': 'pending'})()
+        
+        try:
+            client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+            verification = client.verify.v2.services(settings.TWILIO_VERIFY_SERVICE_SID) \
+                .verifications \
+                .create(to=self.instance.phone, channel='sms')
+            return verification
+        except TwilioException as e:
+            raise Exception(f"Error sending verification code: {str(e)}")
+    
+    def verify_code(self):
+        """Verify SMS code using Twilio"""
+        code = self.cleaned_data.get('code')
+        if not code:
+            return False
+        
+        # Check if phone verification is mocked
+        if getattr(settings, 'MOCK_PHONE_VERIFICATION', False):
+            # In mock mode, accept any 6-digit code
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"MOCK MODE: Verifying code {code} for {self.instance.phone}")
+            return len(code) == 6 and code.isdigit()
+        
+        try:
+            client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+            verification_check = client.verify.v2.services(settings.TWILIO_VERIFY_SERVICE_SID) \
+                .verification_checks \
+                .create(to=self.instance.phone, code=code)
+            return verification_check.status == 'approved'
+        except TwilioException as e:
+            raise Exception(f"Error verifying code: {str(e)}")
 
 
 class VolunteeringForm(forms.ModelForm):
-
-    volunteer_ranger = forms.BooleanField(label='Ranger', required=False)
-    volunteer_transmutator = forms.BooleanField(label='Transmutadores', required=False)
-    volunteer_umpalumpa = forms.BooleanField(label='CAOS (Desarme de la Ciudad)', required=False)
-
+    """Formulario para voluntariado"""
     class Meta:
         model = NewTicket
-        fields = ["volunteer_ranger", "volunteer_transmutator", "volunteer_umpalumpa"]
+        fields = ['volunteer_ranger', 'volunteer_transmutator', 'volunteer_umpalumpa']
+        widgets = {
+            'volunteer_ranger': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'volunteer_transmutator': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'volunteer_umpalumpa': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
 
 
 class ProfileUpdateForm(forms.ModelForm):
-    """Formulario para actualizar información personal del perfil"""
-    first_name = forms.CharField(
-        max_length=30, 
-        required=True,
-        label="Nombre",
-        widget=forms.TextInput(attrs={'class': 'form-control', 'autofocus': True})
-    )
-    last_name = forms.CharField(
-        max_length=30, 
-        required=True,
-        label="Apellido",
-        widget=forms.TextInput(attrs={'class': 'form-control'})
-    )
-    document_type = forms.ChoiceField(
-        choices=Profile.DOCUMENT_TYPE_CHOICES,
-        label="Tipo de Documento",
-        widget=forms.Select(attrs={'class': 'form-select'})
-    )
-    document_number = forms.CharField(
-        max_length=50,
-        label="Número de Documento",
-        widget=forms.TextInput(attrs={'class': 'form-control'})
-    )
-
+    """Formulario para actualizar perfil"""
+    first_name = forms.CharField(max_length=30, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    last_name = forms.CharField(max_length=30, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    
     class Meta:
         model = Profile
-        fields = ['document_type', 'document_number']
-
+        fields = ['document_type', 'document_number', 'phone']
+        widgets = {
+            'document_type': forms.Select(attrs={'class': 'form-select'}),
+            'document_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'phone': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+    
     def __init__(self, *args, **kwargs):
-        user = kwargs.pop('user', None)
+        self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-        if user:
-            self.fields['first_name'].initial = user.first_name
-            self.fields['last_name'].initial = user.last_name
-
-    def clean_document_number(self):
-        document_number = self.cleaned_data.get("document_number", "")
-        # Remove periods from the document_number
-        cleaned_document_number = document_number.replace(".", "")
-        return cleaned_document_number
-
-    def clean(self):
-        cleaned_data = super().clean()
-        
-        # Only validate if we have an instance (existing profile)
-        if not self.instance or not self.instance.user:
-            return cleaned_data
-            
-        document_type = cleaned_data.get("document_type")
-        document_number = cleaned_data.get("document_number", "")
-        
-        # Clean document number (remove periods)
-        if document_number:
-            document_number = document_number.replace(".", "")
-
-        # Check for duplicate document number and type only if both are provided and different from current
-        if document_number and document_type:
-            # Check if the document data is different from current profile
-            current_profile = self.instance
-            if (current_profile.document_type != document_type or 
-                current_profile.document_number != document_number):
-                
-                existing_profile = Profile.objects.filter(
-                    document_type=document_type, 
-                    document_number=document_number
-                ).exclude(user=self.instance.user).first()
-                
-                if existing_profile:
-                    raise forms.ValidationError(
-                        "Otro usuario ya tiene este tipo de documento y número."
-                    )
-
-
-        return cleaned_data
-
+        if self.user:
+            self.fields['first_name'].initial = self.user.first_name
+            self.fields['last_name'].initial = self.user.last_name
+    
     def save(self, commit=True):
         profile = super().save(commit=False)
-        
-        # Clean document number before saving
-        document_number = self.cleaned_data.get("document_number", "")
-        if document_number:
-            profile.document_number = document_number.replace(".", "")
-        
-        # Update the user's first and last name
-        user = profile.user
-        user.first_name = self.cleaned_data["first_name"]
-        user.last_name = self.cleaned_data["last_name"]
-
+        if self.user:
+            self.user.first_name = self.cleaned_data['first_name']
+            self.user.last_name = self.cleaned_data['last_name']
+            if commit:
+                self.user.save()
         if commit:
-            user.save()
             profile.save()
-
         return profile
 
 
 class CustomPasswordChangeForm(forms.Form):
-    """Formulario personalizado para cambio de contraseña sin requerir contraseña actual"""
+    """Formulario personalizado para cambio de contraseña"""
     password1 = forms.CharField(
-        label='Nueva contraseña',
-        widget=forms.PasswordInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Nueva contraseña'
-        }),
-        min_length=8,
-        help_text='Mínimo 8 caracteres'
+        label="Nueva Contraseña",
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Nueva contraseña'}),
+        help_text="Su contraseña debe contener por lo menos 8 caracteres."
+    )
+    password2 = forms.CharField(
+        label="Confirmar Nueva Contraseña",
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Confirmar nueva contraseña'})
     )
     
-    password2 = forms.CharField(
-        label='Confirmar nueva contraseña',
-        widget=forms.PasswordInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Confirmar nueva contraseña'
-        })
-    )
+    def __init__(self, user, *args, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
     
     def clean_password2(self):
         password1 = self.cleaned_data.get('password1')
         password2 = self.cleaned_data.get('password2')
-        
-        if password1 and password2 and password1 != password2:
-            raise forms.ValidationError('Las contraseñas no coinciden.')
-        
+        if password1 and password2:
+            if password1 != password2:
+                raise forms.ValidationError("Las contraseñas no coinciden.")
         return password2
     
     def clean_password1(self):
         password1 = self.cleaned_data.get('password1')
-        
-        if password1 and len(password1) < 8:
-            raise forms.ValidationError('La contraseña debe tener al menos 8 caracteres.')
-        
+        if password1:
+            # Validar que la contraseña cumple con los requisitos
+            if len(password1) < 8:
+                raise forms.ValidationError("La contraseña debe tener al menos 8 caracteres.")
         return password1
+    
+    def save(self):
+        password = self.cleaned_data['password1']
+        self.user.set_password(password)
+        self.user.save()
+        return self.user
 
 
 class AddEmailForm(forms.Form):
-    """Formulario para agregar un nuevo email"""
+    """Formulario para agregar email"""
     email = forms.EmailField(
-        label="Nuevo email",
-        widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'nuevo@email.com'})
+        label="Nuevo Email",
+        widget=forms.EmailInput(attrs={'class': 'form-control'})
     )
 
 
 class PhoneUpdateForm(forms.ModelForm):
-    """Formulario para actualizar el teléfono con verificación SMS"""
+    """Formulario para actualizar teléfono"""
     code = forms.CharField(
-        max_length=6, 
-        required=False, 
-        label="Código de verificación",
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '123456'})
+        max_length=6,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ingresa el código'}),
+        label='Código de verificación'
     )
-    full_phone_number = forms.CharField(widget=forms.HiddenInput(), required=False)
-
+    
     class Meta:
         model = Profile
-        fields = ["phone"]
+        fields = ['phone']
         widgets = {
-            'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+54 11 1234 5678'})
+            'phone': forms.TextInput(attrs={'class': 'form-control'}),
         }
-
+    
     def __init__(self, *args, **kwargs):
-        code_sent = kwargs.pop("code_sent", False)
+        self.code_sent = kwargs.pop('code_sent', False)
         super().__init__(*args, **kwargs)
-
-        if code_sent:
-            self.fields["phone"].required = False
-            self.fields["phone"].disabled = True
-
-    def clean_phone(self):
-        # Use the full_phone_number if provided
-        full_phone_number = self.cleaned_data.get("full_phone_number")
-        if full_phone_number:
-            return full_phone_number
         
-        # If phone field is disabled (code_sent=True), use the phone from form data
-        if self.fields["phone"].disabled:
-            # Get the phone from the original form data, not the cleaned data
-            return self.data.get("phone")
-        
-        return self.cleaned_data["phone"]
-
-    def clean(self):
-        cleaned_data = super().clean()
-        phone = cleaned_data.get("phone")
-
-        # Check for duplicate phone number only if different from current
-        if phone and phone != self.instance.phone:
-            existing_phone = Profile.objects.filter(phone=phone).exclude(user=self.instance.user).first()
-            if existing_phone:
-                raise forms.ValidationError(
-                    "Otro usuario ya tiene este número de teléfono."
-                )
-
-        return cleaned_data
-
+        # Only show code field if code was sent
+        if not self.code_sent:
+            self.fields.pop('code', None)
+    
     def send_verification_code(self):
-        phone = self.cleaned_data["phone"]
-
-        if settings.ENV == "local" or settings.MOCK_PHONE_VERIFICATION:
-            return "123456"
-
-        client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-        verification = client.verify.v2.services(
-            settings.TWILIO_VERIFY_SERVICE_SID
-        ).verifications.create(to=phone, channel="sms")
-        return verification.sid
-
-    def verify_code(self):
-        phone = self.cleaned_data["phone"]
-        code = self.cleaned_data.get("code")
-
-        if settings.ENV == "local" or settings.MOCK_PHONE_VERIFICATION:
-            return True
-
+        """Send SMS verification code using Twilio"""
+        phone = self.cleaned_data.get('phone')
+        if not phone:
+            raise ValueError("Phone number is required")
+        
+        # Check if phone verification is mocked
+        if getattr(settings, 'MOCK_PHONE_VERIFICATION', False):
+            # In mock mode, just return a mock verification object
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"MOCK MODE: SMS verification code would be sent to {phone}")
+            return type('MockVerification', (), {'status': 'pending'})()
+        
         try:
-            # Log the verification attempt
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.info(f"FORM VERIFY - Attempting verification with phone: {phone}, code: {code}")
-            
             client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-            verification_check = client.verify.v2.services(
-                settings.TWILIO_VERIFY_SERVICE_SID
-            ).verification_checks.create(to=phone, code=code)
-            
-            logger.info(f"FORM VERIFY - Twilio response status: {verification_check.status}")
-            return verification_check.status == "approved"
-        except Exception as e:
-            # Log the error for debugging
+            verification = client.verify.v2.services(settings.TWILIO_VERIFY_SERVICE_SID) \
+                .verifications \
+                .create(to=phone, channel='sms')
+            return verification
+        except TwilioException as e:
+            raise Exception(f"Error sending verification code: {str(e)}")
+    
+    def verify_code(self):
+        """Verify SMS code using Twilio"""
+        code = self.cleaned_data.get('code')
+        phone = self.cleaned_data.get('phone')
+        if not code or not phone:
+            return False
+        
+        # Check if phone verification is mocked
+        if getattr(settings, 'MOCK_PHONE_VERIFICATION', False):
+            # In mock mode, accept any 6-digit code
             import logging
             logger = logging.getLogger(__name__)
-            logger.error(f"Twilio verification error: {str(e)}")
-            logger.error(f"Phone: {phone}, Code: {code}, Service SID: {settings.TWILIO_VERIFY_SERVICE_SID}")
-            # Re-raise the exception so it can be caught by the view
-            raise e
+            logger.info(f"MOCK MODE: Verifying code {code} for {phone}")
+            return len(code) == 6 and code.isdigit()
+        
+        try:
+            client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+            verification_check = client.verify.v2.services(settings.TWILIO_VERIFY_SERVICE_SID) \
+                .verification_checks \
+                .create(to=phone, code=code)
+            return verification_check.status == 'approved'
+        except TwilioException as e:
+            raise Exception(f"Error verifying code: {str(e)}")

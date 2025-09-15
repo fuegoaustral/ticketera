@@ -1,0 +1,30 @@
+{% extends 'emails/base.html' %}
+{% block subject %}🔥Tu bono para {{ event.name|safe }} ha sido emitido🔥{% endblock %}
+{% block title %}
+    ¡BONO EMITIDO!
+{% endblock %}
+{% block content %}
+    <p>
+        Se ha emitido un bono para <b>{{ event.name|safe }}</b> en tu cuenta.
+    </p>
+
+    <p><b>DETALLES DEL BONO:</b></p>
+    <ul>
+        <li><b>Orden:</b> #{{ order.id }}</li>
+        <li><b>Evento:</b> {{ event.name|safe }}</li>
+        <li><b>Cantidad de bonos:</b> {{ tickets|length }}</li>
+        <li><b>Total:</b> ${{ total_amount|floatformat:0 }}</li>
+    </ul>
+
+    <p>Podes ver tus bonos entrando a tu cuenta:</p>
+
+    {% include 'emails/partials/btn.html' with label='Mis Bonos' href='/mi-fuego/mis-bonos'  domain=domain %}
+
+    <p><b>IMPORTANTE:</b> Se ha enviado un email para restablecer tu contraseña. Después de configurar tu contraseña, deberás completar tu perfil antes de poder acceder a tus bonos.</p>
+
+    <p>Cualquier problema que tengas, escribinos a: <a href="mailto:bonos@fuegoaustral.org">bonos@fuegoaustral.org</a>,
+        o por el chat en la web.</p>
+
+    <p>La experiencia será lo que hagamos de ella.</p>
+
+{% endblock %}

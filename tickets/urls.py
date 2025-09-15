@@ -61,4 +61,5 @@ urlpatterns = [
     path('api/tickets/<str:ticket_key>/mark-used/', admin.mark_ticket_used, name='mark_ticket_used'),
     path('api/tickets/<str:ticket_key>/update-notes/', admin.update_ticket_notes, name='update_ticket_notes'),
     path('api/tickets/<str:ticket_key>/delete-photo/', admin.delete_ticket_photo, name='delete_ticket_photo'),
+    path('api/events/<slug:event_slug>/stats/', admin.event_stats_api, name='event_stats_api'),
 ]
