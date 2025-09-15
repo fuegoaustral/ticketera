@@ -1253,12 +1253,40 @@ def caja_config_view(request, event_slug):
     except Event.DoesNotExist:
         raise Http404("Event not found")
     
-    # Check if user is admin of this event
-    if not event.admins.filter(id=request.user.id).exists():
-        return HttpResponseForbidden("You don't have permission to view this event")
+    # Check if user is admin or has caja access for this event
+    has_caja_access = (event.admins.filter(id=request.user.id).exists() or 
+                      event.access_caja.filter(id=request.user.id).exists())
+    if not has_caja_access:
+        return HttpResponseForbidden("You don't have permission to access caja for this event")
     
-    # Handle POST request to update ticket type settings
+    # Handle POST request for caja access management
     if request.method == 'POST':
+        if 'add_caja_user' in request.POST:
+            email = request.POST.get('email', '').strip()
+            if email:
+                try:
+                    user = User.objects.get(email__iexact=email)
+                    if not event.access_caja.filter(id=user.id).exists() and not event.admins.filter(id=user.id).exists():
+                        event.access_caja.add(user)
+                        messages.success(request, f'Usuario {email} agregado al acceso de caja exitosamente.')
+                    else:
+                        messages.warning(request, f'El usuario {email} ya tiene acceso a caja o es admin del evento.')
+                except User.DoesNotExist:
+                    messages.error(request, f'No se encontró un usuario con el email {email}.')
+            else:
+                messages.error(request, 'Por favor ingresa un email válido.')
+        
+        elif 'remove_caja_user' in request.POST:
+            user_id = request.POST.get('user_id')
+            if user_id:
+                try:
+                    user = User.objects.get(id=user_id)
+                    event.access_caja.remove(user)
+                    messages.success(request, f'Usuario {user.email} removido del acceso de caja exitosamente.')
+                except User.DoesNotExist:
+                    messages.error(request, 'Usuario no encontrado.')
+        
+        # Handle ticket type settings
         for ticket_type_id, settings in request.POST.items():
             if ticket_type_id.startswith('ticket_type_'):
                 try:
@@ -1304,6 +1332,13 @@ def caja_config_view(request, event_slug):
         holder=request.user, event=main_event, owner=request.user
     ).first() if main_event else None
     
+    # Get current caja users (including admins automatically)
+    caja_users = event.access_caja.all().order_by('email')
+    admin_users = event.admins.all().order_by('email')
+    
+    # Combine caja users and admin users, removing duplicates
+    all_caja_users = list(caja_users) + [admin for admin in admin_users if admin not in caja_users]
+    
     context = {
         "event": event,
         "main_event": main_event,
@@ -1314,6 +1349,7 @@ def caja_config_view(request, event_slug):
         "my_ticket": my_ticket.get_dto(user=request.user) if my_ticket else None,
         "now": timezone.now(),
         "ticket_types": ticket_types,
+        "caja_users": all_caja_users,
     }
     
     return render(request, "mi_fuego/caja_config.html", context)
@@ -1403,6 +1439,42 @@ def scanner_events_view(request):
     }
     
     return render(request, "mi_fuego/scanner_events.html", context)
+
+
+@login_required
+def caja_events_view(request):
+    """Show events where the user has caja access"""
+    # Get events where the user has caja access (either as admin or explicit caja access)
+    admin_events = Event.objects.filter(admins=request.user)
+    caja_access_events = Event.objects.filter(access_caja=request.user)
+    
+    # Combine both querysets and remove duplicates
+    caja_events = (admin_events | caja_access_events).distinct().order_by('-is_main', 'name')
+    
+    # Get the main event for context
+    main_event = Event.get_main_event()
+    
+    # Get events where user has tickets, prioritizing main event
+    user_events = Event.get_active_events().filter(
+        newticket__holder=request.user
+    ).distinct().order_by('-is_main', 'name')
+    
+    # Get the first ticket for the main event (for backward compatibility)
+    my_ticket = NewTicket.objects.filter(
+        holder=request.user, event=main_event, owner=request.user
+    ).first() if main_event else None
+    
+    context = {
+        "caja_events": caja_events,
+        "event": main_event,
+        "active_events": user_events,
+        "nav_primary": "caja",
+        "nav_secondary": "caja_events",
+        "my_ticket": my_ticket.get_dto(user=request.user) if my_ticket else None,
+        "now": timezone.now(),
+    }
+    
+    return render(request, "mi_fuego/caja_events.html", context)
 
 
 @login_required
@@ -1623,9 +1695,11 @@ def caja_view(request, event_slug):
     except Event.DoesNotExist:
         raise Http404("Event not found")
     
-    # Check if user is admin of this event
-    if not event.admins.filter(id=request.user.id).exists():
-        return HttpResponseForbidden("You don't have permission to view this event")
+    # Check if user is admin or has caja access for this event
+    has_caja_access = (event.admins.filter(id=request.user.id).exists() or 
+                      event.access_caja.filter(id=request.user.id).exists())
+    if not has_caja_access:
+        return HttpResponseForbidden("You don't have permission to access caja for this event")
     
     # Initialize form
     form = CajaEmitirBonoForm(event)

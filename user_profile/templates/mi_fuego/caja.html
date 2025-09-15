@@ -115,6 +115,12 @@
                                             {% if not ticket_type.ignore_max_amount and event_limits.max_tickets %}
                                                 | Límite evento: {{ event_limits.max_tickets }}
                                             {% endif %}
+                                            {% if ticket_type.ignore_max_amount %}
+                                                <span class="text-warning">
+                                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                                    (puede superar el límite del evento)
+                                                </span>
+                                            {% endif %}
                                         </div>
                                     </div>
                                     <div class="d-flex align-items-center">
@@ -197,7 +203,7 @@
                             <div class="form-text">Marcar esta opción para ventas en puerta (bonos ya usados).</div>
                         </div>
                         
-                        <button type="submit" class="btn btn-success" id="submit-btn">
+                        <button type="submit" class="btn btn-success" id="submit-btn" style="color: white;">
                             <i class="fas fa-plus me-2"></i>
                             <span class="btn-text">Emitir Bonos</span>
                             <span class="btn-loading" style="display: none;">

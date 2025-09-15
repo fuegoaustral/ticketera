@@ -36,13 +36,6 @@
                             </a>
                         </li>
                         <li class="menu-subitem">
-                            <a class="menu-sublink{% if nav_secondary == 'caja_'|add:admin_event.slug %} active{% endif %}"
-                               href="{% url 'caja' admin_event.slug %}">
-                                <i class="fas fa-cash-register me-2"></i>
-                                Caja
-                            </a>
-                        </li>
-                        <li class="menu-subitem">
                             <a class="menu-sublink{% if nav_secondary == 'caja_config_'|add:admin_event.slug %} active{% endif %}"
                                href="{% url 'caja_config' admin_event.slug %}">
                                 <i class="fas fa-cog me-2"></i>
@@ -53,13 +46,23 @@
                             <a class="menu-sublink{% if nav_secondary == 'puerta_admin_'|add:admin_event.slug %} active{% endif %}"
                                href="{% url 'puerta_admin' admin_event.slug %}">
                                 <i class="fas fa-qrcode me-2"></i>
-                                Administrar Scanner
+                                Configuración de Scanner
                             </a>
+                        </li>
+                        <li class="menu-separator">
+                            <hr class="menu-divider">
                         </li>
                         <li class="menu-subitem">
                             <a class="menu-sublink" href="{% url 'scan_tickets_event' admin_event.slug %}">
                                 <i class="fas fa-camera me-2"></i>
-                                Abrir Scanner
+                                Scanner
+                            </a>
+                        </li>
+                        <li class="menu-subitem">
+                            <a class="menu-sublink{% if nav_secondary == 'caja_'|add:admin_event.slug %} active{% endif %}"
+                               href="{% url 'caja' admin_event.slug %}">
+                                <i class="fas fa-cash-register me-2"></i>
+                                Caja
                             </a>
                         </li>
                     </ul>
@@ -145,6 +148,18 @@
         margin: 0;
         margin-left: 1rem;
         margin-top: 0.25rem;
+    }
+    
+    .menu-separator {
+        margin: 0.5rem 0;
+        padding: 0;
+    }
+    
+    .menu-divider {
+        margin: 0;
+        border: none;
+        border-top: 1px solid #e9ecef;
+        opacity: 0.6;
     }
     
     .menu-subitem {

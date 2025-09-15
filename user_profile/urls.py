@@ -15,6 +15,7 @@ from .views import (
     caja_config_view,
     caja_config_ajax,
     scanner_events_view,
+    caja_events_view,
     bonus_report_view,
     caja_view,
     profile_view,
@@ -43,6 +44,7 @@ urlpatterns = [
     path("mis-eventos/<slug:event_slug>/configuracion-caja/", caja_config_view, name="caja_config"),
     path("mis-eventos/<slug:event_slug>/configuracion-caja/ajax/", caja_config_ajax, name="caja_config_ajax"),
     path("scanner/", scanner_events_view, name="scanner_events"),
+    path("cajas/", caja_events_view, name="caja_events"),
     # Event-specific paths
     path("mis-bonos/<slug:event_slug>/volunteering/", volunteering, name="volunteering"),
     path("mis-bonos/<slug:event_slug>/bonos-transferibles/", transferable_tickets_view, name="transferable_tickets"),

@@ -121,6 +121,7 @@
             opacity: 0.5;
         }
         
+        
         .caja-checkbox.loading {
             opacity: 0.6;
             cursor: not-allowed;
@@ -151,6 +152,80 @@
                 </div>
 
                 <!-- Configuration Form -->
+                <!-- Gestión de Acceso a Caja -->
+                <div class="config-card">
+                    <h5 class="mb-4">
+                        <i class="fas fa-users me-2"></i>
+                        Gestión de Acceso a Caja
+                    </h5>
+                    <small class="text-muted">Los administradores del evento tienen acceso automático a caja</small>
+                    
+                    <!-- Agregar usuario -->
+                    <form method="post" class="mb-4">
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col-md-8">
+                                <input type="email" 
+                                       name="email" 
+                                       class="form-control" 
+                                       placeholder="Ingresa el email del usuario" 
+                                       required>
+                            </div>
+                            <div class="col-md-4">
+                                <button type="submit" name="add_caja_user" class="btn btn-success w-100">
+                                    <i class="fas fa-plus me-2"></i>Agregar Usuario
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    
+                    <!-- Lista de usuarios con acceso -->
+                    {% if caja_users %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Email</th>
+                                        <th>Nombre</th>
+                                        <th>Apellido</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for user in caja_users %}
+                                        <tr>
+                                            <td>{{ user.email }}</td>
+                                            <td>{{ user.first_name|default:"-" }}</td>
+                                            <td>{{ user.last_name|default:"-" }}</td>
+                                            <td>
+                                                {% if user not in event.admins.all %}
+                                                    <form method="post" style="display: inline;">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="user_id" value="{{ user.id }}">
+                                                        <button type="submit" name="remove_caja_user" class="btn btn-sm btn-outline-danger">
+                                                            <i class="fas fa-trash"></i> Remover
+                                                        </button>
+                                                    </form>
+                                                {% else %}
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-lock me-1"></i>
+                                                        Admin
+                                                    </small>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-users fa-2x mb-2"></i>
+                            <p>No hay usuarios con acceso a caja configurados.</p>
+                        </div>
+                    {% endif %}
+                </div>
+
                 <div class="config-card">
                     <h5 class="mb-4">
                         <i class="fas fa-ticket-alt me-2"></i>
@@ -166,7 +241,7 @@
                                     <tr>
                                         <th style="text-align: left;">Tipo de Ticket</th>
                                         <th>Mostrar en Caja</th>
-                                        <th>Ignorar Cantidad Máximo</th>
+                                        <th>Ignorar Cantidad Máxima</th>
                                     </tr>
                                 </thead>
                                 <tbody>
