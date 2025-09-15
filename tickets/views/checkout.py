@@ -190,7 +190,15 @@ def order_summary(request, event_slug=None):
         if total_quantity > event.max_tickets_per_order:
             return HttpResponse('Superaste la cantidad máxima de tickets permitida.', status=401)
 
-        if total_quantity > remaining_event_tickets:
+        # Check if any ticket type ignores max amount
+        has_ignore_max_amount = any(
+            ticket_type.ignore_max_amount 
+            for ticket_type in ticket_types 
+            if ticket_selection.get(f'ticket_{ticket_type.id}_quantity', 0) > 0
+        )
+
+        # Only check remaining event tickets if no ticket type ignores max amount
+        if not has_ignore_max_amount and total_quantity > remaining_event_tickets:
             return HttpResponse('No hay suficientes tickets disponibles.', status=400)
 
         with transaction.atomic():
