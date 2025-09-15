@@ -501,6 +501,44 @@
             /* Mobile: Show cards, hide table (already handled by default styles) */
         }
         
+        /* Mobile and tablet styles - hide caja indicators */
+        @media (max-width: 768px) {
+            /* Remove yellow border from caja-issued stat item on mobile/tablet */
+            .stats-grid .stat-item[style*="border-left: 3px solid #ffc107"] {
+                border-left: none !important;
+            }
+            
+            /* Remove yellow border from caja-issued ticket cards on mobile/tablet */
+            .tickets-cards .ticket-card.caja-issued {
+                border-left: none !important;
+            }
+            
+            /* Hide cash register icon on mobile/tablet */
+            .tickets-cards .ticket-type .fas.fa-cash-register {
+                display: none !important;
+            }
+            
+            /* Remove yellow border from caja info group on mobile/tablet */
+            .tickets-cards .info-group[style*="border-left: 3px solid #ffc107"] {
+                border-left: none !important;
+            }
+        }
+        
+        /* Additional mobile-specific styles */
+        @media (max-width: 480px) {
+            /* Force remove any remaining yellow borders on small mobile */
+            .stat-item[style*="border-left: 3px solid #ffc107"],
+            .ticket-card.caja-issued,
+            .info-group[style*="border-left: 3px solid #ffc107"] {
+                border-left: none !important;
+            }
+            
+            /* Force hide cash register icon on small mobile */
+            .fas.fa-cash-register {
+                display: none !important;
+            }
+        }
+        
         @media (max-width: 480px) {
             .stats-grid {
                 grid-template-columns: 1fr;
