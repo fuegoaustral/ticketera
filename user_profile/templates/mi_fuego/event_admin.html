@@ -158,7 +158,7 @@
                     <!-- Stats Grid -->
                     <div class="stats-grid">
                         <div class="stat-item">
-                            <div class="stat-value">{{ stats.tickets_sold }}</div>
+                            <div class="stat-value">{{ stats.regular_tickets_sold|add:stats.caja_tickets_sold }}</div>
                             <div class="stat-label">Tickets Vendidos</div>
                         </div>
                         
@@ -218,7 +218,10 @@
                         </div>
                     {% endif %}
 
-                    <!-- Detailed Summary Table -->
+                    <!-- Ventas Online -->
+                    <div class="my-4">
+                        <h6 class="mb-3"><i class="fas fa-shopping-cart me-2"></i>Ventas Online</h6>
+                    </div>
                     <style>
                         .ticket-type-breakdown {
                             background-color: #f8f9fa;
@@ -254,16 +257,16 @@
                                     <td class="ps-4">
                                         {{ ticket_type.name }}
                                     </td>
-                                    <td class="text-end">{{ ticket_type.quantity_sold }} tickets</td>
-                                    <td class="text-end">${{ ticket_type.gross_amount|floatformat:2 }}</td>
-                                    <td class="text-end">${{ ticket_type.net_amount|floatformat:2 }}</td>
+                                    <td class="text-end">{{ ticket_type.regular_quantity_sold }} bonos</td>
+                                    <td class="text-end">${{ ticket_type.regular_gross_amount|floatformat:2 }}</td>
+                                    <td class="text-end">${{ ticket_type.regular_net_amount|floatformat:2 }}</td>
                                 </tr>
                                 {% endfor %}
                                 <tr>
                                     <td><i class="fas fa-ticket-alt me-2"></i>Ingresos por Entradas</td>
-                                    <td class="text-end">{{ stats.tickets_sold }} tickets</td>
-                                    <td class="text-end">${{ stats.ticket_revenue|floatformat:2 }}</td>
-                                    <td class="text-end">${{ stats.ticket_revenue_net|floatformat:2 }}</td>
+                                    <td class="text-end">{{ stats.regular_tickets_sold }} bonos</td>
+                                    <td class="text-end">${{ stats.regular_ticket_revenue|floatformat:2 }}</td>
+                                    <td class="text-end">${{ stats.regular_ticket_revenue_net|floatformat:2 }}</td>
                                 </tr>
                                 <tr class="separator-row">
                                     <td colspan="4" class="border-0 py-2"></td>
@@ -288,9 +291,9 @@
                                 </tr>
                                 <tr class="highlight-row">
                                     <td><i class="fas fa-calculator me-2"></i><strong>Total Bruto</strong></td>
-                                    <td class="text-end"><strong>{{ stats.total_orders }} órdenes</strong></td>
-                                    <td class="text-end"><strong>${{ stats.total_revenue|floatformat:2 }}</strong></td>
-                                    <td class="text-end"><strong>${{ stats.net_received_amount|floatformat:2 }}</strong></td>
+                                    <td class="text-end"><strong>{{ stats.regular_tickets_sold }} bonos</strong></td>
+                                    <td class="text-end"><strong>${{ stats.regular_total_revenue|floatformat:2 }}</strong></td>
+                                    <td class="text-end"><strong>${{ stats.regular_net_received_amount|floatformat:2 }}</strong></td>
                                 </tr>
                             </tbody>
                         </table>
@@ -310,40 +313,74 @@
                                 <div class="fw-bold">~{{ stats.commission_percentage|floatformat:2 }}%</div>
                             </div>
                         </div>
-                        <hr class="my-3">
-                        <h6 class="mb-2">Desglose por Tipo de Ticket:</h6>
-                        <div class="row mb-3">
-                            {% for ticket_type in ticket_type_breakdown %}
-                            <div class="col-md-4 mb-2">
-                                <small class="text-muted">{{ ticket_type.name }}:</small>
-                                <div>Bruto: ${{ ticket_type.gross_amount|floatformat:2 }}</div>
-                                <div>Comisión: ${{ ticket_type.commission|floatformat:2 }}</div>
-                                <div class="fw-bold">Neto: ${{ ticket_type.net_amount|floatformat:2 }}</div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        <hr class="my-3">
-                        <h6 class="mb-2">Desglose por Donaciones:</h6>
-                        <div class="row">
-                            <div class="col-md-4">
-                                <small class="text-muted">Donaciones Arte:</small>
-                                <div>Bruto: ${{ stats.donations_art|floatformat:2 }}</div>
-                                <div>Comisión: ${{ stats.donations_art_commission|floatformat:2 }}</div>
-                                <div class="fw-bold">Neto: ${{ stats.donations_art_net|floatformat:2 }}</div>
-                            </div>
-                            <div class="col-md-4">
-                                <small class="text-muted">Donaciones Sede:</small>
-                                <div>Bruto: ${{ stats.donations_venue|floatformat:2 }}</div>
-                                <div>Comisión: ${{ stats.donations_venue_commission|floatformat:2 }}</div>
-                                <div class="fw-bold">Neto: ${{ stats.donations_venue_net|floatformat:2 }}</div>
-                            </div>
-                            <div class="col-md-4">
-                                <small class="text-muted">Donaciones Beca:</small>
-                                <div>Bruto: ${{ stats.donations_grant|floatformat:2 }}</div>
-                                <div>Comisión: ${{ stats.donations_grant_commission|floatformat:2 }}</div>
-                                <div class="fw-bold">Neto: ${{ stats.donations_grant_net|floatformat:2 }}</div>
-                            </div>
-                        </div>
+                    </div>
+                    
+                    <!-- Ventas por Caja -->
+                    {% if stats.caja_total_orders > 0 %}
+                    <div class="my-4">
+                        <h6 class="mb-3"><i class="fas fa-cash-register me-2"></i>Ventas por Caja (Efectivo/Transferencia)</h6>
+                    </div>
+                    <div class="summary-table">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Concepto</th>
+                                    <th class="text-end">Cantidad</th>
+                                    <th class="text-end">Monto Bruto</th>
+                                    <th class="text-end">Monto Neto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment_method in caja_payment_method_breakdown %}
+                                <tr>
+                                    <td><i class="fas fa-{% if payment_method.order_type == 'CASH_ONSITE' %}money-bill{% elif payment_method.order_type == 'LOCAL_TRANSFER' %}exchange-alt{% elif payment_method.order_type == 'INTERNATIONAL_TRANSFER' %}globe{% else %}credit-card{% endif %} me-2"></i>{{ payment_method.order_type_display }}</td>
+                                    <td class="text-end">{{ payment_method.tickets_sold }} bonos</td>
+                                    <td class="text-end">${{ payment_method.total_amount|floatformat:2 }}</td>
+                                    <td class="text-end">${{ payment_method.net_amount|floatformat:2 }}</td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="highlight-row">
+                                    <td><strong>Total Caja</strong></td>
+                                    <td class="text-end"><strong>{{ stats.caja_tickets_sold }} bonos</strong></td>
+                                    <td class="text-end"><strong>${{ stats.caja_total_revenue|floatformat:2 }}</strong></td>
+                                    <td class="text-end"><strong>${{ stats.caja_net_received_amount|floatformat:2 }}</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Total General -->
+                    <div class="my-4">
+                        <h6 class="mb-3"><i class="fas fa-calculator me-2"></i>Total General</h6>
+                    </div>
+                    <div class="summary-table">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Concepto</th>
+                                    <th class="text-end">Monto Bruto</th>
+                                    <th class="text-end">Monto Neto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><i class="fas fa-shopping-cart me-2"></i>Ventas Online</td>
+                                    <td class="text-end">${{ stats.regular_total_revenue|floatformat:2 }}</td>
+                                    <td class="text-end">${{ stats.regular_net_received_amount|floatformat:2 }}</td>
+                                </tr>
+                                <tr>
+                                    <td><i class="fas fa-cash-register me-2"></i>Ventas por Caja</td>
+                                    <td class="text-end">${{ stats.caja_total_revenue|floatformat:2 }}</td>
+                                    <td class="text-end">${{ stats.caja_net_received_amount|floatformat:2 }}</td>
+                                </tr>
+                                <tr class="highlight-row">
+                                    <td><strong>TOTAL GENERAL</strong></td>
+                                    <td class="text-end"><strong>${{ stats.regular_total_revenue|add:stats.caja_total_revenue|floatformat:2 }}</strong></td>
+                                    <td class="text-end"><strong>${{ stats.regular_net_received_amount|add:stats.caja_net_received_amount|floatformat:2 }}</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>

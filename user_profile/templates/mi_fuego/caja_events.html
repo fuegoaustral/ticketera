@@ -1,7 +1,7 @@
 {% extends 'tickets/barbu_base.html' %}
 {% load static %}
 
-{% block page_title %}Scanner de Tickets{% endblock %}
+{% block page_title %}Cajas de Eventos{% endblock %}
 
 {% block menu %}{% endblock %}
 
@@ -9,39 +9,39 @@
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
-            {% if scanner_events %}
+            {% if caja_events %}
                 <div class="row">
-                    {% for scanner_event in scanner_events %}
+                    {% for caja_event in caja_events %}
                         <div class="col-md-6 col-lg-4 mb-4">
                             <div class="card h-100">
                                 <div class="card-body d-flex flex-column">
                                     <div class="d-flex align-items-center mb-3">
                                         <div class="flex-shrink-0">
-                                            <div class="scanner-icon">
-                                                <i class="fas fa-qrcode fa-2x text-white"></i>
+                                            <div class="caja-icon">
+                                                <i class="fas fa-cash-register fa-2x text-white"></i>
                                             </div>
                                         </div>
                                         <div class="flex-grow-1 ms-3">
-                                            <h5 class="card-title mb-1">{{ scanner_event.name }}</h5>
+                                            <h5 class="card-title mb-1">{{ caja_event.name }}</h5>
                                             <p class="card-text text-muted small mb-0">
                                                 <i class="fas fa-calendar me-1"></i>
-                                                {{ scanner_event.start|date:"d/m/Y H:i" }}
+                                                {{ caja_event.start|date:"d/m/Y H:i" }}
                                             </p>
                                         </div>
                                     </div>
                                     
-                                    {% if scanner_event.location %}
+                                    {% if caja_event.location %}
                                         <p class="card-text text-muted small mb-3">
                                             <i class="fas fa-map-marker-alt me-1"></i>
-                                            {{ scanner_event.location }}
+                                            {{ caja_event.location }}
                                         </p>
                                     {% endif %}
                                     
                                     <div class="mt-auto">
-                                        <a href="{% url 'scan_tickets_event' scanner_event.slug %}" 
+                                        <a href="{% url 'caja' caja_event.slug %}" 
                                            class="btn btn-success w-100" style="color: white;">
-                                            <i class="fas fa-qrcode me-2"></i>
-                                            Abrir Scanner
+                                            <i class="fas fa-cash-register me-2"></i>
+                                            Abrir Caja
                                         </a>
                                     </div>
                                 </div>
@@ -51,9 +51,9 @@
                 </div>
             {% else %}
                 <div class="text-center py-5">
-                    <i class="fas fa-qrcode fa-4x text-muted mb-4"></i>
-                    <h4 class="text-muted">No tienes acceso al scanner</h4>
-                    <p class="text-muted">No tienes permisos para acceder al scanner de ningún evento.</p>
+                    <i class="fas fa-cash-register fa-4x text-muted mb-4"></i>
+                    <h4 class="text-muted">No tienes acceso a caja</h4>
+                    <p class="text-muted">No tienes permisos para acceder a la caja de ningún evento.</p>
                     <p class="text-muted">Contacta a un administrador de eventos para obtener acceso.</p>
                 </div>
             {% endif %}
@@ -69,21 +69,21 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
-                            <h6>¿Cómo usar el scanner?</h6>
+                            <h6>¿Cómo usar la caja?</h6>
                             <ul class="list-unstyled">
-                                <li><i class="fas fa-check text-success me-2"></i>Selecciona el evento para el que quieres escanear</li>
-                                <li><i class="fas fa-check text-success me-2"></i>Haz clic en "Iniciar Cámara"</li>
-                                <li><i class="fas fa-check text-success me-2"></i>Apunta la cámara al código QR del ticket</li>
-                                <li><i class="fas fa-check text-success me-2"></i>El sistema verificará y marcará el ticket como usado</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Selecciona el evento para el que quieres emitir bonos</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Elige el tipo de bono y la cantidad</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Selecciona el método de pago (efectivo/transferencia)</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Proporciona el email del comprador (opcional)</li>
                             </ul>
                         </div>
                         <div class="col-md-6">
-                            <h6>Información del Ticket</h6>
+                            <h6>Funcionalidades de la Caja</h6>
                             <ul class="list-unstyled">
-                                <li><i class="fas fa-check text-success me-2"></i>Verás el tipo de ticket y el propietario</li>
-                                <li><i class="fas fa-check text-success me-2"></i>Podrás marcar el ticket como usado</li>
-                                <li><i class="fas fa-check text-success me-2"></i>El sistema previene el uso duplicado</li>
-                                <li><i class="fas fa-check text-success me-2"></i>Podrás agregar notas y fotos al ticket</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Emisión de bonos en efectivo o transferencia</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Marcar bonos como usados (venta en puerta)</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Creación automática de cuentas de usuario</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Envío de emails con los bonos emitidos</li>
                             </ul>
                         </div>
                     </div>
@@ -94,7 +94,7 @@
 </div>
 
 <style>
-    .scanner-icon {
+    .caja-icon {
         width: 60px;
         height: 60px;
         background: linear-gradient(135deg, #289e6d, #1e7a5a);
@@ -122,7 +122,7 @@
     }
     
     .btn-success:hover {
-        background: linear-gradient(135deg, #1e7a5a, #155a3e);
+        background: linear-gradient(135deg, #1e7a5a, #155a47);
         transform: translateY(-1px);
     }
 </style>

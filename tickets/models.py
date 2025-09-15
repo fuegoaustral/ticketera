@@ -119,6 +119,8 @@ class TicketType(BaseModel):
     objects = TicketTypeManager()
 
     is_direct_type = models.BooleanField(default=False)
+    show_in_caja = models.BooleanField(default=True)
+    ignore_max_amount = models.BooleanField(default=False)
 
     def get_corresponding_ticket_type(coupon: Coupon):
         return TicketType.objects \
