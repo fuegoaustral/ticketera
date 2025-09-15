@@ -57,7 +57,16 @@ class CajaEmitirBonoForm(forms.Form):
     def __init__(self, event, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Filtrar tipos de ticket solo para este evento y que estén marcados para mostrar en caja
-        self.fields['ticket_type'].queryset = TicketType.objects.filter(event=event, show_in_caja=True)
+        # Si show_in_caja=True, ignorar las fechas desde y hasta
+        from django.utils import timezone
+        from django.db.models import Q
+        
+        self.fields['ticket_type'].queryset = TicketType.objects.filter(
+            event=event, 
+            show_in_caja=True
+        ).filter(
+            Q(ticket_count__gt=0) | Q(ticket_count__isnull=True)
+        )
     
     def clean_email(self):
         email = self.cleaned_data.get('email')
