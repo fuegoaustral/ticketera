@@ -345,6 +345,7 @@ class DirectTicketTemplateAdmin(ImportExportModelAdmin, ExportActionMixin):
         return DirectTicketTemplateExportResource
 
 
+@admin.register(TicketType)
 class TicketTypeAdmin(admin.ModelAdmin):
     list_display = ['name', 'event', 'price', 'is_direct_type', 'show_in_caja', 'ignore_max_amount', 'ticket_count', 'date_from', 'date_to']
     list_filter = ['event__name', 'is_direct_type', 'show_in_caja', 'ignore_max_amount']
@@ -464,7 +465,6 @@ class TicketPhotoAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Order, OrderAdmin)
-admin.site.register(TicketType, TicketTypeAdmin)
 admin.site.register(NewTicket, NewTicketAdmin)
 admin.site.register(NewTicketTransfer)
 admin.site.register(TicketPhoto, TicketPhotoAdmin)
