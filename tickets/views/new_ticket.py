@@ -153,6 +153,9 @@ def assign_ticket(request, ticket_key):
     if not (ticket.holder == request.user and ticket.owner == None):
         return HttpResponseForbidden('Not authorized')
 
+    if ticket.is_used:
+        return HttpResponseBadRequest('Cannot assign a used ticket')
+
     if not ticket.event.transfer_period():
         return HttpResponseBadRequest('Transfer period has ended')
 
@@ -181,6 +184,9 @@ def unassign_ticket(request, ticket_key):
 
     if not (ticket.holder == request.user and ticket.owner == request.user):
         return HttpResponseForbidden()
+
+    if ticket.is_used:
+        return HttpResponseBadRequest('Cannot unassign a used ticket')
 
     if not ticket.event.transfer_period():
         return HttpResponseBadRequest('')

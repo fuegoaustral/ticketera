@@ -468,7 +468,7 @@ class EventAdmin(admin.ModelAdmin):
             'results': results,
             'columns': columns,
             'opts': self.model._meta,
-            'title': 'Reporte de Tickets Vendidos - Eventos Activos'
+            'title': 'Reporte de Bonos Vendidos - Eventos Activos'
         }
         
         return render(request, 'admin/events/tickets_sold_report.html', context)

@@ -3,15 +3,23 @@
 {% load humanize %}
 {% load ticket_filters %}
 {% block actions %}
-    {% if has_available_tickets %}
-        {% if has_multiple_events %}
-            <a class="nav-link" href="/eventos">Otros eventos</a>
-        {% else %}
-            <a class="btn btn-primary" href="{% url "select_tickets" %}">Adquirir Bonos</a>
-        {% endif %}
-    {% endif %}
+
 {% endblock actions %}
 {% block truecontent %}
+
+    <!-- No bonos section - always at the top -->
+    <div class="card text-center mb-4">
+        <div class="card-body d-flex justify-content-between flex-column align-items-center main-card-spacing gap-4">
+            <h3>No tenés bonos de eventos anteriores</h3>
+            {% if has_available_tickets %}
+                {% if has_multiple_events %}
+                    <a class="btn btn-primary" href="/eventos">Ver eventos</a>
+                {% else %}
+                    <a class="btn btn-primary" href="{% url "select_tickets" %}">Adquirir Bonos</a>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
 
     <style>
         .tickets-container {
@@ -118,22 +126,7 @@
         }
     </style>
 
-    {% if not past_tickets_by_event %}
-        <div class="truecontent">
-            <div class="card text-center mx-extra">
-                <div class="card-body d-flex justify-content-between flex-column align-items-center main-card-spacing gap-4">
-                    <h3>No tenés bonos de eventos anteriores</h3>
-                    {% if has_available_tickets %}
-                        {% if has_multiple_events %}
-                            <a class="nav-link" href="/eventos">Otros eventos</a>
-                        {% else %}
-                            <a class="btn btn-primary" href="{% url "select_tickets" %}">Adquirir Bonos</a>
-                        {% endif %}
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    {% else %}
+    {% if past_tickets_by_event %}
         <div class="alert alert-info text-start mb-4">
             <div class="d-flex align-items-center gap-2">
                 <i class="fas fa-info-circle"></i>

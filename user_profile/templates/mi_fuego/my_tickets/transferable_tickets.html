@@ -8,7 +8,7 @@
           <h3>No tenés bonos adicionales</h3>
             {% if has_available_tickets %}
               {% if has_multiple_events %}
-                  <a class="nav-link" href="/eventos">Otros eventos</a>
+                  <a class="nav-link" href="/eventos">Eventos</a>
               {% else %}
                   <a class="btn btn-primary" href="{% url "select_tickets" %}">Adquirir Bonos</a>
               {% endif %}

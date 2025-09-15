@@ -1230,3 +1230,83 @@ def bonus_report_view(request, event_slug):
     }
     
     return render(request, "mi_fuego/bonus_report.html", context)
+
+
+@login_required
+def my_tickets_ajax(request, event_slug=None):
+    """AJAX endpoint to get updated ticket status for auto-refresh"""
+    from django.utils import timezone
+    
+    # If event_slug is provided, get tickets for that specific event
+    if event_slug:
+        # Special case: if slug is "eventos-anteriores", return empty for now
+        if event_slug == "eventos-anteriores":
+            return JsonResponse({"tickets": []})
+        
+        try:
+            current_event = Event.get_by_slug(event_slug)
+            if not current_event:
+                return JsonResponse({"error": "Event not found"}, status=404)
+                
+            # Get tickets for this specific event
+            all_tickets = NewTicket.objects.filter(
+                holder=request.user, 
+                event=current_event
+            ).order_by("owner").all()
+            
+            # Also get tickets that were transferred from this user (completed transfers)
+            from tickets.models import NewTicketTransfer
+            transferred_tickets = NewTicketTransfer.objects.filter(
+                tx_from=request.user,
+                status='COMPLETED',
+                ticket__event=current_event
+            ).select_related('ticket').all()
+            
+            # Add transferred tickets to the list
+            for transfer in transferred_tickets:
+                if transfer.ticket not in all_tickets:
+                    all_tickets = list(all_tickets) + [transfer.ticket]
+            
+            # Get the first ticket for this event (for backward compatibility)
+            my_ticket = NewTicket.objects.filter(
+                holder=request.user, event=current_event, owner=request.user
+            ).first()
+            
+            # Get the last update time from request to detect changes
+            last_update = request.GET.get('last_update')
+            last_update_time = None
+            if last_update:
+                try:
+                    from django.utils.dateparse import parse_datetime
+                    last_update_time = parse_datetime(last_update)
+                except:
+                    last_update_time = None
+            
+            # Organize tickets for this event
+            tickets_dto = []
+            for ticket in all_tickets:
+                ticket_dto = ticket.get_dto(user=request.user)
+                
+                # Add initial state information
+                ticket_dto['is_used'] = ticket.is_used
+                ticket_dto['used_at'] = ticket.used_at.isoformat() if ticket.used_at else None
+                    
+                tickets_dto.append(ticket_dto)
+            
+            return JsonResponse({
+                "tickets": tickets_dto,
+                "event": {
+                    "name": current_event.name,
+                    "slug": current_event.slug,
+                    "transfers_enabled_until": current_event.transfers_enabled_until.isoformat() if current_event.transfers_enabled_until else None,
+                    "attendee_must_be_registered": current_event.attendee_must_be_registered,
+                },
+                "now": timezone.now().isoformat(),
+                "is_volunteer": my_ticket.is_volunteer() if my_ticket else False,
+            })
+            
+        except Event.DoesNotExist:
+            return JsonResponse({"error": "Event not found"}, status=404)
+    
+    # If no event_slug, return error
+    return JsonResponse({"error": "Event slug required"}, status=400)

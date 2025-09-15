@@ -17,6 +17,7 @@ from .views import (
     profile_view,
     send_phone_code_ajax,
     verify_phone_code_ajax,
+    my_tickets_ajax,
 )
 
 urlpatterns = [
@@ -41,6 +42,8 @@ urlpatterns = [
     path("mis-bonos/<slug:event_slug>/bonos-transferibles/", transferable_tickets_view, name="transferable_tickets"),
     # Event-specific ticket views (after specific paths)
     path("mis-bonos/<slug:event_slug>/", my_ticket_view, name="my_ticket_event"),
+    # AJAX endpoint for auto-refresh
+    path("mis-bonos/<slug:event_slug>/ajax/", my_tickets_ajax, name="my_tickets_ajax"),
     # Default redirect (no slug) - MUST BE LAST
     path("mis-bonos/", my_ticket_view, name="my_ticket"),
 ]
