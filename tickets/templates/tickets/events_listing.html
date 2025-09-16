@@ -34,7 +34,7 @@
                                     
                                     {% if event.description %}
                                         <div class="card-text text-muted mb-4">
-                                            {{ event.description|striptags|truncatewords:30 }}
+                                            {{ event.description|striptags|safe|truncatewords:30 }}
                                         </div>
                                     {% endif %}
                                     
@@ -128,7 +128,7 @@
     background-color: #f8f9fa;
     padding: 1.5rem;
     border-radius: 10px;
-    border-left: 4px solid #007bff;
+    border-left: 4px solid #28a745;
 }
 
 .event-card .event-details i {
