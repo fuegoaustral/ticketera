@@ -6,7 +6,7 @@
     <div class="row justify-content-center">
         <div class="col-12">
             <div class="text-center mb-5">
-                <h1 class="display-4 mb-3">Eventos Disponibles</h1>
+                <h1 class="display-4 my-3">Eventos Disponibles</h1>
                 <p class="lead text-muted">Descubre todos los eventos activos de Fuego Austral</p>
             </div>
             
@@ -20,10 +20,10 @@
                                     <img src="{{ event.header_image.url }}" 
                                          class="card-img-top" 
                                          alt="{{ event.name }}"
-                                         style="height: 250px; object-fit: cover;">
+                                         style="height: 150px; object-fit: contain; background-color: #f8f9fa;">
                                 {% else %}
                                     <div class="card-img-top bg-primary d-flex align-items-center justify-content-center" 
-                                         style="height: 250px;">
+                                         style="height: 150px;">
                                         <i class="fas fa-calendar-alt text-white" style="font-size: 3rem;"></i>
                                     </div>
                                 {% endif %}
@@ -34,7 +34,7 @@
                                     
                                     {% if event.description %}
                                         <div class="card-text text-muted mb-4">
-                                            {{ event.description|striptags|truncatewords:30 }}
+                                            {{ event.description|striptags|safe|truncatewords:30 }}
                                         </div>
                                     {% endif %}
                                     
@@ -128,7 +128,7 @@
     background-color: #f8f9fa;
     padding: 1.5rem;
     border-radius: 10px;
-    border-left: 4px solid #007bff;
+    border-left: 4px solid #28a745;
 }
 
 .event-card .event-details i {
@@ -151,7 +151,7 @@
     }
     
     .event-card .card-img-top {
-        height: 200px !important;
+        height: 120px !important;
     }
     
     .event-card .btn {
@@ -166,7 +166,7 @@
 
 @media (min-width: 769px) {
     .event-card .card-img-top {
-        height: 250px !important;
+        height: 150px !important;
     }
 }
 </style>
