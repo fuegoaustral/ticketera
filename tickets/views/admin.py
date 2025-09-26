@@ -38,13 +38,13 @@ def scan_tickets_event(request, event_slug):
     with connection.cursor() as cursor:
         query = """
             SELECT 
-                -- Total tickets sold (from both orderticket and newticket tables)
-                COALESCE(SUM(tot.quantity), 0) as tickets_sold,
+                -- Total tickets sold (from newticket table to include all tickets)
+                COUNT(DISTINCT nt.id) as tickets_sold,
                 COALESCE(SUM(CASE WHEN nt.is_used = true THEN 1 ELSE 0 END), 0) as tickets_used,
                 -- Caja orders (generated_by_admin_user_id is not null)
-                COALESCE(SUM(CASE WHEN too.generated_by_admin_user_id IS NOT NULL THEN (COALESCE(tot.quantity, 0) + COALESCE(CASE WHEN nt.id IS NOT NULL THEN 1 ELSE 0 END, 0)) ELSE 0 END), 0) as caja_tickets_sold,
-                -- Regular orders (generated_by_admin_user_id is null) - only from orderticket table
-                COALESCE(SUM(CASE WHEN too.generated_by_admin_user_id IS NULL THEN tot.quantity ELSE 0 END), 0) as regular_tickets_sold
+                COUNT(DISTINCT CASE WHEN too.generated_by_admin_user_id IS NOT NULL THEN nt.id END) as caja_tickets_sold,
+                -- Regular orders (generated_by_admin_user_id is null) - only from newticket table
+                COUNT(DISTINCT CASE WHEN too.generated_by_admin_user_id IS NULL THEN nt.id END) as regular_tickets_sold
             FROM tickets_order too
             LEFT JOIN tickets_orderticket tot ON too.id = tot.order_id
             LEFT JOIN tickets_newticket nt ON too.id = nt.order_id
@@ -55,7 +55,7 @@ def scan_tickets_event(request, event_slug):
     
     # Calculate percentage used
     percentage_used = 0
-    total_tickets = (result[2] or 0) + (result[3] or 0)  # caja_tickets_sold + regular_tickets_sold
+    total_tickets = result[0] or 0  # tickets_sold (already includes both regular and caja)
     tickets_used = result[1] or 0
     if total_tickets > 0:
         percentage_used = (tickets_used / total_tickets) * 100
@@ -87,13 +87,13 @@ def event_stats_api(request, event_slug):
     with connection.cursor() as cursor:
         query = """
             SELECT 
-                -- Total tickets sold (from both orderticket and newticket tables)
-                COALESCE(SUM(tot.quantity), 0) as tickets_sold,
+                -- Total tickets sold (from newticket table to include all tickets)
+                COUNT(DISTINCT nt.id) as tickets_sold,
                 COALESCE(SUM(CASE WHEN nt.is_used = true THEN 1 ELSE 0 END), 0) as tickets_used,
                 -- Caja orders (generated_by_admin_user_id is not null)
-                COALESCE(SUM(CASE WHEN too.generated_by_admin_user_id IS NOT NULL THEN (COALESCE(tot.quantity, 0) + COALESCE(CASE WHEN nt.id IS NOT NULL THEN 1 ELSE 0 END, 0)) ELSE 0 END), 0) as caja_tickets_sold,
-                -- Regular orders (generated_by_admin_user_id is null) - only from orderticket table
-                COALESCE(SUM(CASE WHEN too.generated_by_admin_user_id IS NULL THEN tot.quantity ELSE 0 END), 0) as regular_tickets_sold
+                COUNT(DISTINCT CASE WHEN too.generated_by_admin_user_id IS NOT NULL THEN nt.id END) as caja_tickets_sold,
+                -- Regular orders (generated_by_admin_user_id is null) - only from newticket table
+                COUNT(DISTINCT CASE WHEN too.generated_by_admin_user_id IS NULL THEN nt.id END) as regular_tickets_sold
             FROM tickets_order too
             LEFT JOIN tickets_orderticket tot ON too.id = tot.order_id
             LEFT JOIN tickets_newticket nt ON too.id = nt.order_id
@@ -104,7 +104,7 @@ def event_stats_api(request, event_slug):
     
     # Calculate percentage used
     percentage_used = 0
-    total_tickets = (result[2] or 0) + (result[3] or 0)  # caja_tickets_sold + regular_tickets_sold
+    total_tickets = result[0] or 0  # tickets_sold (already includes both regular and caja)
     tickets_used = result[1] or 0
     if total_tickets > 0:
         percentage_used = (tickets_used / total_tickets) * 100
