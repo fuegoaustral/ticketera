@@ -62,4 +62,6 @@ urlpatterns = [
     path('api/tickets/<str:ticket_key>/update-notes/', admin.update_ticket_notes, name='update_ticket_notes'),
     path('api/tickets/<str:ticket_key>/delete-photo/', admin.delete_ticket_photo, name='delete_ticket_photo'),
     path('api/events/<slug:event_slug>/stats/', admin.event_stats_api, name='event_stats_api'),
+    path('api/events/<slug:event_slug>/increment-attendees-left/', admin.increment_attendees_left, name='increment_attendees_left'),
+    path('api/events/<slug:event_slug>/decrement-attendees-left/', admin.decrement_attendees_left, name='decrement_attendees_left'),
 ]

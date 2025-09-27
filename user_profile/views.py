@@ -838,7 +838,7 @@ def event_admin_view(request, event_slug):
     with connection.cursor() as cursor:
         query = """
             SELECT 
-                -- Total tickets: count from newticket table to include all tickets
+                -- Total tickets: count from newticket table, including ALL tickets for accurate statistics
                 COUNT(DISTINCT nt.id) as tickets_sold,
                 -- Get amounts from orders without duplication
                 (SELECT COALESCE(SUM(amount - COALESCE(donation_art, 0) - COALESCE(donation_venue, 0) - COALESCE(donation_grant, 0)), 0) FROM tickets_order WHERE event_id = %s AND status = 'CONFIRMED') as ticket_revenue,
@@ -863,6 +863,7 @@ def event_admin_view(request, event_slug):
             FROM tickets_order too
             LEFT JOIN tickets_orderticket tot ON too.id = tot.order_id
             LEFT JOIN tickets_newticket nt ON too.id = nt.order_id
+            LEFT JOIN tickets_tickettype tt ON nt.ticket_type_id = tt.id
             WHERE too.event_id = %s AND too.status = 'CONFIRMED'
         """
         cursor.execute(query, [event.id] * 12 + [event.id])
@@ -1131,6 +1132,11 @@ def event_admin_view(request, event_slug):
             "donations_art_net": donations_art_net,
             "donations_venue_net": donations_venue_net,
             "donations_grant_net": donations_grant_net,
+            # Venue occupancy statistics
+            "venue_occupancy": event.venue_occupancy,
+            "venue_capacity": event.venue_capacity,
+            "occupancy_percentage": event.occupancy_percentage,
+            "attendees_left": event.attendees_left,
             # Caja orders data - use calculated totals from payment method breakdown
             "caja_tickets_sold": caja_payment_method_tickets_sold,
             "caja_ticket_revenue": result[9] or 0,
@@ -1821,11 +1827,12 @@ def caja_view(request, event_slug):
                     ticket_data = []
                     validation_errors = []
                     
-                    # Get current ticket counts for the event
+                    # Get current ticket counts for the event (only from ticket types that don't ignore max amount)
                     from django.db.models import Count
                     current_tickets_sold = NewTicket.objects.filter(
                         event=event,
-                        order__status=Order.OrderStatus.CONFIRMED
+                        order__status=Order.OrderStatus.CONFIRMED,
+                        ticket_type__ignore_max_amount=False
                     ).count()
                     
                     for i, ticket_type_id in enumerate(ticket_types):
@@ -1989,7 +1996,7 @@ def caja_view(request, event_slug):
     with connection.cursor() as cursor:
         query = """
             SELECT 
-                -- Total tickets sold (from newticket table to include all tickets)
+                -- Total tickets sold (from newticket table, including ALL tickets for accurate statistics)
                 COUNT(DISTINCT nt.id) as tickets_sold,
                 COALESCE(SUM(CASE WHEN nt.is_used = true THEN 1 ELSE 0 END), 0) as tickets_used,
                 COUNT(DISTINCT too.id) as total_orders,
@@ -2015,6 +2022,7 @@ def caja_view(request, event_slug):
             FROM tickets_order too
             LEFT JOIN tickets_orderticket tot ON too.id = tot.order_id
             LEFT JOIN tickets_newticket nt ON too.id = nt.order_id
+            LEFT JOIN tickets_tickettype tt ON nt.ticket_type_id = tt.id
             WHERE too.event_id = %s AND too.status = 'CONFIRMED'
         """
         cursor.execute(query, [event.id])
@@ -2072,6 +2080,11 @@ def caja_view(request, event_slug):
             "donations_venue": result[6] or Decimal('0'),
             "donations_grant": result[7] or Decimal('0'),
             "total_donations": result[8] or Decimal('0'),
+            # Venue occupancy statistics
+            "venue_occupancy": event.venue_occupancy,
+            "venue_capacity": event.venue_capacity,
+            "occupancy_percentage": event.occupancy_percentage,
+            "attendees_left": event.attendees_left,
             "caja_tickets_sold": result[9] or 0,
             "caja_ticket_revenue": result[10] or Decimal('0'),
             "caja_total_revenue": result[11] or Decimal('0'),
