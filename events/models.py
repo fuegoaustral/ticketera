@@ -45,6 +45,10 @@ class Event(BaseModel):
     admins = models.ManyToManyField(User, blank=True, related_name='admin_events', help_text="Users who can administer this event")
     access_scanner = models.ManyToManyField(User, blank=True, related_name='scanner_events', help_text="Users who can access the scanner for this event")
     access_caja = models.ManyToManyField(User, blank=True, related_name='caja_events', help_text="Users who can access the caja for this event")
+    
+    # Venue capacity and occupancy tracking
+    venue_capacity = models.PositiveIntegerField(null=True, blank=True, help_text="Maximum venue capacity (optional)")
+    attendees_left = models.PositiveIntegerField(default=0, help_text="Number of attendees who have left the venue")
 
     class Meta:
         constraints = [
@@ -78,8 +82,10 @@ class Event(BaseModel):
         from tickets.models import Order
 
         if self.max_tickets:
+            # Only count tickets from ticket types that don't ignore max amount
             tickets_sold = (Order.objects
                             .filter(order_tickets__ticket_type__event=self)
+                            .filter(order_tickets__ticket_type__ignore_max_amount=False)
                             .filter(status=Order.OrderStatus.CONFIRMED)
                             .annotate(num_tickets=Sum('order_tickets__quantity'))
                             .aggregate(tickets_sold=Sum('num_tickets'))
@@ -146,6 +152,23 @@ class Event(BaseModel):
             return cls.objects.get(slug=slug, active=True)
         except cls.DoesNotExist:
             return None
+
+    @property
+    def venue_occupancy(self):
+        """Calculate current venue occupancy as used tickets minus attendees who left"""
+        from tickets.models import NewTicket
+        used_tickets = NewTicket.objects.filter(
+            event=self, 
+            is_used=True
+        ).count()
+        return max(0, used_tickets - self.attendees_left)
+
+    @property
+    def occupancy_percentage(self):
+        """Calculate venue occupancy percentage"""
+        if self.venue_capacity and self.venue_capacity > 0:
+            return (self.venue_occupancy / self.venue_capacity) * 100
+        return 0
 
 
 auditlog.register(Event)

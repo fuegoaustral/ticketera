@@ -38,7 +38,7 @@ def scan_tickets_event(request, event_slug):
     with connection.cursor() as cursor:
         query = """
             SELECT 
-                -- Total tickets sold (from newticket table to include all tickets)
+                -- Total tickets sold (from newticket table, including ALL tickets for scanner display)
                 COUNT(DISTINCT nt.id) as tickets_sold,
                 COALESCE(SUM(CASE WHEN nt.is_used = true THEN 1 ELSE 0 END), 0) as tickets_used,
                 -- Caja orders (generated_by_admin_user_id is not null)
@@ -48,6 +48,7 @@ def scan_tickets_event(request, event_slug):
             FROM tickets_order too
             LEFT JOIN tickets_orderticket tot ON too.id = tot.order_id
             LEFT JOIN tickets_newticket nt ON too.id = nt.order_id
+            LEFT JOIN tickets_tickettype tt ON nt.ticket_type_id = tt.id
             WHERE too.event_id = %s AND too.status = 'CONFIRMED'
         """
         cursor.execute(query, [event.id])
@@ -87,7 +88,7 @@ def event_stats_api(request, event_slug):
     with connection.cursor() as cursor:
         query = """
             SELECT 
-                -- Total tickets sold (from newticket table to include all tickets)
+                -- Total tickets sold (from newticket table, including ALL tickets for scanner display)
                 COUNT(DISTINCT nt.id) as tickets_sold,
                 COALESCE(SUM(CASE WHEN nt.is_used = true THEN 1 ELSE 0 END), 0) as tickets_used,
                 -- Caja orders (generated_by_admin_user_id is not null)
@@ -97,6 +98,7 @@ def event_stats_api(request, event_slug):
             FROM tickets_order too
             LEFT JOIN tickets_orderticket tot ON too.id = tot.order_id
             LEFT JOIN tickets_newticket nt ON too.id = nt.order_id
+            LEFT JOIN tickets_tickettype tt ON nt.ticket_type_id = tt.id
             WHERE too.event_id = %s AND too.status = 'CONFIRMED'
         """
         cursor.execute(query, [event.id])
@@ -114,6 +116,10 @@ def event_stats_api(request, event_slug):
         'tickets_used': tickets_used,
         'total_tickets': total_tickets,
         'percentage_used': percentage_used,
+        'venue_capacity': event.venue_capacity,
+        'venue_occupancy': event.venue_occupancy,
+        'attendees_left': event.attendees_left,
+        'occupancy_percentage': event.occupancy_percentage,
     })
 
 def check_ticket_public(request, ticket_key):
@@ -226,14 +232,89 @@ def mark_ticket_used(request, ticket_key):
             ],
             'owner_name': f"{ticket.owner.first_name} {ticket.owner.last_name}" if ticket.owner else "Sin asignar",
             'user_info': {
-                'first_name': ticket.holder.first_name,
-                'last_name': ticket.holder.last_name,
-                'document_type': ticket.holder.profile.document_type,
-                'document_number': ticket.holder.profile.document_number
+                'first_name': ticket.holder.first_name if ticket.holder else None,
+                'last_name': ticket.holder.last_name if ticket.holder else None,
+                'email': ticket.holder.email if ticket.holder else None
             } if ticket.holder else None
         })
-    except ObjectDoesNotExist:
+    except NewTicket.DoesNotExist:
         return JsonResponse({'error': 'Bono no encontrado'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def increment_attendees_left(request, event_slug):
+    """Increment attendees left counter when someone leaves"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    
+    try:
+        from events.models import Event
+        event = Event.objects.get(slug=event_slug)
+        
+        # Check if user has scanner access for this event
+        if not has_scanner_access(request.user, event):
+            return JsonResponse({'error': 'No tienes permisos para acceder al scanner de este evento'}, status=403)
+        
+        # Check if event has venue capacity tracking enabled
+        if event.venue_capacity is None:
+            return JsonResponse({'error': 'Este evento no tiene capacidad de venue configurada'}, status=400)
+        
+        # Increment attendees left counter
+        event.attendees_left += 1
+        event.save(update_fields=['attendees_left'])
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Contador de salidas incrementado exitosamente',
+            'venue_occupancy': event.venue_occupancy,
+            'venue_capacity': event.venue_capacity,
+            'attendees_left': event.attendees_left,
+            'occupancy_percentage': event.occupancy_percentage
+        })
+            
+    except Event.DoesNotExist:
+        return JsonResponse({'error': 'Evento no encontrado'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def decrement_attendees_left(request, event_slug):
+    """Decrement attendees left counter when someone returns"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    
+    try:
+        from events.models import Event
+        event = Event.objects.get(slug=event_slug)
+        
+        # Check if user has scanner access for this event
+        if not has_scanner_access(request.user, event):
+            return JsonResponse({'error': 'No tienes permisos para acceder al scanner de este evento'}, status=403)
+        
+        # Check if event has venue capacity tracking enabled
+        if event.venue_capacity is None:
+            return JsonResponse({'error': 'Este evento no tiene capacidad de venue configurada'}, status=400)
+        
+        # Check if there are attendees left to decrement
+        if event.attendees_left <= 0:
+            return JsonResponse({'error': 'No hay asistentes que hayan salido para que regresen'}, status=400)
+        
+        # Decrement attendees left counter
+        event.attendees_left -= 1
+        event.save(update_fields=['attendees_left'])
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Contador de salidas decrementado exitosamente',
+            'venue_occupancy': event.venue_occupancy,
+            'venue_capacity': event.venue_capacity,
+            'attendees_left': event.attendees_left,
+            'occupancy_percentage': event.occupancy_percentage
+        })
+            
+    except Event.DoesNotExist:
+        return JsonResponse({'error': 'Evento no encontrado'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
