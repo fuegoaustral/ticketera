@@ -71,6 +71,50 @@
             </div>
             {% endif %}
             
+            <!-- Venue Occupancy Statistics -->
+            {% if event.venue_capacity %}
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card border-0 bg-info bg-opacity-10">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    <div class="h6 mb-1 text-info">{{ stats.venue_occupancy }} / {{ stats.venue_capacity }}</div>
+                                    <div class="small text-muted">Ocupación del Venue (Usados - Salidas)</div>
+                                </div>
+                                <div class="text-end">
+                                    <i class="fas fa-users fa-2x text-info"></i>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="small text-muted">Ocupación</span>
+                                    <span class="small fw-bold">{{ stats.occupancy_percentage|floatformat:1 }}%</span>
+                                </div>
+                                <div class="progress mb-2" role="progressbar" 
+                                     aria-label="Ocupación del venue" 
+                                     aria-valuenow="{{ stats.occupancy_percentage }}" 
+                                     aria-valuemin="0" aria-valuemax="100">
+                                    <div class="progress-bar bg-info" 
+                                         style="width: {{ stats.occupancy_percentage|floatformat:0 }}% !important; --bar-width: {{ stats.occupancy_percentage|floatformat:0 }}%; min-width: 0; flex: none;">
+                                        {{ stats.occupancy_percentage|floatformat:1 }}%
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-between text-muted">
+                                    <small>{{ stats.venue_occupancy }} ocupado</small>
+                                    <small>{{ stats.venue_capacity }} capacidad</small>
+                                </div>
+                                <div class="d-flex justify-content-between text-muted mt-1">
+                                    <small>{{ stats.attendees_left }} salieron</small>
+                                    <small>{{ stats.venue_occupancy|add:stats.attendees_left }} usados</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
             <div class="card">
                 <div class="card-body">
                     <!-- Lista de precios de bonos disponibles -->

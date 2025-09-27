@@ -204,19 +204,60 @@
                                 <small>{{ event.max_tickets }} máximo</small>
                             </div>
                         </div>
-                        
-                        <!-- Alert sobre números aproximados -->
-                        <div class="alert alert-info mt-3 mb-0">
-                            <div class="d-flex align-items-start">
-                                <i class="fas fa-info-circle me-2 mt-1"></i>
-                                <div>
-                                    <strong>Información importante:</strong> Estos números son aproximados y tienen fines de referencia únicamente. 
-                                    Los montos finales exactos, incluyendo comisiones de MercadoPago, impuestos y otros gastos, 
-                                    se determinarán mediante la conciliación al finalizar el evento.
+                    {% endif %}
+                    
+                    <!-- Venue Occupancy Statistics -->
+                    {% if event.venue_capacity %}
+                        <div class="stats-card">
+                            <h5 class="mb-3">
+                                <i class="fas fa-users me-2"></i>
+                                Ocupación del Venue
+                            </h5>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="stat-item">
+                                        <div class="stat-value">{{ stats.venue_occupancy }} / {{ stats.venue_capacity }}</div>
+                                        <div class="stat-label">Ocupación Actual</div>
+                                    </div>
                                 </div>
+                                <div class="col-md-6">
+                                    <div class="stat-item">
+                                        <div class="stat-value">{{ stats.occupancy_percentage|floatformat:1 }}%</div>
+                                        <div class="stat-label">Porcentaje de Ocupación</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="progress mb-2" role="progressbar" 
+                                 aria-label="Ocupación del venue" 
+                                 aria-valuenow="{{ stats.occupancy_percentage }}" 
+                                 aria-valuemin="0" aria-valuemax="100">
+                                <div class="progress-bar bg-info" 
+                                     style="width: {{ stats.occupancy_percentage|floatformat:0 }}% !important; --bar-width: {{ stats.occupancy_percentage|floatformat:0 }}%; min-width: 0; flex: none;">
+                                    {{ stats.occupancy_percentage|floatformat:1 }}%
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between text-muted">
+                                <small>{{ stats.venue_occupancy }} ocupado</small>
+                                <small>{{ stats.venue_capacity }} capacidad</small>
+                            </div>
+                            <div class="d-flex justify-content-between text-muted mt-1">
+                                <small>{{ stats.attendees_left }} salieron</small>
+                                <small>{{ stats.venue_occupancy|add:stats.attendees_left }} usados</small>
                             </div>
                         </div>
                     {% endif %}
+                        
+                    <!-- Alert sobre números aproximados -->
+                    <div class="alert alert-info mt-3 mb-0">
+                        <div class="d-flex align-items-start">
+                            <i class="fas fa-info-circle me-2 mt-1"></i>
+                            <div>
+                                <strong>Información importante:</strong> Estos números son aproximados y tienen fines de referencia únicamente. 
+                                Los montos finales exactos, incluyendo comisiones de MercadoPago, impuestos y otros gastos, 
+                                se determinarán mediante la conciliación al finalizar el evento.
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Ventas Online -->
                     <div class="my-4">
