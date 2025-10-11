@@ -1,0 +1,350 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% load static %}
+
+{% block extrahead %}
+    <!-- CKEditor5 CSS -->
+    <link rel="stylesheet" href="{% static 'django_ckeditor_5/dist/styles.css' %}">
+    <link rel="stylesheet" href="{% static 'django_ckeditor_5/src/override-django.css' %}">
+{% endblock %}
+
+{% block submenu %}
+    {% include 'mi_fuego/partials/event_admin_menu.html' %}
+{% endblock %}
+
+{% block truecontent %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1">
+                        <i class="fas fa-cog me-2"></i>
+                        Configuración del Evento
+                    </h1>
+                    <p class="text-muted mb-0">Gestiona la configuración de {{ event.name }}</p>
+                </div>
+            </div>
+
+            <!-- Messages -->
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <!-- Event Management Form -->
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <!-- Hidden field for slug -->
+                <input type="hidden" name="slug" id="slug-hidden" value="{{ event.slug }}">
+                
+                <!-- Basic Information -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Información Básica
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.name.id_for_label }}" class="form-label">Nombre del Evento</label>
+                                    <input type="text" name="{{ form.name.name }}" value="{{ form.name.value|default:'' }}" class="form-control" id="event-name" required>
+                                    {% if form.name.errors %}
+                                        <div class="text-danger">{{ form.name.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group mb-3">
+                                    <label class="form-label">Slug (URL)</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">/eventos/</span>
+                                        <input type="text" id="event-slug" class="form-control" value="{{ event.slug }}" style="background-color: #f8f9fa;">
+                                    </div>
+                                    <small class="form-text text-muted">Se genera automáticamente desde el nombre</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">Descripción</label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                                <div class="text-danger">{{ form.description.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Location and Dates -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-map-marker-alt me-2"></i>
+                            Ubicación y Fechas
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.location.id_for_label }}" class="form-label">Dirección</label>
+                                    {{ form.location }}
+                                    {% if form.location.errors %}
+                                        <div class="text-danger">{{ form.location.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.location_url.id_for_label }}" class="form-label">URL de Ubicación</label>
+                                    {{ form.location_url }}
+                                    <small class="form-text text-muted">Ej: enlace de Google Maps</small>
+                                    {% if form.location_url.errors %}
+                                        <div class="text-danger">{{ form.location_url.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.start.id_for_label }}" class="form-label">Fecha y Hora de Inicio</label>
+                                    {{ form.start }}
+                                    {% if form.start.errors %}
+                                        <div class="text-danger">{{ form.start.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.end.id_for_label }}" class="form-label">Fecha y Hora de Fin</label>
+                                    {{ form.end }}
+                                    {% if form.end.errors %}
+                                        <div class="text-danger">{{ form.end.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visual Settings -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-image me-2"></i>
+                            Imagen de Encabezado
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.header_image.id_for_label }}" class="form-label">Imagen de Encabezado</label>
+                                    {{ form.header_image }}
+                                    <small class="form-text text-muted">Dimensiones recomendadas: 1666px × 500px</small>
+                                    {% if form.header_image.errors %}
+                                        <div class="text-danger">{{ form.header_image.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label class="form-label">Vista Previa</label>
+                                    <div id="image-preview" class="border rounded p-3 text-center" style="min-height: 150px; background-color: #f8f9fa;">
+                                        {% if event.header_image %}
+                                            <img src="{{ event.header_image.url }}" alt="Preview" class="img-fluid" style="max-height: 200px;">
+                                        {% else %}
+                                            <div class="text-muted">
+                                                <i class="fas fa-image fa-3x mb-2"></i>
+                                                <p class="mb-0">No hay imagen seleccionada</p>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tickets and Capacity -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-ticket-alt me-2"></i>
+                            Tickets y Capacidad
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.max_tickets.id_for_label }}" class="form-label">Máximo de Tickets</label>
+                                    {{ form.max_tickets }}
+                                    <small class="form-text text-muted">Dejar vacío para ilimitado</small>
+                                    {% if form.max_tickets.errors %}
+                                        <div class="text-danger">{{ form.max_tickets.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.venue_capacity.id_for_label }}" class="form-label">Capacidad del Lugar</label>
+                                    {{ form.venue_capacity }}
+                                    <small class="form-text text-muted">Capacidad máxima del venue (opcional)</small>
+                                    {% if form.venue_capacity.errors %}
+                                        <div class="text-danger">{{ form.venue_capacity.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- Registration Settings -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-user-check me-2"></i>
+                            Configuración de Registro
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-check mb-3">
+                            {{ form.attendee_must_be_registered }}
+                            <label class="form-check-label" for="{{ form.attendee_must_be_registered.id_for_label }}">
+                                Asistentes Deben Estar Registrados
+                            </label>
+                            <small class="form-text text-muted d-block">Todos los asistentes deben tener cuenta (normalmente solo se marca para FA)</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="d-flex justify-content-end mb-4">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save me-2"></i>
+                        Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-control-color {
+        width: 60px;
+        height: 38px;
+        border: 1px solid #ced4da;
+        border-radius: 0.375rem;
+    }
+    
+    .form-check-input {
+        margin-top: 0.25rem;
+    }
+    
+    .form-check-label {
+        font-weight: 500;
+    }
+    
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .card-title {
+        color: #495057;
+    }
+    
+    .form-text {
+        font-size: 0.875rem;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Image preview functionality
+    const imageInput = document.getElementById('{{ form.header_image.id_for_label }}');
+    const imagePreview = document.getElementById('image-preview');
+    
+    if (imageInput) {
+        imageInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.innerHTML = '<img src="' + e.target.result + '" alt="Preview" class="img-fluid" style="max-height: 200px;">';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+    
+    // Automatic slug generation from event name
+    const nameInput = document.getElementById('event-name');
+    const slugInput = document.getElementById('event-slug');
+    const slugHidden = document.getElementById('slug-hidden');
+    
+    if (nameInput && slugInput && slugHidden) {
+        // Function to generate slug from text
+        function generateSlug(text) {
+            return text
+                .toLowerCase()
+                .trim()
+                // Replace Spanish characters
+                .replace(/á/g, 'a')
+                .replace(/é/g, 'e')
+                .replace(/í/g, 'i')
+                .replace(/ó/g, 'o')
+                .replace(/ú/g, 'u')
+                .replace(/ñ/g, 'n')
+                .replace(/ü/g, 'u')
+                .replace(/ç/g, 'c')
+                // Replace spaces and special characters with hyphens
+                .replace(/[^a-z0-9]+/g, '-')
+                // Remove leading/trailing hyphens
+                .replace(/^-+|-+$/g, '');
+        }
+        
+        // Function to update both slug fields
+        function updateSlug(slug) {
+            slugInput.value = slug;
+            slugHidden.value = slug;
+        }
+        
+        // Generate slug when name changes
+        nameInput.addEventListener('input', function() {
+            const slug = generateSlug(this.value);
+            updateSlug(slug);
+        });
+        
+        // Generate slug on page load if name has value
+        if (nameInput.value) {
+            const slug = generateSlug(nameInput.value);
+            updateSlug(slug);
+        }
+        
+        // Also update hidden field when slug is manually edited
+        slugInput.addEventListener('input', function() {
+            slugHidden.value = this.value;
+        });
+    }
+    
+    // Datetime inputs are now properly formatted by Django form
+    
+});
+</script>
+
+<!-- CKEditor5 JavaScript -->
+<script src="{% static 'django_ckeditor_5/dist/bundle.js' %}"></script>
+{% endblock %}

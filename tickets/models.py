@@ -111,8 +111,8 @@ class TicketType(BaseModel):
     date_to = models.DateTimeField(null=True, blank=True)
     name = models.CharField(max_length=100)
     description = models.TextField(max_length=2000, blank=True)
-    color = models.CharField(max_length=6, default='6633ff')
-    emoji = models.CharField(max_length=255, default='🖕')
+    color = models.CharField(max_length=6, default='6633ff', blank=True)
+    emoji = models.CharField(max_length=255, default='🖕', blank=True)
     ticket_count = models.IntegerField()
     cardinality = models.IntegerField(null=True, blank=True, help_text="Optional ordering number for ticket types")
 
