@@ -36,6 +36,20 @@
                             </a>
                         </li>
                         <li class="menu-subitem">
+                            <a class="menu-sublink{% if nav_secondary == 'event_management_'|add:admin_event.slug %} active{% endif %}"
+                               href="{% url 'event_management' admin_event.slug %}">
+                                <i class="fas fa-cog me-2"></i>
+                                Configuración del Evento
+                            </a>
+                        </li>
+                        <li class="menu-subitem">
+                            <a class="menu-sublink{% if nav_secondary == 'ticket_types_'|add:admin_event.slug %} active{% endif %}"
+                               href="{% url 'ticket_types_management' admin_event.slug %}">
+                                <i class="fas fa-ticket-alt me-2"></i>
+                                Tipos de Entradas
+                            </a>
+                        </li>
+                        <li class="menu-subitem">
                             <a class="menu-sublink{% if nav_secondary == 'roles_'|add:admin_event.slug %} active{% endif %}"
                                href="{% url 'roles_management' admin_event.slug %}">
                                 <i class="fas fa-users-cog me-2"></i>
