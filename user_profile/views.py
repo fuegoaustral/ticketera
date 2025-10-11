@@ -1477,6 +1477,300 @@ def roles_management_view(request, event_slug):
 
 
 @login_required
+def event_management_view(request, event_slug):
+    """Manage event details and settings"""
+    from django.forms import ModelForm
+    from django import forms
+    from django_ckeditor_5.widgets import CKEditor5Widget
+    
+    # Get the event and check if user is admin
+    try:
+        event = Event.objects.get(slug=event_slug)
+    except Event.DoesNotExist:
+        raise Http404("Event not found")
+    
+    # Check if user is admin of this event
+    if not event.admins.filter(id=request.user.id).exists():
+        return HttpResponseForbidden("You don't have permission to manage this event")
+    
+    # Create form class dynamically
+    class EventManagementForm(ModelForm):
+        class Meta:
+            model = Event
+            fields = [
+                'name', 'description', 'location', 'location_url',
+                'start', 'end', 'header_image',
+                'max_tickets', 'venue_capacity',
+                'attendee_must_be_registered'
+            ]
+            widgets = {
+                'description': CKEditor5Widget(config_name='extends'),
+                'start': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
+                'end': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
+                'name': forms.TextInput(attrs={'class': 'form-control'}),
+                'location': forms.TextInput(attrs={'class': 'form-control'}),
+                'location_url': forms.URLInput(attrs={'class': 'form-control'}),
+                'max_tickets': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+                'venue_capacity': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+                'attendee_must_be_registered': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            }
+        
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            # Format datetime fields for HTML5 datetime-local input
+            if self.instance and self.instance.pk:
+                if self.instance.start:
+                    self.initial['start'] = self.instance.start.strftime('%Y-%m-%dT%H:%M')
+                if self.instance.end:
+                    self.initial['end'] = self.instance.end.strftime('%Y-%m-%dT%H:%M')
+    
+    # Handle form submission
+    if request.method == 'POST':
+        form = EventManagementForm(request.POST, request.FILES, instance=event)
+        if form.is_valid():
+            event = form.save(commit=False)
+            # Use provided slug from form, or auto-generate from name if empty
+            provided_slug = request.POST.get('slug', '').strip()
+            if provided_slug:
+                event.slug = provided_slug
+            else:
+                from django.utils.text import slugify
+                event.slug = slugify(event.name)
+            event.save()
+            messages.success(request, 'Evento actualizado exitosamente.')
+            return redirect('event_management', event_slug=event.slug)
+        else:
+            messages.error(request, 'Por favor corrige los errores en el formulario.')
+    else:
+        form = EventManagementForm(instance=event)
+    
+    # Get the main event for context
+    main_event = Event.get_main_event()
+    
+    # Get events where the user is an admin
+    admin_events = Event.objects.filter(
+        admins=request.user
+    ).order_by('-is_main', 'name')
+    
+    # Get events where user has tickets, prioritizing main event
+    user_events = Event.get_active_events().filter(
+        newticket__holder=request.user
+    ).distinct().order_by('-is_main', 'name')
+    
+    # Get the first ticket for the main event (for backward compatibility)
+    my_ticket = NewTicket.objects.filter(
+        holder=request.user, event=main_event, owner=request.user
+    ).first() if main_event else None
+    
+    context = {
+        "event": event,
+        "form": form,
+        "main_event": main_event,
+        "admin_events": admin_events,
+        "active_events": user_events,
+        "nav_primary": "events",
+        "nav_secondary": f"event_management_{event.slug}",
+        "my_ticket": my_ticket.get_dto(user=request.user) if my_ticket else None,
+        "now": timezone.now(),
+    }
+    
+    return render(request, "mi_fuego/event_management.html", context)
+
+
+@login_required
+def ticket_types_management_view(request, event_slug):
+    """Manage ticket types for an event"""
+    from django.forms import ModelForm
+    from django import forms
+    from tickets.models import TicketType
+    
+    # Get the event and check if user is admin
+    try:
+        event = Event.objects.get(slug=event_slug)
+    except Event.DoesNotExist:
+        raise Http404("Event not found")
+    
+    # Check if user is admin of this event
+    if not event.admins.filter(id=request.user.id).exists():
+        return HttpResponseForbidden("You don't have permission to manage this event")
+    
+    # Create form class dynamically
+    class TicketTypeForm(ModelForm):
+        class Meta:
+            model = TicketType
+            fields = [
+                'name', 'description', 'date_from', 'date_to', 
+                'price', 'ticket_count', 'show_in_caja'
+            ]
+            widgets = {
+                'name': forms.TextInput(attrs={'class': 'form-control'}),
+                'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+                'date_from': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
+                'date_to': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
+                'price': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
+                'ticket_count': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+                'show_in_caja': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            }
+    
+    # Handle form submission
+    if request.method == 'POST':
+        if 'action' in request.POST:
+            action = request.POST.get('action')
+            
+            if action == 'create':
+                form = TicketTypeForm(request.POST)
+                if form.is_valid():
+                    ticket_type = form.save(commit=False)
+                    ticket_type.event = event
+                    # Set cardinality to be the last one
+                    last_cardinality = TicketType.objects.filter(event=event).order_by('-cardinality').first()
+                    ticket_type.cardinality = (last_cardinality.cardinality + 1) if last_cardinality and last_cardinality.cardinality else 1
+                    ticket_type.save()
+                    messages.success(request, f'Ticket type "{ticket_type.name}" created successfully.')
+                    return redirect('ticket_types_management', event_slug=event.slug)
+                else:
+                    messages.error(request, 'Please correct the errors below.')
+            
+            elif action == 'update':
+                ticket_type_id = request.POST.get('ticket_type_id')
+                try:
+                    ticket_type = TicketType.objects.get(id=ticket_type_id, event=event)
+                    form = TicketTypeForm(request.POST, instance=ticket_type)
+                    if form.is_valid():
+                        form.save()
+                        messages.success(request, f'Ticket type "{ticket_type.name}" updated successfully.')
+                        return redirect('ticket_types_management', event_slug=event.slug)
+                    else:
+                        messages.error(request, 'Please correct the errors below.')
+                except TicketType.DoesNotExist:
+                    messages.error(request, 'Ticket type not found.')
+                    return redirect('ticket_types_management', event_slug=event.slug)
+            
+            elif action == 'delete':
+                ticket_type_id = request.POST.get('ticket_type_id')
+                try:
+                    ticket_type = TicketType.objects.get(id=ticket_type_id, event=event)
+                    ticket_type_name = ticket_type.name
+                    ticket_type.delete()
+                    messages.success(request, f'Ticket type "{ticket_type_name}" deleted successfully.')
+                    return redirect('ticket_types_management', event_slug=event.slug)
+                except TicketType.DoesNotExist:
+                    messages.error(request, 'Ticket type not found.')
+                    return redirect('ticket_types_management', event_slug=event.slug)
+    
+    # Get all ticket types for this event
+    ticket_types = TicketType.objects.filter(event=event).order_by('cardinality')
+    
+    # Create empty form for new ticket type
+    form = TicketTypeForm()
+    
+    # Get user's events for navigation
+    user_events = Event.objects.filter(admins=request.user).order_by('-created_at')
+    
+    # Get user's ticket for this event
+    my_ticket = None
+    try:
+        from tickets.models import NewTicket
+        my_ticket = NewTicket.objects.filter(holder=request.user, event=event).first()
+    except:
+        pass
+    
+    context = {
+        "event": event,
+        "ticket_types": ticket_types,
+        "form": form,
+        "admin_events": user_events,
+        "active_events": user_events,
+        "nav_primary": "events",
+        "nav_secondary": f"ticket_types_{event.slug}",
+        "my_ticket": my_ticket.get_dto(user=request.user) if my_ticket else None,
+        "now": timezone.now(),
+    }
+    
+    return render(request, "mi_fuego/ticket_types_management.html", context)
+
+
+@login_required
+def ticket_types_ajax(request, event_slug):
+    """AJAX endpoint for ticket type operations"""
+    from django.http import JsonResponse
+    from tickets.models import TicketType
+    import json
+    
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    # Get the event and check if user is admin
+    try:
+        event = Event.objects.get(slug=event_slug)
+    except Event.DoesNotExist:
+        return JsonResponse({'error': 'Event not found'}, status=404)
+    
+    # Check if user is admin of this event
+    if not event.admins.filter(id=request.user.id).exists():
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    try:
+        action = request.POST.get('action')
+        
+        if action == 'update_cardinality':
+            # Handle drag and drop reordering
+            ticket_type_ids = json.loads(request.POST.get('ticket_type_ids', '[]'))
+            
+            for index, ticket_type_id in enumerate(ticket_type_ids, 1):
+                try:
+                    ticket_type = TicketType.objects.get(id=ticket_type_id, event=event)
+                    ticket_type.cardinality = index
+                    ticket_type.save()
+                except TicketType.DoesNotExist:
+                    continue
+            
+            return JsonResponse({'success': True})
+        
+        elif action == 'update_field':
+            # Handle individual field updates
+            ticket_type_id = request.POST.get('ticket_type_id')
+            field_name = request.POST.get('field_name')
+            value = request.POST.get('value')
+            
+            if not ticket_type_id or not field_name:
+                return JsonResponse({'error': 'Missing parameters'}, status=400)
+            
+            # Get the ticket type
+            ticket_type = TicketType.objects.get(id=ticket_type_id, event=event)
+            
+            # Update the field
+            if field_name in ['name', 'description']:
+                setattr(ticket_type, field_name, value)
+            elif field_name in ['price', 'ticket_count']:
+                setattr(ticket_type, field_name, float(value) if value else None)
+            elif field_name in ['date_from', 'date_to']:
+                from django.utils.dateparse import parse_datetime
+                if value:
+                    parsed_date = parse_datetime(value)
+                    setattr(ticket_type, field_name, parsed_date)
+                else:
+                    setattr(ticket_type, field_name, None)
+            elif field_name == 'show_in_caja':
+                setattr(ticket_type, field_name, value == 'true')
+            
+            ticket_type.save()
+            
+            return JsonResponse({
+                'success': True,
+                'ticket_type_id': ticket_type_id,
+                'field_name': field_name,
+                'value': value
+            })
+        
+        else:
+            return JsonResponse({'error': 'Invalid action'}, status=400)
+    
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
 def caja_config_ajax(request, event_slug):
     """AJAX endpoint to update ticket type caja settings"""
     from django.http import JsonResponse

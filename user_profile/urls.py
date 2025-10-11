@@ -23,6 +23,9 @@ from .views import (
     verify_phone_code_ajax,
     my_tickets_ajax,
     roles_management_view,
+    event_management_view,
+    ticket_types_management_view,
+    ticket_types_ajax,
 )
 
 urlpatterns = [
@@ -39,6 +42,9 @@ urlpatterns = [
     path("mis-bonos/ordenes/", my_orders_view, name="my_orders"),
     path("mis-eventos/", my_events_view, name="my_events"),
     path("mis-eventos/<slug:event_slug>/", event_admin_view, name="event_admin"),
+    path("mis-eventos/<slug:event_slug>/configuracion/", event_management_view, name="event_management"),
+    path("mis-eventos/<slug:event_slug>/tipos-entradas/", ticket_types_management_view, name="ticket_types_management"),
+    path("mis-eventos/<slug:event_slug>/tipos-entradas/ajax/", ticket_types_ajax, name="ticket_types_ajax"),
     path("mis-eventos/<slug:event_slug>/roles/", roles_management_view, name="roles_management"),
     path("mis-eventos/<slug:event_slug>/puerta/", puerta_admin_view, name="puerta_admin"),
     path("mis-eventos/<slug:event_slug>/reporte-bonos/", bonus_report_view, name="bonus_report"),
