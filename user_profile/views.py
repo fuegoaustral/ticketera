@@ -1362,6 +1362,121 @@ def caja_config_view(request, event_slug):
 
 
 @login_required
+def roles_management_view(request, event_slug):
+    """Unified roles management for admins, caja, and scanner access"""
+    # Get the event and check if user is admin
+    try:
+        event = Event.objects.get(slug=event_slug)
+    except Event.DoesNotExist:
+        raise Http404("Event not found")
+    
+    # Check if user is admin of this event
+    if not event.admins.filter(id=request.user.id).exists():
+        return HttpResponseForbidden("You don't have permission to manage roles for this event")
+    
+    # Handle form submissions
+    if request.method == 'POST':
+        if 'add_user' in request.POST:
+            email = request.POST.get('email', '').strip()
+            role_type = request.POST.get('role_type', '')
+            
+            if email and role_type:
+                try:
+                    user = User.objects.get(email__iexact=email)
+                    
+                    # Add user to the specified role
+                    if role_type == 'admin':
+                        if not event.admins.filter(id=user.id).exists():
+                            event.admins.add(user)
+                            messages.success(request, f'Usuario {email} agregado como administrador exitosamente.')
+                        else:
+                            messages.warning(request, f'El usuario {email} ya es administrador del evento.')
+                    elif role_type == 'caja':
+                        if not event.access_caja.filter(id=user.id).exists() and not event.admins.filter(id=user.id).exists():
+                            event.access_caja.add(user)
+                            messages.success(request, f'Usuario {email} agregado con acceso a caja exitosamente.')
+                        else:
+                            messages.warning(request, f'El usuario {email} ya tiene acceso a caja o es administrador.')
+                    elif role_type == 'scanner':
+                        if not event.access_scanner.filter(id=user.id).exists() and not event.admins.filter(id=user.id).exists():
+                            event.access_scanner.add(user)
+                            messages.success(request, f'Usuario {email} agregado con acceso al scanner exitosamente.')
+                        else:
+                            messages.warning(request, f'El usuario {email} ya tiene acceso al scanner o es administrador.')
+                            
+                except User.DoesNotExist:
+                    messages.error(request, f'No se encontró un usuario con el email {email}.')
+            else:
+                messages.error(request, 'Por favor ingresa un email válido y selecciona un rol.')
+        
+        elif 'remove_user' in request.POST:
+            user_id = request.POST.get('user_id')
+            role_type = request.POST.get('role_type')
+            
+            if user_id and role_type:
+                try:
+                    user = User.objects.get(id=user_id)
+                    
+                    if role_type == 'admin':
+                        # Don't allow removing the last admin
+                        if event.admins.count() > 1:
+                            event.admins.remove(user)
+                            messages.success(request, f'Usuario {user.email} removido como administrador exitosamente.')
+                        else:
+                            messages.error(request, 'No se puede remover el último administrador del evento.')
+                    elif role_type == 'caja':
+                        event.access_caja.remove(user)
+                        messages.success(request, f'Usuario {user.email} removido del acceso a caja exitosamente.')
+                    elif role_type == 'scanner':
+                        event.access_scanner.remove(user)
+                        messages.success(request, f'Usuario {user.email} removido del acceso al scanner exitosamente.')
+                        
+                except User.DoesNotExist:
+                    messages.error(request, 'Usuario no encontrado.')
+        
+        return redirect('roles_management', event_slug=event_slug)
+    
+    # Get current users for each role
+    admin_users = event.admins.all().order_by('email')
+    caja_users = event.access_caja.all().order_by('email')
+    scanner_users = event.access_scanner.all().order_by('email')
+    
+    # Get the main event for context
+    main_event = Event.get_main_event()
+    
+    # Get events where the user is an admin
+    admin_events = Event.objects.filter(
+        admins=request.user
+    ).order_by('-is_main', 'name')
+    
+    # Get events where user has tickets, prioritizing main event
+    user_events = Event.get_active_events().filter(
+        newticket__holder=request.user
+    ).distinct().order_by('-is_main', 'name')
+    
+    # Get the first ticket for the main event (for backward compatibility)
+    my_ticket = NewTicket.objects.filter(
+        holder=request.user, event=main_event, owner=request.user
+    ).first() if main_event else None
+    
+    context = {
+        "event": event,
+        "main_event": main_event,
+        "admin_events": admin_events,
+        "active_events": user_events,
+        "nav_primary": "events",
+        "nav_secondary": f"roles_{event.slug}",
+        "my_ticket": my_ticket.get_dto(user=request.user) if my_ticket else None,
+        "now": timezone.now(),
+        "admin_users": admin_users,
+        "caja_users": caja_users,
+        "scanner_users": scanner_users,
+    }
+    
+    return render(request, "mi_fuego/roles_management.html", context)
+
+
+@login_required
 def caja_config_ajax(request, event_slug):
     """AJAX endpoint to update ticket type caja settings"""
     from django.http import JsonResponse
