@@ -831,8 +831,9 @@ def event_admin_view(request, event_slug):
     if not event.admins.filter(id=request.user.id).exists():
         return HttpResponseForbidden("You don't have permission to view this event")
     
-    # Check if user has scanner access for this event
-    has_scanner_access = event.access_scanner.filter(id=request.user.id).exists()
+    # Check if user has scanner access for this event (admins automatically have scanner access)
+    has_scanner_access = (event.admins.filter(id=request.user.id).exists() or 
+                         event.access_scanner.filter(id=request.user.id).exists())
     
     # Get tickets sold data for this specific event
     with connection.cursor() as cursor:
