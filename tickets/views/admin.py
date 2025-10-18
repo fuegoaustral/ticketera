@@ -13,8 +13,13 @@ def has_scanner_access(user, event=None):
     """Check if user has scanner access for an event"""
     if user.is_superuser:
         return True
-    if event and event.access_scanner.filter(id=user.id).exists():
-        return True
+    if event:
+        # Check if user is an event admin (admins should have scanner access)
+        if event.admins.filter(id=user.id).exists():
+            return True
+        # Check if user has explicit scanner access
+        if event.access_scanner.filter(id=user.id).exists():
+            return True
     # Fallback to old group-based logic for backward compatibility
     return user.groups.filter(name='Puerta').exists()
 
