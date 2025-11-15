@@ -11,8 +11,13 @@
                         No tenés cuenta?
                         <a href="{% url 'account_signup' %}" class="text-primary">Registrate</a>
                     </div>
-                    <a href="{% provider_login_url 'google' %}"
-                       class="btn btn-google w-100 d-flex align-items-center justify-content-center">
+                    {% if request.GET.next %}
+                        <a href="{% provider_login_url 'google' next=request.GET.next %}"
+                           class="btn btn-google w-100 d-flex align-items-center justify-content-center">
+                    {% else %}
+                        <a href="{% provider_login_url 'google' %}"
+                           class="btn btn-google w-100 d-flex align-items-center justify-content-center">
+                    {% endif %}
                         <img src="{% static 'img/google.png' %}"
                              alt="Google"
                              class="me-2"
@@ -27,6 +32,9 @@
                     </div>
                     <form method="post" action="{% url 'account_login' %}" autocomplete="off">
                         {% csrf_token %}
+                        {% if request.GET.next %}
+                            <input type="hidden" name="next" value="{{ request.GET.next }}">
+                        {% endif %}
                         <div class="form-group d-flex flex-column w-100 gap-3">
                             {% if form.errors %}
                                 <div class="alert alert-danger" role="alert">Usuario o contraseña incorrectos.</div>

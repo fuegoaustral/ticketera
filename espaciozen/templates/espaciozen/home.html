@@ -1,0 +1,853 @@
+{% extends 'tickets/barbu_base.html' %}
+{% load static %}
+
+{% block title %}Espacio Zen - Reserva de Espacio{% endblock %}
+
+{% block extrahead %}
+<style>
+    /* Ocultar header del sitio */
+    body > header,
+    header.container-xxl {
+        display: none !important;
+    }
+    
+    .calendar-container {
+        width: 100%;
+        height: 600px;
+        margin: 2rem 0;
+    }
+    
+    .reserva-section {
+        margin: 2rem 0;
+        padding: 2rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+    
+    .modal-content {
+        border-radius: 8px;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .alert {
+        margin-top: 1rem;
+    }
+    
+    .paso-activo {
+        display: block;
+    }
+    
+    .paso-oculto {
+        display: none;
+    }
+    
+    #paso1 {
+        padding: 1rem 0;
+    }
+    
+    #paso1 p {
+        line-height: 1.8;
+    }
+    
+    /* Asegurar que los inputs de fecha y hora sean clickeables y abran el selector */
+    input[type="date"],
+    input[type="time"] {
+        cursor: pointer;
+    }
+    
+    /* En desktop, asegurar que el click abra el selector */
+    @media (min-width: 768px) {
+        input[type="date"]:focus,
+        input[type="time"]:focus {
+            outline: 2px solid #0d6efd;
+            outline-offset: 2px;
+        }
+        
+        /* Forzar que el input muestre el selector al hacer click */
+        input[type="date"]::-webkit-calendar-picker-indicator,
+        input[type="time"]::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            opacity: 1;
+            width: 20px;
+            height: 20px;
+        }
+    }
+    
+</style>
+{% endblock %}
+
+{% block full_content %}
+<div class="container-xxl my-5">
+    <div class="row mb-4">
+        <div class="col-12 text-center">
+            <h1 class="display-4 mb-3">🪷 Espacio Zen </h1>
+            <p class="lead">Reserva tu espacio para tus actividades</p>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-12 text-center">
+            <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#reservaModal">
+                <i class="fas fa-calendar-plus me-2"></i>Reservar Espacio
+            </button>
+        </div>
+    </div>
+    
+    {% if reservas %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Mis Reservas</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for reserva in reservas %}
+                        <div class="list-group-item d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1 d-flex align-items-center">
+                                    {{ reserva.titulo }}
+                                    <button type="button" class="btn btn-sm btn-link p-0 ms-2 compartir-reserva" data-event-id="{{ reserva.event_id }}" data-titulo="{{ reserva.titulo }}" data-descripcion="{{ reserva.descripcion }}" data-fecha-inicio="{{ reserva.fecha_inicio }}" data-fecha-fin="{{ reserva.fecha_fin }}" title="Compartir">
+                                        <i class="fas fa-share-alt"></i>
+                                    </button>
+                                </h6>
+                                <p class="mb-1 text-muted small">
+                                    <i class="fas fa-calendar me-1"></i>
+                                    <span class="fecha-reserva" data-fecha-inicio="{{ reserva.fecha_inicio }}" data-fecha-fin="{{ reserva.fecha_fin }}"></span>
+                                </p>
+                                {% if reserva.descripcion %}
+                                <p class="mb-0 small">{{ reserva.descripcion }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="btn-group ms-3">
+                                <button type="button" class="btn btn-sm btn-outline-primary editar-reserva" data-event-id="{{ reserva.event_id }}" data-titulo="{{ reserva.titulo }}" data-descripcion="{{ reserva.descripcion }}" data-fecha-inicio="{{ reserva.fecha_inicio }}" data-fecha-fin="{{ reserva.fecha_fin }}">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger borrar-reserva" data-event-id="{{ reserva.event_id }}" data-titulo="{{ reserva.titulo }}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="calendar-container">
+                <iframe 
+                    src="https://calendar.google.com/calendar/embed?src={{ calendar_id|urlencode }}&ctz=America%2FArgentina%2FBuenos_Aires&mode=week"
+                    style="border: 0; width: 100%; height: 100%;"
+                    frameborder="0"
+                    scrolling="no">
+                </iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Reserva -->
+<div class="modal fade" id="reservaModal" tabindex="-1" aria-labelledby="reservaModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="reservaModalLabel">Reservar Espacio</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Paso 1: Reglas y condiciones -->
+                <div id="paso1" class="paso-activo">
+                    <div class="text-center mb-4">
+                        <p class="lead">No dejar rastro - Es importante la armonia y la vibra de este espacio, por favor dejalo en las mismas condiciones que lo encontraste</p>
+                        <p class="mb-3">Si necesitas mas tiempo, podes hacer otra reserva!</p>
+                        <p class="mb-4">Si hay otro evento luego del tuyo, respeta puntualmente los horarios de inicio y finalización</p>
+                        <p class="fs-1">✨</p>
+                    </div>
+                </div>
+                
+                <!-- Paso 2: Formulario de reserva -->
+                <div id="paso2" class="paso-oculto" style="display: none;">
+                <form id="reservaForm">
+                    <input type="hidden" id="event_id" name="event_id" value="">
+                    <div class="mb-3">
+                        <label for="titulo" class="form-label">Título del evento *</label>
+                        <input type="text" class="form-control" id="titulo" name="titulo" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="descripcion" class="form-label">Descripción</label>
+                        <textarea class="form-control" id="descripcion" name="descripcion" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="fecha" class="form-label">Fecha *</label>
+                        <input type="date" class="form-control" id="fecha" name="fecha" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="hora_inicio" class="form-label">Hora de inicio *</label>
+                        <input type="time" class="form-control" id="hora_inicio" name="hora_inicio" value="00:00" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="duracion" class="form-label">Duración *</label>
+                        <select class="form-select" id="duracion" name="duracion" required>
+                            <option value="15">15 minutos</option>
+                            <option value="30">30 minutos</option>
+                            <option value="60" selected>1 hora</option>
+                            <option value="90">1.5 horas</option>
+                            <option value="120">2 horas</option>
+                            <option value="180">3 horas</option>
+                            <option value="240">4 horas</option>
+                            <option value="custom">Personalizada</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3" id="duracionCustomContainer" style="display: none;">
+                        <label for="duracion_custom_horas" class="form-label">Horas personalizadas *</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="duracion_custom_horas" name="duracion_custom_horas" min="0" step="0.5" placeholder="Ej: 2.5">
+                            <span class="input-group-text">horas</span>
+                        </div>
+                    </div>
+                    
+                    <div id="alertContainer"></div>
+                </form>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <!-- Botones del Paso 1 -->
+                <div id="footerPaso1">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnAcepto">Acepto</button>
+                </div>
+                
+                <!-- Botones del Paso 2 -->
+                <div id="footerPaso2" style="display: none;">
+                    <button type="button" class="btn btn-secondary" id="btnVolver">Volver</button>
+                    <button type="button" class="btn btn-primary" id="btnVerificar">Reservar</button>
+                    <button type="button" class="btn btn-success" id="btnReservar" style="display: none;">Confirmar Reserva</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+// Función para obtener el token CSRF
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+const csrftoken = getCookie('csrftoken');
+
+document.addEventListener('DOMContentLoaded', function() {
+    const reservaForm = document.getElementById('reservaForm');
+    const btnVerificar = document.getElementById('btnVerificar');
+    const btnReservar = document.getElementById('btnReservar');
+    const btnAcepto = document.getElementById('btnAcepto');
+    const btnVolver = document.getElementById('btnVolver');
+    const alertContainer = document.getElementById('alertContainer');
+    const reservaModal = new bootstrap.Modal(document.getElementById('reservaModal'));
+    const modalTitle = document.getElementById('reservaModalLabel');
+    const eventIdInput = document.getElementById('event_id');
+    
+    // Formatear fechas en la lista de reservas
+    document.querySelectorAll('.fecha-reserva').forEach(span => {
+        const fechaInicioStr = span.dataset.fechaInicio;
+        const fechaFinStr = span.dataset.fechaFin;
+        if (fechaInicioStr && fechaFinStr) {
+            try {
+                const fechaInicio = new Date(fechaInicioStr);
+                const fechaFin = new Date(fechaFinStr);
+                const fechaFormateada = fechaInicio.toLocaleString('es-AR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                const horaFin = fechaFin.toLocaleTimeString('es-AR', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                span.textContent = `${fechaFormateada} - ${horaFin}`;
+            } catch (e) {
+                // Si hay error, dejar vacío
+                span.textContent = '';
+            }
+        }
+    });
+    
+    // Elementos de los pasos
+    const paso1 = document.getElementById('paso1');
+    const paso2 = document.getElementById('paso2');
+    const footerPaso1 = document.getElementById('footerPaso1');
+    const footerPaso2 = document.getElementById('footerPaso2');
+    
+    let disponibilidadVerificada = false;
+    
+    // Función para mostrar paso 1
+    function mostrarPaso1() {
+        paso1.style.display = 'block';
+        paso2.style.display = 'none';
+        footerPaso1.style.display = 'block';
+        footerPaso2.style.display = 'none';
+    }
+    
+    // Función para mostrar paso 2
+    function mostrarPaso2() {
+        paso1.style.display = 'none';
+        paso2.style.display = 'block';
+        footerPaso1.style.display = 'none';
+        footerPaso2.style.display = 'block';
+    }
+    
+    // Botón Acepto - pasar al paso 2
+    btnAcepto.addEventListener('click', function() {
+        mostrarPaso2();
+    });
+    
+    // Elemento de hora
+    const horaInicio = document.getElementById('hora_inicio');
+    const fechaInput = document.getElementById('fecha');
+    
+    // En desktop, asegurar que el click abra el selector nativo
+    if (window.innerWidth >= 768) {
+        // Para el input de fecha
+        fechaInput.addEventListener('click', function() {
+            this.showPicker && this.showPicker();
+        });
+        
+        // Para el input de hora
+        horaInicio.addEventListener('click', function() {
+            this.showPicker && this.showPicker();
+        });
+    }
+    
+    // Función para resetear la hora
+    function resetearHora() {
+        horaInicio.value = '00:00';
+    }
+    
+    // Botón Volver - volver al paso 1
+    btnVolver.addEventListener('click', function() {
+        mostrarPaso1();
+        // Resetear estado del formulario
+        reservaForm.reset();
+        resetearHora();
+        duracionSelect.value = '60';
+        duracionCustomContainer.style.display = 'none';
+        alertContainer.innerHTML = '';
+        btnReservar.style.display = 'none';
+        btnVerificar.style.display = 'inline-block';
+        disponibilidadVerificada = false;
+    });
+    
+    // Manejar el select de duración
+    const duracionSelect = document.getElementById('duracion');
+    const duracionCustomContainer = document.getElementById('duracionCustomContainer');
+    const duracionCustomHoras = document.getElementById('duracion_custom_horas');
+    
+    duracionSelect.addEventListener('change', function() {
+        if (this.value === 'custom') {
+            duracionCustomContainer.style.display = 'block';
+            duracionCustomHoras.required = true;
+        } else {
+            duracionCustomContainer.style.display = 'none';
+            duracionCustomHoras.required = false;
+        }
+    });
+    
+    // Función para cargar datos de reserva en el modal (para editar)
+    function cargarReservaEnModal(reserva) {
+        eventIdInput.value = reserva.eventId;
+        document.getElementById('titulo').value = reserva.titulo;
+        document.getElementById('descripcion').value = reserva.descripcion || '';
+        
+        // Parsear fechas
+        const fechaInicio = new Date(reserva.fechaInicio);
+        const fechaFin = new Date(reserva.fechaFin);
+        
+        // Formatear fecha para input date (YYYY-MM-DD)
+        const fechaStr = fechaInicio.toISOString().split('T')[0];
+        document.getElementById('fecha').value = fechaStr;
+        
+        // Formatear hora para input time (HH:MM)
+        const horaStr = fechaInicio.toTimeString().slice(0, 5);
+        document.getElementById('hora_inicio').value = horaStr;
+        
+        // Calcular duración
+        const duracionMs = fechaFin - fechaInicio;
+        const duracionMinutos = Math.round(duracionMs / 60000);
+        
+        if ([15, 30, 60, 90, 120, 180, 240].includes(duracionMinutos)) {
+            duracionSelect.value = duracionMinutos.toString();
+            duracionCustomContainer.style.display = 'none';
+        } else {
+            const horas = duracionMinutos / 60;
+            duracionSelect.value = 'custom';
+            duracionCustomHoras.value = horas;
+            duracionCustomContainer.style.display = 'block';
+        }
+        
+        modalTitle.textContent = 'Editar Reserva';
+        mostrarPaso2(); // Ir directamente al paso 2 cuando se edita
+        // En modo edición, usar el botón Reservar (que ahora también verifica y guarda)
+        btnReservar.style.display = 'none';
+        btnVerificar.style.display = 'inline-block';
+        btnVerificar.textContent = 'Guardar';
+    }
+    
+    // Función para resetear modal a modo crear
+    function resetearModalACrear() {
+        eventIdInput.value = '';
+        modalTitle.textContent = 'Reservar Espacio';
+        mostrarPaso1();
+        reservaForm.reset();
+        resetearHora();
+        duracionSelect.value = '60';
+        duracionCustomContainer.style.display = 'none';
+        alertContainer.innerHTML = '';
+        btnReservar.style.display = 'none';
+        btnVerificar.style.display = 'inline-block';
+        disponibilidadVerificada = false;
+    }
+    
+    // Función para formatear detalles del evento
+    function formatearDetallesEvento(reserva) {
+        const fechaInicio = new Date(reserva.fechaInicio);
+        const fechaFin = new Date(reserva.fechaFin);
+        
+        const fechaInicioFormateada = fechaInicio.toLocaleString('es-AR', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        const fechaFinFormateada = fechaFin.toLocaleTimeString('es-AR', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        const duracionMs = fechaFin - fechaInicio;
+        const duracionHoras = Math.floor(duracionMs / (1000 * 60 * 60));
+        const duracionMinutos = Math.floor((duracionMs % (1000 * 60 * 60)) / (1000 * 60));
+        
+        let duracionTexto = '';
+        if (duracionHoras > 0 && duracionMinutos > 0) {
+            duracionTexto = `${duracionHoras} hora${duracionHoras > 1 ? 's' : ''} y ${duracionMinutos} minuto${duracionMinutos > 1 ? 's' : ''}`;
+        } else if (duracionHoras > 0) {
+            duracionTexto = `${duracionHoras} hora${duracionHoras > 1 ? 's' : ''}`;
+        } else {
+            duracionTexto = `${duracionMinutos} minuto${duracionMinutos > 1 ? 's' : ''}`;
+        }
+        
+        let detalles = `${reserva.titulo}\n\n`;
+        detalles += `📆 Fecha y Hora:\n\n`;
+        detalles += `   Inicio: ${fechaInicioFormateada}\n\n`;
+        detalles += `   Fin: ${fechaFinFormateada}\n\n`;
+        detalles += `   Duración: ${duracionTexto}\n\n`;
+        
+        if (reserva.descripcion && reserva.descripcion.trim()) {
+            detalles += `📝 Descripción:\n\n${reserva.descripcion}\n\n`;
+        }
+        
+        detalles += `\n🪷 ESPACIO ZEN - La Sede`;
+        
+        return detalles;
+    }
+    
+    // Manejar botones de compartir reserva usando Web Share API
+    document.querySelectorAll('.compartir-reserva').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const reserva = {
+                eventId: this.dataset.eventId,
+                titulo: this.dataset.titulo,
+                descripcion: this.dataset.descripcion || '',
+                fechaInicio: this.dataset.fechaInicio,
+                fechaFin: this.dataset.fechaFin
+            };
+            
+            const detalles = formatearDetallesEvento(reserva);
+            
+            // Intentar usar Web Share API si está disponible
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: reserva.titulo,
+                        text: detalles
+                    });
+                } catch (err) {
+                    // Si el usuario cancela o hay error, copiar al portapapeles como fallback
+                    if (err.name !== 'AbortError') {
+                        await copiarAlPortapapeles(detalles, this);
+                    }
+                }
+            } else {
+                // Fallback: copiar al portapapeles
+                await copiarAlPortapapeles(detalles, this);
+            }
+        });
+    });
+    
+    // Función auxiliar para copiar al portapapeles
+    async function copiarAlPortapapeles(texto, boton) {
+        try {
+            await navigator.clipboard.writeText(texto);
+            // Feedback visual
+            const iconoOriginal = boton.querySelector('i').className;
+            boton.querySelector('i').className = 'fas fa-check';
+            boton.style.color = '#28a745';
+            
+            setTimeout(() => {
+                boton.querySelector('i').className = iconoOriginal;
+                boton.style.color = '';
+            }, 2000);
+        } catch (err) {
+            // Fallback para navegadores antiguos
+            const textarea = document.createElement('textarea');
+            textarea.value = texto;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            
+            // Feedback visual
+            const iconoOriginal = boton.querySelector('i').className;
+            boton.querySelector('i').className = 'fas fa-check';
+            boton.style.color = '#28a745';
+            
+            setTimeout(() => {
+                boton.querySelector('i').className = iconoOriginal;
+                boton.style.color = '';
+            }, 2000);
+        }
+    }
+    
+    // Manejar botones de editar reserva
+    document.querySelectorAll('.editar-reserva').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const reserva = {
+                eventId: this.dataset.eventId,
+                titulo: this.dataset.titulo,
+                descripcion: this.dataset.descripcion || '',
+                fechaInicio: this.dataset.fechaInicio,
+                fechaFin: this.dataset.fechaFin
+            };
+            cargarReservaEnModal(reserva);
+            reservaModal.show();
+        });
+    });
+    
+    // Manejar botones de borrar reserva
+    document.querySelectorAll('.borrar-reserva').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const eventId = this.dataset.eventId;
+            const titulo = this.dataset.titulo;
+            
+            if (!confirm(`¿Estás seguro de que deseas eliminar la reserva "${titulo}"?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('{% url "borrar_reserva" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify({
+                        event_id: eventId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(data.mensaje);
+                    location.reload();
+                } else {
+                    alert(data.error || 'Error al eliminar la reserva');
+                }
+            } catch (error) {
+                alert('Error al eliminar la reserva. Por favor, intenta nuevamente.');
+            }
+        });
+    });
+    
+    // Limpiar el formulario cuando se cierra el modal
+    document.getElementById('reservaModal').addEventListener('hidden.bs.modal', function() {
+        resetearModalACrear();
+    });
+    
+    // Función para calcular fecha de fin basada en duración
+    function calcularFechaFin(fecha, horaInicio, duracionMinutos) {
+        // Crear fecha en formato YYYY-MM-DDTHH:mm para evitar problemas de zona horaria
+        // El input type="time" ya devuelve el formato HH:MM
+        const fechaHoraString = `${fecha}T${horaInicio}`;
+        const fechaInicio = new Date(fechaHoraString);
+        
+        // Verificar que la fecha sea válida
+        if (isNaN(fechaInicio.getTime())) {
+            throw new Error('Fecha u hora inválida');
+        }
+        
+        const fechaFin = new Date(fechaInicio);
+        fechaFin.setMinutes(fechaFin.getMinutes() + duracionMinutos);
+        
+        return { fechaInicio, fechaFin };
+    }
+    
+    // Función para obtener duración en minutos
+    function obtenerDuracionMinutos() {
+        const duracion = duracionSelect.value;
+        if (duracion === 'custom') {
+            const horas = parseFloat(duracionCustomHoras.value);
+            if (isNaN(horas) || horas <= 0) {
+                return null;
+            }
+            return Math.round(horas * 60);
+        }
+        return parseInt(duracion);
+    }
+    
+    // Validar fechas
+    function validarFechas() {
+        const fecha = document.getElementById('fecha').value;
+        const horaInicio = document.getElementById('hora_inicio').value;
+        const duracionMinutos = obtenerDuracionMinutos();
+        
+        if (!fecha || !horaInicio) {
+            mostrarAlerta('Por favor, completa la fecha y hora de inicio', 'warning');
+            return false;
+        }
+        
+        if (duracionMinutos === null) {
+            mostrarAlerta('Por favor, ingresa una duración válida', 'warning');
+            return false;
+        }
+        
+        const { fechaInicio, fechaFin } = calcularFechaFin(fecha, horaInicio, duracionMinutos);
+        
+        if (fechaInicio < new Date()) {
+            mostrarAlerta('La fecha y hora de inicio no pueden ser en el pasado', 'warning');
+            return false;
+        }
+        
+        return true;
+    }
+    
+    // Función para obtener fecha_inicio y fecha_fin en formato ISO
+    function obtenerFechasISO() {
+        const fecha = document.getElementById('fecha').value;
+        const horaInicio = document.getElementById('hora_inicio').value;
+        const duracionMinutos = obtenerDuracionMinutos();
+        
+        const { fechaInicio, fechaFin } = calcularFechaFin(fecha, horaInicio, duracionMinutos);
+        
+        return {
+            fecha_inicio: fechaInicio.toISOString(),
+            fecha_fin: fechaFin.toISOString()
+        };
+    }
+    
+    function mostrarAlerta(mensaje, tipo) {
+        alertContainer.innerHTML = `
+            <div class="alert alert-${tipo} alert-dismissible fade show" role="alert">
+                ${mensaje}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+    }
+    
+    // Verificar disponibilidad y crear reserva automáticamente si es válida
+    btnVerificar.addEventListener('click', async function() {
+        if (!validarFechas()) {
+            return;
+        }
+        
+        const titulo = document.getElementById('titulo').value;
+        const descripcion = document.getElementById('descripcion').value;
+        
+        if (!titulo) {
+            mostrarAlerta('Por favor, completa el título del evento', 'warning');
+            return;
+        }
+        
+        const { fecha_inicio, fecha_fin } = obtenerFechasISO();
+        const eventId = eventIdInput.value;
+        const esEdicion = eventId !== '';
+        
+        btnVerificar.disabled = true;
+        btnVerificar.textContent = esEdicion ? 'Guardando...' : 'Reservando...';
+        
+        try {
+            // Primero verificar disponibilidad
+            const bodyVerificar = {
+                fecha_inicio: fecha_inicio,
+                fecha_fin: fecha_fin
+            };
+            
+            // Si estamos editando, excluir el evento actual de la verificación
+            if (eventId) {
+                bodyVerificar.event_id = eventId;
+            }
+            
+            const responseVerificar = await fetch('{% url "verificar_disponibilidad" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify(bodyVerificar)
+            });
+            
+            const dataVerificar = await responseVerificar.json();
+            
+            if (!dataVerificar.disponible) {
+                mostrarAlerta(dataVerificar.mensaje, 'danger');
+                btnVerificar.disabled = false;
+                btnVerificar.textContent = 'Reservar';
+                return;
+            }
+            
+            // Si está disponible, crear/editar la reserva automáticamente
+            const url = esEdicion ? '{% url "editar_reserva" %}' : '{% url "crear_reserva" %}';
+            const bodyReserva = {
+                titulo: titulo,
+                descripcion: descripcion,
+                fecha_inicio: fecha_inicio,
+                fecha_fin: fecha_fin
+            };
+            
+            if (esEdicion) {
+                bodyReserva.event_id = eventId;
+            }
+            
+            const responseReserva = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify(bodyReserva)
+            });
+            
+            const dataReserva = await responseReserva.json();
+            
+            if (dataReserva.success) {
+                mostrarAlerta(dataReserva.mensaje, 'success');
+                setTimeout(() => {
+                    reservaModal.hide();
+                    location.reload();
+                }, 1500);
+            } else {
+                mostrarAlerta(dataReserva.error || `Error al ${esEdicion ? 'actualizar' : 'crear'} la reserva`, 'danger');
+                btnVerificar.disabled = false;
+                btnVerificar.textContent = 'Reservar';
+            }
+        } catch (error) {
+            mostrarAlerta(`Error al ${esEdicion ? 'actualizar' : 'crear'} la reserva. Por favor, intenta nuevamente.`, 'danger');
+            btnVerificar.disabled = false;
+            btnVerificar.textContent = 'Reservar';
+        }
+    });
+    
+    // Crear o editar reserva
+    btnReservar.addEventListener('click', async function() {
+        const eventId = eventIdInput.value;
+        const esEdicion = eventId !== '';
+        
+        // Si es edición, no requerimos verificar disponibilidad (ya está reservado)
+        if (!esEdicion && !disponibilidadVerificada) {
+            mostrarAlerta('Por favor, verifica la disponibilidad primero', 'warning');
+            return;
+        }
+        
+        if (!validarFechas()) {
+            return;
+        }
+        
+        const titulo = document.getElementById('titulo').value;
+        const descripcion = document.getElementById('descripcion').value;
+        
+        if (!titulo) {
+            mostrarAlerta('Por favor, completa el título del evento', 'warning');
+            return;
+        }
+        
+        const { fecha_inicio, fecha_fin } = obtenerFechasISO();
+        
+        btnReservar.disabled = true;
+        btnReservar.textContent = esEdicion ? 'Guardando...' : 'Reservando...';
+        
+        try {
+            const url = esEdicion ? '{% url "editar_reserva" %}' : '{% url "crear_reserva" %}';
+            const body = {
+                titulo: titulo,
+                descripcion: descripcion,
+                fecha_inicio: fecha_inicio,
+                fecha_fin: fecha_fin
+            };
+            
+            if (esEdicion) {
+                body.event_id = eventId;
+            }
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify(body)
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                mostrarAlerta(data.mensaje, 'success');
+                setTimeout(() => {
+                    reservaModal.hide();
+                    location.reload();
+                }, 1500);
+            } else {
+                mostrarAlerta(data.error || `Error al ${esEdicion ? 'actualizar' : 'crear'} la reserva`, 'danger');
+                btnReservar.disabled = false;
+                btnReservar.textContent = 'Confirmar Reserva';
+            }
+        } catch (error) {
+            mostrarAlerta(`Error al ${esEdicion ? 'actualizar' : 'crear'} la reserva. Por favor, intenta nuevamente.`, 'danger');
+            btnReservar.disabled = false;
+            btnReservar.textContent = 'Confirmar Reserva';
+        }
+    });
+});
+</script>
+{% endblock %}
+

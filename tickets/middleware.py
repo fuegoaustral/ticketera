@@ -14,7 +14,11 @@ class ProfileCompletionMiddleware:
             if not request.path.startswith(reverse('account_logout')) and \
                     not request.path.startswith(reverse('complete_profile')):
                 if request.user.profile.profile_completion != 'COMPLETE':
-                    return redirect('complete_profile')
+                    # Preserve the 'next' parameter if it exists
+                    redirect_url = reverse('complete_profile')
+                    if request.GET.get('next'):
+                        redirect_url += f"?next={request.GET.get('next')}"
+                    return redirect(redirect_url)
         return self.get_response(request)
 
 
