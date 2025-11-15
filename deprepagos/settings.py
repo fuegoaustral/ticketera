@@ -80,6 +80,7 @@ INSTALLED_APPS = [
 
     'tickets.apps.TicketsConfig',
     'events.apps.EventsConfig',
+    'espaciozen.apps.EspaciozenConfig',
 ]
 
 MIDDLEWARE = [
