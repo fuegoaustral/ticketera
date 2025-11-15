@@ -109,7 +109,12 @@
                         {% for reserva in reservas %}
                         <div class="list-group-item d-flex justify-content-between align-items-start">
                             <div class="flex-grow-1">
-                                <h6 class="mb-1">{{ reserva.titulo }}</h6>
+                                <h6 class="mb-1 d-flex align-items-center">
+                                    {{ reserva.titulo }}
+                                    <button type="button" class="btn btn-sm btn-link p-0 ms-2 compartir-reserva" data-event-id="{{ reserva.event_id }}" data-titulo="{{ reserva.titulo }}" data-descripcion="{{ reserva.descripcion }}" data-fecha-inicio="{{ reserva.fecha_inicio }}" data-fecha-fin="{{ reserva.fecha_fin }}" title="Compartir">
+                                        <i class="fas fa-share-alt"></i>
+                                    </button>
+                                </h6>
                                 <p class="mb-1 text-muted small">
                                     <i class="fas fa-calendar me-1"></i>
                                     <span class="fecha-reserva" data-fecha-inicio="{{ reserva.fecha_inicio }}" data-fecha-fin="{{ reserva.fecha_fin }}"></span>
@@ -235,6 +240,7 @@
         </div>
     </div>
 </div>
+
 
 <script>
 // Función para obtener el token CSRF
@@ -425,6 +431,122 @@ document.addEventListener('DOMContentLoaded', function() {
         btnReservar.style.display = 'none';
         btnVerificar.style.display = 'inline-block';
         disponibilidadVerificada = false;
+    }
+    
+    // Función para formatear detalles del evento
+    function formatearDetallesEvento(reserva) {
+        const fechaInicio = new Date(reserva.fechaInicio);
+        const fechaFin = new Date(reserva.fechaFin);
+        
+        const fechaInicioFormateada = fechaInicio.toLocaleString('es-AR', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        const fechaFinFormateada = fechaFin.toLocaleTimeString('es-AR', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        const duracionMs = fechaFin - fechaInicio;
+        const duracionHoras = Math.floor(duracionMs / (1000 * 60 * 60));
+        const duracionMinutos = Math.floor((duracionMs % (1000 * 60 * 60)) / (1000 * 60));
+        
+        let duracionTexto = '';
+        if (duracionHoras > 0 && duracionMinutos > 0) {
+            duracionTexto = `${duracionHoras} hora${duracionHoras > 1 ? 's' : ''} y ${duracionMinutos} minuto${duracionMinutos > 1 ? 's' : ''}`;
+        } else if (duracionHoras > 0) {
+            duracionTexto = `${duracionHoras} hora${duracionHoras > 1 ? 's' : ''}`;
+        } else {
+            duracionTexto = `${duracionMinutos} minuto${duracionMinutos > 1 ? 's' : ''}`;
+        }
+        
+        let detalles = `${reserva.titulo}\n\n`;
+        detalles += `📆 Fecha y Hora:\n\n`;
+        detalles += `   Inicio: ${fechaInicioFormateada}\n\n`;
+        detalles += `   Fin: ${fechaFinFormateada}\n\n`;
+        detalles += `   Duración: ${duracionTexto}\n\n`;
+        
+        if (reserva.descripcion && reserva.descripcion.trim()) {
+            detalles += `📝 Descripción:\n\n${reserva.descripcion}\n\n`;
+        }
+        
+        detalles += `\n🪷 ESPACIO ZEN - La Sede`;
+        
+        return detalles;
+    }
+    
+    // Manejar botones de compartir reserva usando Web Share API
+    document.querySelectorAll('.compartir-reserva').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const reserva = {
+                eventId: this.dataset.eventId,
+                titulo: this.dataset.titulo,
+                descripcion: this.dataset.descripcion || '',
+                fechaInicio: this.dataset.fechaInicio,
+                fechaFin: this.dataset.fechaFin
+            };
+            
+            const detalles = formatearDetallesEvento(reserva);
+            
+            // Intentar usar Web Share API si está disponible
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: reserva.titulo,
+                        text: detalles
+                    });
+                } catch (err) {
+                    // Si el usuario cancela o hay error, copiar al portapapeles como fallback
+                    if (err.name !== 'AbortError') {
+                        await copiarAlPortapapeles(detalles, this);
+                    }
+                }
+            } else {
+                // Fallback: copiar al portapapeles
+                await copiarAlPortapapeles(detalles, this);
+            }
+        });
+    });
+    
+    // Función auxiliar para copiar al portapapeles
+    async function copiarAlPortapapeles(texto, boton) {
+        try {
+            await navigator.clipboard.writeText(texto);
+            // Feedback visual
+            const iconoOriginal = boton.querySelector('i').className;
+            boton.querySelector('i').className = 'fas fa-check';
+            boton.style.color = '#28a745';
+            
+            setTimeout(() => {
+                boton.querySelector('i').className = iconoOriginal;
+                boton.style.color = '';
+            }, 2000);
+        } catch (err) {
+            // Fallback para navegadores antiguos
+            const textarea = document.createElement('textarea');
+            textarea.value = texto;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            
+            // Feedback visual
+            const iconoOriginal = boton.querySelector('i').className;
+            boton.querySelector('i').className = 'fas fa-check';
+            boton.style.color = '#28a745';
+            
+            setTimeout(() => {
+                boton.querySelector('i').className = iconoOriginal;
+                boton.style.color = '';
+            }, 2000);
+        }
     }
     
     // Manejar botones de editar reserva
