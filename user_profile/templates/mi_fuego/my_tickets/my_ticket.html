@@ -326,6 +326,19 @@
                                                 <i class="fas fa-tag text-muted"></i>
                                                 <span class="text-muted">{{ ticket.ticket_type }} - ${{ ticket.price|floatformat:0|intcomma }}</span>
                                             </div>
+                                            {% if event_terms %}
+                                            <div class="d-flex flex-column gap-1 mt-2 pt-2 border-top">
+                                                <small class="text-muted fw-bold mb-1">Términos y Condiciones:</small>
+                                                {% for term in event_terms %}
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <i class="fas fa-file-contract text-muted" style="font-size: 0.875rem;"></i>
+                                                    <a href="{% url 'view_term_description' term.id %}" target="_blank" class="text-decoration-none text-primary small">
+                                                        {{ term.title }}
+                                                    </a>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                            {% endif %}
                                         </div>
                                     </div>
                                 </div>
@@ -453,6 +466,19 @@
                                                 <i class="fas fa-tag text-muted"></i>
                                                 <span class="text-muted">{{ ticket.ticket_type }} - ${{ ticket.price|floatformat:0|intcomma }}</span>
                                             </div>
+                                            {% if event_terms %}
+                                            <div class="d-flex flex-column gap-1 mt-2 pt-2 border-top">
+                                                <small class="text-muted fw-bold mb-1">Términos y Condiciones:</small>
+                                                {% for term in event_terms %}
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <i class="fas fa-file-contract text-muted" style="font-size: 0.875rem;"></i>
+                                                    <a href="{% url 'view_term_description' term.id %}" target="_blank" class="text-decoration-none text-primary small">
+                                                        {{ term.title }}
+                                                    </a>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                            {% endif %}
                                         </div>
                                     </div>
                                 </div>

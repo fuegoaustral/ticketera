@@ -240,6 +240,9 @@ def my_ticket_view(request, event_slug=None):
                 newticket__holder=request.user
             ).distinct().order_by('-is_main', 'name')
             
+            # Get terms and conditions for this event
+            event_terms = EventTermsAndConditions.objects.filter(event=current_event).order_by('order', 'id')
+            
             return render(
                 request,
                 "mi_fuego/my_tickets/my_ticket.html",
@@ -255,6 +258,7 @@ def my_ticket_view(request, event_slug=None):
                     'attendee_must_be_registered': current_event.attendee_must_be_registered,
                     'all_unassigned': all_unassigned and not current_event.attendee_must_be_registered,
                     'unshared_tickets_count': unshared_tickets_count,
+                    'event_terms': event_terms,  # Terms and conditions for the event
                 },
             )
         except Event.DoesNotExist:
