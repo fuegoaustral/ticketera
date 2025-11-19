@@ -520,6 +520,7 @@ class DirectTicketTemplateOriginChoices(models.TextChoices):
     CAMP = 'CAMP', 'Camp'
     VOLUNTEER = 'VOLUNTARIOS', 'Voluntarios'
     ART = 'ARTE', 'Arte'
+    ORGANIZACION = 'ORGANIZACION', 'Organizacion'
 
 
 class DirectTicketTemplateStatus(models.TextChoices):

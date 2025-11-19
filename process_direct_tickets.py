@@ -12,7 +12,7 @@ import sys
 import os
 
 def normalize_origin(origin_str):
-    """Normaliza el origen: VOL -> VOLUNTARIOS, mantiene ARTE y CAMP"""
+    """Normaliza el origen: VOL -> VOLUNTARIOS, ORG -> ORGANIZACION, mantiene ARTE y CAMP"""
     origin_upper = origin_str.strip().upper()
     if origin_upper == 'VOL':
         return 'VOLUNTARIOS'
@@ -21,9 +21,7 @@ def normalize_origin(origin_str):
     elif origin_upper == 'CAMP':
         return 'CAMP'
     elif origin_upper == 'ORG':
-        # ORG no está en los choices, mapeamos a CAMP por defecto
-        # Puedes cambiar esto si prefieres otro mapeo
-        return 'CAMP'
+        return 'ORGANIZACION'
     else:
         return origin_upper
 
