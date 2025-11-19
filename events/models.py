@@ -171,4 +171,37 @@ class Event(BaseModel):
         return 0
 
 
+class EventTermsAndConditions(BaseModel):
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='terms_and_conditions')
+    title = models.CharField(max_length=255, help_text="Título del término y condición")
+    description = models.TextField(blank=True, null=True, help_text="Descripción detallada (opcional)")
+    order = models.IntegerField(default=0, help_text="Orden de visualización (menor número aparece primero)")
+
+    class Meta:
+        verbose_name = "Términos y Condiciones"
+        verbose_name_plural = "Términos y Condiciones"
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return f"{self.title} - {self.event.name}"
+
+
+class EventTermsAndConditionsAcceptance(BaseModel):
+    """Registro de aceptación de términos y condiciones por usuario"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='terms_acceptances')
+    term = models.ForeignKey('EventTermsAndConditions', on_delete=models.CASCADE, related_name='acceptances')
+    order = models.ForeignKey('tickets.Order', on_delete=models.SET_NULL, null=True, blank=True, 
+                             help_text="Orden asociada a esta aceptación")
+    accepted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Aceptación de Términos y Condiciones"
+        verbose_name_plural = "Aceptaciones de Términos y Condiciones"
+        unique_together = [['user', 'term']]
+        ordering = ['-accepted_at']
+
+    def __str__(self):
+        return f"{self.user.email} - {self.term.title} ({self.term.event.name})"
+
+
 auditlog.register(Event)

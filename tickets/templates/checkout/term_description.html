@@ -1,0 +1,27 @@
+{% extends "./base.html" %}
+
+{% block truecontent %}
+    {% load static %}
+    <div class="card w-100">
+        <div class="card-body d-flex flex-column justify-content-center align-items-center w-100 p-sm-5 px-extra">
+            <h1 class="card-title">{{ term.title }}</h1>
+            
+            {% if term.description %}
+            <div class="w-100 mt-4">
+                <div class="text-start">
+                    {{ term.description|linebreaks }}
+                </div>
+            </div>
+            {% else %}
+            <div class="w-100 mt-4">
+                <p class="text-muted">No hay descripción disponible para este término y condición.</p>
+            </div>
+            {% endif %}
+            
+            <div class="d-flex justify-content-center gap-3 mt-4">
+                <button type="button" class="btn btn-secondary" onclick="window.close()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+

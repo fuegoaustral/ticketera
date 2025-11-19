@@ -331,16 +331,28 @@
                                 </div>
                                 <div class="qr-container my-3 my-md-0 mx-auto">
                                     <div class="qr d-flex flex-column align-items-center">
-                                        <img src="data:image/png;base64,{{ ticket.qr_code }}"
-                                             class="img-fluid"
-                                             alt="QR Code"/>
-                                        <div class="text-center mt-2">
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <div>
-                                                    <small class="text-muted">{{ ticket.key|last_uuid_part }}</small>
+                                        {% if ticket.has_all_terms_accepted %}
+                                            <img src="data:image/png;base64,{{ ticket.qr_code }}"
+                                                 class="img-fluid"
+                                                 alt="QR Code"/>
+                                            <div class="text-center mt-2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <small class="text-muted">{{ ticket.key|last_uuid_part }}</small>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
+                                        {% else %}
+                                            <div class="d-flex flex-column align-items-center justify-content-center p-4 border rounded bg-light" style="min-height: 200px; min-width: 200px;">
+                                                <i class="fas fa-exclamation-triangle text-warning mb-3" style="font-size: 3rem;"></i>
+                                                <p class="text-center text-danger fw-bold mb-0">
+                                                    Términos y condiciones no aceptadas
+                                                </p>
+                                                <p class="text-center text-muted mb-0 small">
+                                                    Bono inválido
+                                                </p>
+                                            </div>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>

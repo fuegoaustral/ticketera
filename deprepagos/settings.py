@@ -121,6 +121,7 @@ TEMPLATES = [
                 'utils.context_processors.chatwoot_token',
                 'utils.context_processors.env',
                 'utils.context_processors.chatwoot_identifier_hash',
+                'utils.context_processors.pending_terms_and_conditions',
             ],
         },
     },

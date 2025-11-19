@@ -4,11 +4,11 @@ import mercadopago
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.http import HttpResponse, HttpResponseRedirect
-from django.shortcuts import render, redirect
+from django.http import HttpResponse, HttpResponseRedirect, Http404
+from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 
-from events.models import Event
+from events.models import Event, EventTermsAndConditions, EventTermsAndConditionsAcceptance
 from events.utils import get_event_from_request, store_event_in_session
 from tickets.forms import CheckoutTicketSelectionForm, CheckoutDonationsForm
 from tickets.models import TicketType, Order, OrderTicket
@@ -104,6 +104,8 @@ def select_donations(request, event_slug=None):
 
 @login_required
 def order_summary(request, event_slug=None):
+    event = get_event_from_request(request)
+    
     if request.session.get('order_sid') is None:
         if event.slug:
             return redirect(f"{reverse('select_tickets')}?event={event.slug}")
@@ -111,7 +113,6 @@ def order_summary(request, event_slug=None):
 
     ticket_selection = request.session.get('ticket_selection', {})
     donations = request.session.get('donations', {})
-    event = get_event_from_request(request)
 
     total_amount = 0
     ticket_data = []
@@ -183,7 +184,25 @@ def order_summary(request, event_slug=None):
                 "unit_price": donation_amount,
             })
 
+    # Get terms and conditions for the event
+    terms_and_conditions = event.terms_and_conditions.all().order_by('order', 'id')
+
     if request.method == 'POST':
+        # Validate that all terms and conditions are accepted
+        accepted_terms = request.POST.getlist('accepted_terms')
+        required_term_ids = set(terms_and_conditions.values_list('id', flat=True))
+        accepted_term_ids = set(int(term_id) for term_id in accepted_terms if term_id)
+        
+        if required_term_ids != accepted_term_ids:
+            return render(request, 'checkout/order_summary.html', {
+                'ticket_data': ticket_data,
+                'donation_data': donation_data,
+                'total_amount': total_amount,
+                'terms_and_conditions': terms_and_conditions,
+                'current_event': event,
+                'error_message': 'Debes aceptar todos los términos y condiciones para continuar.',
+            })
+
         total_quantity = sum(item['quantity'] for item in ticket_data)
         remaining_event_tickets = event.tickets_remaining()
 
@@ -231,6 +250,24 @@ def order_summary(request, event_slug=None):
                 ]
                 if order_tickets:
                     OrderTicket.objects.bulk_create(order_tickets)
+            
+            # Crear registros de aceptación de términos y condiciones
+            if terms_and_conditions.exists():
+                acceptances = [
+                    EventTermsAndConditionsAcceptance(
+                        user=request.user,
+                        term=term,
+                        order=order
+                    )
+                    for term in terms_and_conditions
+                ]
+                # Usar get_or_create para evitar duplicados si ya existe
+                for acceptance in acceptances:
+                    EventTermsAndConditionsAcceptance.objects.get_or_create(
+                        user=acceptance.user,
+                        term=acceptance.term,
+                        defaults={'order': acceptance.order}
+                    )
 
         preference_data = {
             "items": items,
@@ -263,4 +300,16 @@ def order_summary(request, event_slug=None):
         'ticket_data': ticket_data,
         'donation_data': donation_data,
         'total_amount': total_amount,
+        'terms_and_conditions': terms_and_conditions,
+        'current_event': event,
+    })
+
+
+def view_term_description(request, term_id):
+    """View to display the full description of a term and condition"""
+    term = get_object_or_404(EventTermsAndConditions, id=term_id)
+    
+    return render(request, 'checkout/term_description.html', {
+        'term': term,
+        'event': term.event,
     })

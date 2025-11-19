@@ -121,6 +121,7 @@ class TicketType(BaseModel):
     is_direct_type = models.BooleanField(default=False)
     show_in_caja = models.BooleanField(default=True)
     ignore_max_amount = models.BooleanField(default=False)
+    volunteer_price = models.BooleanField(default=False, help_text="Precio para voluntarios")
 
     def get_corresponding_ticket_type(coupon: Coupon):
         return TicketType.objects \
@@ -535,6 +536,7 @@ class DirectTicketTemplate(BaseModel):
     )
     name = models.CharField(max_length=255, help_text="Descripción y/o referencias")
     amount = models.PositiveIntegerField()
+    email = models.EmailField(blank=True, null=True, help_text="Email del usuario para asignar el bono")
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
     status = models.CharField(max_length=20, choices=DirectTicketTemplateStatus.choices,
                               default=DirectTicketTemplateStatus.AVAILABLE)
