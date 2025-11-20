@@ -34,12 +34,12 @@ def home(request, event_slug=None):
                       .filter(is_direct_type=False)
                       .order_by('cardinality', 'price'))
 
-        if not ticket_types:
+        # Only get next_ticket_type if there are NO available ticket types right now
+        # This ensures we show "Adquirir Bonos" if any ticket type is available now
+        next_ticket_type = None
+        if not ticket_types.exists():
             next_ticket_type = TicketType.objects.get_next_ticket_type_available(event)
-            context.update({
-                'coupon': coupon,
-                'next_ticket_type': next_ticket_type
-            })
+        
         # Check if there are multiple active events
         active_events = Event.get_active_events()
         has_multiple_events = active_events.count() > 1
@@ -50,6 +50,10 @@ def home(request, event_slug=None):
             'current_event': event,  # Add current event to context
             'has_multiple_events': has_multiple_events,  # Add flag for multiple events
         })
+        
+        # Only add next_ticket_type to context if there are no available ticket types
+        if next_ticket_type:
+            context['next_ticket_type'] = next_ticket_type
 
     template = loader.get_template('tickets/home.html')
     return HttpResponse(template.render(context, request))
