@@ -63,6 +63,7 @@ class TicketTypeManager(models.Manager):
                 .filter(event=event)
                 .filter(Q(date_from__gte=timezone.now()) | Q(date_from__isnull=True))
                 .filter(Q(ticket_count__gt=0) | Q(ticket_count__isnull=True))
+                .filter(is_direct_type=False)
                 .order_by('cardinality', 'price')
                 .first()
                 )
