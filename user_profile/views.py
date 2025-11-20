@@ -14,7 +14,7 @@ import json
 
 from events.models import Event, EventTermsAndConditions, EventTermsAndConditionsAcceptance
 from events.utils import get_event_from_request
-from tickets.models import NewTicket, NewTicketTransfer, Order
+from tickets.models import NewTicket, NewTicketTransfer, Order, TicketType
 from .forms import ProfileStep1Form, ProfileStep2Form, VolunteeringForm, ProfileUpdateForm, CustomPasswordChangeForm, AddEmailForm, PhoneUpdateForm, CajaEmitirBonoForm
 
 
@@ -278,81 +278,24 @@ def my_ticket_view(request, event_slug=None):
         main_event_with_tickets = user_events.first()
         return redirect('my_ticket_event', event_slug=main_event_with_tickets.slug)
     
-    # If no active events with tickets, show past events
-    past_events = Event.get_active_events().filter(
-        end__lt=timezone.now()
-    ).order_by('-end')
-    
+    # If no active events with tickets, show message for current events (not past)
     # Get the main event for context
     main_event = Event.get_main_event()
-    
-    # Get tickets from past events
-    past_tickets = NewTicket.objects.filter(
-        holder=request.user, 
-        event__in=past_events
-    ).order_by("-event__end", "event__name", "owner").all()
     
     # Get the first ticket for the main event (for backward compatibility)
     my_ticket = NewTicket.objects.filter(
         holder=request.user, event=main_event, owner=request.user
     ).first() if main_event else None
 
-    # Organize past tickets by event
-    past_tickets_by_event = {}
-    for ticket in past_tickets:
-        event_key = ticket.event.slug or ticket.event.id
-        if event_key not in past_tickets_by_event:
-            past_tickets_by_event[event_key] = {
-                'event': {
-                    'id': ticket.event.id,
-                    'name': ticket.event.name,
-                    'slug': ticket.event.slug,
-                    'start': ticket.event.start,
-                    'end': ticket.event.end,
-                    'location': ticket.event.location,
-                    'location_url': ticket.event.location_url,
-                },
-                'tickets': []
-            }
-        
-        ticket_dto = ticket.get_dto(user=request.user)
-        # Add tag to distinguish between Mine and Guest tickets
-        ticket_dto['tag'] = 'Mine' if ticket.owner == request.user else 'Guest'
-        # Add event information for this specific ticket
-        ticket_dto['event'] = {
-            'name': ticket.event.name,
-            'slug': ticket.event.slug,
-            'start': ticket.event.start,
-            'end': ticket.event.end,
-            'location': ticket.event.location,
-            'location_url': ticket.event.location_url,
-        }
-        # Verificar si el usuario ha aceptado todos los términos y condiciones del evento
-        event_terms = EventTermsAndConditions.objects.filter(event=ticket.event)
-        accepted_term_ids = set(
-            EventTermsAndConditionsAcceptance.objects.filter(
-                user=request.user,
-                term__event=ticket.event
-            ).values_list('term_id', flat=True)
-        )
-        ticket_dto['has_all_terms_accepted'] = (
-            event_terms.count() == 0 or 
-            all(term.id in accepted_term_ids for term in event_terms)
-        )
-        # Add user information for Mine tickets
-        if ticket.owner == request.user:
-            ticket_dto['user_info'] = {
-                'first_name': request.user.first_name,
-                'last_name': request.user.last_name,
-                'dni': request.user.profile.document_number
-            }
-        
-        past_tickets_by_event[event_key]['tickets'].append(ticket_dto)
-
     # Get events where user has tickets, prioritizing main event
     user_events = Event.get_active_events().filter(
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
+    
+    # Get all active events to check if there are available tickets
+    active_events = Event.get_active_events()
+    has_available_tickets = TicketType.objects.get_available_ticket_types_for_current_events().exists()
+    has_multiple_events = active_events.count() > 1
     
     return render(
         request,
@@ -365,8 +308,10 @@ def my_ticket_view(request, event_slug=None):
             "nav_primary": "tickets",
             "nav_secondary": "past_events",
             'now': timezone.now(),
-            'past_tickets_by_event': past_tickets_by_event,  # Past events tickets
+            'past_tickets_by_event': {},  # Empty since we're showing current events message
             'attendee_must_be_registered': main_event.attendee_must_be_registered if main_event else False,
+            'has_available_tickets': has_available_tickets,
+            'has_multiple_events': has_multiple_events,
         },
     )
 
