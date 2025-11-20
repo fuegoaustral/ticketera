@@ -26,6 +26,7 @@ from .views import (
     event_management_view,
     ticket_types_management_view,
     ticket_types_ajax,
+    accept_terms_ajax,
 )
 
 urlpatterns = [
@@ -60,6 +61,8 @@ urlpatterns = [
     path("mis-bonos/<slug:event_slug>/", my_ticket_view, name="my_ticket_event"),
     # AJAX endpoint for auto-refresh
     path("mis-bonos/<slug:event_slug>/ajax/", my_tickets_ajax, name="my_tickets_ajax"),
+    # AJAX endpoint for accepting terms
+    path("accept-terms/", accept_terms_ajax, name="accept_terms_ajax"),
     # Default redirect (no slug) - MUST BE LAST
     path("mis-bonos/", my_ticket_view, name="my_ticket"),
 ]

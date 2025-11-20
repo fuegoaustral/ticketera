@@ -2,468 +2,487 @@
 {% load static %}
 
 {% block extrahead %}
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/css/intlTelInput.css"
-          integrity="sha384-josBdHR9a6DDApvQzVz46RUq9U6/iPErv/hIpfkLHxxLLfPOhgvCWrrRi6Ufvbgf" crossorigin="anonymous">
-    <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/js/intlTelInput.min.js"
-            integrity="sha384-6Z2vPsfhcSSIc6aQuBuj8XsgzVLnrlNXrlA/OfTiadr8Pcw3xfho2s4fxWX+beqn"
-            crossorigin="anonymous"></script>
     <style>
-        .field-box {
-            display: flex !important;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            margin-top: 8px;
-        }
-
         .container {
-            display: flex;
-            flex-direction: column;
-            max-width: 640px;
-            width: 100%;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
         }
 
-        .wrapper {
-            display: flex;
-            justify-content: center;
-            height: 100vh;
+        .filter-box {
+            margin-bottom: 20px;
+        }
+
+        .filter-input {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .table-wrapper {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            margin-bottom: 20px;
+        }
+
+        .tickets-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            font-size: 12px;
+        }
+
+        .tickets-table thead {
+            background-color: #417690;
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .tickets-table th {
+            padding: 6px 8px;
+            text-align: left;
+            font-weight: bold;
+            font-size: 11px;
+        }
+
+        .tickets-table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid #ddd;
+            font-size: 11px;
+        }
+
+        .tickets-table tbody tr {
+            cursor: pointer;
+        }
+
+        .tickets-table tbody tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .tickets-table tbody tr.selected {
+            background-color: #e3f2fd;
+        }
+
+        .tickets-table tbody tr.hidden {
+            display: none;
+        }
+
+        .status-badge, .origin-badge {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .status-available {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .status-pending {
+            background-color: #FF9800;
+            color: white;
+        }
+
+        .status-assigned {
+            background-color: #2196F3;
+            color: white;
+        }
+
+        .event-selector {
+            margin-bottom: 20px;
+        }
+
+        .event-selector select {
+            padding: 8px;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .redemption-form {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: 20px;
+            display: none;
+        }
+
+        .redemption-form.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .user-info {
+            background-color: #e8f5e9;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+
+        .user-info p {
+            margin: 5px 0;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .btn-primary {
+            background-color: #417690;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #205067;
+        }
+
+        .btn-primary:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
         }
     </style>
 {% endblock %}
 
 {% block content %}
-    <div class="wrapper">
-        <div class="container">
-            <h1>Bonos Dirigidos</h1>
-            {% if ticket_type %}
-                <form method="post" class="form-inline">
+    <div class="container">
+        <h1>Bonos Dirigidos</h1>
+        
+        <form method="post" class="event-selector">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="event"/>
+            <label for="event"><strong>Evento:</strong></label>
+            <select name="event" id="event" onchange="this.form.submit();">
+                <option value="">Seleccionar evento</option>
+                {% for event in events %}
+                    <option value="{{ event.id }}"
+                            {% if event.id == default_event.id %}selected{% endif %}>
+                        {{ event.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </form>
+
+        {% if default_event %}
+            <div class="filter-box">
+                <input type="text" 
+                       id="ticket-filter" 
+                       class="filter-input" 
+                       placeholder="Buscar en todas las columnas (origin, name, email, amount, status, event)..."
+                       autocomplete="off">
+            </div>
+
+            <div class="table-wrapper">
+                <table class="tickets-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Origin</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Amount</th>
+                            <th>Used</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tickets-tbody">
+                    {% for ticket in direct_tickets %}
+                        <tr class="ticket-row" 
+                            data-id="{{ ticket.id }}"
+                            data-origin="{{ ticket.origin }}"
+                            data-name="{{ ticket.name|lower }}"
+                            data-email="{{ ticket.email|default:''|lower }}"
+                            data-amount="{{ ticket.amount }}"
+                            data-amount-used="{{ ticket.amount_used|default:0 }}"
+                            data-status="{{ ticket.status }}"
+                            data-event="{{ ticket.event.name|lower }}">
+                            <td>{{ ticket.id }}</td>
+                            <td>
+                                <span class="origin-badge" style="
+                                    {% if ticket.origin == 'CAMP' %}background-color: #9C27B0; color: white;
+                                    {% elif ticket.origin == 'ARTE' %}background-color: #E91E63; color: white;
+                                    {% elif ticket.origin == 'VOLUNTARIOS' %}background-color: #00BCD4; color: white;
+                                    {% else %}background-color: #757575; color: white;{% endif %}
+                                ">
+                                    {{ ticket.get_origin_display }}
+                                </span>
+                            </td>
+                            <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ticket.name }}">{{ ticket.name }}</td>
+                            <td style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ ticket.email|default:'-' }}">{{ ticket.email|default:"-" }}</td>
+                            <td>{{ ticket.amount }}</td>
+                            <td>{{ ticket.amount_used|default:0 }}</td>
+                            <td>
+                                <span class="status-badge" style="
+                                    {% if ticket.status == 'AVAILABLE' %}background-color: #4CAF50; color: white;
+                                    {% elif ticket.status == 'PENDING' %}background-color: #FF9800; color: white;
+                                    {% elif ticket.status == 'ASSIGNED' %}background-color: #2196F3; color: white;
+                                    {% else %}background-color: #757575; color: white;{% endif %}
+                                ">
+                                    {{ ticket.get_status_display }}
+                                </span>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 20px;">
+                                No hay bonos dirigidos para este evento.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Formulario de redención -->
+            <div id="redemption-form" class="redemption-form">
+                <h2>Redimir Bono Dirigido</h2>
+                <form method="post" id="redeem-form">
                     {% csrf_token %}
-                    <input type="hidden" name="action" id="action" value="event"/>
-                    <div class="field-box">
-                        <label for="user_name"><strong>Operador emitiendo los bonos:</strong></label>
-                        <span id="user_name">{{ user.email }}</span>
+                    <input type="hidden" name="action" value="redeem"/>
+                    <input type="hidden" name="template_id" id="template_id"/>
+                    
+                    <div class="form-group">
+                        <label>Bono seleccionado:</label>
+                        <div id="selected-ticket-info" style="padding: 10px; background-color: #f5f5f5; border-radius: 4px;"></div>
                     </div>
-                    <br/>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="event" class="required">Evento:</label>
-                            <select name="event" id="event" class="vSelect" onchange="this.form.submit();"
-                                    style="width: 100%;">
-                                <option value="">Select an event</option>
-                                {% for event in events %}
-                                    <option value="{{ event.id }}"
-                                            {% if event.id == default_event.id %}selected{% endif %}>
-                                        {{ event.name }}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </div>
+
+                    <div class="form-group">
+                        <label for="user_email">Email del usuario:</label>
+                        <input type="email" name="user_email" id="user_email" required readonly/>
+                        <button type="button" id="check-user-btn" class="btn btn-primary" style="margin-top: 5px;">Buscar Usuario</button>
                     </div>
+
+                    <div id="user-info" class="user-info" style="display: none;">
+                        <p><strong>Usuario encontrado:</strong></p>
+                        <p><strong>Nombre:</strong> <span id="user-name"></span></p>
+                        <p><strong>DNI:</strong> <span id="user-dni"></span></p>
+                    </div>
+
+                    <div id="user-not-found" style="display: none; padding: 10px; background-color: #fff3cd; border-radius: 4px; margin-top: 10px;">
+                        <p>Usuario no encontrado. Por favor ingrese el email de un usuario de la ticketera.</p>
+                        <input type="email" id="manual-email" placeholder="Email del usuario" style="width: 100%; margin-top: 10px;"/>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quantity">Cantidad de bonos a redimir:</label>
+                        <input type="number" name="quantity" id="quantity" min="1" required/>
+                        <small id="max-quantity-info" style="display: block; margin-top: 5px; color: #666;"></small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="order_type">Tipo de orden:</label>
+                        <select name="order_type" id="order_type" required>
+                            <option value="CASH_ONSITE">Compra en efectivo</option>
+                            <option value="LOCAL_TRANSFER">Transferencia local</option>
+                            <option value="INTERNATIONAL_TRANSFER">Transferencia internacional</option>
+                            <option value="OTHER">Otros</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="notes">Notas:</label>
+                        <textarea name="notes" id="notes" rows="3"></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" id="redeem-btn" disabled>Redimir Bonos</button>
                 </form>
-
-                <form method="post" class="form-horizontal" id="ticket-purchase-form">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" id="action" value="order"/>
-                    <fieldset class="module aligned" style="margin-top:20px; ">
-                        <div class="form-row">
-                            <div class="field-box">
-                                <label for="id_email">Email:</label>
-                                <input type="email" name="email" id="id_email" placeholder="Email"
-                                       style="width: 240px">
-                            </div>
-                        </div>
-                        <div class="form-row" style="display: flex!important;justify-content: end;">
-                            <button type="button" id="check-email"
-                                    style="margin-top: 8px; background-color: #008CBA; border: none; color: white; padding: 15px 32px; text-align: center; text-decoration: none;">
-                                Verificar
-                            </button>
-                            <button type="button" id="clear-form"
-                                    style="margin-top: 8px; background-color: #FF5733; border: none; color: white; padding: 15px 32px; text-align: center; text-decoration: none; display: none;">
-                                Limpiar
-                            </button>
-                        </div>
-
-                        <div id="tickets-section" style="display: none">
-                            <div id="user-data" style="display: none">
-                                <div class="form-row">
-                                    <div class="field-box">
-                                        <label for="id_name">Nombre:</label>
-                                        <label id="label_first_name" style="display: none"></label>
-                                        <input type="text" name="first_name" id="id_first_name" placeholder="Nombre"
-                                        >
-                                    </div>
-                                </div>
-                                <div class="form-row">
-                                    <div class="field-box">
-                                        <label for="id_last_name">Apellido:</label>
-                                        <label id="label_last_name" style="display: none"></label>
-                                        <input type="text" name="last_name" id="id_last_name" placeholder="Apellido"
-                                        >
-                                    </div>
-                                </div>
-                                <div class="form-row">
-                                    <div class="field-box">
-                                        <label for="id_document_type">Tipo de documento:</label>
-                                        <label id="label_document_type" style="display: none"></label>
-                                        <select name="document_type" id="id_document_type">
-                                            <option value="DNI">DNI</option>
-                                            <option value="PASSPORT">Pasaporte</option>
-                                            <option value="OTHER">Otro</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="form-row">
-                                    <div class="field-box">
-                                        <label for="id_document_number">Numero de documento:</label>
-                                        <label id="label_document_number" style="display: none"></label>
-                                        <input type="text" name="document_number" id="id_document_number"
-                                               placeholder="Numero de documento">
-                                    </div>
-                                    <div class="form-row">
-                                        <div class="field-box">
-                                            <label for="id_phone">Telefono:</label>
-                                            <label id="label_phone" style="display: none"></label>
-                                            <input type="tel" id="phone" name="phone_input" style="width: 100%"
-                                            >
-                                            <input type="hidden" id="id_phone" name="phone">
-                                        </div>
-                                    </div>
-                                </div>
-                                <br/>
-                                <br/>
-                            </div>
-                            <div class="form-row">
-                                <div class="field-box">
-                                    <label for="id_order_type">Tipo de orden:</label>
-                                    <select name="order_type" id="id_order_type" required>
-                                        <option value="CASH_ONSITE">Compra en efectivo</option>
-                                        <option value="LOCAL_TRANSFER">Transferencia local</option>
-                                        <option value="INTERNATIONAL_TRANSFER">Transferencia internacional</option>
-                                        <option value="OTHER">Otros</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="form-row">
-                                <div class="field-box">
-                                    <textarea name="notes" id="id_notes" placeholder="Notas aquí..." rows="3"
-                                              style="width: 100%;"></textarea>
-                                </div>
-                            </div>
-                            <h3>Asignar bonos dirigidos - ${{ ticket_type.price }} c/u</h3>
-
-                            <!-- Filtrado y listado scrolleable de direct_tickets -->
-                            <div class="form-row">
-                                <div class="field-box">
-
-                                    <input type="text" id="ticket_filter" placeholder="Buscar..."
-                                           style="width: 100%;">
-                                </div>
-                            </div>
-
-                            <div class="form-row"
-                                 style="max-height: 300px; overflow-y: scroll; border: 1px solid #ccc; padding: 8px;">
-                                <div id="ticket-list">
-                                    {% for ticket in direct_tickets %}
-                                        <div class="form-row ticket-item" data-name="{{ ticket.name }}"
-                                             style="align-items: center;">
-                                            <div class="field-box">
-                                                <!-- Align checkbox and label to the left -->
-                                                <div style="display: flex; align-items: center;">
-                                                    <input type="checkbox"
-                                                           name="ticket_checkbox_{{ ticket.id }}"
-                                                           id="ticket_checkbox_{{ ticket.id }}"
-                                                           class="ticket-checkbox"
-                                                           data-price="{{ ticket_type.price }}"
-                                                           data-amount="{{ ticket.amount }}"
-                                                           style="margin-right: 10px;">
-                                                    <label for="ticket_checkbox_{{ ticket.id }}"
-                                                           style="margin-right: 10px;">
-                                                        {{ ticket.origin }} - {{ ticket.name }} -
-                                                        Max Bonos {{ ticket.amount }}
-                                                    </label>
-                                                </div>
-                                                <!-- Number input for selecting amount, initially disabled -->
-                                                <input type="number" id="ticket_amount_{{ ticket.id }}"
-                                                       name="ticket_amount_{{ ticket.id }}"
-                                                       class="ticket-amount" min="1" max="{{ ticket.amount }}"
-                                                       value="{{ ticket.amount }}"
-                                                       style="width: 80px; margin-left: 10px;" disabled>
-                                            </div>
-                                        </div>
-                                    {% endfor %}
-                                </div>
-                            </div>
-
-                            <br/>
-                            <br/>
-
-
-                        </div>
-
-                    </fieldset>
-                    <div class="form-row">
-                        <div class="field-box" style="justify-content: end">
-                            <h2>
-                                <strong id="total-display">Total: $0.00</strong>
-                            </h2>
-                        </div>
-                    </div>
-                    <div class="submit-row" style="display:none; justify-content: center" id="emit-button">
-
-                        <button type="submit" class="default" id="comprar"
-                                style="background-color: #4CAF50; border: none; color: white; padding: 15px 32px; text-align: center; text-decoration: none; display: inline-block; font-size: 16px; margin: 4px 2px; cursor: pointer;"
-                                disabled>
-                            Emitir bonos
-                        </button>
-                    </div>
-                </form>
-            {% else %}
-                <div class="text-danger">
-                    El evento no tiene bonos dirigidos configurados o disponibles
-                </div>
-            {% endif %}
-        </div>
+            </div>
+        {% else %}
+            <div style="padding: 20px; text-align: center;">
+                <p>Por favor selecciona un evento para ver los bonos dirigidos.</p>
+            </div>
+        {% endif %}
     </div>
 
     <script>
-        const boton = document.getElementById('comprar');
+        const filterInput = document.getElementById('ticket-filter');
+        const ticketRows = document.querySelectorAll('.ticket-row');
+        const redemptionForm = document.getElementById('redemption-form');
+        const selectedTicketInfo = document.getElementById('selected-ticket-info');
+        const templateIdInput = document.getElementById('template_id');
+        const userEmailInput = document.getElementById('user_email');
+        const checkUserBtn = document.getElementById('check-user-btn');
+        const userInfo = document.getElementById('user-info');
+        const userNotFound = document.getElementById('user-not-found');
+        const manualEmailInput = document.getElementById('manual-email');
+        const quantityInput = document.getElementById('quantity');
+        const maxQuantityInfo = document.getElementById('max-quantity-info');
+        const redeemBtn = document.getElementById('redeem-btn');
+        let selectedTicket = null;
 
-        boton.disabled = true;
-        boton.style.backgroundColor = 'gray';
-        boton.style.cursor = 'not-allowed';
-
-        const input = document.querySelector("#phone");
-        const iti = window.intlTelInput(input, {
-            utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/js/utils.js",
-            initialCountry: "AR",
-            customPlaceholder: function (selectedCountryPlaceholder, selectedCountryData) {
-                if (selectedCountryData.iso2 === "ar") {
-                    return "11 1234 5678";
-                }
-                return selectedCountryPlaceholder;
-            },
-        });
-
-        if ("{{ show_congratulations }}" === "True") {
-            alert('Felicitaciones! La compra fue exitosa');
-        }
-
-        document.getElementById('check-email').addEventListener('click', async function () {
-            const email = document.getElementById('id_email').value;
-
-            if (!email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) === false) {
-                alert('Por favor ingrese un email');
-                return;
-            }
-
-            try {
-                const response = await fetch('/admin/caja/email-has-account/', {
-                    method: 'POST',
-                    body: JSON.stringify({email}),
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': '{{ csrf_token }}',
+        // Filtro de búsqueda
+        if (filterInput) {
+            filterInput.addEventListener('input', function() {
+                const filterValue = this.value.toLowerCase().trim();
+                
+                ticketRows.forEach(function(row) {
+                    const searchableText = [
+                        row.getAttribute('data-id'),
+                        row.getAttribute('data-origin'),
+                        row.getAttribute('data-name'),
+                        row.getAttribute('data-email'),
+                        row.getAttribute('data-amount'),
+                        row.getAttribute('data-amount-used'),
+                        row.getAttribute('data-status'),
+                        row.getAttribute('data-event')
+                    ].join(' ').toLowerCase();
+                    
+                    if (filterValue === '' || searchableText.includes(filterValue)) {
+                        row.classList.remove('hidden');
+                    } else {
+                        row.classList.add('hidden');
                     }
                 });
+            });
+        }
 
-                const fieldIds = ['first_name', 'last_name', 'document_type', 'document_number'];
+        // Selección de bono
+        ticketRows.forEach(function(row) {
+            row.addEventListener('click', function() {
+                // Remover selección anterior
+                ticketRows.forEach(r => r.classList.remove('selected'));
+                
+                // Seleccionar nueva fila
+                this.classList.add('selected');
+                
+                // Obtener datos del bono
+                selectedTicket = {
+                    id: this.getAttribute('data-id'),
+                    origin: this.getAttribute('data-origin'),
+                    name: this.querySelector('td:nth-child(3)').textContent.trim(),
+                    email: this.getAttribute('data-email'),
+                    amount: parseInt(this.getAttribute('data-amount')),
+                    amountUsed: parseInt(this.getAttribute('data-amount-used')),
+                    available: parseInt(this.getAttribute('data-amount')) - parseInt(this.getAttribute('data-amount-used'))
+                };
 
-                if (response.status === 200) {
-                    const data = await response.json();
-                    fieldIds.forEach(id => {
-                        document.getElementById(`id_${id}`).value = data[id];
-                        document.getElementById(`id_${id}`).type = 'hidden';
-                        document.getElementById(`label_${id}`).innerText = data[id];
-                        document.getElementById(`label_${id}`).style.display = 'block';
-                    });
-                    document.getElementById(`label_phone`).style.display = 'block';
-                    document.getElementById(`label_phone`).innerText = data.phone;
-                    document.querySelector('.iti').style.display = "none";
-                    document.getElementById('id_document_type').style.display = 'none';
-                    document.getElementById('phone').type = 'hidden';
+                // Mostrar formulario
+                selectedTicketInfo.innerHTML = `
+                    <strong>${selectedTicket.name}</strong><br>
+                    Origin: ${selectedTicket.origin}<br>
+                    Email asociado: ${selectedTicket.email || 'No tiene email'}<br>
+                    Disponible: ${selectedTicket.available} bonos
+                `;
+                
+                templateIdInput.value = selectedTicket.id;
+                userEmailInput.value = selectedTicket.email || '';
+                quantityInput.max = selectedTicket.available;
+                quantityInput.value = '';
+                maxQuantityInfo.textContent = `Máximo disponible: ${selectedTicket.available} bonos`;
+                
+                // Resetear formulario
+                userInfo.style.display = 'none';
+                userNotFound.style.display = 'none';
+                manualEmailInput.value = '';
+                redeemBtn.disabled = true;
+                
+                redemptionForm.classList.add('active');
+            });
+        });
 
-                    document.getElementById('id_email').setAttribute('readonly', true);
-
-                    document.getElementById('check-email').style.display = 'none';
-                    document.getElementById('clear-form').style.display = 'block';
-                    document.getElementById('user-data').style.display = 'block';
-                } else if (response.status === 204) {
-                    alert('El email ingresado no tiene una cuenta');
-                    fieldIds.forEach(id => {
-                        document.getElementById(`id_${id}`).value = '';
-                        document.getElementById(`id_${id}`).type = 'text';
-                        document.getElementById(`label_${id}`).innerText = '';
-                        document.getElementById(`label_${id}`).style.display = 'none';
-                    });
-                    document.getElementById(`label_phone`).style.display = 'none';
-                    document.getElementById(`label_phone`).innerText = '';
-                    document.querySelector('.iti').style.display = "block";
-                    document.getElementById('phone').type = 'tel';
-                    document.getElementById('id_document_type').style.display = 'block';
-                    document.getElementById('id_email').setAttribute('readonly', true);
-                    document.getElementById('check-email').style.display = 'none';
-                    document.getElementById('clear-form').style.display = 'block';
-                    document.getElementById('user-data').style.display = 'none';
-
-                } else if (response.status === 206) {
-                    alert('El email ingresado tiene una cuenta pero no tiene los datos completos. Debe completar el perfil antes de continuar');
+        // Buscar usuario
+        if (checkUserBtn) {
+            checkUserBtn.addEventListener('click', async function() {
+                const email = userEmailInput.value.toLowerCase().trim();
+                
+                if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                    alert('Por favor ingrese un email válido');
                     return;
                 }
 
-                document.getElementById('tickets-section').style.display = 'block';
-                document.getElementById('emit-button').style.display = 'block';
-            } catch (e) {
-                console.error(e);
-            }
-        });
+                try {
+                    const response = await fetch('/admin/caja/email-has-account/', {
+                        method: 'POST',
+                        body: JSON.stringify({email}),
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}',
+                        }
+                    });
 
-        document.getElementById('clear-form').addEventListener('click', function () {
-            window.location.reload();
-
-        });
-
-        document.getElementById('ticket-purchase-form').addEventListener('submit', async function (event) {
-            event.preventDefault();
-            let total = 0;
-            document.querySelectorAll('input[name^="ticket_amount_"]').forEach(function (input) {
-                const ticketId = input.name.split('_').pop();
-                const quantity = parseInt(input.value) || 0;
-                total += quantity;
-            });
-            if (total < 1) {
-                alert('Debe seleccionar al menos un bono');
-                return;
-            }
-
-            if (document.getElementById('user-data').style.display != 'none') {
-                if (document.getElementById(`id_first_name`).type != "hidden" && !iti.isValidNumber()) {
-                    alert('Por favor ingrese un telefono valido');
-                    return;
+                    if (response.status === 200) {
+                        const data = await response.json();
+                        document.getElementById('user-name').textContent = `${data.first_name} ${data.last_name}`;
+                        document.getElementById('user-dni').textContent = `${data.document_type || 'DNI'}: ${data.document_number}`;
+                        userInfo.style.display = 'block';
+                        userNotFound.style.display = 'none';
+                        manualEmailInput.value = '';
+                        redeemBtn.disabled = false;
+                    } else if (response.status === 204) {
+                        userInfo.style.display = 'none';
+                        userNotFound.style.display = 'block';
+                        manualEmailInput.value = email;
+                        manualEmailInput.addEventListener('input', function() {
+                            userEmailInput.value = this.value;
+                        });
+                        redeemBtn.disabled = false;
+                    } else if (response.status === 206) {
+                        alert('El email ingresado tiene una cuenta pero no tiene los datos completos. Debe completar el perfil antes de continuar');
+                        redeemBtn.disabled = true;
+                    }
+                } catch (e) {
+                    console.error(e);
+                    alert('Error al buscar usuario');
                 }
+            });
+        }
 
-                if (document.getElementById(`id_first_name`).type != "hidden") {
-                    document.getElementById('id_phone').value = iti.getNumber();
+        // Validar cantidad
+        if (quantityInput) {
+            quantityInput.addEventListener('input', function() {
+                const quantity = parseInt(this.value) || 0;
+                const max = parseInt(this.max) || 0;
+                
+                if (quantity > max) {
+                    alert(`No puedes redimir más de ${max} bonos`);
+                    this.value = max;
+                }
+                
+                if (quantity > 0 && userEmailInput.value) {
+                    redeemBtn.disabled = false;
                 } else {
-                    document.getElementById('id_phone').value = document.getElementById(`label_phone`).innerText;
-                }
-            }
-
-
-            boton.disabled = true;
-            boton.style.backgroundColor = 'gray';
-            boton.style.cursor = 'not-allowed';
-
-            try {
-                event.target.submit();
-            } catch (e) {
-                console.error(e);
-                boton.disabled = false;
-                boton.style.backgroundColor = '#4CAF50';
-                boton.style.cursor = 'pointer';
-            }
-        });
-
-        const ticketPrices = {
-            {% for ticket in ticket_types %}
-                '{{ ticket.id }}': parseFloat("{{ ticket.price|floatformat:2 }}".replaceAll(',', '.')),
-            {% endfor %}
-        };
-
-        const updateTotal = () => {
-            let total = 0;
-            let buttonEnabled = false
-            // Loop through each selected checkbox and calculate the total
-            document.querySelectorAll('.ticket-checkbox').forEach(function (checkbox) {
-                if (checkbox.checked) {
-                    buttonEnabled = true
-                    const price = parseFloat(checkbox.getAttribute('data-price'));
-                    const ticketId = checkbox.id.split('_').pop();
-                    const amountInput = document.getElementById(`ticket_amount_${ticketId}`);
-                    const selectedAmount = parseInt(amountInput.value) || 0;
-                    total += price * selectedAmount;
+                    redeemBtn.disabled = true;
                 }
             });
+        }
 
-            if (buttonEnabled) {
-                boton.disabled = false;
-                boton.style.backgroundColor = '#4CAF50';
-                boton.style.cursor = 'pointer';
-            } else {
-                boton.disabled = true;
-                boton.style.backgroundColor = 'gray';
-                boton.style.cursor = 'not-allowed';
-            }
-
-            // Update the total display
-            document.getElementById('total-display').innerText = 'Total: $' + total.toLocaleString('es-AR', {
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 2
-            });
-        };
-
-        // Add event listener to checkboxes to enable/disable number inputs and update total on change
-        document.querySelectorAll('.ticket-checkbox').forEach(function (checkbox) {
-            checkbox.addEventListener('change', function () {
-                const ticketId = checkbox.id.split('_').pop();
-                const amountInput = document.getElementById(`ticket_amount_${ticketId}`);
-
-                if (checkbox.checked) {
-                    amountInput.disabled = false;
-                    amountInput.style.backgroundColor = 'white';
-                    amountInput.style.color = 'black';
-                } else {
-                    amountInput.disabled = true;
-                    amountInput.value = amountInput.max;
-                    amountInput.style.backgroundColor = '';
-                    amountInput.style.color = '';
-                }
-
-                updateTotal(); // Update total when checkbox state changes
-            });
-        });
-
-        // Add event listener to number inputs to update total on amount change
-        document.querySelectorAll('.ticket-amount').forEach(function (input) {
-            input.addEventListener('input', function () {
-                const maxAmount = parseInt(input.max);
-                if (parseInt(input.value) > maxAmount) {
-                    input.value = maxAmount; // Restrict to max if exceeded
-                    alert('No puedes seleccionar más bonos de los permitidos');
-                }
-                updateTotal();
-            });
-        });
-
-        // Filtrado de tickets y manejo de checados
-        const filterInput = document.getElementById('ticket_filter');
-        const ticketList = document.getElementById('ticket-list');
-        const checkboxes = document.querySelectorAll('.ticket-checkbox');
-
-        // Actualiza el listado de tickets al filtrar
-        filterInput.addEventListener('input', function () {
-            const filter = filterInput.value.toLowerCase();
-            document.querySelectorAll('.ticket-item').forEach(function (ticket) {
-                const ticketName = ticket.getAttribute('data-name').toLowerCase();
-                const checkbox = ticket.querySelector('.ticket-checkbox');
-
-                // Si el ticket está chequeado, lo dejamos visible
-                if (checkbox.checked || ticketName.includes(filter)) {
-                    ticket.style.display = 'flex';
-                } else {
-                    ticket.style.display = 'none';
+        // Validar email manual
+        if (manualEmailInput) {
+            manualEmailInput.addEventListener('input', function() {
+                userEmailInput.value = this.value;
+                if (this.value && quantityInput.value > 0) {
+                    redeemBtn.disabled = false;
                 }
             });
-        });
-
-        // Mantiene las entradas chequeadas siempre arriba
-        checkboxes.forEach(function (checkbox) {
-            checkbox.addEventListener('change', function () {
-                const ticketItem = checkbox.closest('.ticket-item');
-                if (checkbox.checked) {
-                    ticketList.prepend(ticketItem); // Mover las seleccionadas al principio
-                }
-            });
-        });
-
+        }
     </script>
 {% endblock %}

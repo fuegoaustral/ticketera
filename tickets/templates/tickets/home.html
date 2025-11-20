@@ -10,8 +10,11 @@
             </div>
         </a>
         <div class="container-xxl d-flex justify-content-center mt-3">
-            <a href="{% url 'select_tickets' %}?event={{ event.slug }}" class="btn btn-primary">{%  if ticket_types %}Adquirir Bonos{% endif %}</a>
-            {%  if not ticket_types and next_ticket_type %}<button class="btn btn-secondary disabled"><span id="countdown"></span></button>{% endif %}
+            {% if ticket_types %}
+                <a href="{% url 'select_tickets' %}?event={{ event.slug }}" class="btn btn-primary">Adquirir Bonos</a>
+            {% elif next_ticket_type %}
+                <button class="btn btn-secondary disabled"><span id="countdown"></span></button>
+            {% endif %}
         </div>
         <div class="container-xxl home-section">
             <div class="row d-flex justify-content-center">
@@ -24,6 +27,13 @@
                 </div>
                 <div class="col-lg-5 rich-text">{{ event.description|safe }}</div>
             </div>
+        </div>
+        <div class="container-xxl d-flex justify-content-center mt-3">
+            {% if ticket_types %}
+                <a href="{% url 'select_tickets' %}?event={{ event.slug }}" class="btn btn-primary">Adquirir Bonos</a>
+            {% elif next_ticket_type %}
+                <button class="btn btn-secondary disabled"><span id="countdown-bottom"></span></button>
+            {% endif %}
         </div>
         <div class="container hr">
             <hr />
@@ -186,13 +196,27 @@
                 const formatNumber = (num) => num.toString().padStart(2, '0');
 
                 // Display the result
-                document.getElementById("countdown").innerHTML = 
-                    `Bonos disponibles en ${formatNumber(days)}d ${formatNumber(hours)}:${formatNumber(minutes)}:${formatNumber(seconds)}`;
+                const countdownText = `Bonos disponibles en ${formatNumber(days)}d ${formatNumber(hours)}:${formatNumber(minutes)}:${formatNumber(seconds)}`;
+                const countdownElement = document.getElementById("countdown");
+                const countdownBottomElement = document.getElementById("countdown-bottom");
+                
+                if (countdownElement) {
+                    countdownElement.innerHTML = countdownText;
+                }
+                if (countdownBottomElement) {
+                    countdownBottomElement.innerHTML = countdownText;
+                }
 
                 // If the countdown is finished, clear the interval
                 if (distance < 0) {
                     clearInterval(x);
-                    document.getElementById("countdown").innerHTML = "¡Ya disponibles!";
+                    const finishedText = "¡Ya disponibles!";
+                    if (countdownElement) {
+                        countdownElement.innerHTML = finishedText;
+                    }
+                    if (countdownBottomElement) {
+                        countdownBottomElement.innerHTML = finishedText;
+                    }
                     window.location.reload();
                 }
             }, 1000);

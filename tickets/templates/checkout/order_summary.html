@@ -63,6 +63,28 @@
                     <div><b>Total</b> <span id="subtotal">$ {{ total_amount|floatformat|intcomma }}</span></div>
                 </div>
 
+                {% if terms_and_conditions %}
+                <div class="d-flex flex-column gap-3 my-4 p-3 border rounded">
+                    <h5 class="mb-2">Términos y Condiciones</h5>
+                    {% if error_message %}
+                    <div class="alert alert-danger" role="alert">
+                        {{ error_message }}
+                    </div>
+                    {% endif %}
+                    {% for term in terms_and_conditions %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="accepted_terms" value="{{ term.id }}" id="term_{{ term.id }}" required>
+                        <label class="form-check-label" for="term_{{ term.id }}">
+                            <strong>{{ term.title }}</strong>
+                            {% if term.description %}
+                            - <a href="{% url 'view_term_description' term.id %}" target="_blank" class="text-decoration-none">Ver descripción completa</a>
+                            {% endif %}
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
                 <div class="d-flex justify-content-center gap-3 mt-3">
                     <a href="{% url 'select_donations' %}{% if current_event.slug %}?event={{ current_event.slug }}{% endif %}" class="btn btn-secondary">Atrás</a>
                     <button type="submit" class="btn btn-primary" id="submit-button">Proceder al Pago</button>

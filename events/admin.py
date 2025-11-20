@@ -6,7 +6,7 @@ from django.urls import path
 from django.shortcuts import render
 from django.forms import ModelForm
 import csv
-from .models import Event
+from .models import Event, EventTermsAndConditions, EventTermsAndConditionsAcceptance
 
 
 class EventAdminForm(ModelForm):
@@ -477,4 +477,26 @@ class EventAdmin(admin.ModelAdmin):
         
         return render(request, 'admin/events/tickets_sold_report.html', context)
 
+class EventTermsAndConditionsAdmin(admin.ModelAdmin):
+    list_display = ('title', 'event', 'order', 'has_description')
+    list_filter = ('event',)
+    search_fields = ('title', 'description')
+    ordering = ('event', 'order', 'id')
+    
+    def has_description(self, obj):
+        return bool(obj.description)
+    has_description.boolean = True
+    has_description.short_description = 'Tiene Descripción'
+
+
+class EventTermsAndConditionsAcceptanceAdmin(admin.ModelAdmin):
+    list_display = ('user', 'term', 'order', 'accepted_at')
+    list_filter = ('term__event', 'accepted_at')
+    search_fields = ('user__email', 'term__title', 'order__key')
+    readonly_fields = ('accepted_at',)
+    ordering = ('-accepted_at',)
+
+
 admin.site.register(Event, EventAdmin)
+admin.site.register(EventTermsAndConditions, EventTermsAndConditionsAdmin)
+admin.site.register(EventTermsAndConditionsAcceptance, EventTermsAndConditionsAcceptanceAdmin)
