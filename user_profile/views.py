@@ -12,7 +12,7 @@ from django.contrib.auth.models import User
 from django.conf import settings
 import json
 
-from events.models import Event
+from events.models import Event, EventTermsAndConditions, EventTermsAndConditionsAcceptance
 from events.utils import get_event_from_request
 from tickets.models import NewTicket, NewTicketTransfer, Order
 from .forms import ProfileStep1Form, ProfileStep2Form, VolunteeringForm, ProfileUpdateForm, CustomPasswordChangeForm, AddEmailForm, PhoneUpdateForm, CajaEmitirBonoForm
@@ -73,7 +73,21 @@ def show_past_events(request):
             'slug': ticket.event.slug,
             'start': ticket.event.start,
             'end': ticket.event.end,
+            'location': ticket.event.location,
+            'location_url': ticket.event.location_url,
         }
+        # Verificar si el usuario ha aceptado todos los términos y condiciones del evento
+        event_terms = EventTermsAndConditions.objects.filter(event=ticket.event)
+        accepted_term_ids = set(
+            EventTermsAndConditionsAcceptance.objects.filter(
+                user=request.user,
+                term__event=ticket.event
+            ).values_list('term_id', flat=True)
+        )
+        ticket_dto['has_all_terms_accepted'] = (
+            event_terms.count() == 0 or 
+            all(term.id in accepted_term_ids for term in event_terms)
+        )
         # Add user information for Mine tickets
         if ticket.owner == request.user:
             ticket_dto['user_info'] = {
@@ -159,7 +173,21 @@ def my_ticket_view(request, event_slug=None):
                     'slug': ticket.event.slug,
                     'start': ticket.event.start,
                     'end': ticket.event.end,
+                    'location': ticket.event.location,
+                    'location_url': ticket.event.location_url,
                 }
+                # Verificar si el usuario ha aceptado todos los términos y condiciones del evento
+                event_terms = EventTermsAndConditions.objects.filter(event=ticket.event)
+                accepted_term_ids = set(
+                    EventTermsAndConditionsAcceptance.objects.filter(
+                        user=request.user,
+                        term__event=ticket.event
+                    ).values_list('term_id', flat=True)
+                )
+                ticket_dto['has_all_terms_accepted'] = (
+                    event_terms.count() == 0 or 
+                    all(term.id in accepted_term_ids for term in event_terms)
+                )
                 # Add user information for Mine tickets
                 if ticket.owner == request.user:
                     ticket_dto['user_info'] = {
@@ -212,6 +240,9 @@ def my_ticket_view(request, event_slug=None):
                 newticket__holder=request.user
             ).distinct().order_by('-is_main', 'name')
             
+            # Get terms and conditions for this event
+            event_terms = EventTermsAndConditions.objects.filter(event=current_event).order_by('order', 'id')
+            
             return render(
                 request,
                 "mi_fuego/my_tickets/my_ticket.html",
@@ -227,6 +258,7 @@ def my_ticket_view(request, event_slug=None):
                     'attendee_must_be_registered': current_event.attendee_must_be_registered,
                     'all_unassigned': all_unassigned and not current_event.attendee_must_be_registered,
                     'unshared_tickets_count': unshared_tickets_count,
+                    'event_terms': event_terms,  # Terms and conditions for the event
                 },
             )
         except Event.DoesNotExist:
@@ -292,7 +324,21 @@ def my_ticket_view(request, event_slug=None):
             'slug': ticket.event.slug,
             'start': ticket.event.start,
             'end': ticket.event.end,
+            'location': ticket.event.location,
+            'location_url': ticket.event.location_url,
         }
+        # Verificar si el usuario ha aceptado todos los términos y condiciones del evento
+        event_terms = EventTermsAndConditions.objects.filter(event=ticket.event)
+        accepted_term_ids = set(
+            EventTermsAndConditionsAcceptance.objects.filter(
+                user=request.user,
+                term__event=ticket.event
+            ).values_list('term_id', flat=True)
+        )
+        ticket_dto['has_all_terms_accepted'] = (
+            event_terms.count() == 0 or 
+            all(term.id in accepted_term_ids for term in event_terms)
+        )
         # Add user information for Mine tickets
         if ticket.owner == request.user:
             ticket_dto['user_info'] = {
@@ -2515,3 +2561,53 @@ def caja_view(request, event_slug):
     }
     
     return render(request, "mi_fuego/caja.html", context)
+
+@login_required
+@require_POST
+def accept_terms_ajax(request):
+    """Vista AJAX para aceptar términos y condiciones"""
+    try:
+        data = json.loads(request.body)
+        term_ids = data.get('term_ids', [])
+        event_slug = data.get('event_slug')
+        
+        if not term_ids:
+            return JsonResponse({'success': False, 'error': 'No se proporcionaron términos para aceptar'})
+        
+        # Verificar que el usuario tiene bonos de este evento
+        if event_slug:
+            event = Event.get_by_slug(event_slug)
+            if not event:
+                return JsonResponse({'success': False, 'error': 'Evento no encontrado'})
+            
+            has_tickets = NewTicket.objects.filter(holder=request.user, event=event).exists()
+            if not has_tickets:
+                return JsonResponse({'success': False, 'error': 'No tienes bonos de este evento'})
+        
+        # Obtener los términos
+        terms = EventTermsAndConditions.objects.filter(id__in=term_ids)
+        
+        if terms.count() != len(term_ids):
+            return JsonResponse({'success': False, 'error': 'Algunos términos no fueron encontrados'})
+        
+        # Crear las aceptaciones
+        created_count = 0
+        with transaction.atomic():
+            for term in terms:
+                acceptance, created = EventTermsAndConditionsAcceptance.objects.get_or_create(
+                    user=request.user,
+                    term=term,
+                    defaults={}
+                )
+                if created:
+                    created_count += 1
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Se aceptaron {created_count} términos y condiciones correctamente'
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Datos inválidos'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': f'Error: {str(e)}'})

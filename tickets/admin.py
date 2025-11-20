@@ -188,47 +188,57 @@ def admin_caja_view(request, event_id=None):
 @staff_member_required
 @permission_required("tickets.can_sell_tickets")
 def admin_direct_tickets_view(request, event_id=None):
-    direct_ticket_summary = request.session.pop('direct_ticket_summary', {})
     events = Event.get_active_events()
     default_event = events.first()
-    direct_tickets = DirectTicketTemplate.objects.filter(event_id=default_event.id,
-                                                         status=DirectTicketTemplateStatus.AVAILABLE) if default_event else None
-    ticket_type = TicketType.objects.filter(event_id=default_event.id,
-                                            is_direct_type=True).first() if default_event else None
+    
+    # Obtener todos los bonos dirigidos del evento (no solo los disponibles)
+    direct_tickets = DirectTicketTemplate.objects.filter(event_id=default_event.id) if default_event else DirectTicketTemplate.objects.none()
+    ticket_type = TicketType.objects.filter(event_id=default_event.id, is_direct_type=True).first() if default_event else None
 
     if request.method == 'POST':
         selected_event_id = request.POST.get('event')
         action = request.POST.get('action')
-
-        if action == "event" and selected_event_id:
-            ticket_type = TicketType.objects.filter(event_id=selected_event_id,
-                                                    is_direct_type=True).first() if selected_event_id else None
+        
+        if action == 'event' and selected_event_id:
             default_event = Event.objects.get(id=selected_event_id)
-
-            direct_tickets = DirectTicketTemplate.objects.filter(event_id=default_event.id,
-                                                                 status=DirectTicketTemplateStatus.AVAILABLE) if default_event else None
-        elif action == "order":
-
-            email = request.POST.get('email').lower()
-            notes = request.POST.get('notes')
-            ticket_amounts = {int(k.split('_')[2]): int(v) for k, v in request.POST.items() if
-                              k.startswith('ticket_amount_')}
-
-            order_type = request.POST.get('order_type')
-
-            request.session['direct_ticket_summary'] = {
-                'email': email,
-                'notes': notes,
-                'ticket_amounts': ticket_amounts,
-                'order_type': order_type,
-            }
-            return redirect('admin_direct_tickets_buyer_view')
+            direct_tickets = DirectTicketTemplate.objects.filter(event_id=default_event.id)
+            ticket_type = TicketType.objects.filter(event_id=default_event.id, is_direct_type=True).first()
+        elif action == 'redeem':
+            # Procesar redención de bonos
+            template_id = request.POST.get('template_id')
+            quantity = int(request.POST.get('quantity', 0))
+            user_email = request.POST.get('user_email', '').lower()
+            notes = request.POST.get('notes', '')
+            order_type = request.POST.get('order_type', 'CASH_ONSITE')
+            
+            if template_id and quantity > 0 and user_email:
+                template = DirectTicketTemplate.objects.get(id=template_id)
+                available = template.amount - (template.amount_used or 0)
+                if quantity > available:
+                    return HttpResponse(f'La cantidad excede el máximo disponible ({available} bonos disponibles)', status=400)
+                
+                user = User.objects.filter(email=user_email).first()
+                
+                template_tickets = [{
+                    'id': template.id,
+                    'name': template.name,
+                    'origin': template.origin,
+                    'amount': quantity,
+                    'event_id': template.event.id
+                }]
+                
+                if user:
+                    new_order_id = direct_sales_existing_user(user, template_tickets, order_type, notes, request.user)
+                else:
+                    new_order_id = direct_sales_new_user(user_email, template_tickets, order_type, notes, request.user)
+                
+                return redirect('admin_direct_tickets_congrats_view', new_order_id=new_order_id)
 
     context = {
-        'ticket_type': ticket_type,
         'events': events,
         'default_event': default_event,
         'direct_tickets': direct_tickets,
+        'ticket_type': ticket_type,
     }
     return render(request, 'admin/admin_direct_tickets.html', context)
 
@@ -309,7 +319,7 @@ class DirectTicketTemplateImportResource(resources.ModelResource):
 
     class Meta:
         model = DirectTicketTemplate
-        fields = ['origin', 'name', 'amount']
+        fields = ['origin', 'name', 'amount', 'email']
         exclude = ('id')
         force_init_instance = True
 
@@ -324,16 +334,16 @@ class DirectTicketTemplateImportResource(resources.ModelResource):
 
 class DirectTicketTemplateExportResource(DirectTicketTemplateImportResource):
     class Meta(DirectTicketTemplateImportResource.Meta):
-        fields = ['origin', 'name', 'amount', 'status']
+        fields = ['origin', 'name', 'amount', 'email', 'status']
 
 
 @admin.register(DirectTicketTemplate)
 class DirectTicketTemplateAdmin(ImportExportModelAdmin, ExportActionMixin):
     resource_classes = [DirectTicketTemplateImportResource]
-    list_display = ['id', 'origin', 'name', 'amount', 'status', 'event']
+    list_display = ['id', 'origin', 'name', 'amount', 'email', 'status', 'event']
     list_display_links = ['id']
     list_filter = ['event__name', 'origin', 'status']
-    search_fields = ['event__name', 'name']
+    search_fields = ['event__name', 'name', 'email']
 
     def get_import_resource_kwargs(self, request, *args, **kwargs):
         kwargs = super().get_resource_kwargs(request, *args, **kwargs)

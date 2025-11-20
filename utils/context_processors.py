@@ -2,7 +2,7 @@ import hashlib
 import hmac
 
 from deprepagos import settings
-from events.models import Event
+from events.models import Event, EventTermsAndConditions, EventTermsAndConditionsAcceptance
 from tickets.models import NewTicket, TicketType, NewTicketTransfer
 
 
@@ -111,3 +111,64 @@ def chatwoot_identifier_hash(request):
         identifier_hash = hash.hexdigest()
         return {"CHATWOOT_IDENTIFIER_HASH": identifier_hash}
     return {"CHATWOOT_IDENTIFIER_HASH": None}
+
+
+def pending_terms_and_conditions(request):
+    """Context processor para verificar términos y condiciones pendientes"""
+    if not hasattr(request, 'user') or not request.user.is_authenticated:
+        return {
+            'pending_terms_by_event': {},
+            'has_pending_terms': False
+        }
+    
+    # No mostrar el modal en ciertas rutas
+    excluded_paths = [
+        '/checkout/term/',
+        '/admin/',
+    ]
+    if any(request.path.startswith(path) for path in excluded_paths):
+        return {
+            'pending_terms_by_event': {},
+            'has_pending_terms': False
+        }
+    
+    # Obtener todos los eventos donde el usuario tiene bonos
+    events_with_tickets = Event.objects.filter(
+        newticket__holder=request.user
+    ).distinct()
+    
+    pending_terms_by_event = {}
+    has_pending_terms = False
+    
+    for event in events_with_tickets:
+        # Obtener todos los términos y condiciones del evento
+        event_terms = EventTermsAndConditions.objects.filter(event=event)
+        
+        if not event_terms.exists():
+            continue
+        
+        # Obtener términos ya aceptados por el usuario
+        accepted_term_ids = set(
+            EventTermsAndConditionsAcceptance.objects.filter(
+                user=request.user,
+                term__event=event
+            ).values_list('term_id', flat=True)
+        )
+        
+        # Obtener términos pendientes
+        pending_terms = [
+            term for term in event_terms
+            if term.id not in accepted_term_ids
+        ]
+        
+        if pending_terms:
+            pending_terms_by_event[event.slug] = {
+                'event': event,
+                'terms': pending_terms,
+            }
+            has_pending_terms = True
+    
+    return {
+        'pending_terms_by_event': pending_terms_by_event,
+        'has_pending_terms': has_pending_terms,
+    }
