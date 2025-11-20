@@ -104,6 +104,9 @@
             font-size: 14px;
             border: 1px solid #ddd;
             border-radius: 4px;
+            min-height: 40px;
+            height: auto;
+            line-height: 1.5;
         }
 
         .redemption-form {
@@ -205,7 +208,7 @@
                 <table class="tickets-table">
                     <thead>
                         <tr>
-                            <th>ID</th>
+                            <th style="display: none;">ID</th>
                             <th>Origin</th>
                             <th>Name</th>
                             <th>Email</th>
@@ -225,7 +228,7 @@
                             data-amount-used="{{ ticket.amount_used|default:0 }}"
                             data-status="{{ ticket.status }}"
                             data-event="{{ ticket.event.name|lower }}">
-                            <td>{{ ticket.id }}</td>
+                            <td style="display: none;">{{ ticket.id }}</td>
                             <td>
                                 <span class="origin-badge" style="
                                     {% if ticket.origin == 'CAMP' %}background-color: #9C27B0; color: white;
@@ -253,7 +256,7 @@
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="7" style="text-align: center; padding: 20px;">
+                            <td colspan="6" style="text-align: center; padding: 20px;">
                                 No hay bonos dirigidos para este evento.
                             </td>
                         </tr>
@@ -378,7 +381,7 @@
                 selectedTicket = {
                     id: this.getAttribute('data-id'),
                     origin: this.getAttribute('data-origin'),
-                    name: this.querySelector('td:nth-child(3)').textContent.trim(),
+                    name: this.getAttribute('data-name'),
                     email: this.getAttribute('data-email'),
                     amount: parseInt(this.getAttribute('data-amount')),
                     amountUsed: parseInt(this.getAttribute('data-amount-used')),

@@ -478,10 +478,11 @@ class EventAdmin(admin.ModelAdmin):
         return render(request, 'admin/events/tickets_sold_report.html', context)
 
 class EventTermsAndConditionsAdmin(admin.ModelAdmin):
-    list_display = ('title', 'event', 'order', 'has_description')
+    list_display = ('title', 'slug', 'event', 'order', 'has_description')
     list_filter = ('event',)
-    search_fields = ('title', 'description')
+    search_fields = ('title', 'description', 'slug')
     ordering = ('event', 'order', 'id')
+    prepopulated_fields = {"slug": ("title",)}
     
     def has_description(self, obj):
         return bool(obj.description)

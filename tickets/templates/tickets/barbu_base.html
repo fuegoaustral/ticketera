@@ -305,9 +305,11 @@
                             <div class="form-check mb-3">
                                 <input class="form-check-input" type="checkbox" name="accepted_terms" value="{{ term.id }}" id="term_{{ term.id }}" required>
                                 <label class="form-check-label" for="term_{{ term.id }}">
-                                    <strong>{{ term.title }}</strong>
                                     {% if term.description %}
-                                    - <a href="{% url 'view_term_description' term.id %}" target="_blank" class="text-decoration-none">Ver descripción completa</a>
+                                    He leído y acepto los <strong>{{ term.title }}</strong>
+                                    - <a href="{% url 'view_term_description' term.slug %}" target="_blank" class="text-decoration-none">Ver descripción completa</a>
+                                    {% else %}
+                                    <strong>{{ term.title }}</strong>
                                     {% endif %}
                                 </label>
                             </div>

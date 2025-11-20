@@ -45,7 +45,7 @@ urlpatterns = [
     path('checkout/select-tickets', checkout.select_tickets, name='select_tickets'),
     path('checkout/select-donations', checkout.select_donations, name='select_donations'),
     path('checkout/order-summary', checkout.order_summary, name='order_summary'),
-    path('checkout/term/<int:term_id>/', checkout.view_term_description, name='view_term_description'),
+    path('term/<slug:slug>/', checkout.view_term_description, name='view_term_description'),
 
     # Webhook related paths
     path('webhooks/mercadopago', webhooks.mercadopago_webhook, name='mercadopago_webhook'),

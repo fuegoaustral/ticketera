@@ -58,10 +58,18 @@ def process_csv(input_file, output_file):
             origin = normalize_origin(origin_part)
             
             # Construir name: subtipo + " " + nombre + " " + apellido
-            # Columnas: tipo, nombre, apellido, email, amount
+            # Columnas: tipo, nombre, apellido, [booleano opcional], email, amount
             nombre = row[1].strip() if len(row) > 1 else ''
             apellido = row[2].strip() if len(row) > 2 else ''
-            email = row[3].strip() if len(row) > 3 else ''
+            
+            # El email puede estar en la columna 3 o 4 dependiendo de si hay un booleano
+            # Si la columna 3 parece un email (contiene @), usarla, sino usar la 4
+            email = ''
+            if len(row) > 3:
+                if '@' in row[3]:
+                    email = row[3].strip()
+                elif len(row) > 4:
+                    email = row[4].strip()
             
             # Construir name (sin email, el email va en su propia columna)
             name_parts = []
