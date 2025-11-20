@@ -123,7 +123,7 @@ def pending_terms_and_conditions(request):
     
     # No mostrar el modal en ciertas rutas
     excluded_paths = [
-        '/checkout/term/',
+        '/term/',
         '/admin/',
     ]
     if any(request.path.startswith(path) for path in excluded_paths):

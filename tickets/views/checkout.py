@@ -305,9 +305,9 @@ def order_summary(request, event_slug=None):
     })
 
 
-def view_term_description(request, term_id):
+def view_term_description(request, slug):
     """View to display the full description of a term and condition"""
-    term = get_object_or_404(EventTermsAndConditions, id=term_id)
+    term = get_object_or_404(EventTermsAndConditions, slug=slug)
     
     return render(request, 'checkout/term_description.html', {
         'term': term,

@@ -166,7 +166,8 @@ class Event(BaseModel):
 class EventTermsAndConditions(BaseModel):
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='terms_and_conditions')
     title = models.CharField(max_length=255, help_text="Título del término y condición")
-    description = models.TextField(blank=True, null=True, help_text="Descripción detallada (opcional)")
+    slug = models.SlugField(max_length=100, unique=True, null=True, blank=True, help_text="URL-friendly identifier for the term")
+    description = models.TextField(blank=True, null=True, help_text="Descripción detallada (opcional, puede contener HTML)")
     order = models.IntegerField(default=0, help_text="Orden de visualización (menor número aparece primero)")
 
     class Meta:
@@ -176,6 +177,47 @@ class EventTermsAndConditions(BaseModel):
 
     def __str__(self):
         return f"{self.title} - {self.event.name}"
+    
+    def save(self, *args, **kwargs):
+        # Auto-generate slug from title if not provided
+        if not self.slug and self.title:
+            base_slug = slugify(self.title)
+            # Truncate to ensure it fits in max_length (100)
+            # Reserve space for event slug prefix and counter suffix if needed
+            max_base_length = 80  # Reserve 20 chars for prefix/suffix
+            if len(base_slug) > max_base_length:
+                base_slug = base_slug[:max_base_length]
+            
+            # Ensure uniqueness by appending event slug if needed
+            if self.event:
+                event_slug = slugify(self.event.name)
+                # Truncate event slug if needed
+                if len(event_slug) > 20:
+                    event_slug = event_slug[:20]
+                base_slug = f"{event_slug}-{base_slug}"
+                # Truncate again after adding event prefix
+                if len(base_slug) > 95:  # Reserve 5 chars for counter
+                    base_slug = base_slug[:95]
+            
+            # Check if slug already exists
+            slug = base_slug
+            counter = 1
+            while EventTermsAndConditions.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                # Truncate base to make room for counter
+                counter_str = f"-{counter}"
+                max_base_for_counter = 100 - len(counter_str)
+                slug_base = base_slug[:max_base_for_counter] if len(base_slug) > max_base_for_counter else base_slug
+                slug = f"{slug_base}{counter_str}"
+                counter += 1
+                # Safety check to prevent infinite loop
+                if counter > 9999:
+                    # Use a hash-based approach as fallback
+                    import hashlib
+                    slug_hash = hashlib.md5(f"{self.title}{self.event.id if self.event else ''}".encode()).hexdigest()[:8]
+                    slug = f"term-{slug_hash}"
+                    break
+            self.slug = slug
+        return super().save(*args, **kwargs)
 
 
 class EventTermsAndConditionsAcceptance(BaseModel):

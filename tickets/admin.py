@@ -340,8 +340,8 @@ class DirectTicketTemplateExportResource(DirectTicketTemplateImportResource):
 @admin.register(DirectTicketTemplate)
 class DirectTicketTemplateAdmin(ImportExportModelAdmin, ExportActionMixin):
     resource_classes = [DirectTicketTemplateImportResource]
-    list_display = ['id', 'origin', 'name', 'amount', 'email', 'status', 'event']
-    list_display_links = ['id']
+    list_display = ['origin', 'name', 'amount', 'email', 'status', 'event']
+    list_display_links = ['name']
     list_filter = ['event__name', 'origin', 'status']
     search_fields = ['event__name', 'name', 'email']
 
