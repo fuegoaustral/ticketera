@@ -23,10 +23,6 @@
             <a href="{% url 'admin_direct_tickets_view' %}">BONOS DIRIGIDOS - (CAMP / ARTE / VOLUNTARIOS)</a>
         </li>
         {% endif %}
-        {% if user.is_superuser or perms.auth.puerta %}
-        <li>
-            <a href="{% url 'scan_tickets' %}">PUERTA - ESCANEAR BONOS</a>
-        </li>
-        {% endif %}
+      
     </ul>
 {% endblock %}
