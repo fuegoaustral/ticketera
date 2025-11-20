@@ -1,0 +1,64 @@
+{% extends "admin/base.html" %}
+
+{% block dark-mode-vars %}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    /* Ocultar el selector de tema */
+    .theme-toggle,
+    button[aria-label*="tema"],
+    button[aria-label*="theme"] {
+        display: none !important;
+    }
+    
+    /* Ocultar cualquier elemento relacionado con el cambio de tema */
+    .theme-switcher,
+    [class*="theme-toggle"],
+    [id*="theme-toggle"] {
+        display: none !important;
+    }
+</style>
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script>
+    (function() {
+        function hideThemeSelector() {
+            // Ocultar el selector de tema por clases/IDs comunes
+            var themeSelectors = document.querySelectorAll(
+                '.theme-toggle, button[aria-label*="tema"], button[aria-label*="theme"], .theme-switcher, [class*="theme-toggle"], [id*="theme-toggle"], [aria-label*="tema"], [aria-label*="theme"]'
+            );
+            themeSelectors.forEach(function(element) {
+                element.style.display = 'none';
+            });
+            
+            // Buscar en el menú de usuario (#user-tools)
+            var userMenu = document.querySelector('#user-tools');
+            if (userMenu) {
+                // Buscar botones y enlaces relacionados con tema
+                var themeElements = userMenu.querySelectorAll('button, a');
+                themeElements.forEach(function(element) {
+                    var text = (element.textContent || element.innerText || '').trim();
+                    var ariaLabel = element.getAttribute('aria-label') || '';
+                    if (text.includes('Cambiar tema') || text.includes('Change theme') || 
+                        ariaLabel.includes('tema') || ariaLabel.includes('theme')) {
+                        element.style.display = 'none';
+                    }
+                });
+            }
+        }
+        
+        // Ejecutar inmediatamente y después de que el DOM esté listo
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', hideThemeSelector);
+        } else {
+            hideThemeSelector();
+        }
+        
+        // También ejecutar después de un pequeño delay por si se carga dinámicamente
+        setTimeout(hideThemeSelector, 100);
+    })();
+</script>
+{% endblock %}
