@@ -29,11 +29,19 @@ def direct_sales_existing_user(user, template_tickets, order_type, notes, reques
         )
         order.save()
 
-        user_already_has_ticket = NewTicket.objects.filter(owner=user).exists()
-        ticket_type = TicketType.objects.get(event_id=template_tickets[0]['event_id'],
+        # Get the event ID from the first template ticket (all tickets should be for the same event)
+        event_id = template_tickets[0]['event_id']
+        
+        # Check if user already has a ticket as owner for THIS specific event
+        user_already_has_ticket_for_event = NewTicket.objects.filter(
+            owner=user, 
+            event_id=event_id
+        ).exists()
+        
+        ticket_type = TicketType.objects.get(event_id=event_id,
                                              is_direct_type=True)
         emitted_tickets = 0
-        first_ticket = True
+        first_ticket_created = True
         for template_ticket in template_tickets:
             if template_ticket['amount'] > 0:
                 for i in range(template_ticket['amount']):
@@ -44,10 +52,12 @@ def direct_sales_existing_user(user, template_tickets, order_type, notes, reques
                         order=order
                     )
 
-                    if not user_already_has_ticket and first_ticket:
+                    # If user doesn't have a ticket as owner for this event, assign the first one created as owner
+                    # Only one ticket per event should be owner, the rest should be holders only
+                    if not user_already_has_ticket_for_event and first_ticket_created:
                         new_ticket.owner = user
+                        first_ticket_created = False  # Mark that we've assigned the owner
 
-                    first_ticket = False
                     new_ticket.save()
                     emitted_tickets += 1
 
