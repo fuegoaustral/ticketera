@@ -698,8 +698,63 @@ def volunteering(request, event_slug=None):
     else:
         current_event = Event.get_main_event()
     
-    # Get ticket for the specific event
-    ticket = get_object_or_404(NewTicket, holder=request.user, owner=request.user, event=current_event)
+    # First check if user has any ticket as holder for this event
+    user_ticket_as_holder = NewTicket.objects.filter(
+        holder=request.user, 
+        event=current_event
+    ).first()
+    
+    if not user_ticket_as_holder:
+        # User doesn't have any ticket linked to their name for this event
+        error_message = "Para anotarte como voluntario, debes tener un bono vinculado a tu nombre"
+        
+        # Get events where user has tickets, prioritizing main event
+        user_events = Event.get_active_events().filter(
+            newticket__holder=request.user
+        ).distinct().order_by('-is_main', 'name')
+        
+        return render(
+            request, 
+            "mi_fuego/my_tickets/volunteering.html",
+            {
+                "error_message": error_message,
+                "event": current_event,
+                "active_events": user_events,
+                "nav_primary": "volunteering",
+                "nav_secondary": "volunteering",
+                "now": timezone.now(),
+            }
+        )
+    
+    # Get ticket where user is both holder and owner for the specific event
+    ticket = NewTicket.objects.filter(
+        holder=request.user, 
+        owner=request.user, 
+        event=current_event
+    ).first()
+    
+    if not ticket:
+        # User has a ticket as holder but not as owner
+        error_message = "Solo el dueño del bono puede registrarse como voluntario"
+        
+        # Get events where user has tickets, prioritizing main event
+        user_events = Event.get_active_events().filter(
+            newticket__holder=request.user
+        ).distinct().order_by('-is_main', 'name')
+        
+        return render(
+            request, 
+            "mi_fuego/my_tickets/volunteering.html",
+            {
+                "error_message": error_message,
+                "event": current_event,
+                "active_events": user_events,
+                "nav_primary": "volunteering",
+                "nav_secondary": "volunteering",
+                "now": timezone.now(),
+            }
+        )
+    
     show_congrats = False
 
     if request.method == "POST":

@@ -4,7 +4,14 @@
     <div class="wrapper volunteering">
         <div class="card text-center">
             <div class="card-body d-flex justify-content-between flex-column align-items-center">
-                {% if show_congrats %}
+                {% if error_message %}
+                    <h1>Quiero ser Voluntario</h1>
+                    <div class="d-flex flex-column text-center alert alert-danger w-100 my-4">
+                        {{ error_message }}
+                    </div>
+                    <a class="btn-primary btn"
+                       href="{% url 'my_ticket' %}">Volver a mis Bonos</a>
+                {% elif show_congrats %}
                     <div class="d-flex flex-column text-center alert alert-success w-100 my-4 ">
                         Te postulaste correctamente como voluntario.
                         <br>
