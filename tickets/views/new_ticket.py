@@ -163,6 +163,10 @@ def assign_ticket(request, ticket_key):
         return HttpResponseBadRequest('User already has a ticket')
 
     ticket.owner = request.user
+    # Clear volunteer fields when assigning ticket
+    ticket.volunteer_ranger = None
+    ticket.volunteer_transmutator = None
+    ticket.volunteer_umpalumpa = None
     ticket.save()
 
     # Redirect to the next URL if provided, otherwise to the event-specific page

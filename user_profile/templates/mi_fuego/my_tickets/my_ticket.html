@@ -252,7 +252,20 @@
                     <span><span class="ticket-id">#{{ ticket.key|stringformat:"s"|slice:"-2:" }}</span> {{ ticket.event.name }}</span>
                     {% if not attendee_must_be_registered %}
                         {% if not ticket.is_used %}
-                            <span class="badge" style="background-color: white !important; color: #198754 !important; border: 1px solid #198754;">Válido</span>
+                            <div class="d-flex gap-1 align-items-center">
+                                <span class="badge" style="background-color: white !important; color: #198754 !important; border: 1px solid #198754;">Válido</span>
+                                {% if ticket.volunteer_ranger or ticket.volunteer_transmutator or ticket.volunteer_umpalumpa %}
+                                    {% if ticket.volunteer_ranger %}
+                                        <span class="badge bg-primary" style="font-size: 0.75rem;">Ranger</span>
+                                    {% endif %}
+                                    {% if ticket.volunteer_transmutator %}
+                                        <span class="badge bg-info text-dark" style="font-size: 0.75rem;">Transmutador</span>
+                                    {% endif %}
+                                    {% if ticket.volunteer_umpalumpa %}
+                                        <span class="badge bg-warning text-dark" style="font-size: 0.75rem;">CAOS</span>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
                         {% endif %}
                     {% endif %}
                 </div>
@@ -326,6 +339,22 @@
                                                 <i class="fas fa-tag text-muted"></i>
                                                 <span class="text-muted">{{ ticket.ticket_type }} - ${{ ticket.price|floatformat:0|intcomma }}</span>
                                             </div>
+                                            {% if ticket.volunteer_ranger or ticket.volunteer_transmutator or ticket.volunteer_umpalumpa %}
+                                            <div class="d-flex flex-column gap-1 mt-2 pt-2 border-top">
+                                                <small class="text-muted fw-bold mb-1">Voluntariados:</small>
+                                                <div class="d-flex flex-wrap gap-2">
+                                                    {% if ticket.volunteer_ranger %}
+                                                    <span class="badge bg-primary">Ranger</span>
+                                                    {% endif %}
+                                                    {% if ticket.volunteer_transmutator %}
+                                                    <span class="badge bg-info text-dark">Transmutador</span>
+                                                    {% endif %}
+                                                    {% if ticket.volunteer_umpalumpa %}
+                                                    <span class="badge bg-warning text-dark">CAOS</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            {% endif %}
                                             {% if event_terms %}
                                             <div class="d-flex flex-column gap-1 mt-2 pt-2 border-top">
                                                 <small class="text-muted fw-bold mb-1">Términos y Condiciones:</small>
@@ -586,7 +615,8 @@
             currentTicketKey = ticketId;
         }
 
-        function confirmOwnTicketTransfer(ticketKey) {
+        // Make function globally available
+        window.confirmOwnTicketTransfer = function(ticketKey) {
             if (confirm('Este bono está a tu nombre. Si lo desvinculas lo vas a perder. ¿Estás seguro?')) {
                 // Unassign the ticket and refresh the page
                 fetch(`/ticket/${ticketKey}/unassign/`, {
@@ -840,15 +870,30 @@ console.error('Error checking for updates:', error);
             const currentState = currentTicketStates[ticket.key];
             const hasChanges = !currentState || 
                 currentState.is_used !== ticket.is_used || 
-                currentState.owner !== ticket.owner;
+                currentState.owner !== ticket.owner ||
+                currentState.volunteer_ranger !== ticket.volunteer_ranger ||
+                currentState.volunteer_transmutator !== ticket.volunteer_transmutator ||
+                currentState.volunteer_umpalumpa !== ticket.volunteer_umpalumpa;
             
             if (!hasChanges) {
                 return;
             }
             
+            // Update current state
+            if (!currentTicketStates[ticket.key]) {
+                currentTicketStates[ticket.key] = {};
+            }
+            currentTicketStates[ticket.key].is_used = ticket.is_used;
+            currentTicketStates[ticket.key].owner = ticket.owner;
+            currentTicketStates[ticket.key].volunteer_ranger = ticket.volunteer_ranger;
+            currentTicketStates[ticket.key].volunteer_transmutator = ticket.volunteer_transmutator;
+            currentTicketStates[ticket.key].volunteer_umpalumpa = ticket.volunteer_umpalumpa;
+            
             // Update used status
             const header = ticketElement.querySelector('.card-header');
-            const badge = ticketElement.querySelector('.badge');
+            // Look for badge or volunteer badges container
+            const badge = ticketElement.querySelector('.card-header .badge:not(.bg-primary):not(.bg-info):not(.bg-warning)');
+            const volunteerBadgesContainer = ticketElement.querySelector('.card-header .d-flex.gap-1');
             
             if (ticket.is_used) {
                 if (header) {
@@ -875,17 +920,129 @@ console.error('Error checking for updates:', error);
                     header.classList.add('bg-success', 'text-white');
                 }
                 
-                if (badge) {
-                    if (isUnassigned) {
-                        // Unassigned ticket
+                // Check if ticket has volunteer roles
+                const hasVolunteerRoles = ticket.volunteer_ranger || ticket.volunteer_transmutator || ticket.volunteer_umpalumpa;
+                
+                // Find existing "Válido" badge to avoid recreating it unnecessarily
+                const existingValidBadge = header.querySelector('.badge[style*="color: #198754"], .badge:not(.bg-primary):not(.bg-info):not(.bg-warning):not(.bg-secondary)');
+                const validBadgeExists = existingValidBadge && existingValidBadge.textContent.trim() === 'Válido';
+                
+                if (isUnassigned) {
+                    // Unassigned ticket - remove volunteer badges if they exist, show "Sin vincular"
+                    // Remove "Válido" badge if it exists
+                    if (existingValidBadge && validBadgeExists) {
+                        existingValidBadge.remove();
+                    }
+                    // Remove volunteer badges container if it exists
+                    if (volunteerBadgesContainer) {
+                        volunteerBadgesContainer.remove();
+                    }
+                    
+                    if (badge && badge.textContent.trim() !== 'Sin vincular') {
                         badge.textContent = 'Sin vincular';
                         badge.className = 'badge bg-secondary';
                         badge.style.cssText = 'color: white !important;';
-                    } else {
-                        // Valid assigned ticket
-                        badge.textContent = 'Válido';
-                        badge.className = 'badge';
-                        badge.style.cssText = 'background-color: white !important; color: #198754 !important; border: 1px solid #198754;';
+                    } else if (!badge) {
+                        // Create badge if it doesn't exist
+                        const newBadge = document.createElement('span');
+                        newBadge.className = 'badge bg-secondary';
+                        newBadge.style.cssText = 'color: white !important;';
+                        newBadge.textContent = 'Sin vincular';
+                        // Insert at the end of header (right side)
+                        header.appendChild(newBadge);
+                    }
+                } else {
+                    // Valid assigned ticket - show "Válido" badge
+                    // Only create or update if it doesn't exist or is incorrect
+                    if (!validBadgeExists) {
+                        // Remove existing badge if it's not "Válido"
+                        if (badge && badge.textContent.trim() !== 'Válido') {
+                            badge.remove();
+                        }
+                        
+                        // Create "Válido" badge if it doesn't exist
+                        const validBadge = document.createElement('span');
+                        validBadge.className = 'badge';
+                        validBadge.style.cssText = 'background-color: white !important; color: #198754 !important; border: 1px solid #198754;';
+                        validBadge.textContent = 'Válido';
+                        
+                        // Check if there's already a container with badges
+                        let badgeContainer = header.querySelector('.d-flex.gap-1');
+                        if (badgeContainer) {
+                            // Insert at the beginning of existing container
+                            badgeContainer.insertBefore(validBadge, badgeContainer.firstChild);
+                        } else {
+                            // Create new container
+                            badgeContainer = document.createElement('div');
+                            badgeContainer.className = 'd-flex gap-1 align-items-center';
+                            badgeContainer.appendChild(validBadge);
+                            
+                            // Insert at the end of header (right side)
+                            header.appendChild(badgeContainer);
+                        }
+                    }
+                    // If badge already exists and is correct, don't touch it
+                    
+                    // Handle volunteer badges - only update if there are changes
+                    const currentVolunteerState = currentTicketStates[ticket.key] ? {
+                        ranger: currentTicketStates[ticket.key].volunteer_ranger,
+                        transmutator: currentTicketStates[ticket.key].volunteer_transmutator,
+                        umpalumpa: currentTicketStates[ticket.key].volunteer_umpalumpa
+                    } : null;
+                    
+                    const volunteerStateChanged = !currentVolunteerState || 
+                        currentVolunteerState.ranger !== ticket.volunteer_ranger ||
+                        currentVolunteerState.transmutator !== ticket.volunteer_transmutator ||
+                        currentVolunteerState.umpalumpa !== ticket.volunteer_umpalumpa;
+                    
+                    if (volunteerStateChanged) {
+                        // Get or create badge container
+                        let badgeContainer = header.querySelector('.d-flex.gap-1');
+                        if (!badgeContainer) {
+                            badgeContainer = document.createElement('div');
+                            badgeContainer.className = 'd-flex gap-1 align-items-center';
+                            // Get the existing "Válido" badge if it exists
+                            const existingValid = header.querySelector('.badge[style*="color: #198754"], .badge:not(.bg-primary):not(.bg-info):not(.bg-warning):not(.bg-secondary)');
+                            if (existingValid && existingValid.textContent.trim() === 'Válido') {
+                                // Move existing badge to container
+                                existingValid.remove();
+                                badgeContainer.appendChild(existingValid);
+                            }
+                            // Insert at the end of header (right side)
+                            header.appendChild(badgeContainer);
+                        }
+                        
+                        if (hasVolunteerRoles) {
+                            // Remove existing volunteer badges only
+                            const existingVolunteerBadges = badgeContainer.querySelectorAll('.badge.bg-primary, .badge.bg-info, .badge.bg-warning');
+                            existingVolunteerBadges.forEach(b => b.remove());
+                            
+                            // Add volunteer badges
+                            const volunteerBadges = [];
+                            if (ticket.volunteer_ranger) {
+                                volunteerBadges.push('<span class="badge bg-primary" style="font-size: 0.75rem;">Ranger</span>');
+                            }
+                            if (ticket.volunteer_transmutator) {
+                                volunteerBadges.push('<span class="badge bg-info text-dark" style="font-size: 0.75rem;">Transmutador</span>');
+                            }
+                            if (ticket.volunteer_umpalumpa) {
+                                volunteerBadges.push('<span class="badge bg-warning text-dark" style="font-size: 0.75rem;">CAOS</span>');
+                            }
+                            
+                            if (volunteerBadges.length > 0) {
+                                badgeContainer.insertAdjacentHTML('beforeend', volunteerBadges.join(''));
+                            }
+                        } else {
+                            // No volunteer roles - remove volunteer badges if they exist
+                            const existingVolunteerBadges = badgeContainer.querySelectorAll('.badge.bg-primary, .badge.bg-info, .badge.bg-warning');
+                            existingVolunteerBadges.forEach(b => b.remove());
+                            
+                            // If container only has "Válido" badge, we can keep it as is
+                            // If container becomes empty, remove it and use standalone badge
+                            if (badgeContainer.children.length === 0) {
+                                badgeContainer.remove();
+                            }
+                        }
                     }
                 }
                 
@@ -894,8 +1051,6 @@ console.error('Error checking for updates:', error);
                 unlinkButtons.forEach(button => {
                     button.classList.remove('force-hidden');
                 });
-                
-                // "USADO" tag is handled natively by the template
             }
 
             // Update transfer status
@@ -914,7 +1069,10 @@ console.error('Error checking for updates:', error);
             // Store current state for next comparison
             currentTicketStates[ticket.key] = {
                 is_used: ticket.is_used,
-                owner: ticket.owner
+                owner: ticket.owner,
+                volunteer_ranger: ticket.volunteer_ranger,
+                volunteer_transmutator: ticket.volunteer_transmutator,
+                volunteer_umpalumpa: ticket.volunteer_umpalumpa
             };
             
             // Trigger animation ONLY if:

@@ -78,20 +78,6 @@
                             <i class="fas fa-fire me-2"></i>
                             {{ event.name }}
                         </a>
-                        
-                        {% comment %} Sub-items for this event {% endcomment %}
-                        <ul class="menu-sublist">
-                            {% comment %} Voluntariado - only show if event has volunteers {% endcomment %}
-                            {% if event.has_volunteers %}
-                                <li class="menu-subitem">
-                                    <a class="menu-sublink{% if nav_primary == "volunteering" and event.slug in request.path %} active{% endif %}"
-                                       href="{% url 'volunteering' event.slug %}">
-                                        <i class="fas fa-heart me-2"></i>
-                                        Voluntariado
-                                    </a>
-                                </li>
-                            {% endif %}
-                        </ul>
                     </li>
                 {% endfor %}
             </ul>
