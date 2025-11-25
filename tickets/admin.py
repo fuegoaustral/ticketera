@@ -36,15 +36,27 @@ def email_has_account(request):
             data = json.loads(request.body)
             email = data.get('email', '').lower()
             
+            # First try to find user by User.email
             user = User.objects.filter(email=email).first()
+            
+            # If not found, try to find user by EmailAddress (check all emails)
+            if not user:
+                email_address = EmailAddress.objects.filter(email=email).first()
+                if email_address:
+                    user = email_address.user
+            
             if user:
                 if user.profile.profile_completion == 'COMPLETE':
+                    # Get all emails for this user
+                    all_emails = EmailAddress.objects.filter(user=user).values_list('email', flat=True)
+                    
                     return JsonResponse({
                         'first_name': user.first_name,
                         'last_name': user.last_name,
                         'phone': user.profile.phone,
                         'document_type': user.profile.document_type,
                         'document_number': user.profile.document_number,
+                        'emails': list(all_emails),
                     })
                 return HttpResponse(status=206)
             return HttpResponse(status=204)

@@ -288,6 +288,8 @@
                         <p><strong>Usuario encontrado:</strong></p>
                         <p><strong>Nombre:</strong> <span id="user-name"></span></p>
                         <p><strong>DNI:</strong> <span id="user-dni"></span></p>
+                        <p><strong>Emails asociados:</strong></p>
+                        <ul id="user-emails" style="margin: 5px 0; padding-left: 20px;"></ul>
                     </div>
 
                     <div id="user-not-found" style="display: none; padding: 10px; background-color: #fff3cd; border-radius: 4px; margin-top: 10px;">
@@ -436,6 +438,22 @@
                         const data = await response.json();
                         document.getElementById('user-name').textContent = `${data.first_name} ${data.last_name}`;
                         document.getElementById('user-dni').textContent = `${data.document_type || 'DNI'}: ${data.document_number}`;
+                        
+                        // Display all emails
+                        const emailsList = document.getElementById('user-emails');
+                        emailsList.innerHTML = '';
+                        if (data.emails && data.emails.length > 0) {
+                            data.emails.forEach(function(email) {
+                                const li = document.createElement('li');
+                                li.textContent = email;
+                                emailsList.appendChild(li);
+                            });
+                        } else {
+                            const li = document.createElement('li');
+                            li.textContent = email; // Fallback to searched email
+                            emailsList.appendChild(li);
+                        }
+                        
                         userInfo.style.display = 'block';
                         userNotFound.style.display = 'none';
                         manualEmailInput.value = '';
