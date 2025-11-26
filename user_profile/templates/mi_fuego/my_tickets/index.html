@@ -71,15 +71,38 @@
                 Eventos Actuales
             </h6>
             <ul class="menu-list">
-                {% for event in active_events %}
-                    <li class="menu-item">
-                        <a class="menu-link{% if nav_primary == "tickets" and event.slug in request.path %} active{% endif %}"
-                           href="{% url "my_ticket_event" event.slug %}">
-                            <i class="fas fa-fire me-2"></i>
-                            {{ event.name }}
-                        </a>
-                    </li>
-                {% endfor %}
+                {% if events_with_volunteer_info %}
+                    {% for event_info in events_with_volunteer_info %}
+                        <li class="menu-item">
+                            <a class="menu-link{% if nav_primary == "tickets" and event_info.event.slug in request.path %} active{% endif %}"
+                               href="{% url "my_ticket_event" event_info.event.slug %}">
+                                <i class="fas fa-fire me-2"></i>
+                                {{ event_info.event.name }}
+                            </a>
+                            {% if event_info.event.has_volunteers and event_info.can_volunteer %}
+                                <ul class="menu-sublist">
+                                    <li class="menu-subitem">
+                                        <a class="menu-sublink{% if nav_primary == "volunteering" and event_info.event.slug in request.path %} active{% endif %}"
+                                           href="{% url "volunteering" event_info.event.slug %}">
+                                            <i class="fas fa-hand-holding-heart me-2"></i>
+                                            Voluntariado
+                                        </a>
+                                    </li>
+                                </ul>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                {% else %}
+                    {% for event in active_events %}
+                        <li class="menu-item">
+                            <a class="menu-link{% if nav_primary == "tickets" and event.slug in request.path %} active{% endif %}"
+                               href="{% url "my_ticket_event" event.slug %}">
+                                <i class="fas fa-fire me-2"></i>
+                                {{ event.name }}
+                            </a>
+                        </li>
+                    {% endfor %}
+                {% endif %}
             </ul>
         </div>
         
@@ -98,7 +121,6 @@
                 Órdenes
             </a>
         </div>
-        
         
     </div>
     
