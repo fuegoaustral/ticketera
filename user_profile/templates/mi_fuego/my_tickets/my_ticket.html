@@ -256,13 +256,13 @@
                                 <span class="badge" style="background-color: white !important; color: #198754 !important; border: 1px solid #198754;">Válido</span>
                                 {% if ticket.volunteer_ranger or ticket.volunteer_transmutator or ticket.volunteer_umpalumpa %}
                                     {% if ticket.volunteer_ranger %}
-                                        <span class="badge bg-primary" style="font-size: 0.75rem;">Ranger</span>
+                                        <span class="badge" style="font-size: 0.75rem; background-color: #8B4513 !important; color: white !important;">Ranger</span>
                                     {% endif %}
                                     {% if ticket.volunteer_transmutator %}
-                                        <span class="badge bg-info text-dark" style="font-size: 0.75rem;">Transmutador</span>
+                                        <span class="badge" style="font-size: 0.75rem; background-color: #9370DB !important; color: white !important;">Transmutador</span>
                                     {% endif %}
                                     {% if ticket.volunteer_umpalumpa %}
-                                        <span class="badge bg-warning text-dark" style="font-size: 0.75rem;">CAOS</span>
+                                        <span class="badge" style="font-size: 0.75rem; background-color: #8B0000 !important; color: white !important;">CAOS</span>
                                     {% endif %}
                                 {% endif %}
                             </div>
@@ -344,13 +344,13 @@
                                                 <small class="text-muted fw-bold mb-1">Voluntariados:</small>
                                                 <div class="d-flex flex-wrap gap-2">
                                                     {% if ticket.volunteer_ranger %}
-                                                    <span class="badge bg-primary">Ranger</span>
+                                                    <span class="badge" style="background-color: #8B4513 !important; color: white !important;">Ranger</span>
                                                     {% endif %}
                                                     {% if ticket.volunteer_transmutator %}
-                                                    <span class="badge bg-info text-dark">Transmutador</span>
+                                                    <span class="badge" style="background-color: #9370DB !important; color: white !important;">Transmutador</span>
                                                     {% endif %}
                                                     {% if ticket.volunteer_umpalumpa %}
-                                                    <span class="badge bg-warning text-dark">CAOS</span>
+                                                    <span class="badge" style="background-color: #8B0000 !important; color: white !important;">CAOS</span>
                                                     {% endif %}
                                                 </div>
                                             </div>
@@ -568,11 +568,6 @@
                 </div>
                 <div class="modal-body">
                     <div id="transferForm">
-                        <div class="alert alert-warning text-start" role="alert">
-                            <strong>¡Atención!</strong>
-                            Si el destinatario no tiene cuenta en FA, se enviara una invitacion pero la transferencia no
-                            estara completa <strong>hasta que no se cree su cuenta.</strong>
-                        </div>
                         <div class="mb-3">
                             <label for="recipient-email" class="form-label">Correo Electrónico del Destinatario</label>
                             <input type="email" class="form-control" id="recipient-email" placeholder="nombre@ejemplo.com">
@@ -595,12 +590,13 @@
                             <button type="button" class="btn btn-primary" onclick="refreshPage()">Aceptar</button>
                         </div>
                     </div>
-                    <div id="transferPendingMessage" style="display: none">
-                        <div class="alert alert-info mb-3">
-                            Se ha enviado una invitación a <span id="invitation-email"></span> para crear una cuenta y completar la transferencia.
+                    <div id="transferErrorMessage" style="display: none">
+                        <div class="alert alert-danger mb-3">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <span id="error-message-text"></span>
                         </div>
                         <div class="d-flex justify-content-center">
-                            <button type="button" class="btn btn-primary" onclick="refreshPage()">Aceptar</button>
+                            <button type="button" class="btn btn-primary" onclick="resetModal()">Volver</button>
                         </div>
                     </div>
                 </div>
@@ -687,24 +683,30 @@
                     })
                 });
 
+                const responseBody = await response.json();
+
                 if (response.ok) {
                     document.getElementById('loadingSpinner').style.display = 'none';
-                    const responseBody = await response.json();
-
                     if (responseBody.destination_user_exists) {
                         document.getElementById('transferSuccessMessage').style.display = 'block';
-                    } else {
-                        document.getElementById('invitation-email').innerHTML = email;
-                        document.getElementById('transferPendingMessage').style.display = 'block';
                     }
                 } else {
-                    alert('Error en la transferencia. Por favor, inténtalo de nuevo.');
-                    resetModal();
+                    document.getElementById('loadingSpinner').style.display = 'none';
+                    // Check if it's an email not found error
+                    if (responseBody.error === 'EMAIL_NOT_FOUND') {
+                        document.getElementById('error-message-text').textContent = responseBody.message || 'El correo electrónico no fue encontrado. Por favor, verifica que el destinatario tenga una cuenta activa en Fuego Austral.';
+                        document.getElementById('transferErrorMessage').style.display = 'block';
+                    } else {
+                        // Generic error
+                        document.getElementById('error-message-text').textContent = responseBody.message || 'Error en la transferencia. Por favor, inténtalo de nuevo.';
+                        document.getElementById('transferErrorMessage').style.display = 'block';
+                    }
                 }
             } catch (error) {
                 console.error('Error during fetch:', error);
-                alert('Error en la conexión. Por favor, inténtalo de nuevo.');
-                resetModal();
+                document.getElementById('loadingSpinner').style.display = 'none';
+                document.getElementById('error-message-text').textContent = 'Error en la conexión. Por favor, inténtalo de nuevo.';
+                document.getElementById('transferErrorMessage').style.display = 'block';
             }
         }
 
@@ -744,7 +746,7 @@
             document.getElementById('transferForm').style.display = 'block';
             document.getElementById('loadingSpinner').style.display = 'none';
             document.getElementById('transferSuccessMessage').style.display = 'none';
-            document.getElementById('transferPendingMessage').style.display = 'none';
+            document.getElementById('transferErrorMessage').style.display = 'none';
             document.getElementById('recipient-email').classList.remove('is-invalid');
             document.getElementById('recipient-email').value = '';
         }
@@ -892,7 +894,7 @@ console.error('Error checking for updates:', error);
             // Update used status
             const header = ticketElement.querySelector('.card-header');
             // Look for badge or volunteer badges container
-            const badge = ticketElement.querySelector('.card-header .badge:not(.bg-primary):not(.bg-info):not(.bg-warning)');
+            const badge = ticketElement.querySelector('.card-header .badge:not([style*="background-color: #8B4513"]):not([style*="background-color: #9370DB"]):not([style*="background-color: #8B0000"]):not(.bg-primary):not(.bg-info):not(.bg-warning)');
             const volunteerBadgesContainer = ticketElement.querySelector('.card-header .d-flex.gap-1');
             
             if (ticket.is_used) {
@@ -924,7 +926,7 @@ console.error('Error checking for updates:', error);
                 const hasVolunteerRoles = ticket.volunteer_ranger || ticket.volunteer_transmutator || ticket.volunteer_umpalumpa;
                 
                 // Find existing "Válido" badge to avoid recreating it unnecessarily
-                const existingValidBadge = header.querySelector('.badge[style*="color: #198754"], .badge:not(.bg-primary):not(.bg-info):not(.bg-warning):not(.bg-secondary)');
+                const existingValidBadge = header.querySelector('.badge[style*="color: #198754"], .badge:not([style*="background-color: #8B4513"]):not([style*="background-color: #9370DB"]):not([style*="background-color: #8B0000"]):not(.bg-primary):not(.bg-info):not(.bg-warning):not(.bg-secondary)');
                 const validBadgeExists = existingValidBadge && existingValidBadge.textContent.trim() === 'Válido';
                 
                 if (isUnassigned) {
@@ -1002,7 +1004,7 @@ console.error('Error checking for updates:', error);
                             badgeContainer = document.createElement('div');
                             badgeContainer.className = 'd-flex gap-1 align-items-center';
                             // Get the existing "Válido" badge if it exists
-                            const existingValid = header.querySelector('.badge[style*="color: #198754"], .badge:not(.bg-primary):not(.bg-info):not(.bg-warning):not(.bg-secondary)');
+                            const existingValid = header.querySelector('.badge[style*="color: #198754"], .badge:not([style*="background-color: #8B4513"]):not([style*="background-color: #9370DB"]):not([style*="background-color: #8B0000"]):not(.bg-primary):not(.bg-info):not(.bg-warning):not(.bg-secondary)');
                             if (existingValid && existingValid.textContent.trim() === 'Válido') {
                                 // Move existing badge to container
                                 existingValid.remove();
@@ -1014,19 +1016,19 @@ console.error('Error checking for updates:', error);
                         
                         if (hasVolunteerRoles) {
                             // Remove existing volunteer badges only
-                            const existingVolunteerBadges = badgeContainer.querySelectorAll('.badge.bg-primary, .badge.bg-info, .badge.bg-warning');
+                            const existingVolunteerBadges = badgeContainer.querySelectorAll('.badge[style*="background-color: #8B4513"], .badge[style*="background-color: #9370DB"], .badge[style*="background-color: #8B0000"], .badge.bg-primary, .badge.bg-info, .badge.bg-warning');
                             existingVolunteerBadges.forEach(b => b.remove());
                             
                             // Add volunteer badges
                             const volunteerBadges = [];
                             if (ticket.volunteer_ranger) {
-                                volunteerBadges.push('<span class="badge bg-primary" style="font-size: 0.75rem;">Ranger</span>');
+                                volunteerBadges.push('<span class="badge" style="font-size: 0.75rem; background-color: #8B4513 !important; color: white !important;">Ranger</span>');
                             }
                             if (ticket.volunteer_transmutator) {
-                                volunteerBadges.push('<span class="badge bg-info text-dark" style="font-size: 0.75rem;">Transmutador</span>');
+                                volunteerBadges.push('<span class="badge" style="font-size: 0.75rem; background-color: #9370DB !important; color: white !important;">Transmutador</span>');
                             }
                             if (ticket.volunteer_umpalumpa) {
-                                volunteerBadges.push('<span class="badge bg-warning text-dark" style="font-size: 0.75rem;">CAOS</span>');
+                                volunteerBadges.push('<span class="badge" style="font-size: 0.75rem; background-color: #8B0000 !important; color: white !important;">CAOS</span>');
                             }
                             
                             if (volunteerBadges.length > 0) {

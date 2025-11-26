@@ -95,11 +95,6 @@
         </div>
         <div class="modal-body">
           <div id="transferForm">
-            <div class="alert alert-warning text-start" role="alert">
-              <strong>¡Atención!</strong>
-              Si el destinatario no tiene cuenta en FA, se enviara una invitacion pero la transferencia no
-              estara completa <strong>hasta que no se cree su cuenta.</strong>
-            </div>
             <div class="mb-3 form-label text-start d-flex flex-column">
               <label for="recipient-email" class="form-label">Correo Electrónico del Destinatario</label>
               <input type="email"
@@ -126,17 +121,12 @@
             </div>
               <button type="button" class="btn btn-primary" onclick="refreshPage()">Continuar</button>
           </div>
-          <div id="transferPendingMessage" style="display: none;">
-            <div class="alert alert-warning">
-              <h5>¡Atencion!</h5>
-              <div class="mb-2">
-                Se envio una invitacion a
-                <strong id="invitation-email"></strong>.
-                Hasta que no se cree su cuenta, la
-                transferencia no estara completa.
-              </div>
+          <div id="transferErrorMessage" style="display: none;">
+            <div class="alert alert-danger">
+              <h5><i class="fas fa-exclamation-circle"></i> Error</h5>
+              <div id="error-message-text"></div>
             </div>
-            <button type="button" class="btn btn-primary" onclick="refreshPage()">Continuar</button>
+            <button type="button" class="btn btn-primary" onclick="resetModal()">Volver</button>
           </div>
         </div>
       </div>
@@ -180,24 +170,30 @@
                 })
             });
 
+            const responseBody = await response.json();
+
             if (response.ok) {
                 document.getElementById('loadingSpinner').style.display = 'none';
-                const responseBody = await response.json();
-
                 if (responseBody.destination_user_exists) {
                     document.getElementById('transferSuccessMessage').style.display = 'block';
-                } else {
-                    document.getElementById('invitation-email').innerHTML = email;
-                    document.getElementById('transferPendingMessage').style.display = 'block';
                 }
             } else {
-                alert('Error en la transferencia. Por favor, inténtalo de nuevo.');
-                resetModal();
+                document.getElementById('loadingSpinner').style.display = 'none';
+                // Check if it's an email not found error
+                if (responseBody.error === 'EMAIL_NOT_FOUND') {
+                    document.getElementById('error-message-text').textContent = responseBody.message || 'El correo electrónico no fue encontrado. Por favor, verifica que el destinatario tenga una cuenta activa en Fuego Austral.';
+                    document.getElementById('transferErrorMessage').style.display = 'block';
+                } else {
+                    // Generic error
+                    document.getElementById('error-message-text').textContent = responseBody.message || 'Error en la transferencia. Por favor, inténtalo de nuevo.';
+                    document.getElementById('transferErrorMessage').style.display = 'block';
+                }
             }
         } catch (error) {
             console.error('Error during fetch:', error);
-            alert('Error en la conexión. Por favor, inténtalo de nuevo.');
-            resetModal();
+            document.getElementById('loadingSpinner').style.display = 'none';
+            document.getElementById('error-message-text').textContent = 'Error en la conexión. Por favor, inténtalo de nuevo.';
+            document.getElementById('transferErrorMessage').style.display = 'block';
         }
     }
 
@@ -236,7 +232,7 @@
         document.getElementById('transferForm').style.display = 'block';
         document.getElementById('loadingSpinner').style.display = 'none';
         document.getElementById('transferSuccessMessage').style.display = 'none';
-        document.getElementById('transferPendingMessage').style.display = 'none';
+        document.getElementById('transferErrorMessage').style.display = 'none';
         document.getElementById('recipient-email').classList.remove('is-invalid');
         document.getElementById('recipient-email').value = '';
     }

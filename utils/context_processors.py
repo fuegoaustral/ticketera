@@ -125,6 +125,7 @@ def pending_terms_and_conditions(request):
     excluded_paths = [
         '/term/',
         '/admin/',
+        '/mi-fuego/complete-profile/',
     ]
     if any(request.path.startswith(path) for path in excluded_paths):
         return {
