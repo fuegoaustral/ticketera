@@ -18,6 +18,39 @@ from tickets.models import NewTicket, NewTicketTransfer, Order, TicketType
 from .forms import ProfileStep1Form, ProfileStep2Form, VolunteeringForm, ProfileUpdateForm, CustomPasswordChangeForm, AddEmailForm, PhoneUpdateForm, CajaEmitirBonoForm
 
 
+def get_volunteer_event_for_user(user):
+    """
+    Returns the first event where the user can volunteer (has a ticket as owner and event has volunteers enabled).
+    Prioritizes main event.
+    """
+    if not user.is_authenticated:
+        return None
+    
+    # Get events where user owns a ticket (holder AND owner) and event has volunteers enabled
+    events_with_owned_tickets = Event.get_active_events().filter(
+        newticket__holder=user,
+        newticket__owner=user,
+        has_volunteers=True
+    ).distinct().order_by('-is_main', 'name')
+    
+    return events_with_owned_tickets.first() if events_with_owned_tickets.exists() else None
+
+
+def can_user_volunteer_for_event(user, event):
+    """
+    Checks if user can volunteer for a specific event.
+    User must have a ticket as both holder AND owner, and event must have volunteers enabled.
+    """
+    if not user.is_authenticated or not event:
+        return False
+    
+    return NewTicket.objects.filter(
+        holder=user,
+        owner=user,
+        event=event
+    ).exists() and event.has_volunteers
+
+
 @login_required
 def my_fire_view(request):
     return redirect(reverse("my_ticket"))
@@ -103,6 +136,14 @@ def show_past_events(request):
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
     
+    # Add volunteer information to each event
+    events_with_volunteer_info = []
+    for event in user_events:
+        events_with_volunteer_info.append({
+            'event': event,
+            'can_volunteer': can_user_volunteer_for_event(request.user, event),
+        })
+    
     return render(
         request,
         "mi_fuego/my_tickets/past_events.html",
@@ -110,7 +151,8 @@ def show_past_events(request):
             "is_volunteer": my_ticket.is_volunteer() if my_ticket else False,
             "my_ticket": my_ticket.get_dto(user=request.user) if my_ticket else None,
             "event": main_event,  # Use main event for context
-            "active_events": user_events,  # Only events where user has tickets
+            "active_events": user_events,  # Only events where user has tickets (for backward compatibility)
+            "events_with_volunteer_info": events_with_volunteer_info,  # Events with volunteer info
             "nav_primary": "tickets",
             "nav_secondary": "past_events",
             'now': timezone.now(),
@@ -240,6 +282,14 @@ def my_ticket_view(request, event_slug=None):
                 newticket__holder=request.user
             ).distinct().order_by('-is_main', 'name')
             
+            # Add volunteer information to each event
+            events_with_volunteer_info = []
+            for event in user_events:
+                events_with_volunteer_info.append({
+                    'event': event,
+                    'can_volunteer': can_user_volunteer_for_event(request.user, event),
+                })
+            
             # Get terms and conditions for this event
             event_terms = EventTermsAndConditions.objects.filter(event=current_event).order_by('order', 'id')
             
@@ -250,7 +300,8 @@ def my_ticket_view(request, event_slug=None):
                     "is_volunteer": my_ticket.is_volunteer() if my_ticket else False,
                     "my_ticket": my_ticket.get_dto(user=request.user) if my_ticket else None,
                     "event": current_event,  # Use current event for context
-                    "active_events": user_events,  # Only events where user has tickets
+                    "active_events": user_events,  # Only events where user has tickets (for backward compatibility)
+                    "events_with_volunteer_info": events_with_volunteer_info,  # Events with volunteer info
                     "nav_primary": "tickets",
                     "nav_secondary": "my_ticket",
                     'now': timezone.now(),
@@ -297,6 +348,14 @@ def my_ticket_view(request, event_slug=None):
     has_available_tickets = TicketType.objects.get_available_ticket_types_for_current_events().exists()
     has_multiple_events = active_events.count() > 1
     
+    # Add volunteer information to each event
+    events_with_volunteer_info = []
+    for event in user_events:
+        events_with_volunteer_info.append({
+            'event': event,
+            'can_volunteer': can_user_volunteer_for_event(request.user, event),
+        })
+    
     return render(
         request,
         "mi_fuego/my_tickets/past_events.html",
@@ -304,7 +363,8 @@ def my_ticket_view(request, event_slug=None):
             "is_volunteer": my_ticket.is_volunteer() if my_ticket else False,
             "my_ticket": my_ticket.get_dto(user=request.user) if my_ticket else None,
             "event": main_event,  # Use main event for context
-            "active_events": user_events,  # Only events where user has tickets
+            "active_events": user_events,  # Only events where user has tickets (for backward compatibility)
+            "events_with_volunteer_info": events_with_volunteer_info,  # Events with volunteer info
             "nav_primary": "tickets",
             "nav_secondary": "past_events",
             'now': timezone.now(),
@@ -380,6 +440,14 @@ def transferable_tickets_view(request, event_slug=None):
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
     
+    # Add volunteer information to each event
+    events_with_volunteer_info = []
+    for event in user_events:
+        events_with_volunteer_info.append({
+            'event': event,
+            'can_volunteer': can_user_volunteer_for_event(request.user, event),
+        })
+    
     return render(
         request,
         "mi_fuego/my_tickets/transferable_tickets.html",
@@ -387,6 +455,7 @@ def transferable_tickets_view(request, event_slug=None):
             "my_ticket": my_ticket,
             "tickets_dto": tickets_dto,
             "transferred_dto": transferred_dto,
+            "events_with_volunteer_info": events_with_volunteer_info,  # Events with volunteer info
             "event": current_event,  # Use current event for context
             "active_events": user_events,  # Only events where user has tickets
             "nav_primary": "tickets",
@@ -713,6 +782,14 @@ def volunteering(request, event_slug=None):
             newticket__holder=request.user
         ).distinct().order_by('-is_main', 'name')
         
+        # Add volunteer information to each event
+        events_with_volunteer_info = []
+        for event in user_events:
+            events_with_volunteer_info.append({
+                'event': event,
+                'can_volunteer': can_user_volunteer_for_event(request.user, event),
+            })
+        
         return render(
             request, 
             "mi_fuego/my_tickets/volunteering.html",
@@ -720,6 +797,7 @@ def volunteering(request, event_slug=None):
                 "error_message": error_message,
                 "event": current_event,
                 "active_events": user_events,
+                "events_with_volunteer_info": events_with_volunteer_info,  # Events with volunteer info
                 "nav_primary": "volunteering",
                 "nav_secondary": "volunteering",
                 "now": timezone.now(),
@@ -742,6 +820,14 @@ def volunteering(request, event_slug=None):
             newticket__holder=request.user
         ).distinct().order_by('-is_main', 'name')
         
+        # Add volunteer information to each event
+        events_with_volunteer_info = []
+        for event in user_events:
+            events_with_volunteer_info.append({
+                'event': event,
+                'can_volunteer': can_user_volunteer_for_event(request.user, event),
+            })
+        
         return render(
             request, 
             "mi_fuego/my_tickets/volunteering.html",
@@ -749,6 +835,7 @@ def volunteering(request, event_slug=None):
                 "error_message": error_message,
                 "event": current_event,
                 "active_events": user_events,
+                "events_with_volunteer_info": events_with_volunteer_info,  # Events with volunteer info
                 "nav_primary": "volunteering",
                 "nav_secondary": "volunteering",
                 "now": timezone.now(),
@@ -772,6 +859,14 @@ def volunteering(request, event_slug=None):
     user_events = Event.get_active_events().filter(
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
+    
+    # Add volunteer information to each event
+    events_with_volunteer_info = []
+    for event in user_events:
+        events_with_volunteer_info.append({
+            'event': event,
+            'can_volunteer': can_user_volunteer_for_event(request.user, event),
+        })
 
     return render(
         request, 
@@ -781,6 +876,7 @@ def volunteering(request, event_slug=None):
             "show_congrats": show_congrats,
             "event": current_event,
             "active_events": user_events,
+            "events_with_volunteer_info": events_with_volunteer_info,  # Events with volunteer info
             "nav_primary": "volunteering",
             "nav_secondary": "volunteering",
             "my_ticket": ticket.get_dto(user=request.user) if ticket else None,
@@ -810,6 +906,14 @@ def my_orders_view(request):
         holder=request.user, event=main_event, owner=request.user
     ).first() if main_event else None
     
+    # Add volunteer information to each event
+    events_with_volunteer_info = []
+    for event in user_events:
+        events_with_volunteer_info.append({
+            'event': event,
+            'can_volunteer': can_user_volunteer_for_event(request.user, event),
+        })
+    
     return render(
         request,
         "mi_fuego/my_tickets/my_orders.html",
@@ -817,6 +921,7 @@ def my_orders_view(request):
             "orders": orders,
             "event": main_event,
             "active_events": user_events,
+            "events_with_volunteer_info": events_with_volunteer_info,  # Events with volunteer info
             "nav_primary": "orders",
             "nav_secondary": "my_orders",
             "my_ticket": my_ticket.get_dto(user=request.user) if my_ticket else None,

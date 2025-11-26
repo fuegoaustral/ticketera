@@ -52,24 +52,12 @@ def transfer_ticket(request, ticket_key):
         return HttpResponseBadRequest('')
 
     if destination_user_exists is False:
-        new_ticket_transfer = NewTicketTransfer(
-            ticket=ticket,
-            tx_from=request.user,
-            tx_to_email=email,
-            status='PENDING'
-        )
-        new_ticket_transfer.save()
-        # send email
-
-        send_mail(
-            template_name='new_transfer_no_account',
-            recipient_list=[email],
-            context={
-                'ticket_count': 1,
-                'destination_email': email,
-                'sign_up_link': f"{reverse('account_signup')}?{urlencode({'email': email})}"
-            }
-        )
+        # Return error if email not found
+        return JsonResponse({
+            'status': 'ERROR',
+            'error': 'EMAIL_NOT_FOUND',
+            'message': 'El correo electrónico no fue encontrado. Por favor, verifica que el destinatario tenga una cuenta activa en Fuego Austral.'
+        }, status=400)
     else:
         with transaction.atomic():
             destination_user = User.objects.get(email=email)
