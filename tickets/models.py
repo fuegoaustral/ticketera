@@ -329,6 +329,7 @@ class NewTicket(BaseModel):
     volunteer_ranger = models.BooleanField('Rangers', null=True, blank=True, )
     volunteer_transmutator = models.BooleanField('Transmutadores', null=True, blank=True, )
     volunteer_umpalumpa = models.BooleanField('CAOS (Desarme de la Ciudad)', null=True, blank=True, )
+    volunteer_mad = models.BooleanField('MAD - Para brindar apoyo en el movimiento de obras de arte y sus partes durante FA.', null=True, blank=True, )
 
     def generate_qr_code(self):
         # Generate the QR code
@@ -369,6 +370,7 @@ class NewTicket(BaseModel):
             'volunteer_ranger': self.volunteer_ranger,
             'volunteer_transmutator': self.volunteer_transmutator,
             'volunteer_umpalumpa': self.volunteer_umpalumpa,
+            'volunteer_mad': self.volunteer_mad,
             'qr_code': self.generate_qr_code(),
             'is_used': self.is_used,
             'used_at': self.used_at,
@@ -392,7 +394,7 @@ class NewTicket(BaseModel):
         }
 
     def is_volunteer(self):
-        return self.volunteer_ranger or self.volunteer_transmutator or self.volunteer_umpalumpa
+        return self.volunteer_ranger or self.volunteer_transmutator or self.volunteer_umpalumpa or self.volunteer_mad
 
     def __str__(self):
         return f'Ticket {self.key} - {self.ticket_type} - holder: {self.holder} - owner: {self.owner}'
