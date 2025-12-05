@@ -254,7 +254,7 @@
                         {% if not ticket.is_used %}
                             <div class="d-flex gap-1 align-items-center">
                                 <span class="badge" style="background-color: white !important; color: #198754 !important; border: 1px solid #198754;">Válido</span>
-                                {% if ticket.volunteer_ranger or ticket.volunteer_transmutator or ticket.volunteer_umpalumpa %}
+                                {% if ticket.volunteer_ranger or ticket.volunteer_transmutator or ticket.volunteer_umpalumpa or ticket.volunteer_mad %}
                                     {% if ticket.volunteer_ranger %}
                                         <span class="badge" style="font-size: 0.75rem; background-color: #8B4513 !important; color: white !important;">Ranger</span>
                                     {% endif %}
@@ -263,6 +263,9 @@
                                     {% endif %}
                                     {% if ticket.volunteer_umpalumpa %}
                                         <span class="badge" style="font-size: 0.75rem; background-color: #8B0000 !important; color: white !important;">CAOS</span>
+                                    {% endif %}
+                                    {% if ticket.volunteer_mad %}
+                                        <span class="badge" style="font-size: 0.75rem; background-color: #FF8C00 !important; color: white !important;">MAD</span>
                                     {% endif %}
                                 {% endif %}
                             </div>
@@ -339,7 +342,7 @@
                                                 <i class="fas fa-tag text-muted"></i>
                                                 <span class="text-muted">{{ ticket.ticket_type }} - ${{ ticket.price|floatformat:0|intcomma }}</span>
                                             </div>
-                                            {% if ticket.volunteer_ranger or ticket.volunteer_transmutator or ticket.volunteer_umpalumpa %}
+                                            {% if ticket.volunteer_ranger or ticket.volunteer_transmutator or ticket.volunteer_umpalumpa or ticket.volunteer_mad %}
                                             <div class="d-flex flex-column gap-1 mt-2 pt-2 border-top">
                                                 <small class="text-muted fw-bold mb-1">Voluntariados:</small>
                                                 <div class="d-flex flex-wrap gap-2">
@@ -351,6 +354,9 @@
                                                     {% endif %}
                                                     {% if ticket.volunteer_umpalumpa %}
                                                     <span class="badge" style="background-color: #8B0000 !important; color: white !important;">CAOS</span>
+                                                    {% endif %}
+                                                    {% if ticket.volunteer_mad %}
+                                                    <span class="badge" style="background-color: #FF8C00 !important; color: white !important;">MAD</span>
                                                     {% endif %}
                                                 </div>
                                             </div>
@@ -875,7 +881,8 @@ console.error('Error checking for updates:', error);
                 currentState.owner !== ticket.owner ||
                 currentState.volunteer_ranger !== ticket.volunteer_ranger ||
                 currentState.volunteer_transmutator !== ticket.volunteer_transmutator ||
-                currentState.volunteer_umpalumpa !== ticket.volunteer_umpalumpa;
+                currentState.volunteer_umpalumpa !== ticket.volunteer_umpalumpa ||
+                currentState.volunteer_mad !== ticket.volunteer_mad;
             
             if (!hasChanges) {
                 return;
@@ -890,11 +897,12 @@ console.error('Error checking for updates:', error);
             currentTicketStates[ticket.key].volunteer_ranger = ticket.volunteer_ranger;
             currentTicketStates[ticket.key].volunteer_transmutator = ticket.volunteer_transmutator;
             currentTicketStates[ticket.key].volunteer_umpalumpa = ticket.volunteer_umpalumpa;
+            currentTicketStates[ticket.key].volunteer_mad = ticket.volunteer_mad;
             
             // Update used status
             const header = ticketElement.querySelector('.card-header');
             // Look for badge or volunteer badges container
-            const badge = ticketElement.querySelector('.card-header .badge:not([style*="background-color: #8B4513"]):not([style*="background-color: #9370DB"]):not([style*="background-color: #8B0000"]):not(.bg-primary):not(.bg-info):not(.bg-warning)');
+            const badge = ticketElement.querySelector('.card-header .badge:not([style*="background-color: #8B4513"]):not([style*="background-color: #9370DB"]):not([style*="background-color: #8B0000"]):not([style*="background-color: #FF8C00"]):not(.bg-primary):not(.bg-info):not(.bg-warning)');
             const volunteerBadgesContainer = ticketElement.querySelector('.card-header .d-flex.gap-1');
             
             if (ticket.is_used) {
@@ -922,8 +930,8 @@ console.error('Error checking for updates:', error);
                     header.classList.add('bg-success', 'text-white');
                 }
                 
-                // Check if ticket has volunteer roles
-                const hasVolunteerRoles = ticket.volunteer_ranger || ticket.volunteer_transmutator || ticket.volunteer_umpalumpa;
+                    // Check if ticket has volunteer roles
+                    const hasVolunteerRoles = ticket.volunteer_ranger || ticket.volunteer_transmutator || ticket.volunteer_umpalumpa || ticket.volunteer_mad;
                 
                 // Find existing "Válido" badge to avoid recreating it unnecessarily
                 const existingValidBadge = header.querySelector('.badge[style*="color: #198754"], .badge:not([style*="background-color: #8B4513"]):not([style*="background-color: #9370DB"]):not([style*="background-color: #8B0000"]):not(.bg-primary):not(.bg-info):not(.bg-warning):not(.bg-secondary)');
@@ -989,13 +997,15 @@ console.error('Error checking for updates:', error);
                     const currentVolunteerState = currentTicketStates[ticket.key] ? {
                         ranger: currentTicketStates[ticket.key].volunteer_ranger,
                         transmutator: currentTicketStates[ticket.key].volunteer_transmutator,
-                        umpalumpa: currentTicketStates[ticket.key].volunteer_umpalumpa
+                        umpalumpa: currentTicketStates[ticket.key].volunteer_umpalumpa,
+                        mad: currentTicketStates[ticket.key].volunteer_mad
                     } : null;
                     
                     const volunteerStateChanged = !currentVolunteerState || 
                         currentVolunteerState.ranger !== ticket.volunteer_ranger ||
                         currentVolunteerState.transmutator !== ticket.volunteer_transmutator ||
-                        currentVolunteerState.umpalumpa !== ticket.volunteer_umpalumpa;
+                        currentVolunteerState.umpalumpa !== ticket.volunteer_umpalumpa ||
+                        currentVolunteerState.mad !== ticket.volunteer_mad;
                     
                     if (volunteerStateChanged) {
                         // Get or create badge container
@@ -1004,7 +1014,7 @@ console.error('Error checking for updates:', error);
                             badgeContainer = document.createElement('div');
                             badgeContainer.className = 'd-flex gap-1 align-items-center';
                             // Get the existing "Válido" badge if it exists
-                            const existingValid = header.querySelector('.badge[style*="color: #198754"], .badge:not([style*="background-color: #8B4513"]):not([style*="background-color: #9370DB"]):not([style*="background-color: #8B0000"]):not(.bg-primary):not(.bg-info):not(.bg-warning):not(.bg-secondary)');
+                            const existingValid = header.querySelector('.badge[style*="color: #198754"], .badge:not([style*="background-color: #8B4513"]):not([style*="background-color: #9370DB"]):not([style*="background-color: #8B0000"]):not([style*="background-color: #FF8C00"]):not(.bg-primary):not(.bg-info):not(.bg-warning):not(.bg-secondary)');
                             if (existingValid && existingValid.textContent.trim() === 'Válido') {
                                 // Move existing badge to container
                                 existingValid.remove();
@@ -1016,7 +1026,7 @@ console.error('Error checking for updates:', error);
                         
                         if (hasVolunteerRoles) {
                             // Remove existing volunteer badges only
-                            const existingVolunteerBadges = badgeContainer.querySelectorAll('.badge[style*="background-color: #8B4513"], .badge[style*="background-color: #9370DB"], .badge[style*="background-color: #8B0000"], .badge.bg-primary, .badge.bg-info, .badge.bg-warning');
+                            const existingVolunteerBadges = badgeContainer.querySelectorAll('.badge[style*="background-color: #8B4513"], .badge[style*="background-color: #9370DB"], .badge[style*="background-color: #8B0000"], .badge[style*="background-color: #FF8C00"], .badge.bg-primary, .badge.bg-info, .badge.bg-warning');
                             existingVolunteerBadges.forEach(b => b.remove());
                             
                             // Add volunteer badges
@@ -1029,6 +1039,9 @@ console.error('Error checking for updates:', error);
                             }
                             if (ticket.volunteer_umpalumpa) {
                                 volunteerBadges.push('<span class="badge" style="font-size: 0.75rem; background-color: #8B0000 !important; color: white !important;">CAOS</span>');
+                            }
+                            if (ticket.volunteer_mad) {
+                                volunteerBadges.push('<span class="badge" style="font-size: 0.75rem; background-color: #FF8C00 !important; color: white !important;">MAD</span>');
                             }
                             
                             if (volunteerBadges.length > 0) {
@@ -1074,7 +1087,8 @@ console.error('Error checking for updates:', error);
                 owner: ticket.owner,
                 volunteer_ranger: ticket.volunteer_ranger,
                 volunteer_transmutator: ticket.volunteer_transmutator,
-                volunteer_umpalumpa: ticket.volunteer_umpalumpa
+                volunteer_umpalumpa: ticket.volunteer_umpalumpa,
+                volunteer_mad: ticket.volunteer_mad
             };
             
             // Trigger animation ONLY if:

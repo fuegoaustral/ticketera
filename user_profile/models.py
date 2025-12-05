@@ -62,6 +62,7 @@ class Profile(BaseModel):
                         transfer.ticket.volunteer_ranger = None
                         transfer.ticket.volunteer_transmutator = None
                         transfer.ticket.volunteer_umpalumpa = None
+                        transfer.ticket.volunteer_mad = None
                         if user_already_has_ticket:
                             transfer.ticket.owner = None
                         else:

@@ -409,7 +409,7 @@ class NewTicketAdmin(admin.ModelAdmin):
             'fields': ('is_used', 'used_at', 'scanned_by', 'notes')
         }),
         ('Voluntariado', {
-            'fields': ('volunteer_ranger', 'volunteer_transmutator', 'volunteer_umpalumpa'),
+            'fields': ('volunteer_ranger', 'volunteer_transmutator', 'volunteer_umpalumpa', 'volunteer_mad'),
             'classes': ('collapse',)
         }),
     )

@@ -197,11 +197,12 @@ class VolunteeringForm(forms.ModelForm):
     """Formulario para voluntariado"""
     class Meta:
         model = NewTicket
-        fields = ['volunteer_ranger', 'volunteer_transmutator', 'volunteer_umpalumpa']
+        fields = ['volunteer_ranger', 'volunteer_transmutator', 'volunteer_umpalumpa', 'volunteer_mad']
         widgets = {
             'volunteer_ranger': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'volunteer_transmutator': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'volunteer_umpalumpa': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'volunteer_mad': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
 

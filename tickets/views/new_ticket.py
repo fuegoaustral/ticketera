@@ -80,6 +80,7 @@ def transfer_ticket(request, ticket_key):
             ticket.volunteer_ranger = None
             ticket.volunteer_transmutator = None
             ticket.volunteer_umpalumpa = None
+            ticket.volunteer_mad = None
 
             new_ticket_transfer.save()
             ticket.save()
@@ -155,6 +156,7 @@ def assign_ticket(request, ticket_key):
     ticket.volunteer_ranger = None
     ticket.volunteer_transmutator = None
     ticket.volunteer_umpalumpa = None
+    ticket.volunteer_mad = None
     ticket.save()
 
     # Redirect to the next URL if provided, otherwise to the event-specific page
