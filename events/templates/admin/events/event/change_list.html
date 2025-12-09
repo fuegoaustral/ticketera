@@ -22,5 +22,15 @@
             Tickets Vendidos por Evento
         </a>
     </li>
+    <li>
+        <a href="{% url 'admin:event_ingreso_anticipado_report' %}" class="addlink">
+            Reporte de Ingreso Anticipado
+        </a>
+    </li>
+    <li>
+        <a href="{% url 'admin:event_late_checkout_report' %}" class="addlink">
+            Reporte de Late Checkout
+        </a>
+    </li>
     {{ block.super }}
 {% endblock %}

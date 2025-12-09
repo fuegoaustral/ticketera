@@ -1,5 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.http import Http404, HttpResponseNotAllowed, HttpResponseForbidden, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
@@ -12,7 +13,7 @@ from django.contrib.auth.models import User
 from django.conf import settings
 import json
 
-from events.models import Event, EventTermsAndConditions, EventTermsAndConditionsAcceptance
+from events.models import Event, EventTermsAndConditions, EventTermsAndConditionsAcceptance, Grupo, GrupoTipo, GrupoMiembro
 from events.utils import get_event_from_request
 from tickets.models import NewTicket, NewTicketTransfer, Order, TicketType
 from .forms import ProfileStep1Form, ProfileStep2Form, VolunteeringForm, ProfileUpdateForm, CustomPasswordChangeForm, AddEmailForm, PhoneUpdateForm, CajaEmitirBonoForm
@@ -136,12 +137,17 @@ def show_past_events(request):
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
     
-    # Add volunteer information to each event
+    # Add volunteer information and groups to each event
     events_with_volunteer_info = []
     for event in user_events:
+        grupos_liderados = Grupo.objects.filter(
+            event=event,
+            lider=request.user
+        ).select_related('tipo').exists()
         events_with_volunteer_info.append({
             'event': event,
             'can_volunteer': can_user_volunteer_for_event(request.user, event),
+            'has_grupos': grupos_liderados,
         })
     
     return render(
@@ -282,12 +288,17 @@ def my_ticket_view(request, event_slug=None):
                 newticket__holder=request.user
             ).distinct().order_by('-is_main', 'name')
             
-            # Add volunteer information to each event
+            # Add volunteer information and groups to each event
             events_with_volunteer_info = []
             for event in user_events:
+                grupos_liderados = Grupo.objects.filter(
+                    event=event,
+                    lider=request.user
+                ).select_related('tipo').exists()
                 events_with_volunteer_info.append({
                     'event': event,
                     'can_volunteer': can_user_volunteer_for_event(request.user, event),
+                    'has_grupos': grupos_liderados,
                 })
             
             # Get terms and conditions for this event
@@ -348,12 +359,17 @@ def my_ticket_view(request, event_slug=None):
     has_available_tickets = TicketType.objects.get_available_ticket_types_for_current_events().exists()
     has_multiple_events = active_events.count() > 1
     
-    # Add volunteer information to each event
+    # Add volunteer information and groups to each event
     events_with_volunteer_info = []
     for event in user_events:
+        grupos_liderados = Grupo.objects.filter(
+            event=event,
+            lider=request.user
+        ).select_related('tipo').exists()
         events_with_volunteer_info.append({
             'event': event,
             'can_volunteer': can_user_volunteer_for_event(request.user, event),
+            'has_grupos': grupos_liderados,
         })
     
     return render(
@@ -440,12 +456,17 @@ def transferable_tickets_view(request, event_slug=None):
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
     
-    # Add volunteer information to each event
+    # Add volunteer information and groups to each event
     events_with_volunteer_info = []
     for event in user_events:
+        grupos_liderados = Grupo.objects.filter(
+            event=event,
+            lider=request.user
+        ).select_related('tipo').exists()
         events_with_volunteer_info.append({
             'event': event,
             'can_volunteer': can_user_volunteer_for_event(request.user, event),
+            'has_grupos': grupos_liderados,
         })
     
     return render(
@@ -860,12 +881,17 @@ def volunteering(request, event_slug=None):
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
     
-    # Add volunteer information to each event
+    # Add volunteer information and groups to each event
     events_with_volunteer_info = []
     for event in user_events:
+        grupos_liderados = Grupo.objects.filter(
+            event=event,
+            lider=request.user
+        ).select_related('tipo').exists()
         events_with_volunteer_info.append({
             'event': event,
             'can_volunteer': can_user_volunteer_for_event(request.user, event),
+            'has_grupos': grupos_liderados,
         })
 
     return render(
@@ -906,12 +932,17 @@ def my_orders_view(request):
         holder=request.user, event=main_event, owner=request.user
     ).first() if main_event else None
     
-    # Add volunteer information to each event
+    # Add volunteer information and groups to each event
     events_with_volunteer_info = []
     for event in user_events:
+        grupos_liderados = Grupo.objects.filter(
+            event=event,
+            lider=request.user
+        ).select_related('tipo').exists()
         events_with_volunteer_info.append({
             'event': event,
             'can_volunteer': can_user_volunteer_for_event(request.user, event),
+            'has_grupos': grupos_liderados,
         })
     
     return render(
@@ -2716,3 +2747,298 @@ def accept_terms_ajax(request):
         return JsonResponse({'success': False, 'error': 'Datos inválidos'})
     except Exception as e:
         return JsonResponse({'success': False, 'error': f'Error: {str(e)}'})
+
+
+@login_required
+def mis_grupos_view(request, event_slug=None):
+    """Vista para mostrar los grupos del usuario en un evento"""
+    # Get the specific event from slug
+    if event_slug:
+        current_event = Event.get_by_slug(event_slug)
+        if not current_event:
+            raise Http404("Event not found")
+    else:
+        current_event = Event.get_main_event()
+    
+    if not current_event:
+        raise Http404("Event not found")
+    
+    # Get groups where user is leader
+    grupos_liderados = Grupo.objects.filter(
+        event=current_event,
+        lider=request.user
+    ).select_related('tipo').prefetch_related('miembros__user').order_by('tipo__nombre', 'nombre')
+    
+    # Get events where user has tickets, prioritizing main event
+    user_events = Event.get_active_events().filter(
+        newticket__holder=request.user
+    ).distinct().order_by('-is_main', 'name')
+    
+    # Add volunteer information and groups to each event
+    events_with_volunteer_info = []
+    for event in user_events:
+        has_grupos = Grupo.objects.filter(
+            event=event,
+            lider=request.user
+        ).exists()
+        events_with_volunteer_info.append({
+            'event': event,
+            'can_volunteer': can_user_volunteer_for_event(request.user, event),
+            'has_grupos': has_grupos,
+        })
+    
+    return render(
+        request,
+        "mi_fuego/my_tickets/mis_grupos.html",
+        {
+            "event": current_event,
+            "grupos_liderados": grupos_liderados,
+            "active_events": user_events,
+            "events_with_volunteer_info": events_with_volunteer_info,
+            "nav_primary": "grupos",
+            "nav_secondary": "mis_grupos",
+            "now": timezone.now(),
+        }
+    )
+
+
+@login_required
+def grupo_manage_view(request, event_slug, grupo_id):
+    """Vista para que el líder gestione su grupo (agregar/quitar miembros, marcar ingreso anticipado)"""
+    # Get the specific event from slug
+    current_event = Event.get_by_slug(event_slug)
+    if not current_event:
+        raise Http404("Event not found")
+    
+    # Get the group
+    grupo = get_object_or_404(Grupo, id=grupo_id, event=current_event)
+    
+    # Check if user is the leader
+    if grupo.lider != request.user:
+        return HttpResponseForbidden("No tienes permiso para gestionar este grupo")
+    
+    # Get all members
+    miembros = grupo.miembros.select_related('user').order_by('-ingreso_anticipado', '-late_checkout', 'user__email')
+    
+    # Handle POST requests
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'add_member':
+            email = request.POST.get('email', '').strip().lower()
+            if email:
+                try:
+                    from allauth.account.models import EmailAddress
+                    
+                    # First try to find user by User.email
+                    user = User.objects.filter(email__iexact=email).first()
+                    
+                    # If not found, try to find user by EmailAddress (check all emails)
+                    if not user:
+                        email_address = EmailAddress.objects.filter(email__iexact=email).first()
+                        if email_address:
+                            user = email_address.user
+                    
+                    if not user:
+                        messages.error(request, f'No se encontró un usuario con el email {email}')
+                    else:
+                        # Check if user is already a member
+                        if GrupoMiembro.objects.filter(grupo=grupo, user=user).exists():
+                            messages.error(request, f'El usuario {email} ya es miembro del grupo')
+                        else:
+                            # Try to create the member - validation is done at model level
+                            try:
+                                miembro = GrupoMiembro(grupo=grupo, user=user)
+                                miembro.full_clean()  # This will trigger the validation
+                                miembro.save()
+                                messages.success(request, f'Usuario {email} agregado al grupo')
+                            except ValidationError as e:
+                                # Get the error message from validation
+                                error_message = '; '.join(e.messages) if hasattr(e, 'messages') else str(e)
+                                messages.error(request, error_message)
+                            except Exception as e:
+                                messages.error(request, f'Error al agregar miembro: {str(e)}')
+                except Exception as e:
+                    messages.error(request, f'Error al agregar miembro: {str(e)}')
+            else:
+                messages.error(request, 'Debes proporcionar un email')
+            return redirect('grupo_manage', event_slug=event_slug, grupo_id=grupo_id)
+        
+        elif action == 'remove_member':
+            miembro_id = request.POST.get('miembro_id')
+            if miembro_id:
+                try:
+                    miembro = GrupoMiembro.objects.get(id=miembro_id, grupo=grupo)
+                    # Don't allow removing the leader
+                    if miembro.user == grupo.lider:
+                        messages.error(request, 'No puedes remover al líder del grupo')
+                    else:
+                        miembro.delete()
+                        messages.success(request, f'Miembro removido del grupo')
+                except GrupoMiembro.DoesNotExist:
+                    messages.error(request, 'Miembro no encontrado')
+                except Exception as e:
+                    messages.error(request, f'Error al remover miembro: {str(e)}')
+            return redirect('grupo_manage', event_slug=event_slug, grupo_id=grupo_id)
+        
+        elif action == 'toggle_ingreso_anticipado':
+            miembro_id = request.POST.get('miembro_id')
+            if miembro_id:
+                try:
+                    miembro = GrupoMiembro.objects.get(id=miembro_id, grupo=grupo)
+                    new_value = not miembro.ingreso_anticipado
+                    
+                    # Check if we can add more ingreso anticipado
+                    if new_value:
+                        current_count = grupo.ingreso_anticipado_count()
+                        if current_count >= grupo.ingreso_anticipado_amount:
+                            messages.error(request, f'Ya se alcanzó el límite de {grupo.ingreso_anticipado_amount} personas con ingreso anticipado')
+                            return redirect('grupo_manage', event_slug=event_slug, grupo_id=grupo_id)
+                    
+                    miembro.ingreso_anticipado = new_value
+                    miembro.save()
+                    status = 'habilitado' if new_value else 'deshabilitado'
+                    messages.success(request, f'Ingreso anticipado {status} para {miembro.user.email}')
+                except GrupoMiembro.DoesNotExist:
+                    messages.error(request, 'Miembro no encontrado')
+                except Exception as e:
+                    messages.error(request, f'Error al actualizar ingreso anticipado: {str(e)}')
+            return redirect('grupo_manage', event_slug=event_slug, grupo_id=grupo_id)
+        
+        elif action == 'toggle_late_checkout':
+            miembro_id = request.POST.get('miembro_id')
+            if miembro_id:
+                try:
+                    miembro = GrupoMiembro.objects.get(id=miembro_id, grupo=grupo)
+                    new_value = not miembro.late_checkout
+                    
+                    # Check if we can add more late checkout
+                    if new_value:
+                        current_count = grupo.late_checkout_count()
+                        if current_count >= grupo.late_checkout_amount:
+                            messages.error(request, f'Ya se alcanzó el límite de {grupo.late_checkout_amount} personas con late checkout')
+                            return redirect('grupo_manage', event_slug=event_slug, grupo_id=grupo_id)
+                    
+                    miembro.late_checkout = new_value
+                    miembro.save()
+                    status = 'habilitado' if new_value else 'deshabilitado'
+                    messages.success(request, f'Late checkout {status} para {miembro.user.email}')
+                except GrupoMiembro.DoesNotExist:
+                    messages.error(request, 'Miembro no encontrado')
+                except Exception as e:
+                    messages.error(request, f'Error al actualizar late checkout: {str(e)}')
+            return redirect('grupo_manage', event_slug=event_slug, grupo_id=grupo_id)
+    
+    # Get events where user has tickets, prioritizing main event
+    user_events = Event.get_active_events().filter(
+        newticket__holder=request.user
+    ).distinct().order_by('-is_main', 'name')
+    
+    # Add volunteer information and groups to each event
+    events_with_volunteer_info = []
+    for event in user_events:
+        grupos_liderados = Grupo.objects.filter(
+            event=event,
+            lider=request.user
+        ).select_related('tipo').exists()
+        events_with_volunteer_info.append({
+            'event': event,
+            'can_volunteer': can_user_volunteer_for_event(request.user, event),
+            'has_grupos': grupos_liderados,
+        })
+    
+    return render(
+        request,
+        "mi_fuego/my_tickets/grupo_manage.html",
+        {
+            "event": current_event,
+            "grupo": grupo,
+            "miembros": miembros,
+            "active_events": user_events,
+            "events_with_volunteer_info": events_with_volunteer_info,
+            "nav_primary": "grupos",
+            "nav_secondary": "grupo_manage",
+            "now": timezone.now(),
+        }
+    )
+
+
+@login_required
+def grupo_toggle_ajax(request, event_slug, grupo_id):
+    """AJAX endpoint para toggle de ingreso anticipado y late checkout"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+    
+    # Get the specific event from slug
+    current_event = Event.get_by_slug(event_slug)
+    if not current_event:
+        return JsonResponse({'success': False, 'error': 'Event not found'}, status=404)
+    
+    # Get the group
+    try:
+        grupo = Grupo.objects.get(id=grupo_id, event=current_event)
+    except Grupo.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Group not found'}, status=404)
+    
+    # Check if user is the leader
+    if grupo.lider != request.user:
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+    
+    action = request.POST.get('action')
+    miembro_id = request.POST.get('miembro_id')
+    
+    if not miembro_id:
+        return JsonResponse({'success': False, 'error': 'Miembro ID required'}, status=400)
+    
+    try:
+        miembro = GrupoMiembro.objects.get(id=miembro_id, grupo=grupo)
+    except GrupoMiembro.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Miembro not found'}, status=404)
+    
+    if action == 'toggle_ingreso_anticipado':
+        new_value = not miembro.ingreso_anticipado
+        
+        # Check if we can add more ingreso anticipado
+        if new_value:
+            current_count = grupo.ingreso_anticipado_count()
+            if current_count >= grupo.ingreso_anticipado_amount:
+                return JsonResponse({
+                    'success': False, 
+                    'error': f'Ya se alcanzó el límite de {grupo.ingreso_anticipado_amount} personas con ingreso anticipado'
+                })
+        
+        miembro.ingreso_anticipado = new_value
+        miembro.save()
+        
+        return JsonResponse({
+            'success': True,
+            'ingreso_anticipado': new_value,
+            'ingreso_anticipado_count': grupo.ingreso_anticipado_count(),
+            'ingreso_anticipado_amount': grupo.ingreso_anticipado_amount,
+            'message': f'Ingreso anticipado {"habilitado" if new_value else "deshabilitado"} para {miembro.user.email}'
+        })
+    
+    elif action == 'toggle_late_checkout':
+        new_value = not miembro.late_checkout
+        
+        # Check if we can add more late checkout
+        if new_value:
+            current_count = grupo.late_checkout_count()
+            if current_count >= grupo.late_checkout_amount:
+                return JsonResponse({
+                    'success': False, 
+                    'error': f'Ya se alcanzó el límite de {grupo.late_checkout_amount} personas con late checkout'
+                })
+        
+        miembro.late_checkout = new_value
+        miembro.save()
+        
+        return JsonResponse({
+            'success': True,
+            'late_checkout': new_value,
+            'late_checkout_count': grupo.late_checkout_count(),
+            'late_checkout_amount': grupo.late_checkout_amount,
+            'message': f'Late checkout {"habilitado" if new_value else "deshabilitado"} para {miembro.user.email}'
+        })
+    
+    return JsonResponse({'success': False, 'error': 'Invalid action'}, status=400)

@@ -1,0 +1,50 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% load static %}
+{% block truecontent %}
+<style>
+    .badge {
+        background-color: #ffffff !important;
+        color: #1e1e1e !important;
+        border: 1px solid #d9d9d9 !important;
+    }
+</style>
+    <div class="wrapper grupos">
+        <div class="card">
+            <div class="card-body">
+                <h1 class="text-center mb-4">Mis Grupos</h1>
+                
+                {% if grupos_liderados %}
+                    <div class="list-group">
+                        {% for grupo in grupos_liderados %}
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h5 class="mb-1">
+                                            <span class="badge bg-secondary me-2">{{ grupo.tipo.nombre }}</span>
+                                            {{ grupo.nombre }}
+                                        </h5>
+                                        <p class="mb-1 text-muted">
+                                            <small>
+                                                Miembros: {{ grupo.miembros_count }} | 
+                                                Ingreso Anticipado: {{ grupo.ingreso_anticipado_count }}/{{ grupo.ingreso_anticipado_amount }} | 
+                                                Late Checkout: {{ grupo.late_checkout_count }}/{{ grupo.late_checkout_amount }}
+                                            </small>
+                                        </p>
+                                    </div>
+                                    <a href="{% url 'grupo_manage' event.slug grupo.id %}" class="btn btn-primary">
+                                        Gestionar
+                                    </a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-info text-center">
+                        No tienes grupos asignados como líder para este evento.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock truecontent %}
+
