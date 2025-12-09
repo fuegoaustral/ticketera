@@ -62,6 +62,9 @@ class EventAdmin(admin.ModelAdmin):
             path('ingreso-anticipado-report/', self.ingreso_anticipado_report_view, name='event_ingreso_anticipado_report'),
             path('export-ingreso-anticipado-csv/', self.export_ingreso_anticipado_csv, name='export_ingreso_anticipado_csv'),
             path('export-ingreso-anticipado-pdf/', self.export_ingreso_anticipado_pdf, name='export_ingreso_anticipado_pdf'),
+            path('late-checkout-report/', self.late_checkout_report_view, name='event_late_checkout_report'),
+            path('export-late-checkout-csv/', self.export_late_checkout_csv, name='export_late_checkout_csv'),
+            path('export-late-checkout-pdf/', self.export_late_checkout_pdf, name='export_late_checkout_pdf'),
         ]
         return custom_urls + urls
 
@@ -688,6 +691,218 @@ class EventAdmin(admin.ModelAdmin):
         buffer.seek(0)
         response = HttpResponse(buffer.read(), content_type='application/pdf')
         filename = f'ingreso_anticipado_{event.slug or event.id}.pdf'
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        return response
+
+    def late_checkout_report_view(self, request):
+        """Reporte de late checkout por grupo"""
+        event_id = request.GET.get('event_id')
+        events = Event.objects.all()
+        
+        if event_id:
+            with connection.cursor() as cursor:
+                query = """
+                    SELECT 
+                        g.nombre as grupo,
+                        au.first_name as nombre,
+                        au.last_name as apellido,
+                        upp.document_type as documento_tipo,
+                        upp.document_number as documento_numero,
+                        g.late_checkout_hasta as fecha_hasta
+                    FROM events_grupo g
+                    INNER JOIN events_grupomiembro gm ON g.id = gm.grupo_id
+                    INNER JOIN auth_user au ON gm.user_id = au.id
+                    LEFT JOIN user_profile_profile upp ON au.id = upp.user_id
+                    WHERE g.event_id = %s
+                      AND gm.late_checkout = true
+                    ORDER BY g.nombre, au.last_name, au.first_name
+                """
+                cursor.execute(query, [event_id])
+                columns = [col[0] for col in cursor.description]
+                results = cursor.fetchall()
+        else:
+            results = []
+            columns = []
+
+        context = {
+            'events': events,
+            'selected_event': event_id,
+            'results': results,
+            'columns': columns,
+            'opts': self.model._meta,
+            'title': 'Reporte de Late Checkout'
+        }
+        
+        return render(request, 'admin/events/late_checkout_report.html', context)
+
+    def export_late_checkout_csv(self, request):
+        """Exportar reporte de late checkout a CSV"""
+        event_id = request.GET.get('event_id')
+        if not event_id:
+            return HttpResponse('Event ID is required', status=400)
+
+        with connection.cursor() as cursor:
+            query = """
+                SELECT 
+                    g.nombre as grupo,
+                    au.first_name as nombre,
+                    au.last_name as apellido,
+                    upp.document_type as documento_tipo,
+                    upp.document_number as documento_numero,
+                    g.late_checkout_hasta as fecha_hasta
+                FROM events_grupo g
+                INNER JOIN events_grupomiembro gm ON g.id = gm.grupo_id
+                INNER JOIN auth_user au ON gm.user_id = au.id
+                LEFT JOIN user_profile_profile upp ON au.id = upp.user_id
+                WHERE g.event_id = %s
+                  AND gm.late_checkout = true
+                ORDER BY g.nombre, au.last_name, au.first_name
+            """
+            cursor.execute(query, [event_id])
+            
+            response = HttpResponse(content_type='text/csv; charset=utf-8')
+            event = Event.objects.get(id=event_id)
+            filename = f'late_checkout_{event.slug or event.id}.csv'
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            
+            writer = csv.writer(response)
+            # Escribir encabezados en español
+            writer.writerow(['Grupo', 'Nombre', 'Apellido', 'Tipo Documento', 'Número Documento', 'Fecha Hasta'])
+            
+            for row in cursor.fetchall():
+                # Formatear la fecha si existe
+                formatted_row = list(row)
+                if formatted_row[5]:  # fecha_hasta
+                    formatted_row[5] = formatted_row[5].strftime('%d/%m/%Y %H:%M')
+                else:
+                    formatted_row[5] = ''
+                writer.writerow(formatted_row)
+            
+            return response
+
+    def export_late_checkout_pdf(self, request):
+        """Exportar reporte de late checkout a PDF"""
+        try:
+            from reportlab.lib import colors
+            from reportlab.lib.pagesizes import A4
+            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.units import inch
+        except ImportError:
+            return HttpResponse(
+                'ReportLab no está instalado. Por favor instala reportlab: pip install reportlab',
+                status=500
+            )
+        
+        from io import BytesIO
+        from django.utils import timezone
+        
+        event_id = request.GET.get('event_id')
+        if not event_id:
+            return HttpResponse('Event ID is required', status=400)
+
+        try:
+            event = Event.objects.get(id=event_id)
+        except Event.DoesNotExist:
+            return HttpResponse('Event not found', status=404)
+
+        # Crear el buffer para el PDF
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        elements = []
+        
+        # Estilos
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            textColor=colors.HexColor('#1e1e1e'),
+            spaceAfter=30,
+        )
+        
+        # Título
+        title = Paragraph(f'Reporte de Late Checkout - {event.name}', title_style)
+        elements.append(title)
+        elements.append(Spacer(1, 0.2*inch))
+        
+        # Obtener datos
+        with connection.cursor() as cursor:
+            query = """
+                SELECT 
+                    g.nombre as grupo,
+                    au.first_name as nombre,
+                    au.last_name as apellido,
+                    upp.document_type as documento_tipo,
+                    upp.document_number as documento_numero,
+                    g.late_checkout_hasta as fecha_hasta
+                FROM events_grupo g
+                INNER JOIN events_grupomiembro gm ON g.id = gm.grupo_id
+                INNER JOIN auth_user au ON gm.user_id = au.id
+                LEFT JOIN user_profile_profile upp ON au.id = upp.user_id
+                WHERE g.event_id = %s
+                  AND gm.late_checkout = true
+                ORDER BY g.nombre, au.last_name, au.first_name
+            """
+            cursor.execute(query, [event_id])
+            results = cursor.fetchall()
+        
+        if not results:
+            no_data = Paragraph('No hay registros de late checkout para este evento.', styles['Normal'])
+            elements.append(no_data)
+        else:
+            # Preparar datos para la tabla
+            data = [['Grupo', 'Nombre', 'Apellido', 'Tipo Doc.', 'Número Doc.', 'Fecha Hasta']]
+            
+            for row in results:
+                fecha_str = ''
+                if row[5]:  # fecha_hasta
+                    fecha_str = row[5].strftime('%d/%m/%Y %H:%M')
+                data.append([
+                    row[0] or '',  # grupo
+                    row[1] or '',  # nombre
+                    row[2] or '',  # apellido
+                    row[3] or '',  # documento_tipo
+                    row[4] or '',  # documento_numero
+                    fecha_str
+                ])
+            
+            # Crear tabla
+            table = Table(data)
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f3f4f5')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#1e1e1e')),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('TOPPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#1e1e1e')),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 9),
+                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#d9d9d9')),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ]))
+            
+            elements.append(table)
+        
+        # Fecha de generación
+        elements.append(Spacer(1, 0.3*inch))
+        fecha_gen = Paragraph(
+            f'Generado el: {timezone.now().strftime("%d/%m/%Y %H:%M")}',
+            styles['Normal']
+        )
+        elements.append(fecha_gen)
+        
+        # Construir PDF
+        doc.build(elements)
+        
+        # Preparar respuesta
+        buffer.seek(0)
+        response = HttpResponse(buffer.read(), content_type='application/pdf')
+        filename = f'late_checkout_{event.slug or event.id}.pdf'
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         
         return response
