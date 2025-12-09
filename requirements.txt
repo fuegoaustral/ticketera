@@ -80,3 +80,4 @@ diff-match-patch==20241021
 et-xmlfile==2.0.0
 openpyxl==3.1.5
 setuptools==79.0.1
+reportlab==4.0.9

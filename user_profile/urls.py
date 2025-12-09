@@ -27,6 +27,9 @@ from .views import (
     ticket_types_management_view,
     ticket_types_ajax,
     accept_terms_ajax,
+    mis_grupos_view,
+    grupo_manage_view,
+    grupo_toggle_ajax,
 )
 
 urlpatterns = [
@@ -56,6 +59,9 @@ urlpatterns = [
     path("cajas/", caja_events_view, name="caja_events"),
     # Event-specific paths
     path("mis-bonos/<slug:event_slug>/volunteering/", volunteering, name="volunteering"),
+    path("mis-bonos/<slug:event_slug>/grupos/", mis_grupos_view, name="mis_grupos"),
+    path("mis-bonos/<slug:event_slug>/grupos/<int:grupo_id>/", grupo_manage_view, name="grupo_manage"),
+    path("mis-bonos/<slug:event_slug>/grupos/<int:grupo_id>/ajax/", grupo_toggle_ajax, name="grupo_toggle_ajax"),
     path("mis-bonos/<slug:event_slug>/bonos-transferibles/", transferable_tickets_view, name="transferable_tickets"),
     # Event-specific ticket views (after specific paths)
     path("mis-bonos/<slug:event_slug>/", my_ticket_view, name="my_ticket_event"),
