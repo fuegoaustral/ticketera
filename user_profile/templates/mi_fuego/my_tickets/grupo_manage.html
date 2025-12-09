@@ -1,0 +1,461 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% load static %}
+{% block truecontent %}
+<style>
+    .badge {
+        background-color: #ffffff !important;
+        color: #1e1e1e !important;
+        border: 1px solid #d9d9d9 !important;
+    }
+    
+    .miembros-table-wrapper {
+        max-height: 600px;
+        overflow-y: auto;
+    }
+    
+    @media (min-width: 992px) {
+        .miembros-table-wrapper {
+            max-height: 500px;
+        }
+        
+        .table th,
+        .table td {
+            padding: 0.5rem 0.75rem;
+            vertical-align: middle;
+        }
+    }
+    
+    @media (max-width: 767.98px) {
+        .table th,
+        .table td {
+            padding: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .form-check-input {
+            width: 2rem;
+            height: 1.25rem;
+        }
+        
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+        }
+    }
+    
+    .table thead th {
+        position: sticky;
+        top: 0;
+        background-color: #f8f9fa;
+        z-index: 10;
+        border-bottom: 2px solid #dee2e6;
+    }
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const toggleCheckboxes = document.querySelectorAll('.toggle-checkbox');
+    
+    toggleCheckboxes.forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            const action = this.dataset.action;
+            const miembroId = this.dataset.miembroId;
+            const originalValue = this.checked;
+            
+            // Disable checkbox while processing
+            this.disabled = true;
+            
+            fetch('{% url "grupo_toggle_ajax" event.slug grupo.id %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken
+                },
+                body: new URLSearchParams({
+                    'action': action,
+                    'miembro_id': miembroId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update checkbox state
+                    this.checked = data[action === 'toggle_ingreso_anticipado' ? 'ingreso_anticipado' : 'late_checkout'];
+                    
+                    // Update limit messages and disable/enable checkboxes if needed
+                    if (action === 'toggle_ingreso_anticipado') {
+                        const currentCount = data.ingreso_anticipado_count;
+                        const maxAmount = data.ingreso_anticipado_amount;
+                        
+                        // Update all ingreso anticipado checkboxes
+                        document.querySelectorAll('[data-action="toggle_ingreso_anticipado"]').forEach(cb => {
+                            const cbMiembroId = cb.dataset.miembroId;
+                            const limiteMsg = document.querySelector('.limite-message-ia-' + cbMiembroId);
+                            
+                            if (!cb.checked && currentCount >= maxAmount) {
+                                cb.disabled = true;
+                                if (limiteMsg) limiteMsg.style.display = 'block';
+                            } else {
+                                cb.disabled = false;
+                                if (limiteMsg) limiteMsg.style.display = 'none';
+                            }
+                        });
+                    } else if (action === 'toggle_late_checkout') {
+                        const currentCount = data.late_checkout_count;
+                        const maxAmount = data.late_checkout_amount;
+                        
+                        // Update all late checkout checkboxes
+                        document.querySelectorAll('[data-action="toggle_late_checkout"]').forEach(cb => {
+                            const cbMiembroId = cb.dataset.miembroId;
+                            const limiteMsg = document.querySelector('.limite-message-lc-' + cbMiembroId);
+                            
+                            if (!cb.checked && currentCount >= maxAmount) {
+                                cb.disabled = true;
+                                if (limiteMsg) limiteMsg.style.display = 'block';
+                            } else {
+                                cb.disabled = false;
+                                if (limiteMsg) limiteMsg.style.display = 'none';
+                            }
+                        });
+                    }
+                    
+                    // Show success message briefly
+                    showToast(data.message, 'success');
+                } else {
+                    // Revert checkbox state
+                    this.checked = !originalValue;
+                    showToast(data.error || 'Error al actualizar', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                this.checked = !originalValue;
+                showToast('Error al actualizar', 'error');
+            })
+            .finally(() => {
+                this.disabled = false;
+            });
+        });
+    });
+    
+    function showToast(message, type) {
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+        toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        toast.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        document.body.appendChild(toast);
+        
+        // Auto remove after 3 seconds
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.remove();
+            }
+        }, 3000);
+    }
+});
+</script>
+    <div class="wrapper grupo-manage">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h1 class="mb-1">
+                            <span class="badge bg-secondary me-2">{{ grupo.tipo.nombre }}</span>
+                            {{ grupo.nombre }}
+                        </h1>
+                        <p class="text-muted mb-0">
+                            <small>Evento: {{ event.name }}</small>
+                        </p>
+                    </div>
+                    <a href="{% url 'mis_grupos' event.slug %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Volver
+                    </a>
+                </div>
+
+                {% if messages %}
+                    {% for message in messages %}
+                        {% if message.tags == 'error' %}
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert" style="background-color: #f8d7da !important; border-color: #f5c6cb !important; color: #721c24 !important;">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+
+                <div class="row mb-4">
+                    <div class="col-md-10 col-lg-8">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h5 class="card-title">Información del Grupo</h5>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p class="mb-1"><strong>Líder:</strong> {{ grupo.lider.get_full_name|default:grupo.lider.email }}</p>
+                                        <p class="mb-1"><strong>Miembros:</strong> {{ grupo.miembros_count }}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p class="mb-1">
+                                            <strong>Ingreso Anticipado:</strong> 
+                                            {{ grupo.ingreso_anticipado_count }}/{{ grupo.ingreso_anticipado_amount }}
+                                        </p>
+                                        {% if grupo.ingreso_anticipado_desde %}
+                                        <p class="mb-1">
+                                            <strong>Desde:</strong> 
+                                            {{ grupo.ingreso_anticipado_desde|date:"d/m/Y H:i" }}
+                                        </p>
+                                        {% endif %}
+                                        <p class="mb-1">
+                                            <strong>Late Checkout:</strong> 
+                                            {{ grupo.late_checkout_count }}/{{ grupo.late_checkout_amount }}
+                                        </p>
+                                        {% if grupo.late_checkout_hasta %}
+                                        <p class="mb-0">
+                                            <strong>Hasta:</strong> 
+                                            {{ grupo.late_checkout_hasta|date:"d/m/Y H:i" }}
+                                        </p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Agregar Miembro</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" class="d-flex gap-2">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="add_member">
+                            <input type="email" name="email" class="form-control" placeholder="Email del usuario" required>
+                            <button type="submit" class="btn btn-primary d-flex align-items-center">
+                                <i class="fas fa-plus me-2"></i>
+                                <span>Agregar</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Miembros del Grupo</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if miembros %}
+                            <div class="table-responsive miembros-table-wrapper">
+                                <table class="table table-hover table-sm mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th class="ps-3">Usuario</th>
+                                            <th class="d-none d-md-table-cell">Email</th>
+                                            <th class="text-center" style="min-width: 120px;">Ingreso Anticipado</th>
+                                            <th class="text-center" style="min-width: 120px;">Late Checkout</th>
+                                            <th class="text-center" style="min-width: 100px;">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for miembro in miembros %}
+                                            <tr>
+                                                <td class="ps-3">
+                                                    <div class="d-flex flex-column">
+                                                        <span>{{ miembro.user.get_full_name|default:miembro.user.username }}</span>
+                                                        <small class="text-muted d-md-none">{{ miembro.user.email }}</small>
+                                                        {% if miembro.user == grupo.lider %}
+                                                            <span class="badge bg-primary mt-1" style="width: fit-content;">Líder</span>
+                                                        {% endif %}
+                                                    </div>
+                                                </td>
+                                                <td class="d-none d-md-table-cell">{{ miembro.user.email }}</td>
+                                                <td class="text-center">
+                                                    <div class="form-check form-switch d-inline-block">
+                                                        <input 
+                                                            class="form-check-input toggle-checkbox" 
+                                                            type="checkbox" 
+                                                            data-action="toggle_ingreso_anticipado"
+                                                            data-miembro-id="{{ miembro.id }}"
+                                                            {% if miembro.ingreso_anticipado %}checked{% endif %}
+                                                            {% if not miembro.ingreso_anticipado and grupo.ingreso_anticipado_count >= grupo.ingreso_anticipado_amount %}disabled{% endif %}
+                                                        >
+                                                    </div>
+                                                    {% if not miembro.ingreso_anticipado and grupo.ingreso_anticipado_count >= grupo.ingreso_anticipado_amount %}
+                                                    <div class="limite-message-ia-{{ miembro.id }}">
+                                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Límite</small>
+                                                    </div>
+                                                    {% else %}
+                                                    <div class="limite-message-ia-{{ miembro.id }}" style="display: none;">
+                                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Límite</small>
+                                                    </div>
+                                                    {% endif %}
+                                                </td>
+                                                <td class="text-center">
+                                                    <div class="form-check form-switch d-inline-block">
+                                                        <input 
+                                                            class="form-check-input toggle-checkbox" 
+                                                            type="checkbox" 
+                                                            data-action="toggle_late_checkout"
+                                                            data-miembro-id="{{ miembro.id }}"
+                                                            {% if miembro.late_checkout %}checked{% endif %}
+                                                            {% if not miembro.late_checkout and grupo.late_checkout_count >= grupo.late_checkout_amount %}disabled{% endif %}
+                                                        >
+                                                    </div>
+                                                    {% if not miembro.late_checkout and grupo.late_checkout_count >= grupo.late_checkout_amount %}
+                                                    <div class="limite-message-lc-{{ miembro.id }}">
+                                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Límite</small>
+                                                    </div>
+                                                    {% else %}
+                                                    <div class="limite-message-lc-{{ miembro.id }}" style="display: none;">
+                                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Límite</small>
+                                                    </div>
+                                                    {% endif %}
+                                                </td>
+                                                <td class="text-center">
+                                                    {% if miembro.user != grupo.lider %}
+                                                        <form method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de que deseas remover a {{ miembro.user.email }} del grupo?');">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="action" value="remove_member">
+                                                            <input type="hidden" name="miembro_id" value="{{ miembro.id }}">
+                                                            <button type="submit" class="btn btn-sm btn-danger" title="Remover miembro">
+                                                                <i class="fas fa-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                    {% else %}
+                                                        <span class="text-muted">-</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-info m-3">
+                                No hay miembros en el grupo aún. Agrega miembros usando el formulario de arriba.
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const toggleCheckboxes = document.querySelectorAll('.toggle-checkbox');
+    
+    toggleCheckboxes.forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            const action = this.dataset.action;
+            const miembroId = this.dataset.miembroId;
+            const originalValue = this.checked;
+            
+            // Disable checkbox while processing
+            this.disabled = true;
+            
+            fetch('{% url "grupo_toggle_ajax" event.slug grupo.id %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken
+                },
+                body: new URLSearchParams({
+                    'action': action,
+                    'miembro_id': miembroId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update checkbox state
+                    this.checked = data[action === 'toggle_ingreso_anticipado' ? 'ingreso_anticipado' : 'late_checkout'];
+                    
+                    // Update limit messages and disable/enable checkboxes if needed
+                    if (action === 'toggle_ingreso_anticipado') {
+                        const currentCount = data.ingreso_anticipado_count;
+                        const maxAmount = data.ingreso_anticipado_amount;
+                        
+                        // Update all ingreso anticipado checkboxes
+                        document.querySelectorAll('[data-action="toggle_ingreso_anticipado"]').forEach(cb => {
+                            const cbMiembroId = cb.dataset.miembroId;
+                            const limiteMsg = document.querySelector('.limite-message-ia-' + cbMiembroId);
+                            
+                            if (!cb.checked && currentCount >= maxAmount) {
+                                cb.disabled = true;
+                                if (limiteMsg) limiteMsg.style.display = 'block';
+                            } else {
+                                cb.disabled = false;
+                                if (limiteMsg) limiteMsg.style.display = 'none';
+                            }
+                        });
+                    } else if (action === 'toggle_late_checkout') {
+                        const currentCount = data.late_checkout_count;
+                        const maxAmount = data.late_checkout_amount;
+                        
+                        // Update all late checkout checkboxes
+                        document.querySelectorAll('[data-action="toggle_late_checkout"]').forEach(cb => {
+                            const cbMiembroId = cb.dataset.miembroId;
+                            const limiteMsg = document.querySelector('.limite-message-lc-' + cbMiembroId);
+                            
+                            if (!cb.checked && currentCount >= maxAmount) {
+                                cb.disabled = true;
+                                if (limiteMsg) limiteMsg.style.display = 'block';
+                            } else {
+                                cb.disabled = false;
+                                if (limiteMsg) limiteMsg.style.display = 'none';
+                            }
+                        });
+                    }
+                    
+                    // Show success message briefly
+                    showToast(data.message, 'success');
+                } else {
+                    // Revert checkbox state
+                    this.checked = !originalValue;
+                    showToast(data.error || 'Error al actualizar', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                this.checked = !originalValue;
+                showToast('Error al actualizar', 'error');
+            })
+            .finally(() => {
+                this.disabled = false;
+            });
+        });
+    });
+    
+    function showToast(message, type) {
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+        toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        toast.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        document.body.appendChild(toast);
+        
+        // Auto remove after 3 seconds
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.remove();
+            }
+        }, 3000);
+    }
+});
+</script>
+{% endblock truecontent %}
+

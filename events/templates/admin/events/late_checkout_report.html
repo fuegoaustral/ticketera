@@ -1,0 +1,67 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+
+{% block content %}
+<div id="content-main">
+    <h1>Reporte de Late Checkout</h1>
+    
+    <form method="get" class="form-inline">
+        <div style="margin-bottom: 20px;">
+            <label for="event_id">Evento:</label>
+            <select name="event_id" id="event_id">
+                <option value="">Seleccionar evento</option>
+                {% for event in events %}
+                    <option value="{{ event.id }}" {% if event.id|stringformat:"s" == selected_event %}selected{% endif %}>
+                        {{ event.name }}
+                    </option>
+                {% endfor %}
+            </select>
+            
+            <button type="submit" class="button">Buscar</button>
+            
+            {% if selected_event %}
+                <a href="{% url 'admin:export_late_checkout_csv' %}?event_id={{ selected_event }}" class="button">Exportar a CSV</a>
+                <a href="{% url 'admin:export_late_checkout_pdf' %}?event_id={{ selected_event }}" class="button">Exportar a PDF</a>
+            {% endif %}
+        </div>
+    </form>
+
+    {% if results %}
+        <div class="results">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Grupo</th>
+                        <th>Nombre</th>
+                        <th>Apellido</th>
+                        <th>Tipo Documento</th>
+                        <th>Número Documento</th>
+                        <th>Fecha Hasta</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in results %}
+                        <tr>
+                            <td>{{ row.0|default:"-" }}</td>
+                            <td>{{ row.1|default:"-" }}</td>
+                            <td>{{ row.2|default:"-" }}</td>
+                            <td>{{ row.3|default:"-" }}</td>
+                            <td>{{ row.4|default:"-" }}</td>
+                            <td>
+                                {% if row.5 %}
+                                    {{ row.5|date:"d/m/Y H:i" }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% elif selected_event %}
+        <p>No hay registros de late checkout para este evento.</p>
+    {% endif %}
+</div>
+{% endblock %}
+

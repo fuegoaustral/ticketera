@@ -79,8 +79,9 @@
                                 <i class="fas fa-fire me-2"></i>
                                 {{ event_info.event.name }}
                             </a>
-                            {% if event_info.event.has_volunteers and event_info.can_volunteer %}
+                            {% if event_info.event.has_volunteers and event_info.can_volunteer or event_info.has_grupos %}
                                 <ul class="menu-sublist">
+                                    {% if event_info.event.has_volunteers and event_info.can_volunteer %}
                                     <li class="menu-subitem">
                                         <a class="menu-sublink{% if nav_primary == "volunteering" and event_info.event.slug in request.path %} active{% endif %}"
                                            href="{% url "volunteering" event_info.event.slug %}">
@@ -88,6 +89,16 @@
                                             Voluntariado
                                         </a>
                                     </li>
+                                    {% endif %}
+                                    {% if event_info.has_grupos %}
+                                    <li class="menu-subitem">
+                                        <a class="menu-sublink{% if nav_primary == "grupos" and event_info.event.slug in request.path %} active{% endif %}"
+                                           href="{% url "mis_grupos" event_info.event.slug %}">
+                                            <i class="fas fa-users me-2"></i>
+                                            Mis Grupos
+                                        </a>
+                                    </li>
+                                    {% endif %}
                                 </ul>
                             {% endif %}
                         </li>
