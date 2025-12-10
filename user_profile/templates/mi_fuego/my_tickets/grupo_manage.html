@@ -138,6 +138,55 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
+    // Handle restriction select changes
+    const restriccionSelects = document.querySelectorAll('.restriccion-select');
+    restriccionSelects.forEach(function(select) {
+        select.addEventListener('change', function() {
+            const miembroId = this.dataset.miembroId;
+            const restriccion = this.value;
+            const originalValue = this.dataset.originalValue || this.value;
+            
+            // Disable select while processing
+            this.disabled = true;
+            
+            fetch('{% url "grupo_toggle_ajax" event.slug grupo.id %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken
+                },
+                body: new URLSearchParams({
+                    'action': 'update_restriccion',
+                    'miembro_id': miembroId,
+                    'restriccion': restriccion
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update original value
+                    this.dataset.originalValue = restriccion;
+                    showToast(data.message, 'success');
+                } else {
+                    // Revert to original value
+                    this.value = originalValue;
+                    showToast(data.error || 'Error al actualizar restricción', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                this.value = originalValue;
+                showToast('Error al actualizar restricción', 'error');
+            })
+            .finally(() => {
+                this.disabled = false;
+            });
+        });
+        
+        // Store original value on load
+        select.dataset.originalValue = select.value;
+    });
+    
     function showToast(message, type) {
         // Create toast element
         const toast = document.createElement('div');
@@ -262,6 +311,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                             <th class="d-none d-md-table-cell">Email</th>
                                             <th class="text-center" style="min-width: 120px;">Ingreso Anticipado</th>
                                             <th class="text-center" style="min-width: 120px;">Late Checkout</th>
+                                            <th class="text-center" style="min-width: 150px;">Restricción</th>
                                             <th class="text-center" style="min-width: 100px;">Acciones</th>
                                         </tr>
                                     </thead>
@@ -319,6 +369,18 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         <small class="text-muted d-block" style="font-size: 0.7rem;">Límite</small>
                                                     </div>
                                                     {% endif %}
+                                                </td>
+                                                <td class="text-center">
+                                                    <select 
+                                                        class="form-select form-select-sm restriccion-select" 
+                                                        data-miembro-id="{{ miembro.id }}"
+                                                        style="min-width: 140px; display: inline-block;"
+                                                    >
+                                                        <option value="sin_restricciones" {% if miembro.restriccion == 'sin_restricciones' %}selected{% endif %}>Sin Restricciones</option>
+                                                        <option value="vegetarian" {% if miembro.restriccion == 'vegetarian' %}selected{% endif %}>Vegetarian</option>
+                                                        <option value="sin_tacc" {% if miembro.restriccion == 'sin_tacc' %}selected{% endif %}>Sin TACC</option>
+                                                        <option value="particular" {% if miembro.restriccion == 'particular' %}selected{% endif %}>Particular</option>
+                                                    </select>
                                                 </td>
                                                 <td class="text-center">
                                                     {% if miembro.user != grupo.lider %}
@@ -434,6 +496,55 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.disabled = false;
             });
         });
+    });
+    
+    // Handle restriction select changes
+    const restriccionSelects = document.querySelectorAll('.restriccion-select');
+    restriccionSelects.forEach(function(select) {
+        select.addEventListener('change', function() {
+            const miembroId = this.dataset.miembroId;
+            const restriccion = this.value;
+            const originalValue = this.dataset.originalValue || this.value;
+            
+            // Disable select while processing
+            this.disabled = true;
+            
+            fetch('{% url "grupo_toggle_ajax" event.slug grupo.id %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken
+                },
+                body: new URLSearchParams({
+                    'action': 'update_restriccion',
+                    'miembro_id': miembroId,
+                    'restriccion': restriccion
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update original value
+                    this.dataset.originalValue = restriccion;
+                    showToast(data.message, 'success');
+                } else {
+                    // Revert to original value
+                    this.value = originalValue;
+                    showToast(data.error || 'Error al actualizar restricción', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                this.value = originalValue;
+                showToast('Error al actualizar restricción', 'error');
+            })
+            .finally(() => {
+                this.disabled = false;
+            });
+        });
+        
+        // Store original value on load
+        select.dataset.originalValue = select.value;
     });
     
     function showToast(message, type) {
