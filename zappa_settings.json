@@ -27,7 +27,17 @@
       }
     ],
     "domain": "dev.fuegoaustral.org",
-    "certificate_arn": "arn:aws:acm:us-east-1:251799394474:certificate/09f6bc34-2d5a-4172-a25a-2602f1b15fca"
+    "certificate_arn": "arn:aws:acm:us-east-1:251799394474:certificate/09f6bc34-2d5a-4172-a25a-2602f1b15fca",
+    "events": [
+      {
+        "function": "tickets.payment_check_cron.check_pending_payments",
+        "expression": "rate(5 minutes)"
+      },
+      {
+        "function": "tickets.email_crons.send_pending_actions_emails",
+        "expression": "cron(0 17 * * ? *)"
+      }
+    ]
   },
   "prod": {
     "alias": "prod",
@@ -57,6 +67,16 @@
         ]
       }
     ],
-    "certificate_arn": "arn:aws:acm:us-east-1:251799394474:certificate/84e0a65b-041f-49f0-8fb5-f440fb700aef"
+    "certificate_arn": "arn:aws:acm:us-east-1:251799394474:certificate/84e0a65b-041f-49f0-8fb5-f440fb700aef",
+    "events": [
+      {
+        "function": "tickets.payment_check_cron.check_pending_payments",
+        "expression": "rate(5 minutes)"
+      },
+      {
+        "function": "tickets.email_crons.send_pending_actions_emails",
+        "expression": "cron(0 17 * * ? *)"
+      }
+    ]
   }
 }
