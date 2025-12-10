@@ -1,4 +1,5 @@
 import json
+import logging
 from urllib.parse import urlencode
 
 from django.contrib.auth.decorators import login_required
@@ -15,41 +16,81 @@ from django.utils import timezone
 from tickets.models import NewTicket, NewTicketTransfer
 from utils.email import send_mail
 
+logger = logging.getLogger(__name__)
+
 
 @login_required
 def transfer_ticket(request, ticket_key):
     if request.method != 'POST':
-        return HttpResponseNotAllowed('')
+        return JsonResponse({
+            'status': 'ERROR',
+            'message': 'Método no permitido'
+        }, status=405)
 
-    request_body = json.loads(request.body)
+    try:
+        # Handle request.body which might be bytes
+        body = request.body
+        if isinstance(body, bytes):
+            body = body.decode('utf-8')
+        request_body = json.loads(body)
+        logger.info(f"Transfer ticket request - ticket_key: {ticket_key}, email: {request_body.get('email')}")
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        logger.error(f"Error parsing request body: {str(e)}, body type: {type(request.body)}")
+        return JsonResponse({
+            'status': 'ERROR',
+            'message': 'Formato de solicitud inválido'
+        }, status=400)
 
     if 'email' not in request_body:
-        return HttpResponseBadRequest('')
+        return JsonResponse({
+            'status': 'ERROR',
+            'message': 'Email requerido'
+        }, status=400)
 
     email_param = request_body['email']
     email = email_param.lower()
 
-    ticket = NewTicket.objects.get(key=ticket_key)
-    if ticket is None:
-        return HttpResponseBadRequest('')
+    try:
+        ticket = NewTicket.objects.get(key=ticket_key)
+    except NewTicket.DoesNotExist:
+        return JsonResponse({
+            'status': 'ERROR',
+            'message': 'Bono no encontrado'
+        }, status=400)
+
     if ticket.holder != request.user:
-        return HttpResponseForbidden('Qué hacés pedazo de gato? Quedaste re escrachado logi')
+        return JsonResponse({
+            'status': 'ERROR',
+            'message': 'No autorizado'
+        }, status=403)
+
     if not ticket.event.transfer_period():
-        return HttpResponseBadRequest('')
+        return JsonResponse({
+            'status': 'ERROR',
+            'message': 'El período de transferencia ha finalizado'
+        }, status=400)
 
     email_validator = EmailValidator()
     try:
         email_validator(email)
-    except ValidationError:
-        return HttpResponseBadRequest('')
+    except ValidationError as e:
+        logger.warning(f"Invalid email format: {email}, error: {str(e)}")
+        return JsonResponse({
+            'status': 'ERROR',
+            'message': 'Email inválido'
+        }, status=400)
 
     destination_user = User.objects.filter(email=email).first()
     destination_user_exists = destination_user is not None and destination_user.profile.profile_completion == 'COMPLETE'
+    logger.info(f"Destination user lookup - email: {email}, exists: {destination_user is not None}, profile_complete: {destination_user_exists}")
 
     pending_transfers = NewTicketTransfer.objects.filter(ticket=ticket, status='PENDING').exists()
-
     if pending_transfers:
-        return HttpResponseBadRequest('')
+        logger.warning(f"Pending transfer exists for ticket: {ticket_key}")
+        return JsonResponse({
+            'status': 'ERROR',
+            'message': 'Ya existe una transferencia pendiente para este bono'
+        }, status=400)
 
     if destination_user_exists is False:
         # Return error if email not found
@@ -99,35 +140,64 @@ def transfer_ticket(request, ticket_key):
 @login_required()
 def cancel_ticket_transfer(request):
     if request.method != 'POST':
-        return HttpResponseNotAllowed('')
+        return JsonResponse({
+            'status': 'ERROR',
+            'message': 'Método no permitido'
+        }, status=405)
 
-    request_body = json.loads(request.body)
+    try:
+        # Handle request.body which might be bytes
+        body = request.body
+        if isinstance(body, bytes):
+            body = body.decode('utf-8')
+        request_body = json.loads(body)
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        logger.error(f"Error parsing request body in cancel_ticket_transfer: {str(e)}")
+        return JsonResponse({
+            'status': 'ERROR',
+            'message': 'Formato de solicitud inválido'
+        }, status=400)
 
     if 'ticket_key' not in request_body:
-        return HttpResponseBadRequest('')
+        return JsonResponse({
+            'status': 'ERROR',
+            'message': 'Ticket key requerido'
+        }, status=400)
 
     ticket_key = request_body['ticket_key']
 
-    ticket = NewTicket.objects.get(key=ticket_key)
-
-    if ticket is None:
-        return HttpResponseBadRequest('')
+    try:
+        ticket = NewTicket.objects.get(key=ticket_key)
+    except NewTicket.DoesNotExist:
+        return JsonResponse({
+            'status': 'ERROR',
+            'message': 'Bono no encontrado'
+        }, status=400)
 
     if ticket.holder != request.user:
-        return HttpResponseForbidden('Qué hacés pedazo de gato? Quedaste re escrachado logi')
+        return JsonResponse({
+            'status': 'ERROR',
+            'message': 'No autorizado'
+        }, status=403)
 
     if not ticket.event.transfer_period():
-        return HttpResponseBadRequest('')
+        return JsonResponse({
+            'status': 'ERROR',
+            'message': 'El período de transferencia ha finalizado'
+        }, status=400)
 
-    ticket_transfer = NewTicketTransfer.objects.get(ticket=ticket, status='PENDING', tx_from=request.user)
-
-    if ticket_transfer is None:
-        return HttpResponseBadRequest('')
+    try:
+        ticket_transfer = NewTicketTransfer.objects.get(ticket=ticket, status='PENDING', tx_from=request.user)
+    except NewTicketTransfer.DoesNotExist:
+        return JsonResponse({
+            'status': 'ERROR',
+            'message': 'Transferencia pendiente no encontrada'
+        }, status=400)
 
     ticket_transfer.status = 'CANCELLED'
     ticket_transfer.save()
 
-    return HttpResponse('OK')
+    return JsonResponse({'status': 'OK'})
 
 
 @login_required()

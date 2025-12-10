@@ -170,7 +170,19 @@
                 })
             });
 
-            const responseBody = await response.json();
+            let responseBody = {};
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                try {
+                    responseBody = await response.json();
+                } catch (jsonError) {
+                    console.error('Error parsing JSON:', jsonError);
+                    document.getElementById('loadingSpinner').style.display = 'none';
+                    document.getElementById('error-message-text').textContent = 'Error en la transferencia. Por favor, inténtalo de nuevo.';
+                    document.getElementById('transferErrorMessage').style.display = 'block';
+                    return;
+                }
+            }
 
             if (response.ok) {
                 document.getElementById('loadingSpinner').style.display = 'none';
