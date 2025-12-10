@@ -938,7 +938,7 @@ class GrupoTipoAdmin(admin.ModelAdmin):
 class GrupoMiembroInline(admin.TabularInline):
     model = GrupoMiembro
     extra = 0
-    fields = ('user', 'ingreso_anticipado', 'late_checkout')
+    fields = ('user', 'ingreso_anticipado', 'late_checkout', 'restriccion')
     autocomplete_fields = ('user',)
 
 
@@ -974,8 +974,8 @@ class GrupoAdmin(admin.ModelAdmin):
 
 
 class GrupoMiembroAdmin(admin.ModelAdmin):
-    list_display = ('user', 'grupo', 'ingreso_anticipado', 'late_checkout', 'created_at')
-    list_filter = ('ingreso_anticipado', 'late_checkout', 'grupo__tipo', 'grupo__event')
+    list_display = ('user', 'grupo', 'ingreso_anticipado', 'late_checkout', 'restriccion', 'created_at')
+    list_filter = ('ingreso_anticipado', 'late_checkout', 'restriccion', 'grupo__tipo', 'grupo__event')
     search_fields = ('user__email', 'user__first_name', 'user__last_name', 'grupo__nombre')
     autocomplete_fields = ('user', 'grupo')
 

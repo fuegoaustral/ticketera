@@ -3041,4 +3041,28 @@ def grupo_toggle_ajax(request, event_slug, grupo_id):
             'message': f'Late checkout {"habilitado" if new_value else "deshabilitado"} para {miembro.user.email}'
         })
     
+    elif action == 'update_restriccion':
+        restriccion = request.POST.get('restriccion')
+        
+        # Validate restriccion value
+        valid_choices = ['sin_restricciones', 'vegetarian', 'sin_tacc', 'particular']
+        if restriccion not in valid_choices:
+            return JsonResponse({
+                'success': False,
+                'error': 'Valor de restricción inválido'
+            }, status=400)
+        
+        miembro.restriccion = restriccion
+        miembro.save()
+        
+        # Get display name for the restriction
+        restriccion_display = dict(GrupoMiembro.RESTRICCION_CHOICES).get(restriccion, restriccion)
+        
+        return JsonResponse({
+            'success': True,
+            'restriccion': restriccion,
+            'restriccion_display': restriccion_display,
+            'message': f'Restricción actualizada a "{restriccion_display}" para {miembro.user.email}'
+        })
+    
     return JsonResponse({'success': False, 'error': 'Invalid action'}, status=400)

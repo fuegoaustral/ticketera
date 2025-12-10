@@ -297,10 +297,23 @@ class Grupo(BaseModel):
 
 class GrupoMiembro(BaseModel):
     """Miembros de un grupo"""
+    RESTRICCION_CHOICES = [
+        ('sin_restricciones', 'Sin Restricciones'),
+        ('vegetarian', 'Vegetarian'),
+        ('sin_tacc', 'Sin TACC'),
+        ('particular', 'Particular'),
+    ]
+    
     grupo = models.ForeignKey(Grupo, on_delete=models.CASCADE, related_name='miembros', help_text="Grupo al que pertenece el miembro")
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='grupos_miembro', help_text="Usuario miembro del grupo")
     ingreso_anticipado = models.BooleanField(default=False, help_text="Indica si el miembro tiene ingreso anticipado")
     late_checkout = models.BooleanField(default=False, help_text="Indica si el miembro tiene late checkout")
+    restriccion = models.CharField(
+        max_length=20,
+        choices=RESTRICCION_CHOICES,
+        default='sin_restricciones',
+        help_text="Restricción alimentaria del miembro"
+    )
 
     class Meta:
         verbose_name = "Miembro de Grupo"
