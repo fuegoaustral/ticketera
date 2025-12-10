@@ -20,14 +20,26 @@ def send_pending_actions_emails(event, context):
     logging.info("Email cron job")
     logging.info("==============")
     logging.info("\n")
-    current_event = Event.get_main_event()
     
-    # Check if transfers are still enabled
-    if current_event.transfers_enabled_until and current_event.transfers_enabled_until < timezone.now():
-        logging.info("Transfers are no longer enabled for this event. Skipping email notifications.")
+    # Get all active events
+    active_events = Event.get_active_events()
+    
+    if not active_events.exists():
+        logging.warning("No active events found. Skipping email notifications.")
         return
     
-    send_pending_actions_emails_for_event(current_event)
+    logging.info(f"Processing {active_events.count()} active event(s)")
+    
+    # Process each active event
+    for current_event in active_events:
+        logging.info(f"Processing event: {current_event.name} (ID: {current_event.id})")
+        
+        # Check if transfers are still enabled
+        if current_event.transfers_enabled_until and current_event.transfers_enabled_until < timezone.now():
+            logging.info(f"Transfers are no longer enabled for event {current_event.name}. Skipping email notifications for this event.")
+            continue
+        
+        send_pending_actions_emails_for_event(current_event)
 
 
 def send_pending_actions_emails_for_event(current_event):
