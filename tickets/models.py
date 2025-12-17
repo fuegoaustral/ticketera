@@ -165,7 +165,8 @@ class Order(BaseModel):
     last_name = models.CharField(max_length=255)
     email = models.CharField(max_length=320)
     phone = models.CharField(max_length=50)
-    dni = models.CharField(max_length=10)
+    # Use a larger max_length to accommodate document numbers from user profiles
+    dni = models.CharField(max_length=50)
     donation_art = models.DecimalField('Becas de Arte $', validators=[MinValueValidator(Decimal('0'))],
                                        decimal_places=0, max_digits=10, blank=True, null=True,
                                        help_text='Para empujar la creatividad en nuestra ciudad temporal.')
