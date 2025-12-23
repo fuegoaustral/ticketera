@@ -1,0 +1,542 @@
+first_name,last_name,email,phone,document_type,document_number,name,caos,transmutador,ranger,mad,bonos_sin_compartir
+Santiago,Durañona,santiduranona93@gmail.com,+541130415805,DNI,37276577,Venta dirigida,False,False,False,False,11
+Martin,Kerner,kernermart@gmail.com,+541158309573,DNI,25493627,Venta dirigida,False,True,False,False,10
+Karen,Panardo,kpanardo@gmail.com,+541161912223,DNI,21648463,Venta dirigida,False,False,True,False,7
+Laura,Chullmir,lau_chullmir@hotmail.com,+541135874864,DNI,35169172,Venta dirigida,False,False,False,False,7
+Nicolas,Fakiel,nicolafaka@yahoo.com.ar,+541130703080,DNI,34027992,Venta dirigida,False,False,False,False,6
+Ailin,Rebrij,ailinrebrij@gmail.com,+541157523623,DNI,35793182,Venta dirigida,False,True,False,False,5
+Agustin,Haller,agustinhaller@gmail.com,+541160331859,DNI,96408090,Venta dirigida,False,True,True,True,5
+Daria,Bespiatkina,d.dangilova@gmail.com,+541137898762,DNI,96397632,Venta dirigida,False,True,True,False,5
+Augusto,Balmaceda,augustobalmaceda_89@hotmail.com,+543425453652,DNI,34565156,Venta dirigida,False,False,False,False,5
+Marina,Solini,contacto@meyflowers.com.ar,+541155913055,DNI,21732337,General 1,False,False,False,False,4
+Iñaki,Berra,iberras@gmail.com,+542494344148,DNI,35775115,Venta dirigida,False,False,False,False,4
+Martin,Marquez,mmarquez@gmail.com,+541140602966,DNI,28436362,Venta dirigida,False,False,False,False,4
+pablo,aragone,pabloaragone82@gmail.com,+541165643699,DNI,29636343,General 1,False,False,False,False,4
+Ivan,Afonin,afonin.i.a@gmail.com,+541130464887,DNI,19123813,General 1,False,False,False,False,4
+Florencia,Torcivia,flor.torcivia@gmail.com,+541173687860,DNI,33882255,Venta dirigida,False,False,False,False,4
+Paula,Velez,paulavelez.pai@gmail.com,+541162645238,DNI,31639517,Venta dirigida,False,True,True,False,3
+Luis carlos,Irigoyen,totiirigoyen@hotmail.com,+542494479907,DNI,34037731,General 1,False,False,False,False,3
+Belen,Alvarez Toledo,belen.alvarez.toledo@gmail.com,+541138164824,DNI,29651952,Venta dirigida,False,False,False,False,3
+florencia,canese,florcanese84@gmail.com,+541163764726,DNI,31208093,General 1,False,False,False,False,3
+AGUSTINA,TIRANTTE,atirantte@gmail.com,+541157294099,DNI,29039828,General 1,False,False,False,False,3
+Pablo,Kaliman,pablo.kaliman@gmail.com,+541144031037,DNI,23100406,Venta dirigida,False,False,False,False,3
+maria alejandra,garcia,alejastory@gmail.com,+541140252756,DNI,35272235,General 1,False,False,False,False,3
+Horacio,Chivih,drchivih@gmail.com,+541161803316,DNI,18069146,General 1,False,False,False,False,3
+Sebastian,Aznar,sebastianaznarq@gmail.com,+541160931518,DNI,21668242,Venta dirigida,False,False,False,False,3
+Guido,Magneres,guidomagneres@gmail.com,+542494356035,DNI,28200475,General 1,False,False,False,False,3
+Dante,Arola,aroladante@gmail.com,+541173621753,DNI,40541703,General 1,False,False,False,False,3
+Gonzalo,Orsi,gonzaloorsi@gmail.com,+5491154682121,DNI,31915715,General 1,False,False,False,False,3
+Guillermo,Doghel,guillermo@doghel.com.ar,+541124058295,DNI,33774628,Venta dirigida,False,False,False,False,3
+ADRIAN EDUARDO,CAMOZZI,adriancamozzi@hotmail.com,+541134882222,DNI,24668430,General 2,False,False,False,False,3
+Yamila Teresa,Seibaa,yamilaseibaa@gmail.com,+5491159708005,DNI,24760150,Venta dirigida,False,False,True,False,2
+Jorge,Dodds,jorge.dodds@gmail.com,+541166087343,DNI,28464626,Venta dirigida,False,True,False,False,2
+maria sol,dallochio,msoldallochio@gmail.com,+541151205317,DNI,36159499,Venta dirigida,False,False,False,False,2
+Carlos,de rouvre,carlosderouvre@gmail.com,+541166551972,DNI,34506094,Venta dirigida,False,False,False,False,2
+Matias Javier,Roncoroni,matroncoroni@gmail.com,+541151045692,DNI,31060421,Venta dirigida,False,False,False,False,2
+Victoria,Chivih Steinig,victoriachivih@gmail.com,+541134697231,DNI,40577666,General 1,False,False,False,False,2
+Jose,Piazza,jose.piazza@gmail.com,+541123952632,DNI,26605922,Venta dirigida,False,True,True,False,2
+Tomas,Bernaudo,t.bernaudo@gmail.com,+543437400066,DNI,36399080,Venta dirigida,False,False,False,False,2
+Julian,Peña,yulian.ba@gmail.com,+541152481511,DNI,24110940,General 1,False,False,False,False,2
+Cynthia,Silvestre,cynchus@gmail.com,+541166232224,DNI,30410683,Venta dirigida,False,False,True,False,2
+Mauro,Zanabre,mauro.zanabre@gmail.com,+542236186624,DNI,32126567,General 1,False,False,False,False,2
+Nicolas,Mastrangelo,nicolas.mastrangelo208@gmail.com,+541127921017,DNI,35961037,Venta dirigida,True,False,True,False,2
+Hernán,Gabrieucig,hernangabrieucig@gmail.com,+541131858718,DNI,32250828,Venta dirigida,False,False,False,False,2
+Lara josefina,Cendoya yussem,cendoyalara@gmail.com,+541153868324,DNI,36171225,General 1,False,False,False,False,2
+Juan,Errazti,juancitoerrazti@gmail.com,+541154160380,DNI,29550629,Venta dirigida,False,False,False,False,2
+Donald,Neira,donaldneira@gmail.com,+541136138788,DNI,95535915,Venta dirigida,False,True,True,False,2
+Yesica,Martinez Brizuela,yesicamb@gmail.com,+541136119437,DNI,32417801,Venta dirigida,False,False,True,False,2
+Brian,Kravacek,kravacek.brian@hotmail.com.ar,+541154873196,DNI,35237802,General 1,False,False,False,False,2
+CINTIA,PANELLA,cintiapanella@gmail.com,+541167330585,DNI,18529059,General 1,False,False,False,False,2
+Lucas Daniel,Zuidwijk,lucasdanielz@hotmail.com,+541161003208,DNI,31342410,Venta dirigida,False,True,False,False,2
+Leandro,Chennales,lchennales@gmail.com,+541155232128,DNI,30592474,General 1,False,False,False,False,2
+Guillermo Nilo,Iribarne,guillermoiribarne@gmail.com,+542984408031,DNI,37359468,General 1,False,False,False,False,2
+juan,beverati,juanbeve@gmail.com,+541162670908,DNI,35273022,Venta dirigida,False,False,False,False,2
+Joaquin,Bolo Bolaño,joaquinbb89@gmail.com,+541163539966,DNI,34434937,Venta dirigida,False,True,False,False,2
+Andres,Suarez,suarez.produccion@gmail.com,+541156075775,DNI,29903611,General 1,False,False,False,False,2
+Soledad,Ferre,ma.soledad.ferre@gmail.com,+541166128483,DNI,31409290,General 2,False,False,False,False,2
+Daniela,Gimenez Rausch,danielagimenezrausch@gmail.com,+542914360666,DNI,26571472,General 2,False,False,False,False,2
+Rodrigo,Alhadeff,alhadeff@comersus.com,+541134521662,DNI,24061677,General 1,False,False,False,False,2
+Martin,Parselis,tinchoparselis@gmail.com,+541156410961,DNI,21954141,Venta dirigida,False,False,False,False,2
+Piotr,Romashov,promachov@gmail.com,+541161077387,DNI,19087480,Venta dirigida,True,False,False,False,2
+Agustina,Lopez Binaghi,taguslb@gmail.com,+541159450342,DNI,31697985,Venta dirigida,True,True,True,False,2
+Héctor Horacio,Chivih Steinig,cachi.mail@gmail.com,+541158538516,DNI,30625666,Venta dirigida,True,False,False,False,2
+Emanuel,Malvezzi,manumalvezzi@gmail.com,+541135812168,DNI,33780130,Venta dirigida,False,False,False,False,2
+Nadia,Corrado,lotus.constelaciones@gmail.com,+542212011955,DNI,30140119,General 2,False,False,False,False,2
+Giselle,Debiasi,gcdebiasi@gmail.com,+59891461296,DNI,32507675,General 2,False,False,False,False,1
+yesica,alonso,alonsoyesica@gmail.com,+541156023547,DNI,31186279,General 1,False,False,False,False,1
+Juan,Conti,juan@vikenautoparts.com.ar,+541162581978,DNI,26498338,Venta dirigida,False,False,True,False,1
+Juan,Trouilh,juantrouilh@gmail.com,+59892989977,DNI,29392669,Venta dirigida,False,False,False,False,1
+Marina,di Fonzo,marudifonzo@gmail.com,+59899942377,DNI,31252133,General 2,False,False,False,False,1
+Tomas,Lusardi,tplusardi@gmail.com,+541154875001,DNI,38254935,General 1,False,False,False,False,1
+Martina,Iribarne,maruna.iriba@gmail.com,+542984899842,DNI,34803723,Venta dirigida,False,True,False,False,1
+Tomas,Caride Siritto,tomascaride@gmail.com,+541164991874,DNI,35169275,General 1,False,False,False,False,1
+María marta,Ferro,mariamarta82fe@gmail.com,+541136149045,DNI,29582700,General 2,False,False,False,False,1
+Milagros,Vieites,milicvieites@gmail.com,+541167963518,DNI,36721031,General 2,False,False,False,False,1
+Nicolas,Bresler,breslernicolas@hotmail.com,+541149914239,DNI,28986770,General 1,False,False,False,False,1
+Geronimo,Faillace,gfaillace12@gmail.com,+541155269177,DNI,37417490,General 2,False,False,False,False,1
+Sebastian,Oettinger,seba.oettinger@gmail.com,+4917655081961,DNI,36477670,General 1,False,False,False,False,1
+Pablo,Guerri,guerripablo@gmail.com,+541122986229,DNI,35323616,General 1,False,False,False,False,1
+Martín Matías,Valenzuela,mutante.ccreative@gmail.com,+542994017992,DNI,34661723,General 1,False,False,False,False,1
+Facundo Luca,De Lorenzo,facundo.delorenzo@gmail.com,+541168188947,DNI,37834891,Venta dirigida,False,True,False,False,1
+Juan Tomás,Skolak,juantskolak@gmail.com,+542915355338,DNI,30913356,Venta dirigida,False,False,False,False,1
+Dario,Gomez,dariosebastiangomez@gmail.com,+541164787304,DNI,35721924,General 1,False,False,False,False,1
+Pablo,Akerman,pakerman@gmail.com,+541136806603,DNI,21058585,General 1,False,False,False,False,1
+malena nicole,zacarias lencinas,maleezacarias@gmail.com,+541123467313,DNI,41553293,General 1,False,False,False,False,1
+CARLOS,DE OLIVEIRA,carlao@buscavida.com.br,+5511910741411,PASSPORT,FM659103,General 1,False,False,False,False,1
+Matias,Eliseche,mato2060@gmail.com,+542494646506,DNI,34037916,General 1,False,False,False,False,1
+Patricio Tomas,Medico,patriciot.medico@gmail.com,+541163780744,DNI,34681981,General 1,False,False,False,False,1
+Sebastian,Lanusse,slanusse@grupofrali.com,+541136527044,DNI,27183046,General 1,False,False,False,False,1
+Francisco,Couzo,franciscouzo@gmail.com,+543517861800,DNI,38181956,General 1,False,False,False,False,1
+Julia,Vargas,vjulia@hotmail.com,+541168961905,DNI,30654273,General 1,False,False,False,False,1
+Silvia,Norte Sabino,silvinortesabino@gmail.com,+541150600081,DNI,31469089,General 1,False,False,False,False,1
+Juan Manuel,Valenti,valentijuanma@gmail.com,+541140347662,DNI,39644205,General 2,False,False,False,False,1
+Julian,de Marcos,jdemarcos@gmail.com,+50259153841,DNI,34929569,General 1,False,False,False,False,1
+Delfina,Ruiz Panelo,delfinaruizpanelo@gmail.com,+541162371287,DNI,34146108,General 1,False,False,False,False,1
+Bruno,Gielczynsky,brunogiel@gmail.com,+541150380025,DNI,34146436,Venta dirigida,False,False,True,False,1
+Mag,Bonaparte,mag.bonaparte@gmail.com,+542901602347,DNI,33935476,Venta dirigida,True,True,True,False,1
+Leonie,Staas,l.s.staas@gmail.com,+33769261551,PASSPORT,C76XJT6M6,General 1,False,False,False,False,1
+Camila,de Curtis,camiladecurtis@gmail.com,+541130091355,DNI,40537162,General 2,False,False,False,False,1
+Rocio,Planchadell,r.planchadell@gmail.com,+541169270914,DNI,34476475,General 1,False,False,False,False,1
+Gisela,Petrucci,giselapetrucci@gmail.com,+541133389278,DNI,25598190,Venta dirigida,False,True,False,False,1
+Fernando,Duschatzky,dusfernando@gmail.com,+541123659619,DNI,36155665,General 1,False,False,False,False,1
+Guadalupe,Gonzalez Prece,guadagonzalezp@gmail.com,+541163353996,DNI,34509840,General 1,False,False,False,False,1
+Alejandro,Groenenberg,agroenenberg@outlook.com,+542983464429,DNI,30.531.810,General 1,False,False,False,False,1
+Hernan,Aladro,aladrohernan@gmail.com,+542215701084,DNI,30140079,General 1,False,False,False,False,1
+Barbara Romina,Nucotti,rnucotti@gmail.com,+541168841224,DNI,33306376,General 1,False,False,False,False,1
+Bernardita,Siutti,mamialbanil@gmail.com,+541126956261,DNI,30592807,General 1,False,False,False,False,1
+Magdalena,Garcia,gmagdalenagarcia@gmail.com,+542983617758,DNI,39925364,General 1,False,False,False,False,1
+Manuela,Fontenla,manu.fontenla8@gmail.com,+542983556450,DNI,39100539,Venta dirigida,False,False,False,False,1
+Ulises Martin,Julianelli,ulijulianelli@gmail.com,+541166750007,DNI,36288736,General 1,False,False,False,False,1
+Belen,Quiroga,mabelen.quiroga@gmail.com,+541130597776,DNI,35124191,Venta dirigida,False,False,False,False,1
+Rodrigo,Braun,costasusanaush@gmail.com,+541140713989,DNI,23326029,General 1,False,False,False,False,1
+Florencia,Gamberg,flor@gamberg.com.ar,+541162489679,DNI,21482077,Venta dirigida,False,False,False,False,1
+juan,Cassinelli,juan.cassinelli@gmail.com,+541121586256,DNI,31208775,Venta dirigida,False,False,False,False,1
+Tomas,Dickinson,tomasdickinson@gmail.com,+59894137614,DNI,31859865,General 1,False,False,False,False,1
+Karen,Chullmir,karuchullmir@gmail.com,+541145640547,DNI,34179161,Venta dirigida,False,False,False,False,1
+Camilo Manuel,Segatta,camilosegatta@gmail.com,+541156332405,DNI,29866770,Venta dirigida,True,False,False,False,1
+Fernando,Blanco,ferblanco1994@gmail.com,+542494606429,DNI,38524639,General 1,False,False,False,False,1
+Eileen,Dejdej,eilu.jarola@gmail.com,+541134276776,DNI,37217120,Venta dirigida,False,False,True,False,1
+Matias,Olivera,moliverafreire@gmail.com,+59891217872,PASSPORT,C952899,General 1,False,False,False,False,1
+Pablo,Cabral,pablocabral1985@gmail.com,+541136918678,DNI,31470385,Venta dirigida,False,False,False,False,1
+Santiago,Rios,santirios5@gmail.com,+541132675813,DNI,40227641,General 2,False,False,False,False,1
+Florencia,Bonomi,florbonomi@gmail.com,+541161067600,DNI,27310259,Venta dirigida,False,False,True,False,1
+Klemen Matjaz,Forlenza Podboj,klemen.forlenza@gmail.com,+541161919979,DNI,39242610,Venta dirigida,False,False,True,False,1
+Gastón Jorge,Hall,hallgaston@gmail.com,+541158456297,DNI,24870955,General 2,False,False,False,False,1
+Fábio Kraide,Kraide,fabio@mkca.com.br,+5511968492053,OTHER,356723768,General 1,False,False,False,False,1
+Mariano,Sanchez Davalos,nano.sanchezd@gmail.com,+541160179958,DNI,32365468,General 1,False,False,False,False,1
+Diego,Acha,achadg@gmail.com,+542235679836,DNI,33102753,Venta dirigida,False,True,False,False,1
+Mau,Matheus,semdeus.mauricio@gmail.com,+541154934095,DNI,26646632,Venta dirigida,False,False,False,False,1
+Patricio,Barone,patriciobarone@gmail.com,+541169039150,DNI,35368109,General 1,False,False,True,False,1
+Angela,Timon,angelatimon@gmail.com,+542914607373,DNI,34263175,Venta dirigida,False,False,False,False,1
+Fernando,Regalado,fernandoregalado@gmail.com,+541165679045,DNI,28418611,Venta dirigida,True,False,False,False,1
+Lorenzo,Marques de Almeida,lorenzomarques@gmail.com,+64274984378,DNI,33055252,General 1,False,False,False,False,1
+Jaime,Lanusse,jaimelanusse@gmail.com,+541164239291,DNI,31695149,General 1,False,False,False,False,1
+Tatiana Daniela,Pes,pestatiana@gmail.com,+541134035250,DNI,36728999,Venta dirigida,False,False,False,False,1
+Julian Daniel,Pugliese,juliandpugliese@gmail.com,+541130202100,DNI,37204392,General 1,False,False,False,False,1
+roxy,kaliyuga,bulmita5@gmail.com,+541169722377,DNI,26047266,General 2,False,False,False,False,1
+Rodrigo,Taich,rodrigotaich@gmail.com,+541140362785,DNI,39774600,General 1,False,False,False,False,1
+tadeo,fischl,fischl.t22@gmail.com,+541153161334,DNI,41558012,General 1,True,False,False,False,1
+Ignacio,Inaebnit,ignacioinaebnit@gmail.com,+541138740453,DNI,37932413,Venta dirigida,False,False,False,False,1
+Andre,Russo,andrefrusso9@gmail.com,+5511995061107,DNI,33.304.173-2,General 2,False,False,False,False,1
+Flowi,Gallo,florenciagallo9@gmail.com,+541154190562,DNI,37538008,General 1,False,False,False,False,0
+camila,rodriguez taylor,camila.r.taylor@gmail.com,+12023402377,DNI,32033121,General 1,False,False,False,False,0
+Gisele Chantal,Acosta Santamaria,gisele.acosta.s@gmail.com,+541132117731,DNI,32136489,Venta dirigida,False,False,False,False,0
+Gaston,Payo,wmwbookings@gmail.com,+542494005812,PASSPORT,AAF610084,General 1,False,False,False,False,0
+Ignacio,Fortini,nachof333@gmail.com,+541165705704,DNI,30444075,General 1,False,False,True,False,0
+Juan Maria,Migliore,juanmariamigliore@gmail.com,+541139417788,DNI,36896417,General 1,False,False,False,False,0
+Carla,D'Aria,carlamdaria@gmail.com,+541122539753,DNI,38622928,Venta dirigida,False,False,False,False,0
+Soledad,Heinze,soleheinze@gmail.com,+541126509350,DNI,30963884,Venta dirigida,False,True,True,False,0
+MARIA JIMENA,CABANAS,jimenacabanas@gmail.com,+542494609799,DNI,23054313,General 1,False,False,False,False,0
+Guadalupe,Sanz,guadalupe16.cs@gmail.com,+543525419619,DNI,37321755,General 1,False,False,False,False,0
+Paola,Távara,p-alessandra95@hotmail.com,+50687455645,PASSPORT,801190112,General 2,False,True,False,False,0
+Alejandro,Byk,alejandrobyk@gmail.com,+541154003937,DNI,32737466,General 1,False,False,False,False,0
+Natalia,Perez,natianalia@hotmail.com,+541136203536,DNI,27285844,Venta dirigida,False,False,False,False,0
+Agustin,Capuj,rulocapuj@gmail.com,+541123864590,DNI,38547729,Venta dirigida,False,False,False,False,0
+andres,sarasola,sarasolaandres@gmail.com,+542494548175,DNI,34759891,General 1,False,False,False,False,0
+MARIA MARCELA,STEINIG,marcela18steinig@gmail.com,+541159230383,DNI,17970564,General 1,False,False,False,False,0
+Pablo E.,Herrera,pabloernestoherrera@gmail.com,+541150230208,DNI,35318263,General 1,False,False,False,False,0
+Sol Mariam,Curia,s.mariamcuria@gmail.com,+541141958393,DNI,39342764,General 1,False,False,False,False,0
+Peter,Knaack,p.knaack@gmx.net,+12027709543,PASSPORT,C4FV88GP0,General 1,False,False,False,False,0
+Gerardo,García Gorostidi,gerygg@gmail.com,+541149160200,DNI,30219070,General 1,False,False,False,False,0
+Luciana,Petrillo,lulapetrillo@gmail.com,+541132889610,DNI,28813284,General 1,False,False,False,False,0
+MARÍA LAURA,FONSECA,marialaurafonseca33@gmail.com,+541121806874,DNI,26050456,General 1,False,False,False,False,0
+Alessandra Maria,Motola,travelbyalessandra@gmail.com,+541136872415,DNI,95425967,Venta dirigida,False,True,False,False,0
+Gracia,Portillo,graceportillo@gmail.com,+541156970515,DNI,96086741,Venta dirigida,False,True,False,False,0
+Sofía,Pascuale,sofapascuale@gmail.com,+541138070079,DNI,34772509,Venta dirigida,False,False,False,False,0
+Javier,Mazzoni,javi.mazzoni@gmail.com,+541155920562,DNI,37926140,Venta dirigida,False,False,False,False,0
+Mariano,Rivas Ferro,marianorivas@gmail.com,+541153850301,DNI,31752247,Venta dirigida,False,False,False,False,0
+Jonatan,Russo,gabasthy@gmail.com,+541164229004,DNI,32546373,Venta dirigida,False,False,False,False,0
+Ignacio Anibal,Rodriguez,bsasnacho@gmail.com,+541121883035,DNI,29040964,General 1,False,False,False,False,0
+Sofía,Mondini,mondini.sofia@gmail.com,+541130223798,DNI,38267672,Venta dirigida,False,False,False,False,0
+Rodrigo,Barrera,rodrib_89@hotmail.com,+5492494604990,DNI,37014727,General 1,False,False,False,False,0
+Sofia,Lopez Hernando,sofialopezhernando9@gmail.com,+541130931995,DNI,39322530,General 2,False,False,False,False,0
+Maria Victoria,Murray,poppymurray12@gmail.com,+541156023547,DNI,30685472,General 1,False,True,False,False,0
+Mauricio,Cottini,mauriciocottini@hotmail.com,+542214940565,DNI,26846691,General 2,False,False,True,False,0
+Sergio Ezequiel,Giannetti,sergiogian.sg@gmail.com,+541127428077,DNI,34154685,Venta dirigida,False,False,False,False,0
+Sofía,Fernández Farquharson,sophiaff@gmail.com,+5491165356360,DNI,29319616,General 1,False,False,False,False,0
+Nicolás Ángel,Olivieri,olivieribartender@gmail.com,+541151513334,DNI,35216897,General 1,False,False,False,False,0
+Deusa Luiza Luchi Ramos Santos,Deusa Lui,luizaluchi@gmail.com,+5573998168090,OTHER,1168044910,General 1,False,False,True,False,0
+Eric,Kohan,ekohan@gmail.com,+5491138063905,DNI,33443497,General 1,False,False,True,False,0
+Gabriel,Zambon,gez666@gmail.com,+541132137980,DNI,22061576,General 1,False,False,False,False,0
+Veronica,Rivas,veronirivas341@gmail.com,+541170367953,DNI,94515597,Venta dirigida,False,False,False,False,0
+Barbara,Piotrowski,barbara1811@gmail.com,+541159246062,DNI,18822492,Venta dirigida,False,False,False,False,0
+Barbara,Alonso,barbaraalonsocorreo@gmail.com,+541168553285,DNI,32482254,General 1,False,False,False,False,0
+ivan,maranz,maranzivan@gmail.com,+541122829366,DNI,31652738,General 2,False,False,False,False,0
+Federico,Percibal,fpercibal@gmail.com,+59891003296,DNI,26462090,General 2,False,False,False,False,0
+Julián,Maidana,maidanajulian1997@gmail.com,+541152626553,DNI,40227030,General 2,False,False,False,False,0
+Rafael,Farace,rfarace@gmail.com,+541131625728,DNI,30338080,General 1,False,False,False,False,0
+Anita,Dalbene,dalbeneanita@gmail.com,+541164129158,DNI,39845780,General 1,False,True,False,False,0
+Manuel,Castroviejo,castroviejo_manuel@hotmail.com,+541153475524,DNI,32890969,General 2,False,False,False,False,0
+Nicolas,Bertero,nebertero@gmail.com,+541135205306,DNI,33435323,General 1,False,False,False,False,0
+Francisco,De Zuviria Allende,franciscodezuviria@gmail.com,+541161734853,DNI,33154411,General 2,False,False,False,False,0
+Matias,Balzamo,mbalzamo@gmail.com,+542214207284,DNI,41172811,General 1,False,False,False,False,0
+Emilia,Trabuchi,emitrabuchi@gmail.com,+543416757827,DNI,33961439,General 1,False,False,False,False,0
+Javier,Silveira,jsilveira@gmail.com,+541165326252,DNI,32069409,General 1,False,False,False,False,0
+Valeria,Cebey,valeria_cebey@hotmail.com,+541159324516,DNI,17537948,Venta dirigida,False,False,False,False,0
+Sebasrodgers,Rodgers,pekenhead@gmail.com,+542281356860,DNI,29638345,Venta dirigida,False,False,False,False,0
+Santiago manuel,Aguirre,santiago.aguirre96@gmail.com,+541154606170,DNI,39558769,General 1,True,False,False,False,0
+Sofia,Sanchez,sofiac.sanchez@gmail.com,+543516171690,DNI,30721293,General 2,False,False,False,False,0
+Jose modesto,Andraca,modestoandracajose@gmail.com,+542494664677,DNI,37014991,General 1,False,False,False,False,0
+Bruna,Machado,yunamachado81@gmail.com,+541130049699,DNI,96260028,General 2,False,False,False,False,0
+Rocío,Cusmano,cusmanorocio@gmail.com,+541155833907,DNI,36315214,General 1,False,False,False,False,0
+Mikhail,Sharin,mik.sharin@gmail.com,+541171296088,PASSPORT,753927528,General 1,False,False,False,False,0
+Denise,Hinz,denahinz@gmail.com,+541141995313,DNI,92918153,General 1,False,False,False,False,0
+Julián,Guldrís,guiore@gmail.com,+541164938109,DNI,34975572,General 1,False,False,False,False,0
+Luis Arturo,Rodarte Putscher,turo104@gmail.com,+523318783728,PASSPORT,X0A21N93,General 1,False,False,False,False,0
+María Eugenia,Cannici Castiglione,eugecannici@gmail.com,+541167171723,DNI,31519612,Venta dirigida,False,False,False,False,0
+Guido,Leone,guidoleone90@gmail.com,+541161881480,DNI,35265197,General 2,False,False,False,False,0
+Rosalinda,Bello,bello.rosalinda@gmail.com,+541173607633,DNI,95913283,Venta dirigida,False,False,False,False,0
+Ayelen Sofia,Orieta,holaorieta@gmail.com,+541149457243,DNI,35268755,General 1,False,False,False,False,0
+Julian Esteban,Cuneo,juliancuneo@gmail.com,+541157592320,DNI,29951364,Venta dirigida,False,False,False,False,0
+David Arturo,ASIN,davidasintbar@gmail.com,+541141999533,DNI,33344070,Venta dirigida,False,False,False,False,0
+Alen,Maraz,alenmaraz33@gmail.com,+541160590502,DNI,37832298,Venta dirigida,False,False,False,False,0
+Belen,QUINTANA,belqbe@gmail.com,+541159902563,DNI,36729598,General 1,False,False,False,False,0
+Alana,Tashjian,alanatashjian@gmail.com,+59891914195,PASSPORT,546379921,General 1,False,False,False,False,0
+Micaela,Santos,micaelajsantos@gmail.com,+541138008410,DNI,41210183,General 1,False,False,False,False,0
+Soledad,Mañas,soledadmanas@hotmail.com.ar,+542494498081,DNI,28299165,General 2,False,False,False,False,0
+Carla Andrea,Pellegrini,carla.pellegrini26@gmail.com,+542915279231,DNI,39482781,General 1,False,False,False,False,0
+Lucia,Delía Andreozzi,ludeliaandreozzi@gmail.com,+542914786754,DNI,39482806,General 1,False,False,False,False,0
+Guido,Mamrutt,guidoemamrutt@gmail.com,+541160028349,DNI,33737572,General 1,False,True,False,False,0
+sebastian,guido,sg.koi00@gmail.com,+541160478411,DNI,35229494,General 1,True,False,False,False,0
+Emilio,Gnesetti,emiliognese@hotmail.com,+542241584531,DNI,27650599,Venta dirigida,False,False,False,False,0
+Tomas Rafael,Saraceni,trsaraceni@gmail.com,+541154174107,DNI,36078111,General 2,False,False,False,False,0
+Luciano,Gullo,gulloluciano@gmail.com,+541168614069,DNI,24353753,General 1,True,False,False,False,0
+Eloy,Giorgetti,eloy.giorgetti@gmail.com,+541156975894,OTHER,X3567048R,General 2,False,False,False,False,0
+Soledad,Garcia Salabert,soledadgarciasalabert@gmail.com,+541168836677,DNI,28479094,General 1,False,False,False,False,0
+Carla,Marucco,maruccocarla99@hotmail.com,+542346607342,DNI,36039059,General 1,False,False,False,False,0
+Sofia Ayelen,Cappa,sofiaayelencappa@gmail.com,+541138177076,DNI,38175226,Venta dirigida,False,False,False,True,0
+Ignacio,Hourquescos,ihourquescos@gmail.com,+541165106333,DNI,32318983,General 1,False,False,False,False,0
+Nicolas,Marchesini,nicolasmarchesini@hotmail.com,+541161209230,DNI,31877575,General 1,False,False,False,False,0
+Ignacia,Oliva,olivamariaignacia@gmail.com,+542615544470,DNI,35512487,General 1,False,False,False,False,0
+Nicolás,Valentino,deafstones@gmail.com,+542645673878,DNI,28262723,Venta dirigida,False,False,False,False,0
+Emiliano,Barrera,emilianobarrera1988@icloud.com,+542494670803,DNI,33356684,Venta dirigida,False,False,False,False,0
+Sebastián,Gilardoni,evscurly@hotmail.com,+541165476827,DNI,29039116,Venta dirigida,False,False,False,False,0
+camilo,Fraga,fragacamilo@gmail.com,+59893990323,OTHER,46086783,General 1,False,True,False,False,0
+Maria,Sitjar,maria.sitjarpp@gmail.com,+541150531559,OTHER,37744165S,General 2,False,False,False,False,0
+Pedro Leandro Enrique,Palacios,pedroleandropalacios@gmail.com,+542234251957,DNI,35314196,General 1,False,False,False,False,0
+Milagros,Paskvan,milagrospaskvan@gmail.com,+542494331660,DNI,38129588,General 1,False,False,False,False,0
+Federico Leonel,Medina,medina.federico@gmail.com,+541156426516,DNI,34143509,General 1,False,False,False,False,0
+Matias,Scavarelli,matiscava@gmail.com,+541155633083,DNI,35375605,General 2,False,False,False,False,0
+Mariano,Rodríguez Ribas,mariano.roribas@burningman.org,+541141753487,DNI,27312139,Venta dirigida,False,False,False,False,0
+Pablo,Gazzera,pablo.gazzera@mac.com,+541157513591,DNI,22653239,General 1,False,False,False,False,0
+Miguel,martinez de campos,miguelmdecampos@gmail.com,+541160213365,DNI,18262418,General 1,False,False,False,False,0
+Thiago Jorge,Torres Oliveira,thiagoj.torres@gmail.com,+5511973385578,PASSPORT,GG175930,General 1,False,False,False,False,0
+Paula,Gandino,paulagandino@gmail.com,+541130160254,DNI,32151143,Venta dirigida,False,False,True,False,0
+Nicole,Oppenheimer,nikaoppenheimer@gmail.com,+541164662684,DNI,37245810,General 1,False,False,False,False,0
+Andrés,Giallombardo,andres.giallombardo@gmail.com,+541141572009,DNI,21535023,Venta dirigida,True,False,False,False,0
+Morena,Machado San Leandro,morena.machado@bue.edu.ar,+541132992021,DNI,37113965,Venta dirigida,False,False,False,False,0
+Julieta,Rodriguez,junarodd@gmail.com,+541136219955,DNI,38536213,General 2,False,False,False,False,0
+Agustina Ailen,Brugniere,agustinabrugniere@gmail.com,+542915051953,DNI,39157280,Venta dirigida,False,False,False,False,0
+Martin,Inaebnit,inaebnitm@gmail.com,+541169120979,DNI,36687956,Venta dirigida,False,False,False,False,0
+Matias,Ventura,ventura.matias.90@gmail.com,+541137362075,DNI,34874383,Venta dirigida,False,False,True,False,0
+Michelle,Carver,fuegomoon@yahoo.com,+541138851680,PASSPORT,03497608,Venta dirigida,False,False,False,False,0
+Ileana,Martignoni,lacoloile@gmail.com,+541144361958,DNI,22632689,Venta dirigida,False,False,True,False,0
+Magali,Dominguez,magadominguez@gmail.com,+541157638436,DNI,35377338,General 2,False,False,False,False,0
+Magali,Dinardi,magalidinardi12@gmail.com,+542325417594,DNI,45293943,Venta dirigida,False,False,False,False,0
+JULIAN MARTIN,DI LORENZO,cochisjuli@gmail.com,+541162649399,DNI,40238840,General 1,True,True,True,False,0
+Madhou,Rösch,madhou.roesch@googlemail.com,+491639186097,PASSPORT,C5HLTP52G,General 1,False,False,False,False,0
+Gaston,Zelarayan,gaston.zelarayan@gmail.com,+541163579872,DNI,28621159,Venta dirigida,False,False,False,False,0
+Katerina,Ianakiev,katerinaianakiev@gmail.com,+541153751677,DNI,41589452,Venta dirigida,False,False,False,False,0
+NOELIA,CARNAVALO,noelia.carnavalo@gmail.com,+541132013278,DNI,28721564,Venta dirigida,False,False,False,False,0
+Angelica,Zúñiga,angiezun@gmail.com,+56953717529,OTHER,108330368,General 1,False,False,False,False,0
+Tamara Daniela,Renato,tamaradrenato@gmail.com,+541122743307,DNI,34497045,Venta dirigida,False,False,False,False,0
+Euge,Fratantoni,eugeniafratantoni@gmail.com,+541130982400,DNI,35149186,Venta dirigida,False,False,False,False,0
+Maria Mercedes,Busaniche,mercedes.busaniche@gmail.com,+541128778103,DNI,21411658,General 2,False,False,False,False,0
+Moreno,Arias Abril,abrilmorenoarias@gmail.com,+541164943782,DNI,44935641,General 1,False,False,False,False,0
+María Milagros,Pirez,milagrospirez@gmail.com,+541130323173,DNI,32850526,Venta dirigida,False,False,False,False,0
+Julian,Zylber,zylberjulian@gmail.com,+541150109122,DNI,41452151,General 1,False,False,False,False,0
+Kapulí,Vasiloff,kapulita@gmail.com,+542216755202,DNI,19108468,Venta dirigida,False,False,False,False,0
+Ezequiel,Zywica,zyquiel@gmail.com,+541140696039,DNI,26844736,General 1,False,False,False,False,0
+Fedor,Utin,fedor.utin.ar@gmail.com,+542664001304,DNI,95390026,Venta dirigida,False,False,False,False,0
+Marcela Alejandra,Suarez Pedroso,msuarezpedroso@gmail.com,+541156320600,DNI,34536689,Venta dirigida,False,False,False,False,0
+Consuelo,Lopez,lopez.consu@gmail.com,+543517578972,DNI,32861797,Venta dirigida,False,False,False,False,0
+Iván,Raskovsky,raskovsky@gmail.com,+5491159948167,DNI,33103485,Venta dirigida,False,False,False,False,0
+Adrian,Torres,mauroadriantorres@gmail.com,+541123415737,DNI,30336319,Venta dirigida,False,False,False,False,0
+Agustina,Battaggia,agustinadeareco@gmail.com,+541133241311,DNI,38892647,General 1,True,False,False,False,0
+Nacho,Roizman,iroizman@gmail.com,+541139142933,DNI,24881763,Venta dirigida,False,False,False,False,0
+Ana Carolina,Borre Mejia,anakburner@gmail.com,+541137035419,DNI,95020306,Venta dirigida,False,False,False,False,0
+Carlos,Del Boca,carlosdelboca@gmail.com,+543515929225,DNI,26701041,Venta dirigida,False,True,False,False,0
+Graciela,Reyes,gracielaelizabethreyes@gmail.com,+541141793980,DNI,21485533,Venta dirigida,True,False,False,False,0
+Juan Bautista,Sanchez,juanbautista88@gmail.com,+5491162355678,DNI,34230708,Venta dirigida,False,False,False,False,0
+Matias,Andrada Maccagno,fmatiasam@gmail.com,+543517360800,DNI,18813848,Venta dirigida,False,False,True,False,0
+Manuel,Bomheker,bmanuel@gmail.com,+543516066372,DNI,18844627,Venta dirigida,False,False,False,False,0
+Valeria,Cuenca,valeriacuenca.arg@gmail.com,+543571418300,DNI,33712935,Venta dirigida,False,False,False,False,0
+Julia María,Bozzi,juliabozzi7@gmail.com,+541160469870,DNI,36528875,General 1,False,False,False,False,0
+Anastasiia,Plutenko,nowhereman.pink@gmail.com,+541127919877,PASSPORT,775138448,Venta dirigida,False,False,False,False,0
+Lara,Maltz,laramaltz@gmail.com,+541123217644,DNI,36687724,General 1,False,False,False,False,0
+Vadim,Kochkin,i.vadim.kochkin@gmail.com,+541127919835,PASSPORT,762526307,Venta dirigida,False,False,False,False,0
+Carolina Daiana,Kuc,carolinakuc@gmail.com,+541169239943,DNI,33023852,General 1,False,False,False,False,0
+Pavel,Ivanov,alazankin@gmail.com,+541154180122,DNI,96433573,Venta dirigida,False,False,False,False,0
+Liubov,Ivanova,alazankina@gmail.com,+541154180047,DNI,96439846,Venta dirigida,False,False,False,False,0
+Sergey,Seleznev,zinjifrah@gmail.com,+541158546328,PASSPORT,767581316,Venta dirigida,False,False,False,False,0
+Valentina,Remenik,remenikvalentina@gmail.com,+541135022003,DNI,95176039,General 1,False,False,False,False,0
+martin,verzoub,martonv89@gmail.com,+541166011989,DNI,34540512,General 1,False,False,False,False,0
+Nayla,Altieri,naylamagma@gmail.com,+541133024651,DNI,32638890,General 1,False,False,False,False,0
+Agustin,Orella,orellaa28@gmail.com,+542345657521,DNI,41026400,General 1,False,False,False,False,0
+Luca,Godoy,lucagodoy1@gmail.com,+541131283880,DNI,35960249,General 1,False,False,False,False,0
+Cecilia,Silvano,cesu.silvano@gmail.com,+4915292608734,DNI,36328644,General 1,False,False,False,False,0
+Santiago,Israel,santiisrael@gmail.com,+59892236938,OTHER,47633905,General 1,False,False,False,False,0
+Alla,Isakova,alla.shaditovna@gmail.com,+541126986688,PASSPORT,771233926,General 1,False,False,False,False,0
+Emiliagomezch@yahoo.com,María Emilia Gómez,emiliagomezch@yahoo.com,+5492494670139,DNI,42944981,General 1,False,False,False,False,0
+Eric,Stotz,stotz.eric@gmail.com,+541167485090,DNI,36528872,General 1,False,False,False,False,0
+Tomas hernan,Fernández Spadavecchia,tomashfespada@gmail.com,+541168073721,DNI,36401244,General 1,True,False,True,False,0
+Melina,Nielsen,gilindumentaria@gmail.com,+542494658203,DNI,35774652,General 1,False,False,False,False,0
+Viktor,Lykov,oldsutler@gmail.com,+542901588410,PASSPORT,757572060,General 1,False,False,False,False,0
+Diego Ezequiel,Acosta,diegoezequielacosta@gmail.com,+541159817869,DNI,37035491,General 1,False,False,False,False,0
+Luna,Geuna,lunageuna@gmail.com,+541156541964,DNI,40936469,General 1,False,False,False,False,0
+Lorena,Pereyra,lolopereyra86@gmail.com,+542235700227,DNI,32676193,General 1,False,False,False,False,0
+Sofía Belén.,Aguilar olivera,sofiabelenaguilarolivera@gmail.com,+541173603517,DNI,40350106,General 1,False,False,False,False,0
+Florencia,Levinsonas López,florencialevinsonas@gmail.com,+541133409184,DNI,35322495,General 1,False,False,False,False,0
+constanza,iglesias,constanzaiglesias7@gmail.com,+542494672963,DNI,41872936,General 2,False,False,False,False,0
+Katia,Rosenbaum,katia.rosenbaum@gmail.com,+541154858992,DNI,36400984,General 1,True,False,True,False,0
+Lauren,Cuscuna,lcuscuna@gmail.com,+12035367271,PASSPORT,676780722,General 1,True,False,False,False,0
+Agustin,Nieto,agustin.nieto23@gmail.com,+541165453326,DNI,34759908,General 2,False,False,False,False,0
+Ezequiel,Donovan,donovan.ezequiel@gmail.com,+542494533916,DNI,34296917,General 1,False,False,False,False,0
+Lucas,bergman,lucasbergman2017@gmail.com,+541140712252,DNI,41615007,General 1,False,False,False,False,0
+Andrea,Kraus,andreapatriciakraus@gmail.com,+541134762703,DNI,34858781,General 1,False,True,False,False,0
+Marcos,Rouco Oliva,marcosrouco@hotmail.com,+541144400957,DNI,33698970,General 1,False,False,False,False,0
+Natalia karina,Pisa barros,natypisabarros@gmail.com,+541156584676,DNI,31407971,General 1,False,False,False,False,0
+Matias,Puig,matiasp@ospoce.com.ar,+541140417678,DNI,27008224,General 1,False,False,False,False,0
+Flavio,Maculan,flaviomaculan@gmail.com,+541144448130,DNI,21828453,General 1,False,False,False,False,0
+Camilo,Garcia,camilo.garcia9619@gmail.com,+542984225578,DNI,39131921,General 1,False,False,False,False,0
+Juan Ignacio,Manariti,juani.manariti@gmail.com,+541132380223,DNI,31227157,General 1,False,False,False,False,0
+ELIANA,LOVARVO,elovarvo@gmail.com,+541167377912,DNI,31393587,General 1,False,False,False,False,0
+Manuel,Indij,manuindij2000@gmail.com,+5491155781236,DNI,42647114,General 1,False,False,False,False,0
+Estefania,Piotti,estefaniapiotti@gmail.com,+541165347869,DNI,41589128,General 1,False,False,False,False,0
+Kirill,Ivanov,kirill.alazankin@gmail.com,+541154180095,DNI,96472664,General 1,False,False,False,False,0
+Andrea Berenice,Alcaraz Granja,nomadaproduction.info@gmail.com,+542615544470,PASSPORT,G39200860,General 1,False,False,False,False,0
+Luciano,Garcia,donlucianogarcia@hotmail.com,+542494339649,DNI,31708439,General 1,False,False,False,False,0
+Cecilia,Petersen,cecipetersen@gmail.com,+541151171655,DNI,34238738,General 1,False,False,False,False,0
+AYELEN,FERRINI,ayelenferrini@artes.unc.edu.ar,+543515146639,DNI,29515720,Venta dirigida,False,False,False,False,0
+Jose Manuel,Lauck,josemanuellauck@gmail.com,+541153439876,DNI,36647451,General 1,False,False,False,False,0
+Valeria,Pilnik,valepilnik@gmail.com,+5493517053023,DNI,31218747,Venta dirigida,False,False,False,False,0
+ariel martin,vaccaro,arielmvaccaro@gmail.com,+541159389639,DNI,31206191,General 1,False,False,False,False,0
+Mauro Emanuel,Pedrozo,mauropedrozo1@gmail.com,+541136659961,DNI,35319511,General 1,False,False,False,False,0
+Joselito,Garcia Ciacedo,joselitoibz.music@gmail.com,+542615544470,PASSPORT,PAD387094,General 1,False,False,False,False,0
+Luciano Nataniel,Gutman,lucianongutman@gmail.com,+541160016210,DNI,38892538,General 1,False,False,False,False,0
+Francisco,Barbaro,barbarofrancisco@gmail.com,+541131007469,DNI,36605495,General 2,False,False,False,False,0
+Nicole,Orencel,orencelniki@gmail.com,+541151156176,DNI,47974849,General 1,False,False,False,False,0
+Cristobal,Garcia,cristo.07@gmail.com,+542983521051,DNI,35076395,General 1,False,False,False,False,0
+Eduardo,Eliseche,eeliseche@gmail.com,+542494646506,DNI,12474590,General 1,False,False,False,False,0
+Ayelen,Colaciuri,acolaciuri@gmail.com,+541159723343,DNI,34224716,General 1,False,False,False,False,0
+Gustavo,Sierra,sierratavo@gmail.com,+542213566124,DNI,14051486,General 1,False,False,False,False,0
+Ezequiel,Garcia,ezgarcia89@gmail.com,+541161530167,DNI,34551372,General 1,False,False,False,False,0
+Aldana,Korenfeld,aldy.korenfeld@gmail.com,+541131817101,DNI,35725829,General 1,False,False,False,False,0
+Camila,Pradines,camipradines@hotmail.com,+541160244097,DNI,34026169,General 1,False,False,False,False,0
+Stefan,Broda,stefan.broda@gmail.com,+14156175288,PASSPORT,R04405462,General 1,False,False,False,False,0
+Alejandro,Dangelo,aledangelo_@hotmail.com,+541131814464,DNI,21437284,General 2,False,False,False,False,0
+Daniel,Schütz,daniel.schuetz@live.com,+4915234242873,OTHER,LF08TJCF3,General 1,False,False,False,False,0
+MARCOS,BARONE,marcosbarone89@gmail.com,+541159532895,DNI,34390314,General 1,False,False,False,False,0
+Silvana,Fouces,silvanafouces31@hotmail.com,+541131934058,DNI,24588056,Venta dirigida,False,False,False,False,0
+Agustin,BERARDO,agustin@amanitafestival.com,+541159630645,DNI,34843719,General 1,False,False,False,False,0
+Analia,Quaglia,anaveq2000@yahoo.es,+541158055325,DNI,22345566,General 1,True,False,False,False,0
+Nicolas,Sambor,sambornico@gmail.com,+541128357939,DNI,34245349,General 1,True,False,True,False,0
+Carmen,Ortiz basualdo,pupyortiz@gmail.com,+541158233243,DNI,30745080,General 1,False,False,False,False,0
+odemara,montes,odemaramontes1@gmail.com,+541141759595,DNI,95734507,General 1,False,False,False,False,0
+Marilina,Prejc,prejcmarilina@gmail.com,+541166250194,DNI,38089837,General 2,False,False,False,False,0
+Carla,Pegullo,cpegullo@gmail.com,+541140653740,DNI,23967855,General 1,False,False,False,False,0
+Esteban Javier,Fernández,estavifer08@gmail.com,+542665003363,DNI,31265075,General 1,False,False,False,False,0
+Bruno,Mazuryszyn,brunomazuryszyn@gmail.com,+5492236856961,DNI,32126506,General 1,False,False,False,False,0
+sofia anush,kevorkian,sofiakevorkian@gmail.com,+541166498554,DNI,38888921,General 1,False,False,False,False,0
+Juan Pedro,Borrelli,juanpedroborrelli@gmail.com,+541158884588,DNI,35569682,Venta dirigida,False,False,False,False,0
+Deusa,Lui,dra.deusalui@gmail.com,+5573999338090,DNI,1168044910,General 1,False,False,False,False,0
+Mateo,Gonzalez Montamer,mateo.g.montaner@gmail.com,+541164244130,DNI,34956296,General 2,False,False,False,False,0
+Guillermo Carlos,Cristinziano,gc.cristinziano@gmail.com,+543415789704,DNI,29221830,General 1,False,False,False,False,0
+,,jth1714@gmail.com,,DNI,,General 2,False,False,False,False,0
+Carlos,Villar,carluchovillar@hotmail.com,+542915013910,DNI,24364764,Ingreso gratuito por CD,False,False,False,False,0
+Nicole,Karagozlu,nicolekaragozlu@gmail.com,+541132647394,DNI,34536129,General 2,False,False,False,False,0
+Luciana,Rozental,lucianarozental9@gmail.com,+541169483410,DNI,40731602,General 1,False,False,False,False,0
+Romina,Fenouil,rofenou@yahoo.com.ar,+541136805612,DNI,25770470,Ingreso gratuito por CD,False,False,False,False,0
+Agostina,Trovato,agostina.trovato@gmail.com,+541128896686,DNI,34538600,General 1,False,False,False,False,0
+julia,vinay,vinayjulia@gmail.com,+542227619839,DNI,41352619,General 1,False,False,False,False,0
+Matías,Tachella costa,campmagico@gmail.com,+541157501262,DNI,21486346,General 1,False,False,False,False,0
+Ignacio,Montalvo,ignacio@mowplayer.com,+541161475589,DNI,32450590,General 2,False,False,False,False,0
+Fausto,BERJOLIS,fberjolis@hotmail.com,+541140913347,DNI,34211192,General 2,False,False,False,False,0
+Josefina,Tasca,tascajosefina@gmail.com,+541144395528,DNI,42816479,General 2,False,False,False,False,0
+Leandro,Tala,leandrotala@gmail.com,+541153775298,DNI,26807348,General 2,False,False,False,False,0
+Maria del Rosario,Gianola Vilella,rosario.gianola@gmail.com,+541166501255,DNI,34005072,General 2,False,False,False,False,0
+Axel,Rueda,axeldenisruedazavala99@gmail.com,+541176216701,DNI,42497264,General 1,False,False,False,False,0
+Martin,Pannunzio,mgpannunzio@gmail.com,+34671825500,DNI,34617257,Venta dirigida,False,False,False,False,0
+Jordi,Cantos Garcia,jordihandpan@gmail.com,+34696258972,DNI,47781965V,General 2,False,False,False,False,0
+Emilio,Moreno,more.emilio@gmail.com,+542494696488,DNI,33189161,General 2,False,False,False,False,0
+Mauro Jose,Capelli,andiandoendo@hotmail.com,+542615544470,DNI,33464280,General 2,False,False,False,False,0
+JADER,SUDARIO,im_jader@hotmail.com,+5511992515843,OTHER,363.931.418-24,General 2,False,False,False,False,0
+Willian,Liu Sanchez,liusanchezwillian@gmail.com,+541168911018,DNI,39517348,General 2,False,False,False,False,0
+Ivan Emanuel,Roldan Ponce,con_dor@hotmail.com,+543517055236,DNI,33117672,General 1,False,False,False,False,0
+Valentina,Azar,valentina.azar9@gmail.com,+543515145165,DNI,40520494,General 1,False,False,False,False,0
+Agustin,Barbera,agus.barbera2305@gmail.com,+542983445722,DNI,35246805,General 2,False,False,False,False,0
+Nicolas,Giannullo,nicolasgiannullo08@gmail.com,+541154873196,DNI,37007708,General 2,False,False,False,False,0
+Walter Sebastian,Machado Rodriguez,sebacheshire@gmail.com,+59894465032,OTHER,46163527,General 2,False,False,False,False,0
+Alejandro Jorge,Martinez,acowobongo@gmail.com,+541171559816,DNI,35726121,General 2,False,False,False,False,0
+Juan Ignacio,Arroyo,j.ignacioarroyo@gmail.com,+542216303949,DNI,39150195,General 2,False,False,False,False,0
+Bernardo,Iritxity Irigoyen,birigoyen@estudiogc.com.ar,+5491155952938,DNI,20956494,General 2,False,False,False,False,0
+Santiago,Faure,fauresg@gmail.com,+541165800403,DNI,38010003,General 2,False,False,False,False,0
+Valentina,Comba,combavalentina@gmail.com,+543571570038,DNI,32399161,General 2,False,False,False,False,0
+Rodrigo,Pajin,rodrigopajin@gmail.com,+542494585898,DNI,31924591,General 2,False,False,False,False,0
+Paula,Titievsky,ptitievsky@gmail.com,+541164753504,DNI,26894204,General 2,False,False,False,False,0
+Noelia daiana,Langle,nonilangle@gmail.com,+541123680991,DNI,31059830,General 2,False,False,False,False,0
+,,ft.paularibeiro@gmail.com,,DNI,,General 2,False,False,False,False,0
+Magali Victoria,Listello,listellomagui@gmail.com,+543564595574,DNI,39323978,General 2,False,False,False,False,0
+MARÍA FERNANDA,FIDA,ramosusy@hotmail.com,+541158953656,DNI,37518051,General 2,False,False,False,False,0
+Sebastian,Pulenta,sebaspulenta@gmail.com,+541144373423,DNI,35117850,General 2,False,False,False,False,0
+Sol,Strik,solbelenstrik@gmail.com,+542914069343,DNI,39847253,General 2,False,False,False,False,0
+Diego,Guerrero,dguerrero1309@gmail.com,+541136023402,DNI,34889995,Venta dirigida,False,False,False,False,0
+Ivan,Cascini,ivancascini11@gmail.com,+542346650111,DNI,44610498,General 1,False,False,False,False,0
+Luis,Masi,luismasi@gmail.com,+541159275447,DNI,31091242,Venta dirigida,False,False,False,False,0
+Jonatas,Rangel Diniz,jonatasrdiniz@gmail.com,+541137915606,DNI,95178083,Venta dirigida,False,True,False,False,0
+Pablo,Paonessa,pjpaonessa@gmail.com,+541150045304,DNI,30436422,Venta dirigida,False,False,False,False,0
+Martin,Segalis,segalis.martin@gmail.com,+541163632432,DNI,92466664,Venta dirigida,False,False,False,False,0
+Juan Manuel,Patiño Beals,juanmanuelpatinio@gmail.com,+541136788881,DNI,35842210,Venta dirigida,True,False,False,False,0
+henri,de royere,hderoyere@gmail.com,+541159593137,DNI,40001253,Venta dirigida,False,False,False,False,0
+federico,ogrizovic,fogrizovic@gmail.com,+541124645928,DNI,30778629,Venta dirigida,True,True,True,False,0
+Leandro,Ekman,leandroekman@gmail.com,+34605138720,DNI,22302251,Venta dirigida,False,False,True,False,0
+Fanny Analia,Unzola,fannyunzola@gmail.com,+542324498032,DNI,25807576,Venta dirigida,True,False,False,False,0
+Valentina,Wilberger,valen.wilberger1@gmail.com,+541163674035,DNI,36569719,Venta dirigida,False,False,False,False,0
+Marcos  Adrián,Peñeñory,marx1988@gmail.com,+5493515319839,DNI,33701474,Venta dirigida,False,False,True,False,0
+Luciano,Di Battista,chanodiba@gmail.com,+542214191907,DNI,30728017,Venta dirigida,False,False,False,False,0
+valentin,pereira diaz,valentinpereiradiaz@gmail.com,+541160009540,DNI,27935723,Venta dirigida,False,False,False,False,0
+gala,sanchez,gal.albasan@gmail.com,+541151405973,DNI,37432134,Venta dirigida,False,False,False,False,0
+Viktor,Fonic,viktor@ada-dev.com,+541121930697,PASSPORT,052092519,Venta dirigida,False,True,False,False,0
+Gino,Pittelli,gino.pittelli1@gmail.com,+542346523797,DNI,37996072,Venta dirigida,False,False,False,False,0
+Nicolás,Repetto,nicasiorepetto@gmail.com,+541166184040,DNI,28752867,Venta dirigida,False,True,True,False,0
+Luciana,Colaci,lucianacolaci@hotmail.com,+541121817586,DNI,37948037,Venta dirigida,False,True,False,False,0
+Ramiro,Inaebnit,ramiroinaebnit@gmail.com,+541135824857,DNI,39321913,Venta dirigida,False,False,False,False,0
+Gabriel,Dascal,gabrieldascal@gmail.com,+541134556677,DNI,32553696,Venta dirigida,False,False,False,False,0
+Emiliano,Madero,emadero@tritankers.com,+541135414444,DNI,27008355,General 1,False,False,False,False,0
+Miguel Ángel,Caramellino,amazingxmovil@gmail.com,+543512953619,DNI,31965025,Venta dirigida,False,False,False,True,0
+Maximiliano,Benitez,maximiliano07b@gmail.com,+541138160863,DNI,34653382,Venta dirigida,True,True,True,False,0
+MALENA,ARAOZ,malenaaraoz@gmail.com,+541165730514,DNI,35639080,Venta dirigida,False,False,False,False,0
+Cesar,Mirson,cmirson@gmail.com,+541161894643,DNI,33193205,General 2,False,False,False,False,0
+Pía,Di Vito,pia.divito@hotmail.com,+542983447285,DNI,37549278,General 1,False,False,False,False,0
+Bianca,Monti,bian.corazon@gmail.com,+541132010050,DNI,31009345,Venta dirigida,False,False,False,False,0
+Lai,Tame,trad.lailatame@gmail.com,+543513157134,DNI,37618566,Venta dirigida,False,False,True,False,0
+Sol,Beigel,solbeigel@gmail.com,+541156623662,DNI,25865358,Venta dirigida,False,False,False,False,0
+Juan,Catalano,catalanojuan@gmail.com,+541151577472,DNI,31933042,Venta dirigida,False,False,False,False,0
+Agustin,Diz,aguss.diz@gmail.com,+541165753026,DNI,38563568,General 1,False,False,False,False,0
+Mariano,Wegier,wegier.mariano@gmail.com,+541173683225,DNI,35253754,Venta dirigida,False,False,True,False,0
+Miguel,Alvarez Arancedo,miguel.alvarez.arancedo@gmail.com,+541144906124,DNI,17761807,Venta dirigida,False,False,False,False,0
+Maria jose,Daidone,zezedai@yahoo.com.br,+5511973798212,OTHER,102 632 758 09,General 1,False,False,False,False,0
+Alan,Verdún,alanverdun@hotmail.com,+541164824176,DNI,31764200,Venta dirigida,False,True,False,False,0
+Karina,Lema,karinaslema@gmail.com,+541158292365,DNI,34906266,Venta dirigida,False,False,False,False,0
+Biyik,Sanchez,biyiksanchez@gmail.com,+541128850804,DNI,95689347,General 1,False,False,False,False,0
+Camila,Risez,risezcamila@hotmail.com,+541124530747,DNI,39771637,Venta dirigida,False,False,False,False,0
+Gonzalo,Llopis durando,gonzalolld44@gmail.com,+542983549893,DNI,33324125,Venta dirigida,False,False,False,False,0
+Paola Gimena,Romero Alcoba,paoromero.22@gmail.com,+59899902484,OTHER,45494008,Venta dirigida,False,False,False,False,0
+Piren,Larrieu,larrieupiren@gmail.com,+541162577781,DNI,28180674,Venta dirigida,False,False,False,False,0
+Guillermo,Gallacher,guillermogallacher@gmail.com,+447469656519,DNI,33795291,Venta dirigida,False,False,False,False,0
+Valentina,Pis Bertolini,valenpisber@gmail.com,+541160153840,DNI,37031830,General 1,False,False,False,False,0
+Rodrigo,Lokaj,rodrigolokaj@gmail.com,+541156227493,DNI,31604018,Venta dirigida,False,False,False,False,0
+Fermin,Errea,erreafermin@gmail.com,+541156633640,DNI,38708062,Venta dirigida,False,False,False,True,0
+Lisandro,Brelles,lichogbm@gmail.com,+542235457013,DNI,35314535,Venta dirigida,False,False,False,False,0
+Amparo,Ricaurte,amparica17@gmail.com,+541133620842,DNI,35621085,Venta dirigida,False,False,False,False,0
+Brenda,Martinez,brenmartinezz48@gmail.com,+542227509544,DNI,38426983,Venta dirigida,False,False,False,False,0
+Camila,Garcia aldabe,camigaldabe@gmail.com,+59893840407,DNI,38401005,Venta dirigida,False,False,False,False,0
+Lara,Saragusti,larasaragusti@gmail.com,+541167044094,DNI,39417561,Venta dirigida,False,False,False,False,0
+Valentina,Canga,valentinacanga@gmail.com,+541123183141,DNI,40549320,Venta dirigida,False,False,True,False,0
+Agustín Andrés,De Marco,agua@hey.com,+59891822428,DNI,29905748,Venta dirigida,False,False,False,False,0
+Maria,Bilotte,mariabilotte@gmail.com,+541157652499,DNI,31659088,Venta dirigida,False,False,False,False,0
+Valma Ines,Varela,valmavarela@gmail.com,+541140886769,DNI,13782506,Venta dirigida,False,False,False,False,0
+Marcelo,Kulish,marcelokulish@gmail.com,+541154044747,DNI,21923577,Venta dirigida,False,False,False,False,0
+MATIAS,RE MEDINA,aereal@gmail.com,+5492494621592,DNI,33469286,Venta dirigida,False,False,False,False,0
+Jordan,Kupersmith,jordankupersmith@gmail.com,+541157986688,DNI,18881488,Venta dirigida,False,False,False,False,0
+nicolas,visentin,nicolasfvisentin@gmail.com,+541157387103,DNI,34653440,Venta dirigida,False,False,False,False,0
+Lorena,Fasciglione,lorena.fasciglione@gmail.com,+542974280692,DNI,30700962,General 1,False,False,False,False,0
+Ailén,Matthiess,ailen.matthiess@gmail.com,+541138534361,DNI,37837217,Venta dirigida,False,False,False,False,0
+Joaquin,Sanchez,scjoaquinsanchez@gmail.com,+541169458659,DNI,33054687,Venta dirigida,False,True,True,False,0
+joaquin,novoa,novoajoaquin@gmail.com,+541157445390,DNI,35275311,Venta dirigida,False,False,False,False,0
+Eugenia,Verrastro,eugeverrastro@gmail.com,+541158107921,DNI,31638041,Venta dirigida,False,True,False,False,0
+Ezequiel,Briff,churritotv@gmail.com,+541150413465,DNI,28936972,Venta dirigida,False,False,False,False,0
+Alberto,Martinez de Arenaza,amarenaza@gmail.com,+34676150970,DNI,05435488J,Venta dirigida,False,False,True,False,0
+Carolina Belén,de Gracia,degracia.carob@gmail.com,+541168916065,DNI,38071958,Venta dirigida,False,True,True,False,0
+Fernando Germán,Gaidek,fergaidek@gmail.com,+541134325810,DNI,34683959,Venta dirigida,False,False,False,False,0
+Martín Julián,Siquot Ferré,martinjsiquot@gmail.com,+59893422908,DNI,40010371,Venta dirigida,False,True,False,False,0
+Juan ignacio,Manariti,juani_manariti@hotmail.com,+541132380223,DNI,31227157,Venta dirigida,False,False,False,False,0
+Andrés,De León,arlekom@gmail.com,+59895207935,OTHER,45041843,Venta dirigida,False,False,False,False,0
+Julieta,Goldsman,julieta.goldsman@gmail.com,+541167658785,DNI,29654261,Venta dirigida,False,False,False,False,0
+Tomas,Mafia,tmafiadelc@gmail.com,+541137035700,DNI,37171435,Venta dirigida,False,False,False,False,0
+Nicole,Ernst,ernstnicole@outlook.com,+541167269766,DNI,38894674,Venta dirigida,False,False,False,False,0
+Milagros,Miró,miromilagros@gmail.com,+541136963483,DNI,39334295,Venta dirigida,False,False,False,False,0
+Carla,Landolfi,carlamlandolfi@gmail.com,+541151511304,DNI,35675019,Venta dirigida,False,False,False,False,0
+Dalila Maria,Nafeh Ronquillo,dalila_nafeh@hotmail.com,+34674371429,DNI,19075426,Venta dirigida,False,False,False,False,0
+Valentina,Meriglio,valenmeriglio@gmail.com,+541136372525,DNI,41640170,Venta dirigida,False,False,False,False,0
+Julia,Narvaiz,julia_narvaiz@hotmail.com,+542281468542,DNI,39871582,Venta dirigida,False,False,False,False,0
+Omar,Bobrow,bobrow@gmail.com,+541161426142,DNI,32069228,General 1,False,False,False,False,0
+Diego Germán,Gómez,diego.german.gomez@gmail.com,+541162121766,DNI,20426286,Venta dirigida,False,False,False,False,0
+Leo,De Oliveira,daidoneleo@gmail.com,+5511971680998,OTHER,23868841806,General 1,False,False,False,False,0
+Juan,Moore,juangmoore@gmail.com,+5491162124244,DNI,35961076,Venta dirigida,False,False,False,False,0
+Ariana,Di Carlo,arianadicarlo@gmail.com,+543513852363,DNI,30954712,Venta dirigida,False,False,False,False,0
+Fernán,Lopez Muñiz,fernanlopezmuniz@gmail.com,+541139200707,DNI,22277343,Venta dirigida,False,False,False,False,0
+Lucila,Dickinson,dickinsonlucila@gmail.com,+59895342939,DNI,29499749,Venta dirigida,False,False,False,False,0
+Milagros María,Gándara,miligandara1995@gmail.com,+541151171813,DNI,39065803,General 2,False,False,False,False,0
+Sol,Alvarez,solchu_alvarez@hotmail.com,+541136927362,DNI,36949971,General 1,False,False,False,False,0
+Eric Luca,Sigwald D'Alesio,ericsig@gmail.com,+543516319063,DNI,35545750,Venta dirigida,False,False,True,False,0
+Fátima,Cañavera Ferlaino,fcanaveraf@gmail.com,+541134244723,DNI,36949373,Venta dirigida,False,False,False,False,0
+Morena Araceli,Larrocca Farias,larroccam@gmail.com,+541140841413,DNI,36554469,Venta dirigida,False,False,False,False,0
+Barbara,Reiter,lic.barbarareiter@hotmail.com,+541154717393,DNI,32438771,Venta dirigida,False,False,True,False,0
+Paula,Dominguez,paulamariadominguez@gmail.com,+541141980437,DNI,29952580,General 1,False,False,False,False,0
+Lucas Emmanuel,Feldman,lucasfeld@gmail.com,+541157474522,DNI,31227614,Venta dirigida,False,False,False,False,0
+JERONIMO,OJEDA,ojedajeronimo8@gmail.com,+543454950956,DNI,40991984,Venta dirigida,False,False,False,False,0
+federico,sanchez,federico.sanchez.maidana@gmail.com,+541160009532,DNI,32983350,General 1,False,False,True,False,0
+Gaston,Linares Luque,gastonll90@gmail.com,+541162946717,DNI,35364637,General 1,False,False,False,False,0
+Santiago,Recart,recasanti@gmail.com,+541167108945,DNI,29867550,General 1,False,False,False,False,0
+Santiago Javier,Bobadilla Toro,santiagobobadilla94@gmail.com,+542914046037,DNI,38920034,General 1,False,False,False,False,0
+Jacinta,Gonzalez Llamazares,jacintagonzalezll@gmail.com,+541133798807,DNI,38426067,Venta dirigida,False,False,False,False,0
+Tomas,Gil,tomasgil1234@gmail.com,+541156217620,DNI,36327156,Venta dirigida,False,False,False,False,0
+guido,lorenzano,guidolorenzano@gmail.com,+541141614825,DNI,39625446,General 1,False,False,False,False,0
+Ursula Rebeca,Gardié,rebegardie@gmail.com,+541132582149,DNI,95784150,General 1,False,False,False,False,0
+Juan Nicolas,Sanmarco,nicolassanmarco@gmail.com,+541161021348,DNI,26690215,General 1,False,False,False,False,0
+Beatriz,Serrano Valverde,vserrano.beatriz@gmail.com,+541170319122,DNI,95798966,Venta dirigida,False,False,False,False,0
+Ignacio,Sosa,nachos.sosa@gmail.com,+541134046404,DNI,28435272,Venta dirigida,False,False,False,False,0
+Andres Ramiro,Giordano,auc.spanish@gmail.com,+541155031180,DNI,28925319,General 1,False,False,False,False,0
+Micaela,Gerakios,micagerakios@gmail.com,+541130101642,DNI,38666402,Venta dirigida,False,False,False,False,0
+German,Figueroa,geerman.figueroa@gmail.com,+541149163689,DNI,37863654,General 1,False,False,False,False,0
+Yanina,Martin,yaninamartin07@gmail.com,+542494357194,DNI,35418091,General 1,False,True,False,False,0
+Maria Pia,Leone,piaa95@gmail.com,+541155259851,DNI,38999646,General 1,False,False,False,False,0
+DIEGO,SÁNCHEZ,diegospress@gmail.com,+542396469822,DNI,27101226,Venta dirigida,False,False,False,False,0
+luciana,moricheti,lucianamorichetti@gmail.com,+542214955220,DNI,37809075,General 2,False,False,False,False,0
+Eyal,Weintraub,eyalweintraub00@gmail.com,+541122372323,DNI,42724057,General 1,False,False,False,False,0
+Matias,Lauge,matiaslauge@gmail.com,+542494519088,DNI,26775576,General 1,False,False,False,False,0
+Bruno,Lorenzano,lorenzanobruno@gmail.com,+541132012610,DNI,42102526,General 1,False,False,False,False,0
+Lucio,Feruglio,lucio.feruglio@gmail.com,+541163556355,DNI,34653236,General 1,False,False,False,False,0
+rodrigo,adduci,rodrigoadduci@gmail.com,+541159977802,DNI,29747685,Venta dirigida,False,False,False,True,0
+Ariel,Cohen,arocohen2023@gmail.com,+541141604040,DNI,41472769,General 1,False,False,False,False,0
+Alejandro,Baranek,alejandrobaranek@gmail.com,+5491161067032,DNI,25598064,Venta dirigida,False,False,False,False,0
+Maria Florencia,Quintana Beccuti,florqbe@gmail.com,+541154912376,DNI,38992933,General 1,False,False,False,False,0
+Sebastian,Cohen,sgccohen@gmail.com,+541156077722,DNI,32091367,General 1,False,False,False,False,0
+Barbara,Rivarola,barbarariva@mac.com,+5492494497614,DNI,20205576,General 1,False,False,False,False,0
+Facundo,Gallo,fspadex@gmail.com,+541159610633,DNI,31996311,Venta dirigida,False,False,False,False,0
+Andres,Bertero,abertero@gmail.com,+541136822092,DNI,12780763,General 1,False,False,False,False,0
+Guadalupe,Arguello,guadiarguello@gmail.com,+541131986009,DNI,37806894,General 1,False,False,False,False,0
+Sebastián,Montelli,sebamontelli@gmail.com,+541155610834,DNI,30870203,General 1,False,False,False,False,0
+Julieta,Gamburd,julietamgamburd@gmail.com,+529842347035,DNI,35958798,General 1,True,False,False,False,0
+María Florencia,Mascardi,mascardi.florencia@gmail.com,+541144043979,DNI,38165742,Venta dirigida,False,False,False,False,0
+MARIA FERNANDA,PÉREZ,fernandafernandezactriz@gmail.com,+541157739069,DNI,26821966,Venta dirigida,False,False,False,False,0
+Lucio Roberto,Lo Carmine,luciio.lc@gmail.com,+541150605839,DNI,38957866,General 1,True,False,False,False,0
+Pilar,Arriola,arriolapili@gmail.com,+34635767780,DNI,35540152,Venta dirigida,False,False,False,False,0
+Facundo Nahuel,Gimenez Friedrich,f.gimenez.fuego@gmail.com,+541132767599,DNI,36896175,General 1,False,False,False,False,0
+Agustina,Rodriguez,corazonsanador@gmail.com,+59891052201,DNI,25096107,General 2,False,False,False,False,0
+Ezequiel,Panella,misoculos@gmail.com,+541161776323,DNI,34687177,Venta dirigida,False,False,False,False,0
+Lucas,Adlerstein,lucasadlerstein@gmail.com,+541141716531,DNI,42933483,General 1,False,False,False,False,0
+Constanza,Colella,colellaconstanza@gmail.com,+541141902890,DNI,39490924,General 1,False,False,False,False,0
+Sol,Alonso,solalonso879@gmail.com,+541131072980,DNI,37932195,Venta dirigida,False,False,False,False,0
+Jeremías,Grosman,grosmanjeremias@gmail.com,+542974240740,DNI,33677331,General 2,False,False,False,False,0
