@@ -94,6 +94,7 @@ class EventAdmin(admin.ModelAdmin):
                         COALESCE(tn.volunteer_umpalumpa, false) as CAOS,
                         COALESCE(tn.volunteer_transmutator, false) as TRANSMUTADOR,
                         COALESCE(tn.volunteer_ranger, false) as RANGER,
+                        COALESCE(tn.volunteer_mad, false) as MAD,
                         (SELECT COUNT(*)
                          FROM tickets_newticket tnh
                          WHERE tnh.holder_id = au.id
@@ -168,6 +169,7 @@ class EventAdmin(admin.ModelAdmin):
                     COALESCE(tn.volunteer_umpalumpa, false) as CAOS,
                     COALESCE(tn.volunteer_transmutator, false) as TRANSMUTADOR,
                     COALESCE(tn.volunteer_ranger, false) as RANGER,
+                    COALESCE(tn.volunteer_mad, false) as MAD,
                     (SELECT COUNT(*)
                      FROM tickets_newticket tnh
                      WHERE tnh.holder_id = au.id
