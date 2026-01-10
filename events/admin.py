@@ -98,7 +98,8 @@ class EventAdmin(admin.ModelAdmin):
                         (SELECT COUNT(*)
                          FROM tickets_newticket tnh
                          WHERE tnh.holder_id = au.id
-                           AND tnh.owner_id is null) AS bonos_sin_compartir
+                           AND tnh.owner_id is null
+                           AND tnh.event_id = %s) AS bonos_sin_compartir
                     FROM auth_user au
                     INNER JOIN user_profile_profile upp ON au.id = upp.user_id
                     INNER JOIN tickets_newticket tn ON au.id = tn.owner_id
@@ -118,9 +119,9 @@ class EventAdmin(admin.ModelAdmin):
                     """
                     search_param = f'%{search_term}%'
                     cursor.execute(query + " ORDER BY bonos_sin_compartir DESC", 
-                                 [event_id, search_param, search_param, search_param, search_param, search_param])
+                                 [event_id, event_id, search_param, search_param, search_param, search_param, search_param])
                 else:
-                    cursor.execute(query + " ORDER BY bonos_sin_compartir DESC", [event_id])
+                    cursor.execute(query + " ORDER BY bonos_sin_compartir DESC", [event_id, event_id])
                 
                 columns = [col[0] for col in cursor.description]
                 results = cursor.fetchall()
@@ -173,14 +174,15 @@ class EventAdmin(admin.ModelAdmin):
                     (SELECT COUNT(*)
                      FROM tickets_newticket tnh
                      WHERE tnh.holder_id = au.id
-                       AND tnh.owner_id is null) AS bonos_sin_compartir
+                       AND tnh.owner_id is null
+                       AND tnh.event_id = %s) AS bonos_sin_compartir
                 FROM auth_user au
                 INNER JOIN user_profile_profile upp ON au.id = upp.user_id
                 INNER JOIN tickets_newticket tn ON au.id = tn.owner_id
                 INNER JOIN tickets_tickettype tt ON tn.ticket_type_id = tt.id
                 WHERE tn.event_id = %s
                 ORDER BY bonos_sin_compartir DESC
-            """, [event_id])
+            """, [event_id, event_id])
             
             response = HttpResponse(content_type='text/csv')
             response['Content-Disposition'] = 'attachment; filename="event_report.csv"'
