@@ -46,12 +46,14 @@ def send_pending_actions_emails_for_event(current_event):
     pending_transfers_recipient = get_pending_transfers_recipients(current_event)
     pending_transfers_sender = get_pending_transfers_sender(current_event)
     unsent_tickets = get_unsent_tickets(current_event)
+    users_without_profile = get_users_without_profile(current_event)
 
     total_unsent_tickets = sum([holder.pending_to_share_tickets for holder in unsent_tickets])
 
     logging.info(DASHES_LINE)
     logging.info(f"| {len(pending_transfers_recipient)} Tickets waiting for recipient to create an account")
     logging.info(f"| {total_unsent_tickets} Tickets waiting for the holder to share")
+    logging.info(f"| {len(users_without_profile)} Users without profile who have tickets assigned")
     logging.info(DASHES_LINE)
     logging.info(
         f"{fibonacci_impares(5)} are the fibonacci uneven numbers < 30, we will send pending action reminders, on days since the action MOD 30, that are on that sequence")
@@ -71,6 +73,10 @@ def send_pending_actions_emails_for_event(current_event):
                       executor.submit(send_unsent_tickets_reminder_email, unsent_ticket, current_event)
                       for unsent_ticket
                       in unsent_tickets
+                  ] + [
+                      executor.submit(send_profile_reminder_email, user_without_profile, current_event)
+                      for user_without_profile
+                      in users_without_profile
                   ]
 
         wait(futures, return_when=ALL_COMPLETED)
@@ -353,6 +359,82 @@ def get_unsent_tickets(current_event):
             pending_ticket_holders.append(pending_ticket_holder)
 
         return pending_ticket_holders
+
+
+class UserWithoutProfile:
+    def __init__(self, email, tickets_count, max_days_ago):
+        self.email = email
+        self.tickets_count = tickets_count
+        self.max_days_ago = max_days_ago
+
+    def to_dict(self):
+        return {
+            'email': self.email,
+            'tickets_count': int(self.tickets_count),
+            'max_days_ago': int(self.max_days_ago)
+        }
+
+
+def get_users_without_profile(current_event):
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT DISTINCT
+                au.email,
+                COUNT(tn.id) as tickets_count,
+                MAX(EXTRACT(DAY FROM (NOW() - tn.created_at))) as max_days_ago
+            FROM auth_user au
+            INNER JOIN tickets_newticket tn ON au.id = tn.holder_id
+            LEFT JOIN user_profile_profile upp ON au.id = upp.user_id
+            WHERE tn.event_id = %s
+              AND (upp.id IS NULL OR upp.profile_completion = 'NONE')
+            GROUP BY au.email
+        """, [current_event.id])
+
+        results = cursor.fetchall()
+
+        users_without_profile = []
+        for row in results:
+            email = row[0]
+            tickets_count = row[1]
+            max_days_ago = row[2]
+
+            # Create an instance of UserWithoutProfile for each row
+            user_without_profile = UserWithoutProfile(email, tickets_count, max_days_ago)
+            users_without_profile.append(user_without_profile)
+
+        return users_without_profile
+
+
+def send_profile_reminder_email(user_without_profile, current_event):
+    if user_without_profile.max_days_ago % 30 in fibonacci_impares(5):
+        try:
+            action = f"sending a notification to {user_without_profile.email} to remember to create an account and complete their profile, you have {user_without_profile.tickets_count} ticket{'s' if user_without_profile.tickets_count > 1 else ''} assigned since {user_without_profile.max_days_ago} days ago. You have time until {current_event.transfers_enabled_until.strftime('%d/%m')} or your bonus will expire"
+            if not MessageIdempotency.objects.filter(email=user_without_profile.email, hash=hash_string(action)).exists():
+                complete_profile_url = reverse('complete_profile')
+                send_mail(
+                    template_name='profile_reminder',
+                    recipient_list=[user_without_profile.email],
+                    context={
+                        'user_without_profile': user_without_profile,
+                        'current_event': current_event,
+                        'sign_up_link': f"{reverse('account_signup')}?{urlencode({'email': user_without_profile.email})}",
+                        'complete_profile_link': complete_profile_url
+                    }
+                )
+                logging.info(action)
+                MessageIdempotency(
+                    email=user_without_profile.email,
+                    hash=hash_string(action),
+                    payload=json.dumps(
+                        {
+                            'action': 'send_profile_reminder_email',
+                            'user_without_profile': user_without_profile.to_dict(),
+                            'event_id': current_event.id
+                        })).save()
+                return 1, 0
+        except Exception as e:
+            logging.error(f"Error sending email to {user_without_profile.email}: {e}")
+    return 0, 0
 
 
 def fibonacci_impares(n, a=0, b=1, sequence=None):

@@ -1,0 +1,35 @@
+{% extends 'emails/base.html' %}
+{% block subject %}🚨 ¡Completa tu perfil! Tienes {{ user_without_profile.tickets_count }} bono{% if user_without_profile.tickets_count > 1 %}s{% endif %} asignado{% if user_without_profile.tickets_count > 1 %}s{% endif %} en Fuego Austral 🚨{% endblock %}
+{% block title %}
+    Recordatorio para Completar tu Perfil<br/>
+{% endblock %}
+{% block content %}
+    <p>
+        ¡Hola! Queremos recordarte que tienes {{ user_without_profile.tickets_count }} bono{% if user_without_profile.tickets_count > 1 %}s{% endif %} asignado{% if user_without_profile.tickets_count > 1 %}s{% endif %} en Fuego Austral. Han pasado {{ user_without_profile.max_days_ago }} día{% if user_without_profile.max_days_ago > 1 %}s{% endif %} desde que recibiste tu{% if user_without_profile.tickets_count > 1 %}s{% endif %} bono{% if user_without_profile.tickets_count > 1 %}s{% endif %} y aún no has completado tu perfil.
+    </p>
+
+    <p>
+        Para poder usar tu{% if user_without_profile.tickets_count > 1 %}s{% endif %} bono{% if user_without_profile.tickets_count > 1 %}s{% endif %}, es necesario que crees una cuenta (si aún no lo has hecho) y completes tu perfil con tus datos personales.
+    </p>
+
+    {% include 'emails/partials/btn.html' with label='Completar perfil' href=complete_profile_link domain=domain %}
+
+    <p>
+        Recuerda usar el mismo email al que te enviamos este mensaje <b>({{ user_without_profile.email }})</b> para completar tu registro y perfil.
+    </p>
+
+    <p>
+        <strong>Importante:</strong> Tienes tiempo hasta el {{ current_event.transfers_enabled_until|date:"d/m" }} para completar tu perfil. Si no lo haces antes de esa fecha, tu{% if user_without_profile.tickets_count > 1 %}s{% endif %} bono{% if user_without_profile.tickets_count > 1 %}s{% endif %} expirará y no podrás usarlo{% if user_without_profile.tickets_count > 1 %}s{% endif %}.
+    </p>
+
+    <p>
+        Si tienes alguna duda o inconveniente con tu bono, no dudes en contactarnos a través de <a
+            href="mailto:bonos@fuegoaustral.org">bonos@fuegoaustral.org</a> o chatear con nosotros directamente desde
+        nuestra web.
+    </p>
+
+    <p>
+        ¡La experiencia será tan especial como tú la hagas!
+    </p>
+{% endblock %}
+
