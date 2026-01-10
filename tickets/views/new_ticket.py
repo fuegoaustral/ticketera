@@ -12,6 +12,7 @@ from django.http import HttpResponseNotAllowed, HttpResponseForbidden, HttpRespo
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils import timezone
+from allauth.account.models import EmailAddress
 
 from tickets.models import NewTicket, NewTicketTransfer
 from utils.email import send_mail
@@ -78,6 +79,18 @@ def transfer_ticket(request, ticket_key):
         return JsonResponse({
             'status': 'ERROR',
             'message': 'Email inválido'
+        }, status=400)
+
+    # Prevent users from transferring tickets to themselves
+    # Check all email addresses associated with the user's account
+    user_emails = EmailAddress.objects.filter(user=request.user).values_list('email', flat=True)
+    user_emails_lower = [e.lower() for e in user_emails]
+    
+    if email in user_emails_lower:
+        logger.warning(f"User {request.user.email} attempted to transfer ticket to themselves (email: {email})")
+        return JsonResponse({
+            'status': 'ERROR',
+            'message': 'No puedes transferir un bono a tu propia cuenta'
         }, status=400)
 
     destination_user = User.objects.filter(email=email).first()
