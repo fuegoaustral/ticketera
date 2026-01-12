@@ -9,37 +9,94 @@
     }
     
     .miembros-table-wrapper {
-        max-height: 600px;
-        overflow-y: auto;
+        max-height: none;
+        overflow: visible;
     }
     
-    @media (min-width: 992px) {
-        .miembros-table-wrapper {
-            max-height: 500px;
-        }
-        
-        .table th,
-        .table td {
-            padding: 0.5rem 0.75rem;
-            vertical-align: middle;
-        }
+    .table th,
+    .table td {
+        padding: 0.75rem 0.5rem;
+        vertical-align: middle;
+        white-space: nowrap;
     }
     
-    @media (max-width: 767.98px) {
-        .table th,
+    .table th {
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+    
+    .table td {
+        font-size: 0.875rem;
+    }
+    
+    .miembro-row {
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .miembro-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .miembro-name {
+        font-weight: 500;
+    }
+    
+    .miembro-email {
+        font-size: 0.75rem;
+        color: #6c757d;
+    }
+    
+    .ingreso-fecha-input {
+        min-width: 140px;
+        max-width: 180px;
+    }
+    
+    @media (max-width: 991.98px) {
+        .table-responsive {
+            overflow-x: visible;
+        }
+        
+        .table {
+            display: block;
+        }
+        
+        .table thead {
+            display: none;
+        }
+        
+        .table tbody {
+            display: block;
+        }
+        
+        .table tr {
+            display: block;
+            margin-bottom: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 0.75rem;
+            background-color: #fff;
+        }
+        
         .table td {
-            padding: 0.5rem;
-            font-size: 0.875rem;
+            display: block;
+            padding: 0.5rem 0;
+            border: none;
+            text-align: left !important;
         }
         
-        .form-check-input {
-            width: 2rem;
-            height: 1.25rem;
+        .table td:before {
+            content: attr(data-label);
+            font-weight: 600;
+            display: block;
+            margin-bottom: 0.25rem;
+            color: #495057;
         }
         
-        .btn-sm {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.75rem;
+        .ingreso-fecha-input {
+            width: 100%;
+            max-width: 100%;
         }
     }
     
@@ -54,11 +111,11 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-    const toggleCheckboxes = document.querySelectorAll('.toggle-checkbox');
     
-    toggleCheckboxes.forEach(function(checkbox) {
+    // Handle late checkout toggle checkboxes
+    const lateCheckoutCheckboxes = document.querySelectorAll('[data-action="toggle_late_checkout"]');
+    lateCheckoutCheckboxes.forEach(function(checkbox) {
         checkbox.addEventListener('change', function() {
-            const action = this.dataset.action;
             const miembroId = this.dataset.miembroId;
             const originalValue = this.checked;
             
@@ -72,7 +129,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     'X-CSRFToken': csrfToken
                 },
                 body: new URLSearchParams({
-                    'action': action,
+                    'action': 'toggle_late_checkout',
                     'miembro_id': miembroId
                 })
             })
@@ -80,46 +137,26 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.success) {
                     // Update checkbox state
-                    this.checked = data[action === 'toggle_ingreso_anticipado' ? 'ingreso_anticipado' : 'late_checkout'];
+                    this.checked = data.late_checkout;
                     
                     // Update limit messages and disable/enable checkboxes if needed
-                    if (action === 'toggle_ingreso_anticipado') {
-                        const currentCount = data.ingreso_anticipado_count;
-                        const maxAmount = data.ingreso_anticipado_amount;
-                        
-                        // Update all ingreso anticipado checkboxes
-                        document.querySelectorAll('[data-action="toggle_ingreso_anticipado"]').forEach(cb => {
-                            const cbMiembroId = cb.dataset.miembroId;
-                            const limiteMsg = document.querySelector('.limite-message-ia-' + cbMiembroId);
-                            
-                            if (!cb.checked && currentCount >= maxAmount) {
-                                cb.disabled = true;
-                                if (limiteMsg) limiteMsg.style.display = 'block';
-                            } else {
-                                cb.disabled = false;
-                                if (limiteMsg) limiteMsg.style.display = 'none';
-                            }
-                        });
-                    } else if (action === 'toggle_late_checkout') {
-                        const currentCount = data.late_checkout_count;
-                        const maxAmount = data.late_checkout_amount;
-                        
-                        // Update all late checkout checkboxes
-                        document.querySelectorAll('[data-action="toggle_late_checkout"]').forEach(cb => {
-                            const cbMiembroId = cb.dataset.miembroId;
-                            const limiteMsg = document.querySelector('.limite-message-lc-' + cbMiembroId);
-                            
-                            if (!cb.checked && currentCount >= maxAmount) {
-                                cb.disabled = true;
-                                if (limiteMsg) limiteMsg.style.display = 'block';
-                            } else {
-                                cb.disabled = false;
-                                if (limiteMsg) limiteMsg.style.display = 'none';
-                            }
-                        });
-                    }
+                    const currentCount = data.late_checkout_count;
+                    const maxAmount = data.late_checkout_amount;
                     
-                    // Show success message briefly
+                    // Update all late checkout checkboxes
+                    document.querySelectorAll('[data-action="toggle_late_checkout"]').forEach(cb => {
+                        const cbMiembroId = cb.dataset.miembroId;
+                        const limiteMsg = document.querySelector('.limite-message-lc-' + cbMiembroId);
+                        
+                        if (!cb.checked && currentCount >= maxAmount) {
+                            cb.disabled = true;
+                            if (limiteMsg) limiteMsg.style.display = 'block';
+                        } else {
+                            cb.disabled = false;
+                            if (limiteMsg) limiteMsg.style.display = 'none';
+                        }
+                    });
+                    
                     showToast(data.message, 'success');
                 } else {
                     // Revert checkbox state
@@ -136,6 +173,80 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.disabled = false;
             });
         });
+    });
+    
+    // Handle ingreso anticipado date picker changes
+    const ingresoFechaInputs = document.querySelectorAll('.ingreso-fecha-input');
+    ingresoFechaInputs.forEach(function(input) {
+        input.addEventListener('change', function() {
+            const miembroId = this.dataset.miembroId;
+            const fecha = this.value;
+            const originalValue = this.dataset.originalValue || this.value;
+            
+            // Disable input while processing
+            this.disabled = true;
+            
+            fetch('{% url "grupo_toggle_ajax" event.slug grupo.id %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken
+                },
+                body: new URLSearchParams({
+                    'action': 'update_ingreso_fecha',
+                    'miembro_id': miembroId,
+                    'fecha': fecha || ''
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update original value
+                    this.dataset.originalValue = fecha;
+                    // Update the input value in case server formatted it
+                    if (data.fecha) {
+                        this.value = data.fecha;
+                    } else {
+                        this.value = '';
+                    }
+                    
+                    // Update limit messages and disable/enable inputs if needed
+                    const currentCount = data.ingreso_anticipado_count;
+                    const maxAmount = data.ingreso_anticipado_amount;
+                    
+                    // Update all ingreso fecha inputs
+                    document.querySelectorAll('.ingreso-fecha-input').forEach(inp => {
+                        const inpMiembroId = inp.dataset.miembroId;
+                        const limiteMsg = document.querySelector('.limite-message-ia-' + inpMiembroId);
+                        
+                        if (!inp.value && currentCount >= maxAmount) {
+                            inp.disabled = true;
+                            if (limiteMsg) limiteMsg.style.display = 'block';
+                        } else {
+                            inp.disabled = false;
+                            if (limiteMsg) limiteMsg.style.display = 'none';
+                        }
+                    });
+                    
+                    showToast(data.message, 'success');
+                } else {
+                    // Revert to original value
+                    this.value = originalValue;
+                    showToast(data.error || 'Error al actualizar fecha', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                this.value = originalValue;
+                showToast('Error al actualizar fecha', 'error');
+            })
+            .finally(() => {
+                this.disabled = false;
+            });
+        });
+        
+        // Store original value on load
+        input.dataset.originalValue = input.value;
     });
     
     // Handle restriction select changes
@@ -242,39 +353,37 @@ document.addEventListener('DOMContentLoaded', function() {
                     {% endfor %}
                 {% endif %}
 
-                <div class="row mb-4">
-                    <div class="col-md-10 col-lg-8">
-                        <div class="card bg-light">
-                            <div class="card-body">
-                                <h5 class="card-title">Información del Grupo</h5>
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <p class="mb-1"><strong>Líder:</strong> {{ grupo.lider.get_full_name|default:grupo.lider.email }}</p>
-                                        <p class="mb-1"><strong>Miembros:</strong> {{ grupo.miembros_count }}</p>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <p class="mb-1">
-                                            <strong>Ingreso Anticipado:</strong> 
-                                            {{ grupo.ingreso_anticipado_count }}/{{ grupo.ingreso_anticipado_amount }}
-                                        </p>
-                                        {% if grupo.ingreso_anticipado_desde %}
-                                        <p class="mb-1">
-                                            <strong>Desde:</strong> 
-                                            {{ grupo.ingreso_anticipado_desde|date:"d/m/Y H:i" }}
-                                        </p>
-                                        {% endif %}
-                                        <p class="mb-1">
-                                            <strong>Late Checkout:</strong> 
-                                            {{ grupo.late_checkout_count }}/{{ grupo.late_checkout_amount }}
-                                        </p>
-                                        {% if grupo.late_checkout_hasta %}
-                                        <p class="mb-0">
-                                            <strong>Hasta:</strong> 
-                                            {{ grupo.late_checkout_hasta|date:"d/m/Y H:i" }}
-                                        </p>
-                                        {% endif %}
-                                    </div>
-                                </div>
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Información del Grupo</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Responsable:</strong> {{ grupo.lider.get_full_name|default:grupo.lider.email }}</p>
+                                <p class="mb-1"><strong>Miembros:</strong> {{ grupo.miembros_count }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-1">
+                                    <strong>Ingreso Anticipado:</strong> 
+                                    {{ grupo.ingreso_anticipado_count }}/{{ grupo.ingreso_anticipado_amount }}
+                                </p>
+                                {% if grupo.ingreso_anticipado_desde %}
+                                <p class="mb-1">
+                                    <strong>Desde:</strong> 
+                                    {{ grupo.ingreso_anticipado_desde|date:"d/m/Y H:i" }}
+                                </p>
+                                {% endif %}
+                                <p class="mb-1">
+                                    <strong>Late Checkout:</strong> 
+                                    {{ grupo.late_checkout_count }}/{{ grupo.late_checkout_amount }}
+                                </p>
+                                {% if grupo.late_checkout_hasta %}
+                                <p class="mb-0">
+                                    <strong>Hasta:</strong> 
+                                    {{ grupo.late_checkout_hasta|date:"d/m/Y H:i" }}
+                                </p>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -288,12 +397,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         <form method="POST" class="d-flex gap-2">
                             {% csrf_token %}
                             <input type="hidden" name="action" value="add_member">
-                            <input type="email" name="email" class="form-control" placeholder="Email del usuario" required>
+                            <input type="text" name="identifier" class="form-control" placeholder="Email o número de documento" required>
                             <button type="submit" class="btn btn-primary d-flex align-items-center">
                                 <i class="fas fa-plus me-2"></i>
                                 <span>Agregar</span>
                             </button>
                         </form>
+                        <small class="text-muted mt-2 d-block">Puedes buscar por email o número de documento</small>
                     </div>
                 </div>
 
@@ -308,48 +418,46 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <thead class="table-light">
                                         <tr>
                                             <th class="ps-3">Usuario</th>
-                                            <th class="d-none d-md-table-cell">Email</th>
-                                            <th class="text-center" style="min-width: 120px;">Ingreso Anticipado</th>
-                                            <th class="text-center" style="min-width: 120px;">Late Checkout</th>
-                                            <th class="text-center" style="min-width: 150px;">Restricción</th>
-                                            <th class="text-center" style="min-width: 100px;">Acciones</th>
+                                            <th class="text-center">Ingreso Anticipado</th>
+                                            <th class="text-center">Late Checkout</th>
+                                            <th class="text-center">Restricción</th>
+                                            <th class="text-center">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {% for miembro in miembros %}
-                                            <tr>
-                                                <td class="ps-3">
-                                                    <div class="d-flex flex-column">
-                                                        <span>{{ miembro.user.get_full_name|default:miembro.user.username }}</span>
-                                                        <small class="text-muted d-md-none">{{ miembro.user.email }}</small>
+                                            <tr class="miembro-row">
+                                                <td class="ps-3" data-label="Usuario">
+                                                    <div class="miembro-info">
+                                                        <span class="miembro-name">{{ miembro.user.get_full_name|default:miembro.user.username }}</span>
+                                                        <span class="miembro-email">{{ miembro.user.email }}</span>
                                                         {% if miembro.user == grupo.lider %}
-                                                            <span class="badge bg-primary mt-1" style="width: fit-content;">Líder</span>
+                                                            <span class="badge bg-primary mt-1" style="width: fit-content;">Responsable</span>
                                                         {% endif %}
                                                     </div>
                                                 </td>
-                                                <td class="d-none d-md-table-cell">{{ miembro.user.email }}</td>
-                                                <td class="text-center">
-                                                    <div class="form-check form-switch d-inline-block">
-                                                        <input 
-                                                            class="form-check-input toggle-checkbox" 
-                                                            type="checkbox" 
-                                                            data-action="toggle_ingreso_anticipado"
-                                                            data-miembro-id="{{ miembro.id }}"
-                                                            {% if miembro.ingreso_anticipado %}checked{% endif %}
-                                                            {% if not miembro.ingreso_anticipado and grupo.ingreso_anticipado_count >= grupo.ingreso_anticipado_amount %}disabled{% endif %}
-                                                        >
-                                                    </div>
-                                                    {% if not miembro.ingreso_anticipado and grupo.ingreso_anticipado_count >= grupo.ingreso_anticipado_amount %}
+                                                <td class="text-center" data-label="Ingreso Anticipado">
+                                                    <input 
+                                                        type="date" 
+                                                        class="form-control form-control-sm ingreso-fecha-input" 
+                                                        data-miembro-id="{{ miembro.id }}"
+                                                        {% if grupo.ingreso_anticipado_desde %}min="{{ grupo.ingreso_anticipado_desde|date:'Y-m-d' }}"{% endif %}
+                                                        {% if event.start %}max="{{ event.start|date:'Y-m-d' }}"{% endif %}
+                                                        {% if miembro.ingreso_anticipado_fecha %}value="{{ miembro.ingreso_anticipado_fecha|date:'Y-m-d' }}"{% endif %}
+                                                        {% if not miembro.ingreso_anticipado_fecha and grupo.ingreso_anticipado_count >= grupo.ingreso_anticipado_amount %}disabled{% endif %}
+                                                        placeholder="Seleccionar fecha"
+                                                    >
+                                                    {% if not miembro.ingreso_anticipado_fecha and grupo.ingreso_anticipado_count >= grupo.ingreso_anticipado_amount %}
                                                     <div class="limite-message-ia-{{ miembro.id }}">
-                                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Límite</small>
+                                                        <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">Límite</small>
                                                     </div>
                                                     {% else %}
                                                     <div class="limite-message-ia-{{ miembro.id }}" style="display: none;">
-                                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Límite</small>
+                                                        <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">Límite</small>
                                                     </div>
                                                     {% endif %}
                                                 </td>
-                                                <td class="text-center">
+                                                <td class="text-center" data-label="Late Checkout">
                                                     <div class="form-check form-switch d-inline-block">
                                                         <input 
                                                             class="form-check-input toggle-checkbox" 
@@ -362,15 +470,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     </div>
                                                     {% if not miembro.late_checkout and grupo.late_checkout_count >= grupo.late_checkout_amount %}
                                                     <div class="limite-message-lc-{{ miembro.id }}">
-                                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Límite</small>
+                                                        <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">Límite</small>
                                                     </div>
                                                     {% else %}
                                                     <div class="limite-message-lc-{{ miembro.id }}" style="display: none;">
-                                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Límite</small>
+                                                        <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">Límite</small>
                                                     </div>
                                                     {% endif %}
                                                 </td>
-                                                <td class="text-center">
+                                                <td class="text-center" data-label="Restricción">
                                                     <select 
                                                         class="form-select form-select-sm restriccion-select" 
                                                         data-miembro-id="{{ miembro.id }}"
@@ -382,7 +490,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         <option value="particular" {% if miembro.restriccion == 'particular' %}selected{% endif %}>Particular</option>
                                                     </select>
                                                 </td>
-                                                <td class="text-center">
+                                                <td class="text-center" data-label="Acciones">
                                                     {% if miembro.user != grupo.lider %}
                                                         <form method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de que deseas remover a {{ miembro.user.email }} del grupo?');">
                                                             {% csrf_token %}
@@ -411,162 +519,4 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         </div>
     </div>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-    const toggleCheckboxes = document.querySelectorAll('.toggle-checkbox');
-    
-    toggleCheckboxes.forEach(function(checkbox) {
-        checkbox.addEventListener('change', function() {
-            const action = this.dataset.action;
-            const miembroId = this.dataset.miembroId;
-            const originalValue = this.checked;
-            
-            // Disable checkbox while processing
-            this.disabled = true;
-            
-            fetch('{% url "grupo_toggle_ajax" event.slug grupo.id %}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': csrfToken
-                },
-                body: new URLSearchParams({
-                    'action': action,
-                    'miembro_id': miembroId
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Update checkbox state
-                    this.checked = data[action === 'toggle_ingreso_anticipado' ? 'ingreso_anticipado' : 'late_checkout'];
-                    
-                    // Update limit messages and disable/enable checkboxes if needed
-                    if (action === 'toggle_ingreso_anticipado') {
-                        const currentCount = data.ingreso_anticipado_count;
-                        const maxAmount = data.ingreso_anticipado_amount;
-                        
-                        // Update all ingreso anticipado checkboxes
-                        document.querySelectorAll('[data-action="toggle_ingreso_anticipado"]').forEach(cb => {
-                            const cbMiembroId = cb.dataset.miembroId;
-                            const limiteMsg = document.querySelector('.limite-message-ia-' + cbMiembroId);
-                            
-                            if (!cb.checked && currentCount >= maxAmount) {
-                                cb.disabled = true;
-                                if (limiteMsg) limiteMsg.style.display = 'block';
-                            } else {
-                                cb.disabled = false;
-                                if (limiteMsg) limiteMsg.style.display = 'none';
-                            }
-                        });
-                    } else if (action === 'toggle_late_checkout') {
-                        const currentCount = data.late_checkout_count;
-                        const maxAmount = data.late_checkout_amount;
-                        
-                        // Update all late checkout checkboxes
-                        document.querySelectorAll('[data-action="toggle_late_checkout"]').forEach(cb => {
-                            const cbMiembroId = cb.dataset.miembroId;
-                            const limiteMsg = document.querySelector('.limite-message-lc-' + cbMiembroId);
-                            
-                            if (!cb.checked && currentCount >= maxAmount) {
-                                cb.disabled = true;
-                                if (limiteMsg) limiteMsg.style.display = 'block';
-                            } else {
-                                cb.disabled = false;
-                                if (limiteMsg) limiteMsg.style.display = 'none';
-                            }
-                        });
-                    }
-                    
-                    // Show success message briefly
-                    showToast(data.message, 'success');
-                } else {
-                    // Revert checkbox state
-                    this.checked = !originalValue;
-                    showToast(data.error || 'Error al actualizar', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                this.checked = !originalValue;
-                showToast('Error al actualizar', 'error');
-            })
-            .finally(() => {
-                this.disabled = false;
-            });
-        });
-    });
-    
-    // Handle restriction select changes
-    const restriccionSelects = document.querySelectorAll('.restriccion-select');
-    restriccionSelects.forEach(function(select) {
-        select.addEventListener('change', function() {
-            const miembroId = this.dataset.miembroId;
-            const restriccion = this.value;
-            const originalValue = this.dataset.originalValue || this.value;
-            
-            // Disable select while processing
-            this.disabled = true;
-            
-            fetch('{% url "grupo_toggle_ajax" event.slug grupo.id %}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': csrfToken
-                },
-                body: new URLSearchParams({
-                    'action': 'update_restriccion',
-                    'miembro_id': miembroId,
-                    'restriccion': restriccion
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Update original value
-                    this.dataset.originalValue = restriccion;
-                    showToast(data.message, 'success');
-                } else {
-                    // Revert to original value
-                    this.value = originalValue;
-                    showToast(data.error || 'Error al actualizar restricción', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                this.value = originalValue;
-                showToast('Error al actualizar restricción', 'error');
-            })
-            .finally(() => {
-                this.disabled = false;
-            });
-        });
-        
-        // Store original value on load
-        select.dataset.originalValue = select.value;
-    });
-    
-    function showToast(message, type) {
-        // Create toast element
-        const toast = document.createElement('div');
-        toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
-        toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-        toast.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        `;
-        
-        document.body.appendChild(toast);
-        
-        // Auto remove after 3 seconds
-        setTimeout(() => {
-            if (toast.parentNode) {
-                toast.remove();
-            }
-        }, 3000);
-    }
-});
-</script>
 {% endblock truecontent %}
-

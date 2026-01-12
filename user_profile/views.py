@@ -2804,7 +2804,7 @@ def mis_grupos_view(request, event_slug=None):
 
 @login_required
 def grupo_manage_view(request, event_slug, grupo_id):
-    """Vista para que el líder gestione su grupo (agregar/quitar miembros, marcar ingreso anticipado)"""
+    """Vista para que el responsable gestione su grupo (agregar/quitar miembros, marcar ingreso anticipado)"""
     # Get the specific event from slug
     current_event = Event.get_by_slug(event_slug)
     if not current_event:
@@ -2825,33 +2825,46 @@ def grupo_manage_view(request, event_slug, grupo_id):
         action = request.POST.get('action')
         
         if action == 'add_member':
-            email = request.POST.get('email', '').strip().lower()
-            if email:
+            identifier = request.POST.get('identifier', '').strip()
+            if identifier:
                 try:
                     from allauth.account.models import EmailAddress
+                    from user_profile.models import Profile
                     
-                    # First try to find user by User.email
-                    user = User.objects.filter(email__iexact=email).first()
+                    user = None
+                    identifier_lower = identifier.lower()
+                    
+                    # First try to find user by email (User.email)
+                    user = User.objects.filter(email__iexact=identifier_lower).first()
                     
                     # If not found, try to find user by EmailAddress (check all emails)
                     if not user:
-                        email_address = EmailAddress.objects.filter(email__iexact=email).first()
+                        email_address = EmailAddress.objects.filter(email__iexact=identifier_lower).first()
                         if email_address:
                             user = email_address.user
                     
+                    # If still not found, try to find by document number
                     if not user:
-                        messages.error(request, f'No se encontró un usuario con el email {email}')
+                        try:
+                            profile = Profile.objects.filter(document_number=identifier).first()
+                            if profile:
+                                user = profile.user
+                        except Exception:
+                            pass
+                    
+                    if not user:
+                        messages.error(request, f'No se encontró un usuario con el email o número de documento: {identifier}')
                     else:
                         # Check if user is already a member
                         if GrupoMiembro.objects.filter(grupo=grupo, user=user).exists():
-                            messages.error(request, f'El usuario {email} ya es miembro del grupo')
+                            messages.error(request, f'El usuario {user.email} ya es miembro del grupo')
                         else:
                             # Try to create the member - validation is done at model level
                             try:
                                 miembro = GrupoMiembro(grupo=grupo, user=user)
                                 miembro.full_clean()  # This will trigger the validation
                                 miembro.save()
-                                messages.success(request, f'Usuario {email} agregado al grupo')
+                                messages.success(request, f'Usuario {user.email} agregado al grupo')
                             except ValidationError as e:
                                 # Get the error message from validation
                                 error_message = '; '.join(e.messages) if hasattr(e, 'messages') else str(e)
@@ -2861,7 +2874,7 @@ def grupo_manage_view(request, event_slug, grupo_id):
                 except Exception as e:
                     messages.error(request, f'Error al agregar miembro: {str(e)}')
             else:
-                messages.error(request, 'Debes proporcionar un email')
+                messages.error(request, 'Debes proporcionar un email o número de documento')
             return redirect('grupo_manage', event_slug=event_slug, grupo_id=grupo_id)
         
         elif action == 'remove_member':
@@ -2871,7 +2884,7 @@ def grupo_manage_view(request, event_slug, grupo_id):
                     miembro = GrupoMiembro.objects.get(id=miembro_id, grupo=grupo)
                     # Don't allow removing the leader
                     if miembro.user == grupo.lider:
-                        messages.error(request, 'No puedes remover al líder del grupo')
+                        messages.error(request, 'No puedes remover al responsable del grupo')
                     else:
                         miembro.delete()
                         messages.success(request, f'Miembro removido del grupo')
@@ -3040,6 +3053,79 @@ def grupo_toggle_ajax(request, event_slug, grupo_id):
             'late_checkout_amount': grupo.late_checkout_amount,
             'message': f'Late checkout {"habilitado" if new_value else "deshabilitado"} para {miembro.user.email}'
         })
+    
+    elif action == 'update_ingreso_fecha':
+        from django.utils.dateparse import parse_date
+        from django.core.exceptions import ValidationError
+        
+        fecha_str = request.POST.get('fecha', '').strip()
+        
+        # Validate date range
+        fecha_desde = grupo.ingreso_anticipado_desde.date() if grupo.ingreso_anticipado_desde else None
+        fecha_evento = current_event.start.date() if current_event.start else None
+        
+        if fecha_str:
+            try:
+                fecha = parse_date(fecha_str)
+                if not fecha:
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Fecha inválida'
+                    }, status=400)
+                
+                # Validate date is within range
+                if fecha_desde and fecha < fecha_desde:
+                    return JsonResponse({
+                        'success': False,
+                        'error': f'La fecha debe ser posterior o igual a {fecha_desde.strftime("%d/%m/%Y")}'
+                    }, status=400)
+                
+                if fecha_evento and fecha > fecha_evento:
+                    return JsonResponse({
+                        'success': False,
+                        'error': f'La fecha debe ser anterior o igual a {fecha_evento.strftime("%d/%m/%Y")}'
+                    }, status=400)
+                
+                # Check if we can add more ingreso anticipado (if this member doesn't already have it)
+                if not miembro.ingreso_anticipado_fecha:
+                    current_count = grupo.ingreso_anticipado_count()
+                    if current_count >= grupo.ingreso_anticipado_amount:
+                        return JsonResponse({
+                            'success': False,
+                            'error': f'Ya se alcanzó el límite de {grupo.ingreso_anticipado_amount} personas con ingreso anticipado'
+                        })
+                
+                miembro.ingreso_anticipado_fecha = fecha
+                miembro.ingreso_anticipado = True
+                miembro.save()
+                
+                return JsonResponse({
+                    'success': True,
+                    'fecha': fecha_str,
+                    'ingreso_anticipado': True,
+                    'ingreso_anticipado_count': grupo.ingreso_anticipado_count(),
+                    'ingreso_anticipado_amount': grupo.ingreso_anticipado_amount,
+                    'message': f'Fecha de ingreso anticipado actualizada a {fecha.strftime("%d/%m/%Y")} para {miembro.user.email}'
+                })
+            except (ValueError, ValidationError) as e:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Error al procesar la fecha: {str(e)}'
+                }, status=400)
+        else:
+            # Clearing the date
+            miembro.ingreso_anticipado_fecha = None
+            miembro.ingreso_anticipado = False
+            miembro.save()
+            
+            return JsonResponse({
+                'success': True,
+                'fecha': '',
+                'ingreso_anticipado': False,
+                'ingreso_anticipado_count': grupo.ingreso_anticipado_count(),
+                'ingreso_anticipado_amount': grupo.ingreso_anticipado_amount,
+                'message': f'Ingreso anticipado removido para {miembro.user.email}'
+            })
     
     elif action == 'update_restriccion':
         restriccion = request.POST.get('restriccion')
