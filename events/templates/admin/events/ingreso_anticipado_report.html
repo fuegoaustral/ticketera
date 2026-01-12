@@ -36,6 +36,8 @@
                         <th>Apellido</th>
                         <th>Tipo Documento</th>
                         <th>Número Documento</th>
+                        <th>Email</th>
+                        <th>Teléfono</th>
                         <th>Fecha Desde</th>
                     </tr>
                 </thead>
@@ -47,9 +49,11 @@
                             <td>{{ row.2|default:"-" }}</td>
                             <td>{{ row.3|default:"-" }}</td>
                             <td>{{ row.4|default:"-" }}</td>
+                            <td>{{ row.5|default:"-" }}</td>
+                            <td>{{ row.6|default:"-" }}</td>
                             <td>
-                                {% if row.5 %}
-                                    {{ row.5|date:"d/m/Y H:i" }}
+                                {% if row.7 %}
+                                    {{ row.7|date:"d/m/Y H:i" }}
                                 {% else %}
                                     -
                                 {% endif %}
