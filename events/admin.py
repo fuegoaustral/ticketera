@@ -501,6 +501,8 @@ class EventAdmin(admin.ModelAdmin):
                         au.last_name as apellido,
                         upp.document_type as documento_tipo,
                         upp.document_number as documento_numero,
+                        au.email as email,
+                        upp.phone as telefono,
                         g.ingreso_anticipado_desde as fecha_desde
                     FROM events_grupo g
                     INNER JOIN events_grupomiembro gm ON g.id = gm.grupo_id
@@ -542,6 +544,8 @@ class EventAdmin(admin.ModelAdmin):
                     au.last_name as apellido,
                     upp.document_type as documento_tipo,
                     upp.document_number as documento_numero,
+                    au.email as email,
+                    upp.phone as telefono,
                     g.ingreso_anticipado_desde as fecha_desde
                 FROM events_grupo g
                 INNER JOIN events_grupomiembro gm ON g.id = gm.grupo_id
@@ -560,15 +564,15 @@ class EventAdmin(admin.ModelAdmin):
             
             writer = csv.writer(response)
             # Escribir encabezados en español
-            writer.writerow(['Grupo', 'Nombre', 'Apellido', 'Tipo Documento', 'Número Documento', 'Fecha Desde'])
+            writer.writerow(['Grupo', 'Nombre', 'Apellido', 'Tipo Documento', 'Número Documento', 'Email', 'Teléfono', 'Fecha Desde'])
             
             for row in cursor.fetchall():
                 # Formatear la fecha si existe
                 formatted_row = list(row)
-                if formatted_row[5]:  # fecha_desde
-                    formatted_row[5] = formatted_row[5].strftime('%d/%m/%Y %H:%M')
+                if formatted_row[7]:  # fecha_desde (ahora es el índice 7)
+                    formatted_row[7] = formatted_row[7].strftime('%d/%m/%Y %H:%M')
                 else:
-                    formatted_row[5] = ''
+                    formatted_row[7] = ''
                 writer.writerow(formatted_row)
             
             return response
@@ -628,6 +632,8 @@ class EventAdmin(admin.ModelAdmin):
                     au.last_name as apellido,
                     upp.document_type as documento_tipo,
                     upp.document_number as documento_numero,
+                    au.email as email,
+                    upp.phone as telefono,
                     g.ingreso_anticipado_desde as fecha_desde
                 FROM events_grupo g
                 INNER JOIN events_grupomiembro gm ON g.id = gm.grupo_id
@@ -645,18 +651,20 @@ class EventAdmin(admin.ModelAdmin):
             elements.append(no_data)
         else:
             # Preparar datos para la tabla
-            data = [['Grupo', 'Nombre', 'Apellido', 'Tipo Doc.', 'Número Doc.', 'Fecha Desde']]
+            data = [['Grupo', 'Nombre', 'Apellido', 'Tipo Doc.', 'Número Doc.', 'Email', 'Teléfono', 'Fecha Desde']]
             
             for row in results:
                 fecha_str = ''
-                if row[5]:  # fecha_desde
-                    fecha_str = row[5].strftime('%d/%m/%Y %H:%M')
+                if row[7]:  # fecha_desde (ahora es el índice 7)
+                    fecha_str = row[7].strftime('%d/%m/%Y %H:%M')
                 data.append([
                     row[0] or '',  # grupo
                     row[1] or '',  # nombre
                     row[2] or '',  # apellido
                     row[3] or '',  # documento_tipo
                     row[4] or '',  # documento_numero
+                    row[5] or '',  # email
+                    row[6] or '',  # telefono
                     fecha_str
                 ])
             

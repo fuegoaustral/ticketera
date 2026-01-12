@@ -258,7 +258,7 @@ class GrupoTipo(BaseModel):
 class Grupo(BaseModel):
     """Grupos de usuarios asociados a un evento"""
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='grupos', help_text="Evento al que pertenece el grupo")
-    lider = models.ForeignKey(User, on_delete=models.CASCADE, related_name='grupos_liderados', help_text="Usuario líder del grupo")
+    lider = models.ForeignKey(User, on_delete=models.CASCADE, related_name='grupos_liderados', verbose_name="Responsable", help_text="Usuario responsable del grupo")
     nombre = models.CharField(max_length=255, help_text="Nombre del grupo")
     tipo = models.ForeignKey(GrupoTipo, on_delete=models.RESTRICT, related_name='grupos', help_text="Tipo de grupo")
     ingreso_anticipado_amount = models.PositiveIntegerField(default=0, help_text="Cantidad máxima de personas que pueden tener ingreso anticipado")
@@ -307,6 +307,7 @@ class GrupoMiembro(BaseModel):
     grupo = models.ForeignKey(Grupo, on_delete=models.CASCADE, related_name='miembros', help_text="Grupo al que pertenece el miembro")
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='grupos_miembro', help_text="Usuario miembro del grupo")
     ingreso_anticipado = models.BooleanField(default=False, help_text="Indica si el miembro tiene ingreso anticipado")
+    ingreso_anticipado_fecha = models.DateField(null=True, blank=True, help_text="Fecha de ingreso anticipado (entre desde y fecha de inicio del evento)")
     late_checkout = models.BooleanField(default=False, help_text="Indica si el miembro tiene late checkout")
     restriccion = models.CharField(
         max_length=20,
@@ -325,7 +326,7 @@ class GrupoMiembro(BaseModel):
         """Valida que el usuario tenga un bono para el evento del grupo"""
         from tickets.models import NewTicket
         
-        # No validar si es el líder (se agrega automáticamente)
+        # No validar si es el responsable (se agrega automáticamente)
         if self.grupo and self.grupo.lider == self.user:
             return
         
@@ -354,7 +355,7 @@ class GrupoMiembro(BaseModel):
 
 @receiver(post_save, sender=Grupo)
 def create_grupo_lider_miembro(sender, instance, created, **kwargs):
-    """Agrega automáticamente al líder como miembro del grupo cuando se crea"""
+    """Agrega automáticamente al responsable como miembro del grupo cuando se crea"""
     if created:
         GrupoMiembro.objects.get_or_create(
             grupo=instance,
