@@ -219,7 +219,7 @@
             </div>
         {% endif %}
 
-        {% if unshared_tickets_count > 0 and attendee_must_be_registered %}
+        {% if unshared_tickets_count > 0 and attendee_must_be_registered and event.transfers_enabled_until >= now %}
             <div class="alert alert-warning text-start">
                 <div class="d-flex align-items-center gap-2">
                     <i class="fas fa-exclamation-triangle"></i>
@@ -470,7 +470,7 @@
                                                         <i class="fas fa-link" style="color: #198754 !important;"></i> Vincular
                                                     </a>
                                                 {% endif %}
-                                                {% if event.transfers_enabled_until >= now and not ticket.is_used %}
+                                                {% if attendee_must_be_registered and event.transfers_enabled_until >= now and not ticket.is_used %}
                                                     <button class="btn btn-sm btn-semi-white" data-bs-toggle="modal" data-bs-target="#transferModal" onclick="setTransferTicketId('{{ ticket.key }}')">
                                                         <i class="fas fa-share-alt"></i> Transferir
                                                     </button>
@@ -555,7 +555,7 @@
                                         {% if ticket.is_transfer_pending %}
                                             <div class="d-flex align-items-center gap-2">
                                                 <span class="notice badge bg-warning lh-sm" style="color: black !important;">Invitación pendiente a<br><strong>{{ ticket.transferring_to }}</strong></span>
-                                                {% if event.transfers_enabled_until >= now and not ticket.is_used %}
+                                                {% if attendee_must_be_registered and event.transfers_enabled_until >= now and not ticket.is_used %}
                                                     <button class="btn btn-sm btn-danger text-decoration-none" onclick="cancelTicketTransfer('{{ ticket.key }}')">
                                                         Cancelar invitación
                                                     </button>
@@ -572,9 +572,8 @@
                         </div>
                     {% endif %}
                 </div>
-            </div>
-            {% if ticket.tag == 'Mine' and attendee_must_be_registered %}
-                <div class="alert alert-info text-start mt-2 mb-0" style="font-size: 0.875rem;">
+                {% if ticket.tag == 'Mine' and attendee_must_be_registered and event.transfers_enabled_until >= now %}
+                <div class="alert alert-info text-start mt-2 mb-0" style="font-size: 0.875rem; border-radius: 0 0 0.375rem 0.375rem;">
                     <div class="d-flex align-items-center gap-2">
                         <i class="fas fa-info-circle"></i>
                         <div>
@@ -583,6 +582,8 @@
                     </div>
                 </div>
             {% endif %}
+            </div>
+           
         {% endfor %}
     {% endif %}
 
