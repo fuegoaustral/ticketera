@@ -242,6 +242,17 @@
                 </div>
             </div>
         {% endif %}
+
+        {% if attendee_must_be_registered and event.transfers_enabled_until >= now and not has_owner_tickets and has_holder_tickets %}
+            <div class="alert alert-warning text-start">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <div>
+                        No tenés bonos vinculados a tu cuenta. Si vas a asistir al evento, es necesario que tengas al menos un bono vinculado a tu usuario para poder ingresar.
+                    </div>
+                </div>
+            </div>
+        {% endif %}
             
         {% for ticket in tickets_dto %}
             <div class="card my-4 border" data-ticket-key="{{ ticket.key }}" style="position: relative;">
@@ -562,6 +573,16 @@
                     {% endif %}
                 </div>
             </div>
+            {% if ticket.tag == 'Mine' and attendee_must_be_registered %}
+                <div class="alert alert-info text-start mt-2 mb-0" style="font-size: 0.875rem;">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-info-circle"></i>
+                        <div>
+                            Este bono está vinculado a tu cuenta. Si no vas a ir, para transferirlo, tenés que desvincularlo primero.
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
         {% endfor %}
     {% endif %}
 
@@ -894,7 +915,9 @@ console.error('Error checking for updates:', error);
                 currentState.volunteer_ranger !== ticket.volunteer_ranger ||
                 currentState.volunteer_transmutator !== ticket.volunteer_transmutator ||
                 currentState.volunteer_umpalumpa !== ticket.volunteer_umpalumpa ||
-                currentState.volunteer_mad !== ticket.volunteer_mad;
+                currentState.volunteer_mad !== ticket.volunteer_mad ||
+                currentState.is_transfer_completed !== ticket.is_transfer_completed ||
+                currentState.is_transfer_pending !== ticket.is_transfer_pending;
             
             if (!hasChanges) {
                 return;
@@ -910,6 +933,8 @@ console.error('Error checking for updates:', error);
             currentTicketStates[ticket.key].volunteer_transmutator = ticket.volunteer_transmutator;
             currentTicketStates[ticket.key].volunteer_umpalumpa = ticket.volunteer_umpalumpa;
             currentTicketStates[ticket.key].volunteer_mad = ticket.volunteer_mad;
+            currentTicketStates[ticket.key].is_transfer_completed = ticket.is_transfer_completed;
+            currentTicketStates[ticket.key].is_transfer_pending = ticket.is_transfer_pending;
             
             // Update used status
             const header = ticketElement.querySelector('.card-header');
@@ -950,7 +975,7 @@ console.error('Error checking for updates:', error);
                 const validBadgeExists = existingValidBadge && existingValidBadge.textContent.trim() === 'Válido';
                 
                 if (isUnassigned) {
-                    // Unassigned ticket - remove volunteer badges if they exist, show "Sin vincular"
+                    // Unassigned ticket - remove volunteer badges if they exist, show "Sin vincular" only if not transferred
                     // Remove "Válido" badge if it exists
                     if (existingValidBadge && validBadgeExists) {
                         existingValidBadge.remove();
@@ -960,18 +985,26 @@ console.error('Error checking for updates:', error);
                         volunteerBadgesContainer.remove();
                     }
                     
-                    if (badge && badge.textContent.trim() !== 'Sin vincular') {
-                        badge.textContent = 'Sin vincular';
-                        badge.className = 'badge bg-secondary';
-                        badge.style.cssText = 'color: white !important;';
-                    } else if (!badge) {
-                        // Create badge if it doesn't exist
-                        const newBadge = document.createElement('span');
-                        newBadge.className = 'badge bg-secondary';
-                        newBadge.style.cssText = 'color: white !important;';
-                        newBadge.textContent = 'Sin vincular';
-                        // Insert at the end of header (right side)
-                        header.appendChild(newBadge);
+                    // Don't show "Sin vincular" if ticket is transferred
+                    if (!ticket.is_transfer_completed && !ticket.is_transfer_pending) {
+                        if (badge && badge.textContent.trim() !== 'Sin vincular') {
+                            badge.textContent = 'Sin vincular';
+                            badge.className = 'badge bg-secondary';
+                            badge.style.cssText = 'color: white !important;';
+                        } else if (!badge) {
+                            // Create badge if it doesn't exist
+                            const newBadge = document.createElement('span');
+                            newBadge.className = 'badge bg-secondary';
+                            newBadge.style.cssText = 'color: white !important;';
+                            newBadge.textContent = 'Sin vincular';
+                            // Insert at the end of header (right side)
+                            header.appendChild(newBadge);
+                        }
+                    } else {
+                        // If transferred, remove "Sin vincular" badge if it exists
+                        if (badge && badge.textContent.trim() === 'Sin vincular') {
+                            badge.remove();
+                        }
                     }
                 } else {
                     // Valid assigned ticket - show "Válido" badge
@@ -1093,15 +1126,18 @@ console.error('Error checking for updates:', error);
                 }
             }
             
-            // Store current state for next comparison
-            currentTicketStates[ticket.key] = {
-                is_used: ticket.is_used,
-                owner: ticket.owner,
-                volunteer_ranger: ticket.volunteer_ranger,
-                volunteer_transmutator: ticket.volunteer_transmutator,
-                volunteer_umpalumpa: ticket.volunteer_umpalumpa,
-                volunteer_mad: ticket.volunteer_mad
-            };
+            // Store current state for next comparison (already updated above, but keep for consistency)
+            if (!currentTicketStates[ticket.key]) {
+                currentTicketStates[ticket.key] = {};
+            }
+            currentTicketStates[ticket.key].is_used = ticket.is_used;
+            currentTicketStates[ticket.key].owner = ticket.owner;
+            currentTicketStates[ticket.key].volunteer_ranger = ticket.volunteer_ranger;
+            currentTicketStates[ticket.key].volunteer_transmutator = ticket.volunteer_transmutator;
+            currentTicketStates[ticket.key].volunteer_umpalumpa = ticket.volunteer_umpalumpa;
+            currentTicketStates[ticket.key].volunteer_mad = ticket.volunteer_mad;
+            currentTicketStates[ticket.key].is_transfer_completed = ticket.is_transfer_completed;
+            currentTicketStates[ticket.key].is_transfer_pending = ticket.is_transfer_pending;
             
             // Trigger animation ONLY if:
             // - ticket is now used AND
