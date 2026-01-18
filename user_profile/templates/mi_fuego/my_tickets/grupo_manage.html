@@ -53,7 +53,57 @@
         max-width: 180px;
     }
     
+    .restriccion-select {
+        min-width: 140px;
+        display: inline-block;
+    }
+    
     @media (max-width: 991.98px) {
+        .container-fluid.innercontent {
+            padding-left: 0;
+            padding-right: 0;
+        }
+        
+        .container-fluid.innercontent .container {
+            max-width: 100%;
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+        }
+        
+        .container-fluid.innercontent .row {
+            margin-left: 0;
+            margin-right: 0;
+        }
+        
+        .container-fluid.innercontent .col-lg-9 {
+            padding-left: 0;
+            padding-right: 0;
+            width: 100%;
+            max-width: 100%;
+        }
+        
+        .wrapper.grupo-manage {
+            width: 100%;
+            max-width: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: transparent;
+        }
+        
+        .wrapper.grupo-manage .card {
+            width: 100%;
+            max-width: 100%;
+            margin: 0;
+            border-radius: 0;
+            background-color: #fff;
+            border: none;
+        }
+        
+        .wrapper.grupo-manage .card-body {
+            padding: 1rem;
+            background-color: #fff;
+        }
+        
         .table-responsive {
             overflow-x: visible;
         }
@@ -73,30 +123,152 @@
         .table tr {
             display: block;
             margin-bottom: 1rem;
-            border: 1px solid #dee2e6;
-            border-radius: 0.375rem;
-            padding: 0.75rem;
-            background-color: #fff;
+            border: 1px solid #dee2e6 !important;
+            border-radius: 0.5rem;
+            padding: 1.25rem;
+            background-color: #fff !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+            transition: box-shadow 0.2s ease;
+        }
+        
+        .table tr.miembro-row {
+            background-color: #fff !important;
+            border: 1px solid #e0e0e0 !important;
+        }
+        
+        .table tr:hover {
+            background-color: #fff !important;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.08);
+        }
+        
+        .table.table-hover tbody tr:hover {
+            background-color: #fff !important;
         }
         
         .table td {
             display: block;
-            padding: 0.5rem 0;
+            padding: 0.75rem 0;
             border: none;
             text-align: left !important;
+            white-space: normal;
+            width: 100%;
+            background-color: transparent !important;
+        }
+        
+        .table td:not(:last-child) {
+            border-bottom: 1px solid #e9ecef;
+            padding-bottom: 0.75rem;
+            margin-bottom: 0.75rem;
         }
         
         .table td:before {
             content: attr(data-label);
             font-weight: 600;
             display: block;
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.5rem;
             color: #495057;
+            font-size: 0.875rem;
         }
         
         .ingreso-fecha-input {
             width: 100%;
             max-width: 100%;
+            min-width: 100%;
+        }
+        
+        .restriccion-select {
+            width: 100% !important;
+            min-width: 100% !important;
+            max-width: 100% !important;
+        }
+        
+        .form-check {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+        }
+        
+        .miembro-info {
+            gap: 0.5rem;
+        }
+        
+        .miembro-name {
+            font-size: 1rem;
+        }
+        
+        .miembro-email {
+            font-size: 0.8rem;
+            word-break: break-word;
+        }
+        
+        .table td.text-center {
+            text-align: left !important;
+        }
+        
+        .table td.text-center:before {
+            text-align: left;
+        }
+        
+        .table td .btn {
+            width: 100%;
+            margin-top: 0.5rem;
+        }
+        
+        .table td form {
+            width: 100%;
+        }
+        
+        .table td .form-check {
+            margin-top: 0.25rem;
+        }
+        
+        [class*="limite-message-"] {
+            margin-top: 0.5rem;
+        }
+        
+        .table td .text-muted {
+            text-align: center;
+            padding: 0.5rem 0;
+        }
+        
+        .card-body.p-0 {
+            padding: 0 !important;
+            background-color: #f8f9fa !important;
+        }
+        
+        .miembros-table-wrapper {
+            padding: 0.75rem;
+            background-color: #f8f9fa;
+        }
+        
+        .card .card-body:not(.p-0) {
+            padding: 1rem;
+        }
+        
+        .table tr {
+            background-color: #fff !important;
+        }
+        
+        .table tbody {
+            background-color: transparent !important;
+        }
+        
+        .card {
+            background-color: #fff;
+            border: 1px solid #dee2e6;
+        }
+        
+        .card-body {
+            background-color: #fff;
+        }
+        
+        .card .card-body.p-0 {
+            background-color: #f8f9fa !important;
+        }
+        
+        .card-header {
+            background-color: #fff;
+            border-bottom: 1px solid #dee2e6;
         }
     }
     
@@ -482,7 +654,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     <select 
                                                         class="form-select form-select-sm restriccion-select" 
                                                         data-miembro-id="{{ miembro.id }}"
-                                                        style="min-width: 140px; display: inline-block;"
                                                     >
                                                         <option value="sin_restricciones" {% if miembro.restriccion == 'sin_restricciones' %}selected{% endif %}>Sin Restricciones</option>
                                                         <option value="vegetarian" {% if miembro.restriccion == 'vegetarian' %}selected{% endif %}>Vegetarian</option>
