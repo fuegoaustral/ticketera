@@ -277,11 +277,17 @@ def my_ticket_view(request, event_slug=None):
             
             # Count unshared tickets (Guest tickets that are not transferred and not pending)
             unshared_tickets_count = 0
+            has_owner_tickets = False
+            has_holder_tickets = False
             for ticket_dto in tickets_dto:
                 if (ticket_dto['tag'] == 'Guest' and 
                     not ticket_dto.get('is_transfer_pending', False) and 
                     not ticket_dto.get('is_transfer_completed', False)):
                     unshared_tickets_count += 1
+                if ticket_dto['tag'] == 'Mine':
+                    has_owner_tickets = True
+                elif ticket_dto['tag'] == 'Guest':
+                    has_holder_tickets = True
             
             # Get events where user has tickets, prioritizing main event
             user_events = Event.get_active_events().filter(
@@ -321,6 +327,8 @@ def my_ticket_view(request, event_slug=None):
                     'all_unassigned': all_unassigned and not current_event.attendee_must_be_registered,
                     'unshared_tickets_count': unshared_tickets_count,
                     'event_terms': event_terms,  # Terms and conditions for the event
+                    'has_owner_tickets': has_owner_tickets,
+                    'has_holder_tickets': has_holder_tickets,
                 },
             )
         except Event.DoesNotExist:
