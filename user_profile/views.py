@@ -3159,4 +3159,32 @@ def grupo_toggle_ajax(request, event_slug, grupo_id):
             'message': f'Restricción actualizada a "{restriccion_display}" para {miembro.user.email}'
         })
     
+    elif action == 'clear_responsable_ingresos':
+        # Only allow clearing for the leader
+        if miembro.user != grupo.lider:
+            return JsonResponse({
+                'success': False,
+                'error': 'Esta acción solo está permitida para el responsable del grupo'
+            }, status=403)
+        
+        # Clear all early entry fields
+        miembro.ingreso_anticipado_fecha = None
+        miembro.ingreso_anticipado = False
+        miembro.late_checkout = False
+        miembro.restriccion = 'sin_restricciones'
+        miembro.save()
+        
+        return JsonResponse({
+            'success': True,
+            'ingreso_anticipado': False,
+            'ingreso_anticipado_fecha': '',
+            'late_checkout': False,
+            'restriccion': 'sin_restricciones',
+            'ingreso_anticipado_count': grupo.ingreso_anticipado_count(),
+            'ingreso_anticipado_amount': grupo.ingreso_anticipado_amount,
+            'late_checkout_count': grupo.late_checkout_count(),
+            'late_checkout_amount': grupo.late_checkout_amount,
+            'message': 'Ingresos tempranos y restricciones limpiados para el responsable'
+        })
+    
     return JsonResponse({'success': False, 'error': 'Invalid action'}, status=400)
