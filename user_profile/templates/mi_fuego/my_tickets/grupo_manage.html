@@ -470,6 +470,107 @@ document.addEventListener('DOMContentLoaded', function() {
         select.dataset.originalValue = select.value;
     });
     
+    // Handle clear responsable ingresos button
+    const clearResponsableBtns = document.querySelectorAll('.clear-responsable-btn');
+    clearResponsableBtns.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            if (!confirm('¿Estás seguro de que deseas limpiar los ingresos tempranos y restricciones del responsable? El responsable seguirá en la lista pero sin ocupar los spots.')) {
+                return;
+            }
+            
+            const miembroId = this.dataset.miembroId;
+            
+            // Disable button while processing
+            this.disabled = true;
+            const originalHTML = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            
+            fetch('{% url "grupo_toggle_ajax" event.slug grupo.id %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken
+                },
+                body: new URLSearchParams({
+                    'action': 'clear_responsable_ingresos',
+                    'miembro_id': miembroId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update ingreso anticipado input
+                    const ingresoInput = document.querySelector('.ingreso-fecha-input[data-miembro-id="' + miembroId + '"]');
+                    if (ingresoInput) {
+                        ingresoInput.value = '';
+                        ingresoInput.dataset.originalValue = '';
+                        ingresoInput.disabled = false;
+                    }
+                    
+                    // Update late checkout checkbox
+                    const lateCheckoutCheckbox = document.querySelector('[data-action="toggle_late_checkout"][data-miembro-id="' + miembroId + '"]');
+                    if (lateCheckoutCheckbox) {
+                        lateCheckoutCheckbox.checked = false;
+                        lateCheckoutCheckbox.disabled = false;
+                    }
+                    
+                    // Update restriccion select
+                    const restriccionSelect = document.querySelector('.restriccion-select[data-miembro-id="' + miembroId + '"]');
+                    if (restriccionSelect) {
+                        restriccionSelect.value = 'sin_restricciones';
+                        restriccionSelect.dataset.originalValue = 'sin_restricciones';
+                    }
+                    
+                    // Update limit messages for all members
+                    const currentIACount = data.ingreso_anticipado_count;
+                    const maxIAAmount = data.ingreso_anticipado_amount;
+                    const currentLCCount = data.late_checkout_count;
+                    const maxLCAmount = data.late_checkout_amount;
+                    
+                    // Update all ingreso fecha inputs
+                    document.querySelectorAll('.ingreso-fecha-input').forEach(inp => {
+                        const inpMiembroId = inp.dataset.miembroId;
+                        const limiteMsg = document.querySelector('.limite-message-ia-' + inpMiembroId);
+                        
+                        if (!inp.value && currentIACount >= maxIAAmount) {
+                            inp.disabled = true;
+                            if (limiteMsg) limiteMsg.style.display = 'block';
+                        } else {
+                            inp.disabled = false;
+                            if (limiteMsg) limiteMsg.style.display = 'none';
+                        }
+                    });
+                    
+                    // Update all late checkout checkboxes
+                    document.querySelectorAll('[data-action="toggle_late_checkout"]').forEach(cb => {
+                        const cbMiembroId = cb.dataset.miembroId;
+                        const limiteMsg = document.querySelector('.limite-message-lc-' + cbMiembroId);
+                        
+                        if (!cb.checked && currentLCCount >= maxLCAmount) {
+                            cb.disabled = true;
+                            if (limiteMsg) limiteMsg.style.display = 'block';
+                        } else {
+                            cb.disabled = false;
+                            if (limiteMsg) limiteMsg.style.display = 'none';
+                        }
+                    });
+                    
+                    showToast(data.message, 'success');
+                } else {
+                    showToast(data.error || 'Error al limpiar ingresos', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error al limpiar ingresos', 'error');
+            })
+            .finally(() => {
+                this.disabled = false;
+                this.innerHTML = originalHTML;
+            });
+        });
+    });
+    
     function showToast(message, type) {
         // Create toast element
         const toast = document.createElement('div');
@@ -672,7 +773,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                                             </button>
                                                         </form>
                                                     {% else %}
-                                                        <span class="text-muted">-</span>
+                                                        <button 
+                                                            type="button" 
+                                                            class="btn btn-sm btn-warning clear-responsable-btn" 
+                                                            data-miembro-id="{{ miembro.id }}"
+                                                            title="Limpiar ingresos tempranos y restricciones del responsable"
+                                                        >
+                                                            <i class="fas fa-eraser"></i>
+                                                        </button>
                                                     {% endif %}
                                                 </td>
                                             </tr>
