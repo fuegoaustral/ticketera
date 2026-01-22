@@ -315,6 +315,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     const currentCount = data.late_checkout_count;
                     const maxAmount = data.late_checkout_amount;
                     
+                    // Update the count display in the info card
+                    const countElement = document.getElementById('late-checkout-count');
+                    if (countElement) {
+                        countElement.textContent = currentCount;
+                    }
+                    
                     // Update all late checkout checkboxes
                     document.querySelectorAll('[data-action="toggle_late_checkout"]').forEach(cb => {
                         const cbMiembroId = cb.dataset.miembroId;
@@ -385,6 +391,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Update limit messages and disable/enable inputs if needed
                     const currentCount = data.ingreso_anticipado_count;
                     const maxAmount = data.ingreso_anticipado_amount;
+                    
+                    // Update the count display in the info card
+                    const countElement = document.getElementById('ingreso-anticipado-count');
+                    if (countElement) {
+                        countElement.textContent = currentCount;
+                    }
                     
                     // Update all ingreso fecha inputs
                     document.querySelectorAll('.ingreso-fecha-input').forEach(inp => {
@@ -527,6 +539,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     const currentLCCount = data.late_checkout_count;
                     const maxLCAmount = data.late_checkout_amount;
                     
+                    // Update the count displays in the info card
+                    const iaCountElement = document.getElementById('ingreso-anticipado-count');
+                    if (iaCountElement) {
+                        iaCountElement.textContent = currentIACount;
+                    }
+                    const lcCountElement = document.getElementById('late-checkout-count');
+                    if (lcCountElement) {
+                        lcCountElement.textContent = currentLCCount;
+                    }
+                    
                     // Update all ingreso fecha inputs
                     document.querySelectorAll('.ingreso-fecha-input').forEach(inp => {
                         const inpMiembroId = inp.dataset.miembroId;
@@ -556,15 +578,31 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                     
                     showToast(data.message, 'success');
+                    
+                    // Check if this is the responsable by checking if the button is in a row with responsable badge
+                    const btnRow = this.closest('.miembro-row');
+                    if (btnRow) {
+                        const responsableBadge = btnRow.querySelector('.badge.bg-primary');
+                        if (responsableBadge) {
+                            // This is the responsable, reload the page to update the list
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1000);
+                            return; // Don't re-enable button, page will reload
+                        }
+                    }
+                    
+                    this.disabled = false;
+                    this.innerHTML = originalHTML;
                 } else {
                     showToast(data.error || 'Error al limpiar ingresos', 'error');
+                    this.disabled = false;
+                    this.innerHTML = originalHTML;
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
                 showToast('Error al limpiar ingresos', 'error');
-            })
-            .finally(() => {
                 this.disabled = false;
                 this.innerHTML = originalHTML;
             });
@@ -639,7 +677,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div class="col-md-6">
                                 <p class="mb-1">
                                     <strong>Ingreso Anticipado:</strong> 
-                                    {{ grupo.ingreso_anticipado_count }}/{{ grupo.ingreso_anticipado_amount }}
+                                    <span id="ingreso-anticipado-count">{{ grupo.ingreso_anticipado_count }}</span>/<span id="ingreso-anticipado-amount">{{ grupo.ingreso_anticipado_amount }}</span>
                                 </p>
                                 {% if grupo.ingreso_anticipado_desde %}
                                 <p class="mb-1">
@@ -649,7 +687,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 {% endif %}
                                 <p class="mb-1">
                                     <strong>Late Checkout:</strong> 
-                                    {{ grupo.late_checkout_count }}/{{ grupo.late_checkout_amount }}
+                                    <span id="late-checkout-count">{{ grupo.late_checkout_count }}</span>/<span id="late-checkout-amount">{{ grupo.late_checkout_amount }}</span>
                                 </p>
                                 {% if grupo.late_checkout_hasta %}
                                 <p class="mb-0">
@@ -685,6 +723,21 @@ document.addEventListener('DOMContentLoaded', function() {
                         <h5 class="mb-0">Miembros del Grupo</h5>
                     </div>
                     <div class="card-body p-0">
+                        {% if not responsable_tiene_ingreso %}
+                            <div class="alert alert-info m-3 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>No estás en la lista de ingresos tempranos</strong>
+                                    <p class="mb-0 mt-1 small">Como responsable, puedes agregarte a la lista de ingresos tempranos cuando lo necesites.</p>
+                                </div>
+                                <form method="POST" class="d-inline ms-3">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="add_responsable_ingreso">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-plus me-2"></i>Agregarme
+                                    </button>
+                                </form>
+                            </div>
+                        {% endif %}
                         {% if miembros %}
                             <div class="table-responsive miembros-table-wrapper">
                                 <table class="table table-hover table-sm mb-0">
@@ -775,11 +828,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     {% else %}
                                                         <button 
                                                             type="button" 
-                                                            class="btn btn-sm btn-warning clear-responsable-btn" 
+                                                            class="btn btn-sm btn-danger clear-responsable-btn" 
                                                             data-miembro-id="{{ miembro.id }}"
                                                             title="Limpiar ingresos tempranos y restricciones del responsable"
                                                         >
-                                                            <i class="fas fa-eraser"></i>
+                                                            <i class="fas fa-trash"></i>
                                                         </button>
                                                     {% endif %}
                                                 </td>
