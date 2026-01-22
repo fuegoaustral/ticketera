@@ -2828,6 +2828,26 @@ def grupo_manage_view(request, event_slug, grupo_id):
     # Get all members
     miembros = grupo.miembros.select_related('user').order_by('-ingreso_anticipado', '-late_checkout', 'user__email')
     
+    # Get responsable member if exists
+    responsable_miembro = None
+    try:
+        responsable_miembro = grupo.miembros.get(user=grupo.lider)
+    except GrupoMiembro.DoesNotExist:
+        pass
+    
+    # Check if responsable has ingreso anticipado
+    responsable_tiene_ingreso = False
+    if responsable_miembro:
+        responsable_tiene_ingreso = responsable_miembro.ingreso_anticipado or bool(responsable_miembro.ingreso_anticipado_fecha)
+    
+    # Filter out responsable from members list if they don't have ingreso anticipado
+    if responsable_tiene_ingreso:
+        # Keep all members including responsable
+        miembros_filtrados = miembros
+    else:
+        # Exclude responsable from list
+        miembros_filtrados = miembros.exclude(user=grupo.lider)
+    
     # Handle POST requests
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -2949,6 +2969,33 @@ def grupo_manage_view(request, event_slug, grupo_id):
                 except Exception as e:
                     messages.error(request, f'Error al actualizar late checkout: {str(e)}')
             return redirect('grupo_manage', event_slug=event_slug, grupo_id=grupo_id)
+        
+        elif action == 'add_responsable_ingreso':
+            # Add responsable to ingreso anticipado
+            try:
+                # Get or create responsable member
+                responsable_miembro, created = GrupoMiembro.objects.get_or_create(
+                    grupo=grupo,
+                    user=grupo.lider,
+                    defaults={
+                        'ingreso_anticipado': False,
+                        'late_checkout': False,
+                        'restriccion': 'sin_restricciones'
+                    }
+                )
+                
+                # Check if we can add more ingreso anticipado
+                current_count = grupo.ingreso_anticipado_count()
+                if current_count >= grupo.ingreso_anticipado_amount:
+                    messages.error(request, f'Ya se alcanzó el límite de {grupo.ingreso_anticipado_amount} personas con ingreso anticipado')
+                else:
+                    # Enable ingreso anticipado (without fecha, user can set it later)
+                    responsable_miembro.ingreso_anticipado = True
+                    responsable_miembro.save()
+                    messages.success(request, 'Te has agregado a la lista de ingresos tempranos')
+            except Exception as e:
+                messages.error(request, f'Error al agregarte: {str(e)}')
+            return redirect('grupo_manage', event_slug=event_slug, grupo_id=grupo_id)
     
     # Get events where user has tickets, prioritizing main event
     user_events = Event.get_active_events().filter(
@@ -2974,7 +3021,9 @@ def grupo_manage_view(request, event_slug, grupo_id):
         {
             "event": current_event,
             "grupo": grupo,
-            "miembros": miembros,
+            "miembros": miembros_filtrados,
+            "responsable_tiene_ingreso": responsable_tiene_ingreso,
+            "responsable_miembro": responsable_miembro,
             "active_events": user_events,
             "events_with_volunteer_info": events_with_volunteer_info,
             "nav_primary": "grupos",
