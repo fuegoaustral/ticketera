@@ -26,6 +26,7 @@ class Event(BaseModel):
     max_tickets_per_order = models.IntegerField(default=5)
     transfers_enabled_until = models.DateTimeField()
     volunteers_enabled_until = models.DateTimeField(blank=True, null=True)
+    send_transfer_notifications = models.BooleanField(default=False, help_text="If checked, transfer notification emails will be sent for this event")
     show_multiple_tickets = models.BooleanField(default=False,
                                                 help_text="If unchecked, only the chepeast ticket will be shown.")
 
