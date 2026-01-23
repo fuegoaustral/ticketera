@@ -1069,22 +1069,22 @@ def event_admin_view(request, event_slug):
                 tt.name as ticket_type_name,
                 tt.emoji as ticket_type_emoji,
                 tt.color as ticket_type_color,
-                -- Total quantity and amount (from orderticket table only)
-                COALESCE(SUM(tot.quantity), 0) as quantity_sold,
-                COALESCE(SUM(tot.quantity * COALESCE(tt.price, 0)), 0) as gross_amount,
-                COALESCE(SUM(tot.quantity * COALESCE(tt.price_with_coupon, tt.price, 0)), 0) as gross_amount_with_coupon,
+                -- Total quantity and amount (from newticket table)
+                COUNT(nt.id) as quantity_sold,
+                COALESCE(SUM(tt.price), 0) as gross_amount,
+                COALESCE(SUM(COALESCE(tt.price_with_coupon, tt.price, 0)), 0) as gross_amount_with_coupon,
                 -- Caja orders breakdown
-                COALESCE(SUM(CASE WHEN too.generated_by_admin_user_id IS NOT NULL THEN tot.quantity ELSE 0 END), 0) as caja_quantity_sold,
-                COALESCE(SUM(CASE WHEN too.generated_by_admin_user_id IS NOT NULL THEN (tot.quantity * COALESCE(tt.price, 0)) ELSE 0 END), 0) as caja_gross_amount,
+                COUNT(CASE WHEN too.generated_by_admin_user_id IS NOT NULL THEN nt.id END) as caja_quantity_sold,
+                COALESCE(SUM(CASE WHEN too.generated_by_admin_user_id IS NOT NULL THEN tt.price ELSE 0 END), 0) as caja_gross_amount,
                 -- Regular orders breakdown
-                COALESCE(SUM(CASE WHEN too.generated_by_admin_user_id IS NULL THEN tot.quantity ELSE 0 END), 0) as regular_quantity_sold,
-                COALESCE(SUM(CASE WHEN too.generated_by_admin_user_id IS NULL THEN (tot.quantity * COALESCE(tt.price, 0)) ELSE 0 END), 0) as regular_gross_amount
-            FROM tickets_tickettype tt
-            LEFT JOIN tickets_orderticket tot ON tt.id = tot.ticket_type_id
-            LEFT JOIN tickets_order too ON tot.order_id = too.id
-            WHERE tt.event_id = %s AND (too.status = 'CONFIRMED' OR too.status IS NULL)
+                COUNT(CASE WHEN too.generated_by_admin_user_id IS NULL THEN nt.id END) as regular_quantity_sold,
+                COALESCE(SUM(CASE WHEN too.generated_by_admin_user_id IS NULL THEN tt.price ELSE 0 END), 0) as regular_gross_amount
+            FROM tickets_newticket nt
+            INNER JOIN tickets_tickettype tt ON tt.id = nt.ticket_type_id
+            INNER JOIN tickets_order too ON nt.order_id = too.id
+            WHERE nt.event_id = %s AND too.status = 'CONFIRMED'
             GROUP BY tt.id, tt.name, tt.emoji, tt.color, tt.price, tt.price_with_coupon
-            ORDER BY tt.cardinality, tt.price
+            ORDER BY tt.id ASC
         """
         cursor.execute(ticket_type_query, [event.id])
         ticket_type_results = cursor.fetchall()
