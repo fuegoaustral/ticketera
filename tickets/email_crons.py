@@ -34,6 +34,11 @@ def send_pending_actions_emails(event, context):
     for current_event in active_events:
         logging.info(f"Processing event: {current_event.name} (ID: {current_event.id})")
         
+        # Check if transfer notifications are enabled for this event
+        if not current_event.send_transfer_notifications:
+            logging.info(f"Transfer notifications are disabled for event {current_event.name}. Skipping email notifications for this event.")
+            continue
+        
         # Check if transfers are still enabled
         if current_event.transfers_enabled_until and current_event.transfers_enabled_until < timezone.now():
             logging.info(f"Transfers are no longer enabled for event {current_event.name}. Skipping email notifications for this event.")
