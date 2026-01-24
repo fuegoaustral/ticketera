@@ -339,45 +339,60 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <small class="text-muted">Comisiones Totales:</small>
-                                <div class="fw-bold">${{ stats.total_commissions|floatformat:2 }}</div>
-                                <small class="text-muted">({{ stats.total_revenue|floatformat:2 }} - {{ stats.net_received_amount|floatformat:2 }})</small>
+                                <div class="fw-bold">${{ stats.mp_comisiones|floatformat:2 }}</div>
+                                <small class="text-muted">({{ stats.mp_total_bruto|floatformat:2 }} - {{ stats.mp_total_neto|floatformat:2 }})</small>
                             </div>
                             <div class="col-md-6">
                                 <small class="text-muted">Porcentaje aproximado de comisión:</small>
-                                <div class="fw-bold">~{{ stats.commission_percentage|floatformat:2 }}%</div>
+                                <div class="fw-bold">~{{ stats.mp_porcentaje|floatformat:2 }}%</div>
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Ventas por Caja -->
-                    {% if stats.caja_total_orders > 0 %}
+                    <!-- Ventas por medio de pago -->
+                    {% if payment_method_breakdown %}
                     <div class="my-4">
-                        <h6 class="mb-3"><i class="fas fa-cash-register me-2"></i>Ventas por Caja (Efectivo/Transferencia)</h6>
+                        <h6 class="mb-3"><i class="fas fa-credit-card me-2"></i>Ventas por medio de pago</h6>
                     </div>
                     <div class="summary-table">
                         <table class="table table-hover mb-0">
                             <thead>
                                 <tr>
                                     <th>Concepto</th>
-                                    <th class="text-end">Cantidad</th>
+                                    <th class="text-end">Órdenes</th>
+                                    <th class="text-end">Bonos</th>
                                     <th class="text-end">Monto Bruto</th>
                                     <th class="text-end">Monto Neto</th>
+                                    <th class="text-end">Don. Arte</th>
+                                    <th class="text-end">Don. Sede</th>
+                                    <th class="text-end">Don. Inclusión</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for payment_method in caja_payment_method_breakdown %}
+                                {% for payment_method in payment_method_breakdown %}
                                 <tr>
-                                    <td><i class="fas fa-{% if payment_method.order_type == 'CASH_ONSITE' %}money-bill{% elif payment_method.order_type == 'LOCAL_TRANSFER' %}exchange-alt{% elif payment_method.order_type == 'INTERNATIONAL_TRANSFER' %}globe{% else %}credit-card{% endif %} me-2"></i>{{ payment_method.order_type_display }}</td>
-                                    <td class="text-end">{{ payment_method.tickets_sold }} bonos</td>
-                                    <td class="text-end">${{ payment_method.total_amount|floatformat:2 }}</td>
-                                    <td class="text-end">${{ payment_method.net_amount|floatformat:2 }}</td>
+                                    <td>
+                                        <i class="fas fa-{% if payment_method.order_type == 'CASH_ONSITE' %}money-bill{% elif payment_method.order_type == 'LOCAL_TRANSFER' %}exchange-alt{% elif payment_method.order_type == 'INTERNATIONAL_TRANSFER' %}globe{% elif payment_method.order_type == 'ONLINE_PURCHASE' %}shopping-cart{% else %}credit-card{% endif %} me-2"></i>
+                                        {{ payment_method.order_type_display }}
+                                    </td>
+                                    <td class="text-end">{{ payment_method.ordenes }}</td>
+                                    <td class="text-end">{{ payment_method.bonos }}</td>
+                                    <td class="text-end">${{ payment_method.total_bruto|floatformat:2 }}</td>
+                                    <td class="text-end">${{ payment_method.total_neto|floatformat:2 }}</td>
+                                    <td class="text-end">${{ payment_method.donaciones_arte|floatformat:2 }}</td>
+                                    <td class="text-end">${{ payment_method.donaciones_sede|floatformat:2 }}</td>
+                                    <td class="text-end">${{ payment_method.donaciones_inclusion|floatformat:2 }}</td>
                                 </tr>
                                 {% endfor %}
                                 <tr class="highlight-row">
-                                    <td><strong>Total Caja</strong></td>
-                                    <td class="text-end"><strong>{{ stats.caja_tickets_sold }} bonos</strong></td>
-                                    <td class="text-end"><strong>${{ stats.caja_total_revenue|floatformat:2 }}</strong></td>
-                                    <td class="text-end"><strong>${{ stats.caja_net_received_amount|floatformat:2 }}</strong></td>
+                                    <td><strong>Total</strong></td>
+                                    <td class="text-end"><strong>{{ payment_method_totals.ordenes }}</strong></td>
+                                    <td class="text-end"><strong>{{ payment_method_totals.bonos }}</strong></td>
+                                    <td class="text-end"><strong>${{ payment_method_totals.total_bruto|floatformat:2 }}</strong></td>
+                                    <td class="text-end"><strong>${{ payment_method_totals.total_neto|floatformat:2 }}</strong></td>
+                                    <td class="text-end"><strong>${{ payment_method_totals.donaciones_arte|floatformat:2 }}</strong></td>
+                                    <td class="text-end"><strong>${{ payment_method_totals.donaciones_sede|floatformat:2 }}</strong></td>
+                                    <td class="text-end"><strong>${{ payment_method_totals.donaciones_inclusion|floatformat:2 }}</strong></td>
                                 </tr>
                             </tbody>
                         </table>
@@ -399,19 +414,14 @@
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td><i class="fas fa-shopping-cart me-2"></i>Ventas Online</td>
-                                    <td class="text-end">${{ online_ticket_total_gross|add:stats.donations_art|add:stats.donations_venue|add:stats.donations_grant|floatformat:2 }}</td>
-                                    <td class="text-end">${{ stats.regular_net_received_amount|floatformat:2 }}</td>
-                                </tr>
-                                <tr>
-                                    <td><i class="fas fa-cash-register me-2"></i>Ventas por Caja</td>
-                                    <td class="text-end">${{ stats.caja_total_revenue|floatformat:2 }}</td>
-                                    <td class="text-end">${{ stats.caja_net_received_amount|floatformat:2 }}</td>
+                                    <td><i class="fas fa-receipt me-2"></i>Total (todas las ventas confirmadas)</td>
+                                    <td class="text-end">${{ stats.total_revenue|floatformat:2 }}</td>
+                                    <td class="text-end">${{ stats.net_received_amount|floatformat:2 }}</td>
                                 </tr>
                                 <tr class="highlight-row">
                                     <td><strong>TOTAL GENERAL</strong></td>
-                                    <td class="text-end"><strong>${{ online_ticket_total_gross|add:stats.donations_art|add:stats.donations_venue|add:stats.donations_grant|add:stats.caja_total_revenue|floatformat:2 }}</strong></td>
-                                    <td class="text-end"><strong>${{ stats.regular_net_received_amount|add:stats.caja_net_received_amount|floatformat:2 }}</strong></td>
+                                    <td class="text-end"><strong>${{ stats.total_revenue|floatformat:2 }}</strong></td>
+                                    <td class="text-end"><strong>${{ stats.net_received_amount|floatformat:2 }}</strong></td>
                                 </tr>
                             </tbody>
                         </table>
