@@ -1142,43 +1142,105 @@ def event_admin_view(request, event_slug):
         tickets_used_result = cursor.fetchone()
         tickets_used = tickets_used_result[0] if tickets_used_result else 0
     
-    # Get caja orders breakdown by payment method - separate queries for clarity
+    # Sales breakdown by payment method (order_type) - includes gross/net/donations/orders/tickets
     with connection.cursor() as cursor:
-        # First, get the ticket counts by payment method
-        caja_ticket_counts_query = """
-            SELECT 
-                too.order_type,
-                COUNT(DISTINCT nt.id) as tickets_sold
-            FROM tickets_order too
-            LEFT JOIN tickets_newticket nt ON too.id = nt.order_id
-            WHERE too.event_id = %s AND too.status = 'CONFIRMED' AND too.generated_by_admin_user_id IS NOT NULL
-            GROUP BY too.order_type
-            ORDER BY too.order_type
-        """
-        cursor.execute(caja_ticket_counts_query, [event.id])
-        caja_ticket_counts = {row[0]: row[1] for row in cursor.fetchall()}
-        
-        # Then, get the amounts by payment method
-        caja_amounts_query = """
-            SELECT 
-                too.order_type,
-                COUNT(DISTINCT too.id) as order_count,
-                COALESCE(SUM(too.amount), 0) as total_amount,
-                COALESCE(SUM(too.net_received_amount), 0) as net_amount
-            FROM tickets_order too
-            WHERE too.event_id = %s AND too.status = 'CONFIRMED' AND too.generated_by_admin_user_id IS NOT NULL
-            GROUP BY too.order_type
-            ORDER BY too.order_type
-        """
-        cursor.execute(caja_amounts_query, [event.id])
-        caja_amounts_results = cursor.fetchall()
-        
-        # Combine the data
-        caja_payment_method_results = []
-        for row in caja_amounts_results:
-            order_type, order_count, total_amount, net_amount = row
-            tickets_sold = caja_ticket_counts.get(order_type, 0)
-            caja_payment_method_results.append((order_type, order_count, tickets_sold, total_amount, net_amount))
+        cursor.execute(
+            """
+            SELECT
+                tto.order_type,
+                COALESCE(SUM(tto.amount), 0) AS total_bruto,
+                COALESCE(SUM(tto.net_received_amount), 0) AS total_neto,
+                COALESCE(SUM(tto.donation_art), 0) AS donaciones_arte,
+                COALESCE(SUM(tto.donation_venue), 0) AS donaciones_sede,
+                COALESCE(SUM(tto.donation_grant), 0) AS donaciones_inclusion,
+                COUNT(tto.id) AS ordenes,
+                COALESCE(SUM(ticket_counts.ticket_count), 0) AS bonos
+            FROM tickets_order tto
+            LEFT JOIN (
+                SELECT order_id, COUNT(id) as ticket_count
+                FROM tickets_newticket
+                GROUP BY order_id
+            ) ticket_counts ON ticket_counts.order_id = tto.id
+            WHERE tto.event_id = %s AND tto.status = 'CONFIRMED'
+            GROUP BY tto.order_type
+            ORDER BY tto.order_type
+            """,
+            [event.id],
+        )
+        payment_method_rows = cursor.fetchall()
+
+    payment_method_breakdown = []
+    payment_method_total_bruto = Decimal("0")
+    payment_method_total_neto = Decimal("0")
+    payment_method_total_don_art = Decimal("0")
+    payment_method_total_don_venue = Decimal("0")
+    payment_method_total_don_grant = Decimal("0")
+    payment_method_total_ordenes = 0
+    payment_method_total_bonos = 0
+
+    for row in payment_method_rows:
+        order_type, total_bruto, total_neto, don_art, don_venue, don_grant, ordenes, bonos = row
+        total_bruto_d = Decimal(str(total_bruto or 0))
+        total_neto_d = Decimal(str(total_neto or 0))
+        don_art_d = Decimal(str(don_art or 0))
+        don_venue_d = Decimal(str(don_venue or 0))
+        don_grant_d = Decimal(str(don_grant or 0))
+        ordenes_i = int(ordenes or 0)
+        bonos_i = int(bonos or 0)
+
+        order_type_display = {
+            'ONLINE_PURCHASE': 'Compra Online',
+            'CASH_ONSITE': 'Efectivo',
+            'LOCAL_TRANSFER': 'Transferencia',
+            'INTERNATIONAL_TRANSFER': 'Transferencia Internacional',
+            'OTHER': 'Otro',
+        }.get(order_type, order_type)
+
+        payment_method_breakdown.append(
+            {
+                "order_type": order_type,
+                "order_type_display": order_type_display,
+                "total_bruto": total_bruto_d,
+                "total_neto": total_neto_d,
+                "donaciones_arte": don_art_d,
+                "donaciones_sede": don_venue_d,
+                "donaciones_inclusion": don_grant_d,
+                "ordenes": ordenes_i,
+                "bonos": bonos_i,
+            }
+        )
+
+        payment_method_total_bruto += total_bruto_d
+        payment_method_total_neto += total_neto_d
+        payment_method_total_don_art += don_art_d
+        payment_method_total_don_venue += don_venue_d
+        payment_method_total_don_grant += don_grant_d
+        payment_method_total_ordenes += ordenes_i
+        payment_method_total_bonos += bonos_i
+
+    # MercadoPago commission details (match provided SQL: ONLINE_PURCHASE only)
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                COALESCE(SUM(amount), 0) AS total_bruto,
+                COALESCE(SUM(net_received_amount), 0) AS total_neto
+            FROM tickets_order
+            WHERE event_id = %s
+              AND status = 'CONFIRMED'
+              AND order_type = 'ONLINE_PURCHASE'
+            """,
+            [event.id],
+        )
+        mp_totals_row = cursor.fetchone()
+
+    mp_total_bruto = Decimal(str((mp_totals_row[0] if mp_totals_row else 0) or 0))
+    mp_total_neto = Decimal(str((mp_totals_row[1] if mp_totals_row else 0) or 0))
+    mp_comisiones = (mp_total_bruto - mp_total_neto).quantize(Decimal("0.01"))
+    if mp_total_bruto > 0:
+        mp_porcentaje = ((Decimal("1") - (mp_total_neto / mp_total_bruto)) * 100).quantize(Decimal("0.01"))
+    else:
+        mp_porcentaje = Decimal("0.00")
     
     # Get the main event for context
     main_event = Event.get_main_event()
@@ -1300,37 +1362,7 @@ def event_admin_view(request, event_slug):
             'regular_gross_amount': regular_gross_amount_decimal,
         })
     
-    # Process caja payment method breakdown
-    caja_payment_method_breakdown = []
-    caja_payment_method_total_amount = Decimal('0')
-    caja_payment_method_net_amount = Decimal('0')
-    caja_payment_method_tickets_sold = 0
-    
-    for row in caja_payment_method_results:
-        order_type, order_count, tickets_sold, total_amount, net_amount = row
-        # Map order types to display names
-        order_type_display = {
-            'CASH_ONSITE': 'Efectivo',
-            'LOCAL_TRANSFER': 'Transferencia',
-            'INTERNATIONAL_TRANSFER': 'Transferencia Internacional',
-            'OTHER': 'Otro'
-        }.get(order_type, order_type)
-        
-        total_amount_decimal = Decimal(str(total_amount))
-        net_amount_decimal = Decimal(str(net_amount))
-        
-        caja_payment_method_total_amount += total_amount_decimal
-        caja_payment_method_net_amount += net_amount_decimal
-        caja_payment_method_tickets_sold += tickets_sold
-        
-        caja_payment_method_breakdown.append({
-            'order_type': order_type,
-            'order_type_display': order_type_display,
-            'order_count': order_count,
-            'tickets_sold': tickets_sold,
-            'total_amount': total_amount_decimal,
-            'net_amount': net_amount_decimal,
-        })
+    # (caja_payment_method_breakdown removed in favor of payment_method_breakdown)
     
     # Use the original total from the main query to avoid duplication issues
     # The main query already correctly separates regular and caja orders
@@ -1368,19 +1400,18 @@ def event_admin_view(request, event_slug):
             "venue_capacity": event.venue_capacity,
             "occupancy_percentage": event.occupancy_percentage,
             "attendees_left": event.attendees_left,
-            # Caja orders data - use calculated totals from payment method breakdown
-            "caja_tickets_sold": caja_payment_method_tickets_sold,
-            "caja_ticket_revenue": result[9] or 0,
-            "caja_total_revenue": caja_payment_method_total_amount,
-            "caja_net_received_amount": caja_payment_method_net_amount,
-            "caja_total_orders": result[12] or 0,
+            # MercadoPago commission debug (ONLINE_PURCHASE only)
+            "mp_total_bruto": mp_total_bruto,
+            "mp_total_neto": mp_total_neto,
+            "mp_comisiones": mp_comisiones,
+            "mp_porcentaje": mp_porcentaje,
             # Regular orders data
             "regular_tickets_sold": result[13] or 0,
             "regular_ticket_revenue": result[14] or 0,
             "regular_total_revenue": regular_total_revenue,
             "regular_net_received_amount": regular_net_received_amount,
             "regular_total_orders": result[17] or 0,
-            # Debug info for commission calculation
+            # Debug info for proportional commission calculation (kept for internal checks)
             "total_commissions": regular_commissions,
             "ticket_commission": ticket_commission,
             "donations_art_commission": donations_art_commission,
@@ -1392,7 +1423,16 @@ def event_admin_view(request, event_slug):
         "online_ticket_type_breakdown": online_ticket_type_breakdown,
         "online_ticket_total_quantity": online_ticket_total_quantity,
         "online_ticket_total_gross": online_ticket_total_gross,
-        "caja_payment_method_breakdown": caja_payment_method_breakdown,
+        "payment_method_breakdown": payment_method_breakdown,
+        "payment_method_totals": {
+            "total_bruto": payment_method_total_bruto,
+            "total_neto": payment_method_total_neto,
+            "donaciones_arte": payment_method_total_don_art,
+            "donaciones_sede": payment_method_total_don_venue,
+            "donaciones_inclusion": payment_method_total_don_grant,
+            "ordenes": payment_method_total_ordenes,
+            "bonos": payment_method_total_bonos,
+        },
     }
     
     return render(request, "mi_fuego/event_admin.html", context)
