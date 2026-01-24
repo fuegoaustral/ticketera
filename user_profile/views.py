@@ -1418,6 +1418,13 @@ def event_admin_view(request, event_slug):
             "donations_venue_commission": donations_venue_commission,
             "donations_grant_commission": donations_grant_commission,
             "commission_percentage": (commission_rate * 100) if regular_total_revenue > 0 else 0,
+            # Backward-compat keys (older templates/clients may still reference caja_*).
+            # We keep them to avoid 500s if a deploy ends up with mismatched templates vs. views.
+            "caja_tickets_sold": 0,
+            "caja_ticket_revenue": Decimal("0"),
+            "caja_total_revenue": Decimal("0"),
+            "caja_net_received_amount": Decimal("0"),
+            "caja_total_orders": 0,
         },
         "ticket_type_breakdown": ticket_type_breakdown,
         "online_ticket_type_breakdown": online_ticket_type_breakdown,
@@ -1433,6 +1440,8 @@ def event_admin_view(request, event_slug):
             "ordenes": payment_method_total_ordenes,
             "bonos": payment_method_total_bonos,
         },
+        # Backward-compat: previous template expected this variable (section is now removed).
+        "caja_payment_method_breakdown": [],
     }
     
     return render(request, "mi_fuego/event_admin.html", context)
