@@ -1061,6 +1061,46 @@ def event_admin_view(request, event_slug):
         result = cursor.fetchone()
         
         
+    # Online sales breakdown (as requested): NewTicket + TicketType, grouped by ticket type name
+    # Equivalent SQL:
+    #   select tt.name, count(nt.key), sum(tt.price)
+    #   from tickets_newticket nt
+    #   inner join tickets_tickettype tt on tt.id = nt.ticket_type_id
+    #   where nt.event_id = EVENT_ID
+    #   group by tt.name
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                tt.name,
+                COUNT(nt.key) as quantity_sold,
+                COALESCE(SUM(tt.price), 0) as gross_amount
+            FROM tickets_newticket nt
+            INNER JOIN tickets_tickettype tt ON tt.id = nt.ticket_type_id
+            WHERE nt.event_id = %s
+            GROUP BY tt.name
+            ORDER BY tt.name ASC
+            """,
+            [event.id],
+        )
+        online_ticket_type_rows = cursor.fetchall()
+
+    online_ticket_type_breakdown = []
+    online_ticket_total_quantity = 0
+    online_ticket_total_gross = Decimal("0")
+    for name, quantity_sold, gross_amount in online_ticket_type_rows:
+        quantity_sold = quantity_sold or 0
+        gross_amount_decimal = Decimal(str(gross_amount or 0))
+        online_ticket_type_breakdown.append(
+            {
+                "name": name,
+                "quantity_sold": quantity_sold,
+                "gross_amount": gross_amount_decimal,
+            }
+        )
+        online_ticket_total_quantity += quantity_sold
+        online_ticket_total_gross += gross_amount_decimal
+
     
     # Get ticket type breakdown for this specific event
     with connection.cursor() as cursor:
@@ -1349,6 +1389,9 @@ def event_admin_view(request, event_slug):
             "commission_percentage": (commission_rate * 100) if regular_total_revenue > 0 else 0,
         },
         "ticket_type_breakdown": ticket_type_breakdown,
+        "online_ticket_type_breakdown": online_ticket_type_breakdown,
+        "online_ticket_total_quantity": online_ticket_total_quantity,
+        "online_ticket_total_gross": online_ticket_total_gross,
         "caja_payment_method_breakdown": caja_payment_method_breakdown,
     }
     
