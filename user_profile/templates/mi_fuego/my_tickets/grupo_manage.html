@@ -685,6 +685,17 @@ document.addEventListener('DOMContentLoaded', function() {
                                     {{ grupo.ingreso_anticipado_desde|date:"d/m/Y H:i" }}
                                 </p>
                                 {% endif %}
+                                {% if event.ingreso_anticipado_limite_carga %}
+                                <p class="mb-1">
+                                    <strong>Fecha límite de carga:</strong> 
+                                    <span class="{% if not puede_modificar_ia %}text-danger{% else %}text-info{% endif %}">
+                                        {{ event.ingreso_anticipado_limite_carga|date:"d/m/Y H:i" }}
+                                        {% if not puede_modificar_ia %}
+                                            <i class="fas fa-exclamation-triangle ms-1" title="Ya pasó la fecha límite"></i>
+                                        {% endif %}
+                                    </span>
+                                </p>
+                                {% endif %}
                                 <p class="mb-1">
                                     <strong>Late Checkout:</strong> 
                                     <span id="late-checkout-count">{{ grupo.late_checkout_count }}</span>/<span id="late-checkout-amount">{{ grupo.late_checkout_amount }}</span>
@@ -723,6 +734,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         <h5 class="mb-0">Miembros del Grupo</h5>
                     </div>
                     <div class="card-body p-0">
+                        {% if not puede_modificar_ia and event.ingreso_anticipado_limite_carga %}
+                            <div class="alert alert-warning m-3">
+                                <strong><i class="fas fa-exclamation-triangle me-2"></i>Fecha límite alcanzada</strong>
+                                <p class="mb-0 mt-1 small">Ya no se pueden agregar o modificar ingresos anticipados. La fecha límite era el <strong>{{ event.ingreso_anticipado_limite_carga|date:"d/m/Y H:i" }}</strong>.</p>
+                            </div>
+                        {% endif %}
                         {% if not responsable_tiene_ingreso %}
                             <div class="alert alert-info m-3 d-flex justify-content-between align-items-center">
                                 <div>
@@ -732,7 +749,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <form method="POST" class="d-inline ms-3">
                                     {% csrf_token %}
                                     <input type="hidden" name="action" value="add_responsable_ingreso">
-                                    <button type="submit" class="btn btn-primary">
+                                    <button type="submit" class="btn btn-primary" {% if not puede_modificar_ia %}disabled{% endif %}>
                                         <i class="fas fa-plus me-2"></i>Agregarme
                                     </button>
                                 </form>
@@ -770,7 +787,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         {% if grupo.ingreso_anticipado_desde %}min="{{ grupo.ingreso_anticipado_desde|date:'Y-m-d' }}"{% endif %}
                                                         {% if event.start %}max="{{ event.start|date:'Y-m-d' }}"{% endif %}
                                                         {% if miembro.ingreso_anticipado_fecha %}value="{{ miembro.ingreso_anticipado_fecha|date:'Y-m-d' }}"{% endif %}
-                                                        {% if not miembro.ingreso_anticipado_fecha and grupo.ingreso_anticipado_count >= grupo.ingreso_anticipado_amount %}disabled{% endif %}
+                                                        {% if not puede_modificar_ia or not miembro.ingreso_anticipado_fecha and grupo.ingreso_anticipado_count >= grupo.ingreso_anticipado_amount %}disabled{% endif %}
                                                         placeholder="Seleccionar fecha"
                                                     >
                                                     {% if not miembro.ingreso_anticipado_fecha and grupo.ingreso_anticipado_count >= grupo.ingreso_anticipado_amount %}
@@ -821,11 +838,57 @@ document.addEventListener('DOMContentLoaded', function() {
                                                             {% csrf_token %}
                                                             <input type="hidden" name="action" value="remove_member">
                                                             <input type="hidden" name="miembro_id" value="{{ miembro.id }}">
-                                                            <button type="submit" class="btn btn-sm btn-danger" title="Remover miembro">
+                                                            {% if not puede_modificar_ia %}
+                                                                {% if miembro.ingreso_anticipado or miembro.ingreso_anticipado_fecha %}
+                                                                <button 
+                                                                    type="button" 
+                                                                    class="btn btn-sm btn-danger" 
+                                                                    title="No se puede eliminar porque tiene ingreso anticipado y la fecha límite ya pasó"
+                                                                    disabled
+                                                                >
+                                                                    <i class="fas fa-trash"></i>
+                                                                </button>
+                                                                {% else %}
+                                                                <button 
+                                                                    type="submit" 
+                                                                    class="btn btn-sm btn-danger" 
+                                                                    title="Remover miembro"
+                                                                >
+                                                                    <i class="fas fa-trash"></i>
+                                                                </button>
+                                                                {% endif %}
+                                                            {% else %}
+                                                            <button 
+                                                                type="submit" 
+                                                                class="btn btn-sm btn-danger" 
+                                                                title="Remover miembro"
+                                                            >
                                                                 <i class="fas fa-trash"></i>
                                                             </button>
+                                                            {% endif %}
                                                         </form>
                                                     {% else %}
+                                                        {% if not puede_modificar_ia %}
+                                                            {% if miembro.ingreso_anticipado or miembro.ingreso_anticipado_fecha %}
+                                                            <button 
+                                                                type="button" 
+                                                                class="btn btn-sm btn-danger" 
+                                                                title="No se puede limpiar porque tiene ingreso anticipado y la fecha límite ya pasó"
+                                                                disabled
+                                                            >
+                                                                <i class="fas fa-trash"></i>
+                                                            </button>
+                                                            {% else %}
+                                                            <button 
+                                                                type="button" 
+                                                                class="btn btn-sm btn-danger clear-responsable-btn" 
+                                                                data-miembro-id="{{ miembro.id }}"
+                                                                title="Limpiar ingresos tempranos y restricciones del responsable"
+                                                            >
+                                                                <i class="fas fa-trash"></i>
+                                                            </button>
+                                                            {% endif %}
+                                                        {% else %}
                                                         <button 
                                                             type="button" 
                                                             class="btn btn-sm btn-danger clear-responsable-btn" 
@@ -834,6 +897,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         >
                                                             <i class="fas fa-trash"></i>
                                                         </button>
+                                                        {% endif %}
                                                     {% endif %}
                                                 </td>
                                             </tr>
