@@ -52,6 +52,21 @@ def can_user_volunteer_for_event(user, event):
     ).exists() and event.has_volunteers
 
 
+def puede_modificar_ingresos_anticipados(event):
+    """
+    Verifica si se pueden modificar los ingresos anticipados basándose en la fecha límite del evento.
+    Si ingreso_anticipado_limite_carga es None, no hay límite (retorna True).
+    Si está seteada, solo retorna True si la fecha actual es anterior o igual a la fecha límite.
+    """
+    if not event:
+        return False
+    
+    if event.ingreso_anticipado_limite_carga is None:
+        return True  # Sin límite
+    
+    return timezone.now() <= event.ingreso_anticipado_limite_carga
+
+
 @login_required
 def my_fire_view(request):
     return redirect(reverse("my_ticket"))
@@ -3006,8 +3021,13 @@ def grupo_manage_view(request, event_slug, grupo_id):
                     if miembro.user == grupo.lider:
                         messages.error(request, 'No puedes remover al responsable del grupo')
                     else:
-                        miembro.delete()
-                        messages.success(request, f'Miembro removido del grupo')
+                        # Verificar si el miembro tiene ingreso anticipado y si se puede modificar
+                        if (miembro.ingreso_anticipado or miembro.ingreso_anticipado_fecha) and not puede_modificar_ingresos_anticipados(current_event):
+                            fecha_limite = current_event.ingreso_anticipado_limite_carga.strftime("%d/%m/%Y %H:%M")
+                            messages.error(request, f'No se puede eliminar este miembro porque tiene ingreso anticipado. La fecha límite de modificación era el {fecha_limite}')
+                        else:
+                            miembro.delete()
+                            messages.success(request, f'Miembro removido del grupo')
                 except GrupoMiembro.DoesNotExist:
                     messages.error(request, 'Miembro no encontrado')
                 except Exception as e:
@@ -3018,6 +3038,12 @@ def grupo_manage_view(request, event_slug, grupo_id):
             miembro_id = request.POST.get('miembro_id')
             if miembro_id:
                 try:
+                    # Verificar fecha límite
+                    if not puede_modificar_ingresos_anticipados(current_event):
+                        fecha_limite = current_event.ingreso_anticipado_limite_carga.strftime("%d/%m/%Y %H:%M")
+                        messages.error(request, f'Ya no se pueden modificar los ingresos anticipados. La fecha límite era el {fecha_limite}')
+                        return redirect('grupo_manage', event_slug=event_slug, grupo_id=grupo_id)
+                    
                     miembro = GrupoMiembro.objects.get(id=miembro_id, grupo=grupo)
                     new_value = not miembro.ingreso_anticipado
                     
@@ -3065,6 +3091,12 @@ def grupo_manage_view(request, event_slug, grupo_id):
         elif action == 'add_responsable_ingreso':
             # Add responsable to ingreso anticipado
             try:
+                # Verificar fecha límite
+                if not puede_modificar_ingresos_anticipados(current_event):
+                    fecha_limite = current_event.ingreso_anticipado_limite_carga.strftime("%d/%m/%Y %H:%M")
+                    messages.error(request, f'Ya no se pueden modificar los ingresos anticipados. La fecha límite era el {fecha_limite}')
+                    return redirect('grupo_manage', event_slug=event_slug, grupo_id=grupo_id)
+                
                 # Get or create responsable member
                 responsable_miembro, created = GrupoMiembro.objects.get_or_create(
                     grupo=grupo,
@@ -3107,6 +3139,9 @@ def grupo_manage_view(request, event_slug, grupo_id):
             'has_grupos': grupos_liderados,
         })
     
+    # Verificar si se pueden modificar ingresos anticipados
+    puede_modificar_ia = puede_modificar_ingresos_anticipados(current_event)
+    
     return render(
         request,
         "mi_fuego/my_tickets/grupo_manage.html",
@@ -3121,6 +3156,7 @@ def grupo_manage_view(request, event_slug, grupo_id):
             "nav_primary": "grupos",
             "nav_secondary": "grupo_manage",
             "now": timezone.now(),
+            "puede_modificar_ia": puede_modificar_ia,
         }
     )
 
@@ -3158,6 +3194,14 @@ def grupo_toggle_ajax(request, event_slug, grupo_id):
         return JsonResponse({'success': False, 'error': 'Miembro not found'}, status=404)
     
     if action == 'toggle_ingreso_anticipado':
+        # Verificar fecha límite
+        if not puede_modificar_ingresos_anticipados(current_event):
+            fecha_limite = current_event.ingreso_anticipado_limite_carga.strftime("%d/%m/%Y %H:%M")
+            return JsonResponse({
+                'success': False, 
+                'error': f'Ya no se pueden modificar los ingresos anticipados. La fecha límite era el {fecha_limite}'
+            })
+        
         new_value = not miembro.ingreso_anticipado
         
         # Check if we can add more ingreso anticipado
@@ -3206,6 +3250,14 @@ def grupo_toggle_ajax(request, event_slug, grupo_id):
     elif action == 'update_ingreso_fecha':
         from django.utils.dateparse import parse_date
         from django.core.exceptions import ValidationError
+        
+        # Verificar fecha límite
+        if not puede_modificar_ingresos_anticipados(current_event):
+            fecha_limite = current_event.ingreso_anticipado_limite_carga.strftime("%d/%m/%Y %H:%M")
+            return JsonResponse({
+                'success': False,
+                'error': f'Ya no se pueden modificar los ingresos anticipados. La fecha límite era el {fecha_limite}'
+            })
         
         fecha_str = request.POST.get('fecha', '').strip()
         
@@ -3262,6 +3314,14 @@ def grupo_toggle_ajax(request, event_slug, grupo_id):
                     'error': f'Error al procesar la fecha: {str(e)}'
                 }, status=400)
         else:
+            # Clearing the date - verificar si se puede modificar
+            if not puede_modificar_ingresos_anticipados(current_event):
+                fecha_limite = current_event.ingreso_anticipado_limite_carga.strftime("%d/%m/%Y %H:%M")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Ya no se pueden modificar los ingresos anticipados. La fecha límite era el {fecha_limite}'
+                })
+            
             # Clearing the date
             miembro.ingreso_anticipado_fecha = None
             miembro.ingreso_anticipado = False
@@ -3307,6 +3367,14 @@ def grupo_toggle_ajax(request, event_slug, grupo_id):
                 'success': False,
                 'error': 'Esta acción solo está permitida para el responsable del grupo'
             }, status=403)
+        
+        # Verificar fecha límite si tiene ingreso anticipado
+        if (miembro.ingreso_anticipado or miembro.ingreso_anticipado_fecha) and not puede_modificar_ingresos_anticipados(current_event):
+            fecha_limite = current_event.ingreso_anticipado_limite_carga.strftime("%d/%m/%Y %H:%M")
+            return JsonResponse({
+                'success': False,
+                'error': f'Ya no se pueden modificar los ingresos anticipados. La fecha límite era el {fecha_limite}'
+            })
         
         # Clear all early entry fields
         miembro.ingreso_anticipado_fecha = None
