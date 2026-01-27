@@ -641,7 +641,7 @@
 
         // Make function globally available
         window.confirmOwnTicketTransfer = function(ticketKey) {
-            if (confirm('Este bono está a tu nombre. Si lo desvinculas lo vas a perder. ¿Estás seguro?')) {
+            if (confirm('Este bono está a tu nombre. Desvinculalo para poder transferirselo a otra persona. Si te arrepientes, podés volver a vincularlo.')) {
                 // Unassign the ticket and refresh the page
                 fetch(`/ticket/${ticketKey}/unassign/`, {
                     method: 'POST',
