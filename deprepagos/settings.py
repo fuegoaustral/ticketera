@@ -318,6 +318,7 @@ CHATWOOT_IDENTITY_VALIDATION = os.environ.get('CHATWOOT_IDENTITY_VALIDATION')
 SECRET = os.environ.get('SECRET')
 
 MOCK_PHONE_VERIFICATION = os.environ.get('ENV') == 'local'
+DISABLE_PHONE_VERIFICATION = 'True'
 
 # CKEditor 5 Configuration
 customColorPalette = [

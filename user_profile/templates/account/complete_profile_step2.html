@@ -79,7 +79,9 @@
                             <button id="sendButton"
                                     type="submit"
                                     name="send_code"
-                                    class="btn btn-primary mt-3">Enviar código de verificación</button>
+                                    class="btn btn-primary mt-3">
+                                {% if disable_phone_verification %}Continuar{% else %}Enviar código de verificación{% endif %}
+                            </button>
                         {% endif %}
                     </div>
                 </form>
@@ -107,7 +109,11 @@
 
             if (sendButton && sendButton.name === 'send_code') {
                 sendButton.disabled = true;
+                {% if disable_phone_verification %}
+                sendButton.innerHTML = 'Continuando...';
+                {% else %}
                 sendButton.innerHTML = 'Enviando...';
+                {% endif %}
             }
 
             if (verifyButton && verifyButton.name === 'verify_code') {
