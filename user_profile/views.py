@@ -532,8 +532,15 @@ def complete_profile(request):
             if "send_code" in request.POST:
                 if form.is_valid():
                     form.save()
-                    form.send_verification_code()
-                    code_sent = True
+                    # Check if phone verification is disabled
+                    if getattr(settings, 'DISABLE_PHONE_VERIFICATION', False):
+                        # Skip verification and mark profile as complete
+                        profile.profile_completion = "COMPLETE"
+                        profile.save()
+                        return profile_congrats(request)
+                    else:
+                        form.send_verification_code()
+                        code_sent = True
             elif "verify_code" in request.POST:
                 code_sent = True
                 form = ProfileStep2Form(request.POST, instance=profile, code_sent=True)
@@ -555,6 +562,7 @@ def complete_profile(request):
                 "error_message": error_message,
                 "code_sent": code_sent,
                 "profile": profile,
+                "disable_phone_verification": getattr(settings, 'DISABLE_PHONE_VERIFICATION', False),
             },
         )
     else:
