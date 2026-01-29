@@ -288,6 +288,47 @@ def my_ticket_view(request, event_slug=None):
                         ticket_dto['transferring_to'] = None
                         ticket_dto['is_transfer_completed'] = False
                         ticket_dto['transferred_to'] = None
+                
+                # Verificar si el usuario del ticket tiene ingreso anticipado o late checkout
+                # Prioridad: primero verificamos el holder (quien tiene el bono), luego el owner
+                from events.models import GrupoMiembro
+                grupo_miembro = None
+                
+                # Primero intentamos con el holder
+                if ticket.holder:
+                    grupo_miembro = GrupoMiembro.objects.filter(
+                        grupo__event=ticket.event,
+                        user=ticket.holder
+                    ).select_related('grupo').first()
+                
+                # Si no encontramos grupo con el holder, intentamos con el owner
+                if not grupo_miembro and ticket.owner:
+                    grupo_miembro = GrupoMiembro.objects.filter(
+                        grupo__event=ticket.event,
+                        user=ticket.owner
+                    ).select_related('grupo').first()
+                
+                if grupo_miembro:
+                    ticket_dto['has_ingreso_anticipado'] = grupo_miembro.ingreso_anticipado or bool(grupo_miembro.ingreso_anticipado_fecha)
+                    ticket_dto['ingreso_anticipado_fecha'] = grupo_miembro.ingreso_anticipado_fecha.strftime("%d/%m/%Y") if grupo_miembro.ingreso_anticipado_fecha else None
+                    ticket_dto['ingreso_anticipado_desde'] = grupo_miembro.grupo.ingreso_anticipado_desde.strftime("%d/%m/%Y %H:%M") if grupo_miembro.grupo.ingreso_anticipado_desde else None
+                    ticket_dto['has_late_checkout'] = grupo_miembro.late_checkout
+                    ticket_dto['late_checkout_hasta'] = grupo_miembro.grupo.late_checkout_hasta.strftime("%d/%m/%Y %H:%M") if grupo_miembro.grupo.late_checkout_hasta else None
+                    ticket_dto['restriccion'] = grupo_miembro.restriccion
+                    ticket_dto['restriccion_display'] = dict(grupo_miembro.RESTRICCION_CHOICES).get(grupo_miembro.restriccion, grupo_miembro.restriccion)
+                    ticket_dto['grupo_id'] = grupo_miembro.grupo.id
+                    ticket_dto['grupo_miembro_id'] = grupo_miembro.id
+                else:
+                    ticket_dto['has_ingreso_anticipado'] = False
+                    ticket_dto['ingreso_anticipado_fecha'] = None
+                    ticket_dto['ingreso_anticipado_desde'] = None
+                    ticket_dto['has_late_checkout'] = False
+                    ticket_dto['late_checkout_hasta'] = None
+                    ticket_dto['restriccion'] = None
+                    ticket_dto['restriccion_display'] = None
+                    ticket_dto['grupo_id'] = None
+                    ticket_dto['grupo_miembro_id'] = None
+                
                 tickets_dto.append(ticket_dto)
             
             # Count unshared tickets (Guest tickets that are not transferred and not pending)
@@ -2375,6 +2416,45 @@ def my_tickets_ajax(request, event_slug=None):
                 # Add initial state information
                 ticket_dto['is_used'] = ticket.is_used
                 ticket_dto['used_at'] = ticket.used_at.isoformat() if ticket.used_at else None
+                
+                # Verificar si el usuario del ticket tiene ingreso anticipado o late checkout
+                from events.models import GrupoMiembro
+                grupo_miembro = None
+                
+                # Primero intentamos con el holder
+                if ticket.holder:
+                    grupo_miembro = GrupoMiembro.objects.filter(
+                        grupo__event=ticket.event,
+                        user=ticket.holder
+                    ).select_related('grupo').first()
+                
+                # Si no encontramos grupo con el holder, intentamos con el owner
+                if not grupo_miembro and ticket.owner:
+                    grupo_miembro = GrupoMiembro.objects.filter(
+                        grupo__event=ticket.event,
+                        user=ticket.owner
+                    ).select_related('grupo').first()
+                
+                if grupo_miembro:
+                    ticket_dto['has_ingreso_anticipado'] = grupo_miembro.ingreso_anticipado or bool(grupo_miembro.ingreso_anticipado_fecha)
+                    ticket_dto['ingreso_anticipado_fecha'] = grupo_miembro.ingreso_anticipado_fecha.strftime("%d/%m/%Y") if grupo_miembro.ingreso_anticipado_fecha else None
+                    ticket_dto['ingreso_anticipado_desde'] = grupo_miembro.grupo.ingreso_anticipado_desde.strftime("%d/%m/%Y %H:%M") if grupo_miembro.grupo.ingreso_anticipado_desde else None
+                    ticket_dto['has_late_checkout'] = grupo_miembro.late_checkout
+                    ticket_dto['late_checkout_hasta'] = grupo_miembro.grupo.late_checkout_hasta.strftime("%d/%m/%Y %H:%M") if grupo_miembro.grupo.late_checkout_hasta else None
+                    ticket_dto['restriccion'] = grupo_miembro.restriccion
+                    ticket_dto['restriccion_display'] = dict(grupo_miembro.RESTRICCION_CHOICES).get(grupo_miembro.restriccion, grupo_miembro.restriccion)
+                    ticket_dto['grupo_id'] = grupo_miembro.grupo.id
+                    ticket_dto['grupo_miembro_id'] = grupo_miembro.id
+                else:
+                    ticket_dto['has_ingreso_anticipado'] = False
+                    ticket_dto['ingreso_anticipado_fecha'] = None
+                    ticket_dto['ingreso_anticipado_desde'] = None
+                    ticket_dto['has_late_checkout'] = False
+                    ticket_dto['late_checkout_hasta'] = None
+                    ticket_dto['restriccion'] = None
+                    ticket_dto['restriccion_display'] = None
+                    ticket_dto['grupo_id'] = None
+                    ticket_dto['grupo_miembro_id'] = None
                     
                 tickets_dto.append(ticket_dto)
             
@@ -2395,6 +2475,348 @@ def my_tickets_ajax(request, event_slug=None):
     
     # If no event_slug, return error
     return JsonResponse({"error": "Event slug required"}, status=400)
+
+
+@login_required
+def update_ticket_restriccion(request, ticket_key):
+    """Endpoint para actualizar la restricción alimentaria desde el bono"""
+    from django.http import JsonResponse
+    from tickets.models import NewTicket
+    from events.models import GrupoMiembro
+    
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    
+    try:
+        ticket = NewTicket.objects.get(key=ticket_key)
+        
+        # Verificar que el usuario sea el holder o owner del ticket
+        if ticket.holder != request.user and ticket.owner != request.user:
+            return JsonResponse({'error': 'No tienes permisos para actualizar este bono'}, status=403)
+        
+        # Obtener el grupo miembro
+        ticket_user = ticket.holder if ticket.holder else ticket.owner
+        grupo_miembro = None
+        
+        if ticket_user:
+            grupo_miembro = GrupoMiembro.objects.filter(
+                grupo__event=ticket.event,
+                user=ticket_user
+            ).first()
+        
+        if not grupo_miembro:
+            return JsonResponse({'error': 'No pertenecés a ningún grupo para este evento'}, status=404)
+        
+        # Obtener la restricción del request
+        restriccion = request.POST.get('restriccion')
+        
+        # Validar el valor de restricción
+        valid_choices = ['sin_restricciones', 'vegetarian', 'sin_tacc', 'particular']
+        if restriccion not in valid_choices:
+            return JsonResponse({
+                'success': False,
+                'error': 'Valor de restricción inválido'
+            }, status=400)
+        
+        # Actualizar la restricción
+        grupo_miembro.restriccion = restriccion
+        grupo_miembro.save()
+        
+        # Obtener el nombre para mostrar
+        restriccion_display = dict(GrupoMiembro.RESTRICCION_CHOICES).get(restriccion, restriccion)
+        
+        return JsonResponse({
+            'success': True,
+            'restriccion': restriccion,
+            'restriccion_display': restriccion_display,
+            'message': f'Restricción actualizada a "{restriccion_display}"'
+        })
+        
+    except NewTicket.DoesNotExist:
+        return JsonResponse({'error': 'Bono no encontrado'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def download_ticket_pdf(request, ticket_key):
+    """Generar y descargar PDF del bono"""
+    from django.http import HttpResponse, Http404
+    from tickets.models import NewTicket
+    from io import BytesIO
+    
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import inch
+        from reportlab.lib import colors
+        import qrcode
+    except ImportError:
+        return HttpResponse(
+            'ReportLab no está instalado. Por favor instala reportlab: pip install reportlab',
+            status=500
+        )
+    
+    try:
+        ticket = NewTicket.objects.get(key=ticket_key)
+    except NewTicket.DoesNotExist:
+        raise Http404("Bono no encontrado")
+    
+    # Verificar que el usuario sea el holder o owner del ticket
+    if ticket.holder != request.user and ticket.owner != request.user:
+        return HttpResponse('No tienes permisos para descargar este bono', status=403)
+    
+    # Si el evento requiere que cada attendee tenga cuenta, no permitir descargar bonos sin owner
+    if ticket.event.attendee_must_be_registered and not ticket.owner:
+        return HttpResponse('Este bono no puede ser descargado porque no está vinculado a una cuenta. Por favor, vincúlalo primero.', status=403)
+    
+    try:
+        from reportlab.platypus import Table, TableStyle, KeepTogether
+        from reportlab.graphics.shapes import Drawing
+        from reportlab.graphics import renderPDF
+        import urllib.parse
+        import base64
+        
+        # Función para dibujar el patrón de fondo en el canvas
+        def draw_background_pattern(canvas_obj, doc):
+            """Dibuja el patrón SVG de fondo en el canvas"""
+            canvas_obj.saveState()
+            
+            # Color del patrón (gris claro con opacidad)
+            pattern_color = colors.HexColor('#e0e0e0')
+            canvas_obj.setFillColor(pattern_color)
+            canvas_obj.setStrokeColor(pattern_color)
+            canvas_obj.setFillAlpha(0.2)  # Opacidad del 20%
+            canvas_obj.setStrokeAlpha(0.2)
+            
+            # Tamaño del patrón (48x49 según el SVG, convertido a puntos)
+            pattern_width = 48 * 0.75  # Aproximadamente 36 puntos
+            pattern_height = 49 * 0.75  # Aproximadamente 37 puntos
+            
+            # Obtener dimensiones del área de contenido
+            content_width = doc.width
+            content_height = doc.height
+            
+            # Dibujar el patrón repetitivo
+            for x in range(0, int(content_width) + int(pattern_width), int(pattern_width)):
+                for y in range(0, int(content_height) + int(pattern_height), int(pattern_height)):
+                    # Ajustar coordenadas para el área de contenido
+                    abs_x = doc.leftMargin + x
+                    abs_y = doc.bottomMargin + y
+                    
+                    # Dibujar círculo central (simula el símbolo +)
+                    center_x = abs_x + pattern_width / 2
+                    center_y = abs_y + pattern_height / 2
+                    radius = 6
+                    canvas_obj.circle(center_x, center_y, radius, fill=1, stroke=0)
+                    
+                    # Dibujar líneas del símbolo +
+                    line_length = 10
+                    # Línea horizontal
+                    canvas_obj.line(center_x - line_length, center_y, 
+                                   center_x + line_length, center_y)
+                    # Línea vertical
+                    canvas_obj.line(center_x, center_y - line_length, 
+                                   center_x, center_y + line_length)
+                    
+                    # Dibujar formas laterales (simulan las "manos" del patrón)
+                    # Lado izquierdo
+                    canvas_obj.circle(abs_x + 8, abs_y + 5, 5, fill=1, stroke=0)
+                    # Lado derecho
+                    canvas_obj.circle(abs_x + pattern_width - 8, abs_y + 5, 5, fill=1, stroke=0)
+            
+            canvas_obj.restoreState()
+        
+        # Crear el buffer para el PDF
+        buffer = BytesIO()
+        # Usar márgenes más pequeños para que se parezca más a una tarjeta
+        doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.75*inch, bottomMargin=0.75*inch, 
+                               leftMargin=0.75*inch, rightMargin=0.75*inch,
+                               onFirstPage=draw_background_pattern,
+                               onLaterPages=draw_background_pattern)
+        elements = []
+        
+        # Estilos
+        styles = getSampleStyleSheet()
+        
+        # Header style (verde como en el card)
+        header_style = ParagraphStyle(
+            'Header',
+            parent=styles['Normal'],
+            fontSize=16,
+            textColor=colors.white,
+            fontName='Helvetica-Bold',
+            spaceAfter=15,
+            alignment=0,  # Left
+        )
+        
+        # Título style
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Normal'],
+            fontSize=14,
+            textColor=colors.HexColor('#1e1e1e'),
+            spaceAfter=12,
+            alignment=0,  # Left
+        )
+        
+        normal_style = ParagraphStyle(
+            'Normal',
+            parent=styles['Normal'],
+            fontSize=11,
+            textColor=colors.HexColor('#1e1e1e'),
+            spaceAfter=8,
+            alignment=0,  # Left
+        )
+        
+        info_style = ParagraphStyle(
+            'Info',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=colors.HexColor('#666666'),
+            spaceAfter=5,
+            alignment=1,  # Center
+        )
+        
+        # Crear el patrón SVG como imagen de fondo
+        # Decodificar el SVG del template
+        svg_pattern = "data:image/svg+xml,%3Csvg width='48' height='49' viewBox='0 0 48 49' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cmask id='mask0_41_1237' style='mask-type:alpha' maskUnits='userSpaceOnUse' x='0' y='0' width='48' height='49'%3E%3Crect y='0.5' width='48' height='48' fill='%23D9D9D9'/%3E%3C/mask%3E%3Cg mask='url(%23mask0_41_1237)'%3E%3Cpath d='M24.0999 28.5461H24.098C22.2663 28.5461 20.7803 27.0598 20.7803 25.2276C20.7803 23.3961 22.2663 21.9089 24.098 21.9089H24.0999C25.9317 21.9099 27.4167 23.3961 27.4167 25.2276C27.4167 27.0598 25.9317 28.5461 24.0999 28.5461ZM30.7372 21.9089V18.5905H27.4186V15.2715H24.0999H20.7803V18.5905H17.4607V21.9089H14.1421V25.2276V28.547H17.4607V31.8647H20.7803V35.1853H24.0999H27.4186V31.8647H30.7372V28.547H34.0559V25.2276V21.9089H30.7372Z' fill='%23e0e0e0'/%3E%3Cpath d='M10.5992 7.07482C10.5992 7.07482 10.9 20.8707 12.2657 34.2834C12.2657 34.2834 18.8741 38.7346 20.7999 39.8673C20.7999 39.8673 21.4614 44.8686 21.7284 59.6545L16.321 62.3183C16.321 62.3183 18.0368 79.2153 18.8383 88.7484C18.8383 88.7484 18.3964 89.3145 15.9883 88.7484C15.9883 88.7484 12.1931 73.426 11.0692 59.3691C11.0692 59.3691 13.8207 57.406 17.9149 55.7327C17.9149 55.7327 16.7106 47.0245 16.7106 44.6008C16.7106 44.6008 10.2964 40.4259 6.72773 37.6824C6.72773 37.6824 4.4876 29.4119 3 7.07482C3 7.07482 6.21701 5.78147 10.5992 7.07482Z' fill='%23e0e0e0'/%3E%3Cpath d='M37.5993 7.07482C37.5993 7.07482 37.2996 20.8707 35.9341 34.2834C35.9341 34.2834 29.3267 38.7346 27.3983 39.8673C27.3983 39.8673 26.7389 44.8686 26.4697 59.6545L31.8799 62.3183C31.8799 62.3183 30.164 79.2153 29.3604 88.7484C29.3604 88.7484 29.8025 89.3145 32.2106 88.7484C32.2106 88.7484 36.0055 73.426 37.1304 59.3691C37.1304 59.3691 34.3789 57.406 30.2852 55.7327C30.2852 55.7327 31.489 47.0245 31.489 44.6008C31.489 44.6008 37.9031 40.4259 41.4706 37.6824C41.4706 37.6824 43.7104 29.4119 45.1982 7.07482C45.1982 7.07482 41.9823 5.78147 37.5993 7.07482Z' fill='%23e0e0e0'/%3E%3C/g%3E%3C/svg%3E"
+        
+        # Crear tabla para simular el card con header verde
+        # Header verde (similar a bg-success)
+        header_bg_color = colors.HexColor('#198754')  # Color verde de Bootstrap success
+        
+        # Contenido del header
+        ticket_id = str(ticket.key)[-2:].upper()
+        header_text = f"#{ticket_id} {ticket.event.name}"
+        if ticket.is_used:
+            header_text = f"#{ticket_id} {ticket.event.name} - USADO"
+            header_bg_color = colors.HexColor('#6c757d')  # Gris para usado
+        
+        header_data = [[Paragraph(header_text, header_style)]]
+        header_table = Table(header_data, colWidths=[doc.width])
+        header_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), header_bg_color),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 14),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ('TOPPADDING', (0, 0), (-1, -1), 12),
+            ('LEFTPADDING', (0, 0), (-1, -1), 15),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 15),
+        ]))
+        elements.append(header_table)
+        elements.append(Spacer(1, 0))
+        
+        # Obtener información del grupo (ingreso anticipado, late checkout, restricción)
+        from events.models import GrupoMiembro
+        grupo_miembro = None
+        ticket_user = ticket.holder if ticket.holder else ticket.owner
+        
+        if ticket_user:
+            grupo_miembro = GrupoMiembro.objects.filter(
+                grupo__event=ticket.event,
+                user=ticket_user
+            ).select_related('grupo').first()
+        
+        # Body del card con fondo blanco y borde
+        body_elements = []
+        
+        # Información del bono
+        if ticket.owner:
+            owner_name = f"{ticket.owner.first_name} {ticket.owner.last_name}".strip() or ticket.owner.email
+            body_elements.append(Paragraph(f'<b>Nombre:</b> {owner_name}', normal_style))
+            if hasattr(ticket.owner, 'profile') and ticket.owner.profile.document_number:
+                body_elements.append(Paragraph(f'<b>DNI:</b> {ticket.owner.profile.document_number}', normal_style))
+        
+        body_elements.append(Paragraph(f'<b>Tipo de Bono:</b> {ticket.ticket_type.name}', normal_style))
+        body_elements.append(Paragraph(f'<b>Precio:</b> ${ticket.ticket_type.price:,.0f}', normal_style))
+        
+        if ticket.event.location:
+            body_elements.append(Paragraph(f'<b>Ubicación:</b> {ticket.event.location}', normal_style))
+        
+        if ticket.event.start:
+            body_elements.append(Paragraph(f'<b>Fecha:</b> {ticket.event.start.strftime("%d/%m/%Y %H:%M")}', normal_style))
+        
+        # Información de ingreso anticipado, late checkout y restricción
+        if grupo_miembro:
+            has_ingreso = grupo_miembro.ingreso_anticipado or bool(grupo_miembro.ingreso_anticipado_fecha)
+            if has_ingreso:
+                body_elements.append(Spacer(1, 0.15*inch))
+                if grupo_miembro.ingreso_anticipado_fecha:
+                    body_elements.append(Paragraph(f'<b>Ingreso Anticipado:</b> Podés ingresar desde el {grupo_miembro.ingreso_anticipado_fecha.strftime("%d/%m/%Y")}', normal_style))
+                elif grupo_miembro.grupo.ingreso_anticipado_desde:
+                    body_elements.append(Paragraph(f'<b>Ingreso Anticipado:</b> Podés ingresar desde el {grupo_miembro.grupo.ingreso_anticipado_desde.strftime("%d/%m/%Y %H:%M")}', normal_style))
+                else:
+                    body_elements.append(Paragraph(f'<b>Ingreso Anticipado:</b> Tenés ingreso anticipado habilitado', normal_style))
+            
+            if grupo_miembro.late_checkout:
+                if grupo_miembro.grupo.late_checkout_hasta:
+                    body_elements.append(Paragraph(f'<b>Late Checkout:</b> Podés salir hasta el {grupo_miembro.grupo.late_checkout_hasta.strftime("%d/%m/%Y %H:%M")}', normal_style))
+                else:
+                    body_elements.append(Paragraph(f'<b>Late Checkout:</b> Tenés late checkout habilitado', normal_style))
+            
+            if grupo_miembro.restriccion and grupo_miembro.restriccion != 'sin_restricciones':
+                restriccion_display = dict(grupo_miembro.RESTRICCION_CHOICES).get(grupo_miembro.restriccion, grupo_miembro.restriccion)
+                body_elements.append(Paragraph(f'<b>Restricción Alimentaria:</b> {restriccion_display}', normal_style))
+        
+        body_elements.append(Spacer(1, 0.2*inch))
+        
+        # Generar QR code
+        qr = qrcode.QRCode(version=1, box_size=10, border=4)
+        qr.add_data(str(ticket.key))
+        qr.make(fit=True)
+        qr_img = qr.make_image(fill_color="black", back_color="white")
+        
+        # Guardar QR en buffer
+        qr_buffer = BytesIO()
+        qr_img.save(qr_buffer, format='PNG')
+        qr_buffer.seek(0)
+        
+        # Agregar QR code al PDF (centrado)
+        qr_image = Image(qr_buffer, width=2.5*inch, height=2.5*inch)
+        qr_image.hAlign = 'CENTER'
+        body_elements.append(qr_image)
+        body_elements.append(Spacer(1, 0.15*inch))
+        
+        # Código del bono
+        body_elements.append(Paragraph(f'<b>Código:</b> {str(ticket.key)[-8:].upper()}', info_style))
+        body_elements.append(Paragraph(f'<i>Bono válido solo para {ticket.event.name}</i>', info_style))
+        
+        # Crear tabla para el body con borde y fondo
+        body_data = [[body_elements]]
+        body_table = Table(body_data, colWidths=[doc.width])
+        body_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#1e1e1e')),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('FONTSIZE', (0, 0), (-1, -1), 11),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 20),
+            ('TOPPADDING', (0, 0), (-1, -1), 20),
+            ('LEFTPADDING', (0, 0), (-1, -1), 20),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 20),
+            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#dee2e6')),  # Borde gris claro
+            ('GRID', (0, 0), (-1, -1), 0, colors.white),  # Sin grid interno
+        ]))
+        elements.append(body_table)
+        
+        # Construir PDF
+        doc.build(elements)
+        buffer.seek(0)
+        
+        # Crear respuesta HTTP
+        response = HttpResponse(buffer.read(), content_type='application/pdf')
+        filename = f'bono_{ticket.event.slug or ticket.event.id}_{str(ticket.key)[-8:]}.pdf'
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        return response
+        
+    except Exception as e:
+        return HttpResponse(f'Error al generar PDF: {str(e)}', status=500)
 
 
 @login_required

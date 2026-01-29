@@ -253,6 +253,15 @@
                 </div>
             </div>
         {% endif %}
+
+        <div class="alert alert-info text-start">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-info-circle"></i>
+                <div class="flex-grow-1">
+                    <strong>Recomendación importante:</strong> Te recomendamos tomar una captura de pantalla o descargar el bono en PDF, ya que puede no haber buena conexión a internet en el terreno. Podés descargar el bono usando el botón de descarga en cada bono.
+                </div>
+            </div>
+        </div>
             
         {% for ticket in tickets_dto %}
             <div class="card my-4 border" data-ticket-key="{{ ticket.key }}" style="position: relative;">
@@ -300,12 +309,24 @@
                                                                 <i class="fas fa-unlink"></i> Desvincular
                                                             </button>
                                                         {% endif %}
+                                                        {% if not attendee_must_be_registered or ticket.tag == 'Mine' %}
+                                                            <a href="{% url 'download_ticket_pdf' ticket.key %}" class="btn btn-sm btn-outline-primary d-none d-md-inline-block" target="_blank">
+                                                                <i class="fas fa-download"></i> Descargar PDF
+                                                            </a>
+                                                        {% endif %}
                                                     </div>
-                                                    {% if event.transfers_enabled_until >= now and not ticket.is_used %}
-                                                        <button class="btn btn-sm btn-outline-danger d-md-none" onclick="confirmOwnTicketTransfer('{{ ticket.key }}')">
-                                                            <i class="fas fa-unlink"></i> Desvincular
-                                                        </button>
-                                                    {% endif %}
+                                                    <div class="d-flex align-items-center gap-2 d-md-none">
+                                                        {% if event.transfers_enabled_until >= now and not ticket.is_used %}
+                                                            <button class="btn btn-sm btn-outline-danger" onclick="confirmOwnTicketTransfer('{{ ticket.key }}')">
+                                                                <i class="fas fa-unlink"></i> Desvincular
+                                                            </button>
+                                                        {% endif %}
+                                                        {% if not attendee_must_be_registered or ticket.tag == 'Mine' %}
+                                                            <a href="{% url 'download_ticket_pdf' ticket.key %}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                                                <i class="fas fa-download"></i> Descargar PDF
+                                                            </a>
+                                                        {% endif %}
+                                                    </div>
                                                 </div>
                                                 
                                                 <!-- DNI line -->
@@ -314,7 +335,7 @@
                                                 </div>
                                             </div>
                                         {% else %}
-                                            <div class="text-muted d-flex align-items-center gap-2">
+                                            <div class="text-muted d-flex align-items-center gap-2 flex-wrap">
                                                 <span class="fw-bold">Invitado</span>
                                                 <button class="btn btn-sm btn-semi-white" onclick="shareTicket('{{ ticket.key }}', '{{ ticket.event.name }}')">
                                                     <i class="fas fa-share-alt"></i> Compartir
@@ -322,6 +343,11 @@
                                                 <button class="btn btn-sm btn-semi-white" onclick="copyBonoLink('{{ ticket.key }}', event)">
                                                     <i class="fas fa-copy"></i> Copiar link
                                                 </button>
+                                                {% if not attendee_must_be_registered %}
+                                                <a href="{% url 'download_ticket_pdf' ticket.key %}" class="btn btn-sm btn-semi-white" target="_blank" style="text-decoration: none;">
+                                                    <i class="fas fa-download"></i> Descargar PDF
+                                                </a>
+                                                {% endif %}
                                                 <a href="https://calendar.google.com/calendar/render?action=TEMPLATE&text={{ ticket.event.name|urlencode }}&dates={{ ticket.event.start|date:'Ymd\THis' }}/{{ ticket.event.end|date:'Ymd\THis' }}&details=Bono: <a href='{{ request.scheme }}://{{ request.get_host }}/bono/{{ ticket.key }}/'>{{ request.scheme }}://{{ request.get_host }}/bono/{{ ticket.key }}/</a>&location={{ ticket.event.location|urlencode }}" 
                                                    target="_blank" 
                                                    class="btn btn-sm btn-semi-white"
@@ -387,6 +413,56 @@
                                                     {% endif %}
                                                 </div>
                                                 {% endfor %}
+                                            </div>
+                                            {% endif %}
+                                            {% if ticket.has_ingreso_anticipado or ticket.has_late_checkout or ticket.restriccion %}
+                                            <div class="d-flex flex-column gap-1 mt-2 pt-2 border-top">
+                                                {% if ticket.has_ingreso_anticipado %}
+                                                <div class="d-flex align-items-center gap-2 mb-1">
+                                                    <i class="fas fa-clock text-info" style="font-size: 0.875rem;"></i>
+                                                    <div class="small">
+                                                        <strong class="text-info">Ingreso Anticipado:</strong>
+                                                        {% if ticket.ingreso_anticipado_fecha %}
+                                                            Podés ingresar desde el <strong>{{ ticket.ingreso_anticipado_fecha }}</strong>
+                                                        {% elif ticket.ingreso_anticipado_desde %}
+                                                            Podés ingresar desde el <strong>{{ ticket.ingreso_anticipado_desde }}</strong>
+                                                        {% else %}
+                                                            Tenés ingreso anticipado habilitado
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+                                                {% if ticket.has_late_checkout %}
+                                                <div class="d-flex align-items-center gap-2 mb-1">
+                                                    <i class="fas fa-door-open text-success" style="font-size: 0.875rem;"></i>
+                                                    <div class="small">
+                                                        <strong class="text-success">Late Checkout:</strong>
+                                                        {% if ticket.late_checkout_hasta %}
+                                                            Podés salir hasta el <strong>{{ ticket.late_checkout_hasta }}</strong>
+                                                        {% else %}
+                                                            Tenés late checkout habilitado
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+                                                {% if ticket.restriccion %}
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <i class="fas fa-utensils text-warning" style="font-size: 0.875rem;"></i>
+                                                    <div class="small d-flex align-items-center gap-2 flex-wrap">
+                                                        <strong class="text-warning">Restricción Alimentaria:</strong>
+                                                        <select 
+                                                            class="form-select form-select-sm restriccion-select-ticket" 
+                                                            data-ticket-key="{{ ticket.key }}"
+                                                            style="width: auto; display: inline-block; min-width: 150px;"
+                                                        >
+                                                            <option value="sin_restricciones" {% if ticket.restriccion == 'sin_restricciones' %}selected{% endif %}>Sin Restricciones</option>
+                                                            <option value="vegetarian" {% if ticket.restriccion == 'vegetarian' %}selected{% endif %}>Vegetarian</option>
+                                                            <option value="sin_tacc" {% if ticket.restriccion == 'sin_tacc' %}selected{% endif %}>Sin TACC</option>
+                                                            <option value="particular" {% if ticket.restriccion == 'particular' %}selected{% endif %}>Particular</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                {% endif %}
                                             </div>
                                             {% endif %}
                                         </div>
@@ -478,13 +554,16 @@
                                             {% endif %}
                                         </div>
                                         {% if not ticket.is_transfer_pending and not ticket.is_transfer_completed and not attendee_must_be_registered %}
-                                            <div class="text-muted d-flex align-items-center gap-2 mt-2">
+                                            <div class="text-muted d-flex align-items-center gap-2 mt-2 flex-wrap">
                                                 <button class="btn btn-sm btn-semi-white" onclick="shareTicket('{{ ticket.key }}', '{{ ticket.event.name }}')">
                                                     <i class="fas fa-share-alt"></i> Compartir
                                                 </button>
                                                 <button class="btn btn-sm btn-semi-white" onclick="copyBonoLink('{{ ticket.key }}', event)">
                                                     <i class="fas fa-copy"></i> Copiar link
                                                 </button>
+                                                <a href="{% url 'download_ticket_pdf' ticket.key %}" class="btn btn-sm btn-semi-white" target="_blank" style="text-decoration: none;">
+                                                    <i class="fas fa-download"></i> Descargar PDF
+                                                </a>
                                                 <a href="https://calendar.google.com/calendar/render?action=TEMPLATE&text={{ ticket.event.name|urlencode }}&dates={{ ticket.event.start|date:'Ymd\THis' }}/{{ ticket.event.end|date:'Ymd\THis' }}&details=Bono: <a href='{{ request.scheme }}://{{ request.get_host }}/bono/{{ ticket.key }}/'>{{ request.scheme }}://{{ request.get_host }}/bono/{{ ticket.key }}/</a>&location={{ ticket.event.location|urlencode }}" 
                                                    target="_blank" 
                                                    class="btn btn-sm btn-semi-white"
@@ -531,6 +610,56 @@
                                                     {% endif %}
                                                 </div>
                                                 {% endfor %}
+                                            </div>
+                                            {% endif %}
+                                            {% if ticket.has_ingreso_anticipado or ticket.has_late_checkout or ticket.restriccion %}
+                                            <div class="d-flex flex-column gap-1 mt-2 pt-2 border-top">
+                                                {% if ticket.has_ingreso_anticipado %}
+                                                <div class="d-flex align-items-center gap-2 mb-1">
+                                                    <i class="fas fa-clock text-info" style="font-size: 0.875rem;"></i>
+                                                    <div class="small">
+                                                        <strong class="text-info">Ingreso Anticipado:</strong>
+                                                        {% if ticket.ingreso_anticipado_fecha %}
+                                                            Podés ingresar desde el <strong>{{ ticket.ingreso_anticipado_fecha }}</strong>
+                                                        {% elif ticket.ingreso_anticipado_desde %}
+                                                            Podés ingresar desde el <strong>{{ ticket.ingreso_anticipado_desde }}</strong>
+                                                        {% else %}
+                                                            Tenés ingreso anticipado habilitado
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+                                                {% if ticket.has_late_checkout %}
+                                                <div class="d-flex align-items-center gap-2 mb-1">
+                                                    <i class="fas fa-door-open text-success" style="font-size: 0.875rem;"></i>
+                                                    <div class="small">
+                                                        <strong class="text-success">Late Checkout:</strong>
+                                                        {% if ticket.late_checkout_hasta %}
+                                                            Podés salir hasta el <strong>{{ ticket.late_checkout_hasta }}</strong>
+                                                        {% else %}
+                                                            Tenés late checkout habilitado
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+                                                {% if ticket.restriccion %}
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <i class="fas fa-utensils text-warning" style="font-size: 0.875rem;"></i>
+                                                    <div class="small d-flex align-items-center gap-2 flex-wrap">
+                                                        <strong class="text-warning">Restricción Alimentaria:</strong>
+                                                        <select 
+                                                            class="form-select form-select-sm restriccion-select-ticket" 
+                                                            data-ticket-key="{{ ticket.key }}"
+                                                            style="width: auto; display: inline-block; min-width: 150px;"
+                                                        >
+                                                            <option value="sin_restricciones" {% if ticket.restriccion == 'sin_restricciones' %}selected{% endif %}>Sin Restricciones</option>
+                                                            <option value="vegetarian" {% if ticket.restriccion == 'vegetarian' %}selected{% endif %}>Vegetarian</option>
+                                                            <option value="sin_tacc" {% if ticket.restriccion == 'sin_tacc' %}selected{% endif %}>Sin TACC</option>
+                                                            <option value="particular" {% if ticket.restriccion == 'particular' %}selected{% endif %}>Particular</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                {% endif %}
                                             </div>
                                             {% endif %}
                                         </div>
@@ -1317,6 +1446,53 @@ console.error('Error checking for updates:', error);
         // Clean up when page unloads
         window.addEventListener('beforeunload', function() {
             stopAutoRefresh();
+        });
+
+        // Handle restriccion select changes
+        document.querySelectorAll('.restriccion-select-ticket').forEach(function(select) {
+            select.addEventListener('change', function() {
+                const ticketKey = this.dataset.ticketKey;
+                const restriccion = this.value;
+                const originalValue = this.dataset.originalValue || this.value;
+                
+                // Disable select while processing
+                this.disabled = true;
+                
+                fetch(`/mi-fuego/ticket/${ticketKey}/update-restriccion/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: new URLSearchParams({
+                        'restriccion': restriccion
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update original value
+                        this.dataset.originalValue = restriccion;
+                        // Show success message (you can customize this)
+                        console.log(data.message);
+                    } else {
+                        // Revert to original value
+                        this.value = originalValue;
+                        alert(data.error || 'Error al actualizar restricción');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    this.value = originalValue;
+                    alert('Error al actualizar restricción');
+                })
+                .finally(() => {
+                    this.disabled = false;
+                });
+            });
+            
+            // Store original value on load
+            select.dataset.originalValue = select.value;
         });
     </script>
 {% endblock truecontent %}
