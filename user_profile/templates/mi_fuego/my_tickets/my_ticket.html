@@ -445,23 +445,25 @@
                                                     </div>
                                                 </div>
                                                 {% endif %}
-                                                {% if ticket.restriccion and (ticket.has_ingreso_anticipado or ticket.has_late_checkout) %}
-                                                <div class="d-flex align-items-center gap-2">
-                                                    <i class="fas fa-utensils text-warning" style="font-size: 0.875rem;"></i>
-                                                    <div class="small d-flex align-items-center gap-2 flex-wrap">
-                                                        <strong class="text-warning">Restricción Alimentaria:</strong>
-                                                        <select 
-                                                            class="form-select form-select-sm restriccion-select-ticket" 
-                                                            data-ticket-key="{{ ticket.key }}"
-                                                            style="width: auto; display: inline-block; min-width: 150px;"
-                                                        >
-                                                            <option value="sin_restricciones" {% if ticket.restriccion == 'sin_restricciones' %}selected{% endif %}>Sin Restricciones</option>
-                                                            <option value="vegetarian" {% if ticket.restriccion == 'vegetarian' %}selected{% endif %}>Vegetarian</option>
-                                                            <option value="sin_tacc" {% if ticket.restriccion == 'sin_tacc' %}selected{% endif %}>Sin TACC</option>
-                                                            <option value="particular" {% if ticket.restriccion == 'particular' %}selected{% endif %}>Particular</option>
-                                                        </select>
+                                                {% if ticket.restriccion %}
+                                                    {% if ticket.has_ingreso_anticipado or ticket.has_late_checkout %}
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <i class="fas fa-utensils text-warning" style="font-size: 0.875rem;"></i>
+                                                        <div class="small d-flex align-items-center gap-2 flex-wrap">
+                                                            <strong class="text-warning">Restricción Alimentaria:</strong>
+                                                            <select 
+                                                                class="form-select form-select-sm restriccion-select-ticket" 
+                                                                data-ticket-key="{{ ticket.key }}"
+                                                                style="width: auto; display: inline-block; min-width: 150px;"
+                                                            >
+                                                                <option value="sin_restricciones" {% if ticket.restriccion == 'sin_restricciones' %}selected{% endif %}>Sin Restricciones</option>
+                                                                <option value="vegetarian" {% if ticket.restriccion == 'vegetarian' %}selected{% endif %}>Vegetarian</option>
+                                                                <option value="sin_tacc" {% if ticket.restriccion == 'sin_tacc' %}selected{% endif %}>Sin TACC</option>
+                                                                <option value="particular" {% if ticket.restriccion == 'particular' %}selected{% endif %}>Particular</option>
+                                                            </select>
+                                                        </div>
                                                     </div>
-                                                </div>
+                                                    {% endif %}
                                                 {% endif %}
                                             </div>
                                             {% endif %}
@@ -642,23 +644,25 @@
                                                     </div>
                                                 </div>
                                                 {% endif %}
-                                                {% if ticket.restriccion and (ticket.has_ingreso_anticipado or ticket.has_late_checkout) %}
-                                                <div class="d-flex align-items-center gap-2">
-                                                    <i class="fas fa-utensils text-warning" style="font-size: 0.875rem;"></i>
-                                                    <div class="small d-flex align-items-center gap-2 flex-wrap">
-                                                        <strong class="text-warning">Restricción Alimentaria:</strong>
-                                                        <select 
-                                                            class="form-select form-select-sm restriccion-select-ticket" 
-                                                            data-ticket-key="{{ ticket.key }}"
-                                                            style="width: auto; display: inline-block; min-width: 150px;"
-                                                        >
-                                                            <option value="sin_restricciones" {% if ticket.restriccion == 'sin_restricciones' %}selected{% endif %}>Sin Restricciones</option>
-                                                            <option value="vegetarian" {% if ticket.restriccion == 'vegetarian' %}selected{% endif %}>Vegetarian</option>
-                                                            <option value="sin_tacc" {% if ticket.restriccion == 'sin_tacc' %}selected{% endif %}>Sin TACC</option>
-                                                            <option value="particular" {% if ticket.restriccion == 'particular' %}selected{% endif %}>Particular</option>
-                                                        </select>
+                                                {% if ticket.restriccion %}
+                                                    {% if ticket.has_ingreso_anticipado or ticket.has_late_checkout %}
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <i class="fas fa-utensils text-warning" style="font-size: 0.875rem;"></i>
+                                                        <div class="small d-flex align-items-center gap-2 flex-wrap">
+                                                            <strong class="text-warning">Restricción Alimentaria:</strong>
+                                                            <select 
+                                                                class="form-select form-select-sm restriccion-select-ticket" 
+                                                                data-ticket-key="{{ ticket.key }}"
+                                                                style="width: auto; display: inline-block; min-width: 150px;"
+                                                            >
+                                                                <option value="sin_restricciones" {% if ticket.restriccion == 'sin_restricciones' %}selected{% endif %}>Sin Restricciones</option>
+                                                                <option value="vegetarian" {% if ticket.restriccion == 'vegetarian' %}selected{% endif %}>Vegetarian</option>
+                                                                <option value="sin_tacc" {% if ticket.restriccion == 'sin_tacc' %}selected{% endif %}>Sin TACC</option>
+                                                                <option value="particular" {% if ticket.restriccion == 'particular' %}selected{% endif %}>Particular</option>
+                                                            </select>
+                                                        </div>
                                                     </div>
-                                                </div>
+                                                    {% endif %}
                                                 {% endif %}
                                             </div>
                                             {% endif %}
