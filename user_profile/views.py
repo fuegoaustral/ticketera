@@ -310,10 +310,21 @@ def my_ticket_view(request, event_slug=None):
                 
                 if grupo_miembro:
                     ticket_dto['has_ingreso_anticipado'] = grupo_miembro.ingreso_anticipado or bool(grupo_miembro.ingreso_anticipado_fecha)
-                    ticket_dto['ingreso_anticipado_fecha'] = grupo_miembro.ingreso_anticipado_fecha.strftime("%d/%m/%Y") if grupo_miembro.ingreso_anticipado_fecha else None
-                    ticket_dto['ingreso_anticipado_desde'] = grupo_miembro.grupo.ingreso_anticipado_desde.strftime("%d/%m/%Y %H:%M") if grupo_miembro.grupo.ingreso_anticipado_desde else None
+                    if grupo_miembro.ingreso_anticipado_fecha:
+                        ticket_dto['ingreso_anticipado_fecha'] = grupo_miembro.ingreso_anticipado_fecha.strftime("%d/%m/%Y")
+                    else:
+                        ticket_dto['ingreso_anticipado_fecha'] = None
+                    if grupo_miembro.grupo.ingreso_anticipado_desde:
+                        local_ingreso_desde = timezone.localtime(grupo_miembro.grupo.ingreso_anticipado_desde)
+                        ticket_dto['ingreso_anticipado_desde'] = local_ingreso_desde.strftime("%d/%m/%Y %H:%M")
+                    else:
+                        ticket_dto['ingreso_anticipado_desde'] = None
                     ticket_dto['has_late_checkout'] = grupo_miembro.late_checkout
-                    ticket_dto['late_checkout_hasta'] = grupo_miembro.grupo.late_checkout_hasta.strftime("%d/%m/%Y %H:%M") if grupo_miembro.grupo.late_checkout_hasta else None
+                    if grupo_miembro.grupo.late_checkout_hasta:
+                        local_late_checkout = timezone.localtime(grupo_miembro.grupo.late_checkout_hasta)
+                        ticket_dto['late_checkout_hasta'] = local_late_checkout.strftime("%d/%m/%Y %H:%M")
+                    else:
+                        ticket_dto['late_checkout_hasta'] = None
                     ticket_dto['restriccion'] = grupo_miembro.restriccion
                     ticket_dto['restriccion_display'] = dict(grupo_miembro.RESTRICCION_CHOICES).get(grupo_miembro.restriccion, grupo_miembro.restriccion)
                     ticket_dto['grupo_id'] = grupo_miembro.grupo.id
@@ -2437,10 +2448,21 @@ def my_tickets_ajax(request, event_slug=None):
                 
                 if grupo_miembro:
                     ticket_dto['has_ingreso_anticipado'] = grupo_miembro.ingreso_anticipado or bool(grupo_miembro.ingreso_anticipado_fecha)
-                    ticket_dto['ingreso_anticipado_fecha'] = grupo_miembro.ingreso_anticipado_fecha.strftime("%d/%m/%Y") if grupo_miembro.ingreso_anticipado_fecha else None
-                    ticket_dto['ingreso_anticipado_desde'] = grupo_miembro.grupo.ingreso_anticipado_desde.strftime("%d/%m/%Y %H:%M") if grupo_miembro.grupo.ingreso_anticipado_desde else None
+                    if grupo_miembro.ingreso_anticipado_fecha:
+                        ticket_dto['ingreso_anticipado_fecha'] = grupo_miembro.ingreso_anticipado_fecha.strftime("%d/%m/%Y")
+                    else:
+                        ticket_dto['ingreso_anticipado_fecha'] = None
+                    if grupo_miembro.grupo.ingreso_anticipado_desde:
+                        local_ingreso_desde = timezone.localtime(grupo_miembro.grupo.ingreso_anticipado_desde)
+                        ticket_dto['ingreso_anticipado_desde'] = local_ingreso_desde.strftime("%d/%m/%Y %H:%M")
+                    else:
+                        ticket_dto['ingreso_anticipado_desde'] = None
                     ticket_dto['has_late_checkout'] = grupo_miembro.late_checkout
-                    ticket_dto['late_checkout_hasta'] = grupo_miembro.grupo.late_checkout_hasta.strftime("%d/%m/%Y %H:%M") if grupo_miembro.grupo.late_checkout_hasta else None
+                    if grupo_miembro.grupo.late_checkout_hasta:
+                        local_late_checkout = timezone.localtime(grupo_miembro.grupo.late_checkout_hasta)
+                        ticket_dto['late_checkout_hasta'] = local_late_checkout.strftime("%d/%m/%Y %H:%M")
+                    else:
+                        ticket_dto['late_checkout_hasta'] = None
                     ticket_dto['restriccion'] = grupo_miembro.restriccion
                     ticket_dto['restriccion_display'] = dict(grupo_miembro.RESTRICCION_CHOICES).get(grupo_miembro.restriccion, grupo_miembro.restriccion)
                     ticket_dto['grupo_id'] = grupo_miembro.grupo.id
@@ -2743,19 +2765,22 @@ def download_ticket_pdf(request, ticket_key):
         
         # Información de ingreso anticipado, late checkout y restricción
         if grupo_miembro:
+            from django.utils import timezone as tz
             has_ingreso = grupo_miembro.ingreso_anticipado or bool(grupo_miembro.ingreso_anticipado_fecha)
             if has_ingreso:
                 body_elements.append(Spacer(1, 0.15*inch))
                 if grupo_miembro.ingreso_anticipado_fecha:
                     body_elements.append(Paragraph(f'<b>Ingreso Anticipado:</b> Podés ingresar desde el {grupo_miembro.ingreso_anticipado_fecha.strftime("%d/%m/%Y")}', normal_style))
                 elif grupo_miembro.grupo.ingreso_anticipado_desde:
-                    body_elements.append(Paragraph(f'<b>Ingreso Anticipado:</b> Podés ingresar desde el {grupo_miembro.grupo.ingreso_anticipado_desde.strftime("%d/%m/%Y %H:%M")}', normal_style))
+                    local_ingreso_desde = tz.localtime(grupo_miembro.grupo.ingreso_anticipado_desde)
+                    body_elements.append(Paragraph(f'<b>Ingreso Anticipado:</b> Podés ingresar desde el {local_ingreso_desde.strftime("%d/%m/%Y %H:%M")}', normal_style))
                 else:
                     body_elements.append(Paragraph(f'<b>Ingreso Anticipado:</b> Tenés ingreso anticipado habilitado', normal_style))
             
             if grupo_miembro.late_checkout:
                 if grupo_miembro.grupo.late_checkout_hasta:
-                    body_elements.append(Paragraph(f'<b>Late Checkout:</b> Podés salir hasta el {grupo_miembro.grupo.late_checkout_hasta.strftime("%d/%m/%Y %H:%M")}', normal_style))
+                    local_late_checkout = tz.localtime(grupo_miembro.grupo.late_checkout_hasta)
+                    body_elements.append(Paragraph(f'<b>Late Checkout:</b> Podés salir hasta el {local_late_checkout.strftime("%d/%m/%Y %H:%M")}', normal_style))
                 else:
                     body_elements.append(Paragraph(f'<b>Late Checkout:</b> Tenés late checkout habilitado', normal_style))
             
