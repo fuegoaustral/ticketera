@@ -22,6 +22,8 @@ from .views import (
     send_phone_code_ajax,
     verify_phone_code_ajax,
     my_tickets_ajax,
+    update_ticket_restriccion,
+    download_ticket_pdf,
     roles_management_view,
     event_management_view,
     ticket_types_management_view,
@@ -67,6 +69,10 @@ urlpatterns = [
     path("mis-bonos/<slug:event_slug>/", my_ticket_view, name="my_ticket_event"),
     # AJAX endpoint for auto-refresh
     path("mis-bonos/<slug:event_slug>/ajax/", my_tickets_ajax, name="my_tickets_ajax"),
+    # AJAX endpoint for updating ticket restriction
+    path("ticket/<str:ticket_key>/update-restriccion/", update_ticket_restriccion, name="update_ticket_restriccion"),
+    # Download ticket PDF
+    path("ticket/<str:ticket_key>/download-pdf/", download_ticket_pdf, name="download_ticket_pdf"),
     # AJAX endpoint for accepting terms
     path("accept-terms/", accept_terms_ajax, name="accept_terms_ajax"),
     # Default redirect (no slug) - MUST BE LAST
