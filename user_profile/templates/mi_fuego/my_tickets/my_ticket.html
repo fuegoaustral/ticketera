@@ -445,7 +445,7 @@
                                                     </div>
                                                 </div>
                                                 {% endif %}
-                                                {% if ticket.restriccion %}
+                                                {% if ticket.restriccion and (ticket.has_ingreso_anticipado or ticket.has_late_checkout) %}
                                                 <div class="d-flex align-items-center gap-2">
                                                     <i class="fas fa-utensils text-warning" style="font-size: 0.875rem;"></i>
                                                     <div class="small d-flex align-items-center gap-2 flex-wrap">
@@ -642,7 +642,7 @@
                                                     </div>
                                                 </div>
                                                 {% endif %}
-                                                {% if ticket.restriccion %}
+                                                {% if ticket.restriccion and (ticket.has_ingreso_anticipado or ticket.has_late_checkout) %}
                                                 <div class="d-flex align-items-center gap-2">
                                                     <i class="fas fa-utensils text-warning" style="font-size: 0.875rem;"></i>
                                                     <div class="small d-flex align-items-center gap-2 flex-wrap">
