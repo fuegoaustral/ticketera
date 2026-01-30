@@ -278,12 +278,14 @@ def my_ticket_view(request, event_slug=None):
                         ticket_dto['transferring_to'] = transfer_pending.tx_to_email
                         ticket_dto['is_transfer_completed'] = False
                         ticket_dto['transferred_to'] = None
-                    elif transfer_completed:
+                    elif transfer_completed and ticket.holder != request.user:
+                        # Solo mostrar "transferido" cuando el bono no está de vuelta con este usuario
                         ticket_dto['is_transfer_pending'] = False
                         ticket_dto['transferring_to'] = None
                         ticket_dto['is_transfer_completed'] = True
                         ticket_dto['transferred_to'] = transfer_completed.tx_to_email
                     else:
+                        # Sin transferencia pendiente, o transferencia completada pero el bono volvió (holder==user): puede transferir de nuevo
                         ticket_dto['is_transfer_pending'] = False
                         ticket_dto['transferring_to'] = None
                         ticket_dto['is_transfer_completed'] = False
