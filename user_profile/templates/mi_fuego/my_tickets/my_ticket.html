@@ -492,6 +492,11 @@
                                                 <p class="text-center text-muted mb-0 small">
                                                     Bono inválido
                                                 </p>
+                                                {% if has_pending_terms %}
+                                                <a href="#" class="btn btn-link btn-sm p-0 mt-2" data-bs-toggle="modal" data-bs-target="#termsModal">
+                                                    Aceptar términos y condiciones
+                                                </a>
+                                                {% endif %}
                                             </div>
                                         {% endif %}
                                     </div>
