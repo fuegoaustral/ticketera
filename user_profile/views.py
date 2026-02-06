@@ -666,6 +666,8 @@ def profile_view(request):
                 profile_form.save()
                 messages.success(request, 'Tu perfil ha sido actualizado exitosamente.')
                 return redirect('profile')
+            else:
+                messages.error(request, 'Revisá los datos e intentá de nuevo.')
         
         # Handle password change
         elif 'change_password' in request.POST:

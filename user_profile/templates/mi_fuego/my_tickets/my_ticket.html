@@ -725,6 +725,28 @@
         {% endfor %}
     {% endif %}
 
+    <div class="modal fade" id="unassignWarningModal" data-bs-backdrop="static" tabindex="-1" aria-labelledby="unassignWarningModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title text-warning" id="unassignWarningModalLabel"><i class="fas fa-exclamation-triangle me-2"></i>Aviso: grupos con ingreso anticipado o late checkout</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2">Estás en los siguientes grupos para este evento:</p>
+                    <ul id="unassignWarningGroupsList" class="mb-3"></ul>
+                    <div class="alert alert-warning mb-0">
+                        <strong>Si desvinculás el bono</strong>, vas a ser removido de esas listas. Si más adelante volvés a vincular el bono, tendrás que pedir que te agreguen nuevamente.
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="unassignConfirmBtn"><i class="fas fa-unlink me-1"></i> Desvincular el bono igualmente</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal fade" id="transferModal" data-bs-backdrop="static" tabindex="-1" aria-labelledby="transferModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -777,38 +799,87 @@
             currentTicketKey = ticketId;
         }
 
-        // Make function globally available
-        window.confirmOwnTicketTransfer = function(ticketKey) {
-            if (confirm('Este bono está a tu nombre. Desvinculalo para poder transferirselo a otra persona. Si te arrepientes, podés volver a vincularlo.')) {
-                // Unassign the ticket and refresh the page
-                fetch(`/ticket/${ticketKey}/unassign/`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': '{{ csrf_token }}',
-                        'Content-Type': 'application/json',
-                    },
-                })
-                .then(response => {
-                    if (response.ok) {
-                        // Refresh the page to show updated state
-                        window.location.reload();
-                    } else {
-                        alert('Error al desvincular el bono');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
+        let pendingUnassignTicketKey = null;
+
+        function doUnassignTicket(ticketKey) {
+            fetch(`/ticket/${ticketKey}/unassign/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                } else {
                     alert('Error al desvincular el bono');
-                });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al desvincular el bono');
+            });
+        }
+
+        // Make function globally available
+        window.confirmOwnTicketTransfer = async function(ticketKey) {
+            let hasGroupsWarning = false;
+            let groups = [];
+            try {
+                const checkRes = await fetch(`/ticket/${ticketKey}/unassign-check/`, { method: 'GET', headers: { 'Accept': 'application/json' } });
+                if (checkRes.ok) {
+                    const data = await checkRes.json();
+                    if (data.has_early_access_or_late_checkout && data.groups && data.groups.length > 0) {
+                        hasGroupsWarning = true;
+                        groups = data.groups;
+                    }
+                }
+            } catch (e) {
+                console.warn('unassign-check failed', e);
+            }
+            if (hasGroupsWarning && groups.length > 0) {
+                const listEl = document.getElementById('unassignWarningGroupsList');
+                listEl.innerHTML = groups.map(g => {
+                    const labels = [];
+                    if (g.ingreso_anticipado) labels.push('ingreso anticipado');
+                    if (g.late_checkout) labels.push('late checkout');
+                    return `<li><strong>${escapeHtml(g.nombre)}</strong> (${labels.join(', ')})</li>`;
+                }).join('');
+                pendingUnassignTicketKey = ticketKey;
+                const modal = new bootstrap.Modal(document.getElementById('unassignWarningModal'));
+                modal.show();
+            } else {
+                const message = 'Este bono está a tu nombre. Desvinculalo para poder transferirselo a otra persona. Si te arrepientes, podés volver a vincularlo.';
+                if (confirm(message)) {
+                    doUnassignTicket(ticketKey);
+                }
             }
         }
 
+        document.getElementById('unassignConfirmBtn').addEventListener('click', function() {
+            if (pendingUnassignTicketKey) {
+                const key = pendingUnassignTicketKey;
+                pendingUnassignTicketKey = null;
+                bootstrap.Modal.getInstance(document.getElementById('unassignWarningModal')).hide();
+                doUnassignTicket(key);
+            }
+        });
+
+        document.getElementById('unassignWarningModal').addEventListener('hidden.bs.modal', function() {
+            pendingUnassignTicketKey = null;
+        });
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
         document.querySelectorAll('.unassign-ticket').forEach(button => {
-            button.addEventListener('click', async function () {
+            button.addEventListener('click', function () {
                 const ticketKey = this.dataset.ticketKey;
-                if (confirm('Si no vas a ir, desasigna tu bono para poder transferirselo a otra persona. ¿Estás seguro que no vas a ir?')) {
-                    window.location.href = `/ticket/${ticketKey}/unassign/`;
-                }
+                if (ticketKey) confirmOwnTicketTransfer(ticketKey);
             });
         });
 
