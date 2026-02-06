@@ -9,11 +9,13 @@ from django.core.validators import EmailValidator
 from django.db import transaction
 from django.http import HttpResponseNotAllowed, HttpResponseForbidden, HttpResponse, HttpResponseBadRequest, \
     JsonResponse
-from django.shortcuts import redirect
+from django.shortcuts import redirect, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
+from django.db.models import Q
 from allauth.account.models import EmailAddress
 
+from events.models import GrupoMiembro
 from tickets.models import NewTicket, NewTicketTransfer
 from utils.email import send_mail
 
@@ -228,8 +230,8 @@ def assign_ticket(request, ticket_key):
     if ticket.is_used:
         return HttpResponseBadRequest('Cannot assign a used ticket')
 
-    if not ticket.event.transfer_period():
-        return HttpResponseBadRequest('Transfer period has ended')
+    # Vincular siempre permitido (incluso después de la fecha límite de transferencias),
+    # para quien tenga un bono desvinculado. Desvincular sí se bloquea después de esa fecha.
 
     if NewTicket.objects.filter(holder=request.user, owner=request.user, event=ticket.event).exists():
         return HttpResponseBadRequest('User already has a ticket')
@@ -251,13 +253,42 @@ def assign_ticket(request, ticket_key):
 
 
 @login_required()
+def unassign_ticket_check(request, ticket_key):
+    """GET: returns whether the user will be removed from early access / late checkout groups if they unlink."""
+    if request.method != 'GET':
+        return HttpResponseNotAllowed(['GET'])
+    ticket = get_object_or_404(NewTicket, key=ticket_key)
+    if not (ticket.holder == request.user and ticket.owner == request.user):
+        return JsonResponse({'error': 'No autorizado'}, status=403)
+    # Grupos del evento donde el usuario tiene ingreso anticipado o late checkout (y no es el líder)
+    memberships = GrupoMiembro.objects.filter(
+        user=request.user,
+        grupo__event=ticket.event
+    ).exclude(
+        grupo__lider=request.user
+    ).filter(
+        Q(ingreso_anticipado=True) | Q(late_checkout=True)
+    ).select_related('grupo')
+    groups = [
+        {
+            'nombre': m.grupo.nombre,
+            'ingreso_anticipado': m.ingreso_anticipado,
+            'late_checkout': m.late_checkout,
+        }
+        for m in memberships
+    ]
+    return JsonResponse({
+        'has_early_access_or_late_checkout': len(groups) > 0,
+        'groups': groups,
+    })
+
+
+@login_required()
 def unassign_ticket(request, ticket_key):
     if request.method != 'POST':
         return HttpResponseNotAllowed(['POST'])
 
-    ticket = NewTicket.objects.get(key=ticket_key)
-    if ticket is None:
-        return HttpResponseBadRequest()
+    ticket = get_object_or_404(NewTicket, key=ticket_key)
 
     if not (ticket.holder == request.user and ticket.owner == request.user):
         return HttpResponseForbidden()
@@ -270,6 +301,17 @@ def unassign_ticket(request, ticket_key):
 
     if ticket.event.transfers_enabled_until < timezone.now():
         return HttpResponseBadRequest('')
+
+    # Remover al usuario de grupos de este evento donde tiene ingreso anticipado o late checkout
+    # (no se toca al líder del grupo)
+    GrupoMiembro.objects.filter(
+        user=request.user,
+        grupo__event=ticket.event
+    ).exclude(
+        grupo__lider=request.user
+    ).filter(
+        Q(ingreso_anticipado=True) | Q(late_checkout=True)
+    ).delete()
 
     ticket.volunteer_ranger = None
     ticket.volunteer_transmutator = None

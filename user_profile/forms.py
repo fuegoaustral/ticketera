@@ -207,17 +207,16 @@ class VolunteeringForm(forms.ModelForm):
 
 
 class ProfileUpdateForm(forms.ModelForm):
-    """Formulario para actualizar perfil"""
+    """Formulario para actualizar perfil (nombre, documento). Teléfono se actualiza en la sección separada con verificación SMS."""
     first_name = forms.CharField(max_length=30, widget=forms.TextInput(attrs={'class': 'form-control'}))
     last_name = forms.CharField(max_length=30, widget=forms.TextInput(attrs={'class': 'form-control'}))
     
     class Meta:
         model = Profile
-        fields = ['document_type', 'document_number', 'phone']
+        fields = ['document_type', 'document_number']
         widgets = {
             'document_type': forms.Select(attrs={'class': 'form-select'}),
             'document_number': forms.TextInput(attrs={'class': 'form-control'}),
-            'phone': forms.TextInput(attrs={'class': 'form-control'}),
         }
     
     def __init__(self, *args, **kwargs):

@@ -55,10 +55,10 @@
                             data-bs-toggle="modal"
                             data-bs-target="#transferModal"
                             onclick="setTransferTicketId('{{ ticket.key }}')">Transferir</button>
-                    {% if not my_ticket %}
-                      <a class="btn btn-sm btn-success text-white text-decoration-none"
-                         href="{% url 'assign_ticket' ticket.key %}">Asignarmelo</a>
-                    {% endif %}
+                  {% endif %}
+                  {% if not my_ticket %}
+                    <a class="btn btn-sm btn-success text-white text-decoration-none"
+                       href="{% url 'assign_ticket' ticket.key %}">Asignarmelo</a>
                   {% endif %}
                 {% endif %}
               </div>
