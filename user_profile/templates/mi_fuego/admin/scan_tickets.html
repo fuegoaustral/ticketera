@@ -118,6 +118,18 @@
                 <div class="col-md-8 col-lg-6">
                     <div class="card">
                         <div class="card-body">
+                            {% if event %}
+                            <!-- Buscar por DNI o apellido -->
+                            <div class="mb-4">
+                                <label class="form-label text-muted small mb-2">Buscar por DNI o apellido</label>
+                                <div class="input-group">
+                                    <input type="text" id="dni-search-input" class="form-control form-control-lg" placeholder="DNI o apellido" autocomplete="off">
+                                    <button type="button" id="dni-search-btn" class="btn btn-outline-primary btn-lg">
+                                        <i class="fas fa-search me-1"></i> Buscar
+                                    </button>
+                                </div>
+                            </div>
+                            {% endif %}
                             <div class="video-container mb-3" style="border-radius: 8px; overflow: hidden; width: 100%; height: 400px; display: flex; align-items: center; justify-content: center; background-color: #000; position: relative;">
                                 <video id="qr-video" style="background-color: #000; display: none;"></video>
                                 <div id="scanning-overlay" class="d-none">
@@ -142,18 +154,27 @@
                                     <i class="fas fa-stop me-2"></i>Detener Cámara
                                 </button>
                             </div>
-                            {% if event %}
-                            <!-- Buscar por DNI -->
-                            <div class="border-top pt-3 mt-3">
-                                <label class="form-label text-muted small mb-2">Buscar por DNI</label>
-                                <div class="input-group">
-                                    <input type="text" id="dni-search-input" class="form-control form-control-lg" placeholder="Ingresá el DNI" inputmode="numeric" autocomplete="off">
-                                    <button type="button" id="dni-search-btn" class="btn btn-outline-primary btn-lg">
-                                        <i class="fas fa-search me-1"></i> Buscar
-                                    </button>
-                                </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="results-list-view" class="d-none">
+            <div class="row justify-content-center">
+                <div class="col-md-8 col-lg-6">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Varios resultados</h5>
+                            <button type="button" id="backFromResults" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left"></i> Volver
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small mb-3">Elegí el bono para ver el detalle:</p>
+                            <div id="results-list-container" class="list-group list-group-flush">
+                                <!-- filled by JS -->
                             </div>
-                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -211,6 +232,12 @@
                                             <div class="detail-item">
                                                 <label class="text-muted">Escaneado por</label>
                                                 <h6 id="ticket-scanned-by" class="mb-0"></h6>
+                                            </div>
+                                        </div>
+                                        <div class="col-12 d-none" id="group-info-container">
+                                            <div class="detail-item">
+                                                <label class="text-muted">Ingreso anticipado / Grupo</label>
+                                                <h6 id="ticket-group-info" class="mb-0"></h6>
                                             </div>
                                         </div>
                                     </div>
@@ -473,6 +500,8 @@
         function showScannerView() {
             document.getElementById('scanner-view').classList.remove('d-none');
             document.getElementById('ticket-view').classList.add('d-none');
+            const rlv = document.getElementById('results-list-view');
+            if (rlv) rlv.classList.add('d-none');
             document.getElementById('error-message').classList.add('d-none');
             document.getElementById('success-message').classList.add('d-none');
             document.getElementById('notes-photos-section').classList.add('d-none');
@@ -482,11 +511,40 @@
         function showTicketView() {
             document.getElementById('scanner-view').classList.add('d-none');
             document.getElementById('ticket-view').classList.remove('d-none');
+            const rlv = document.getElementById('results-list-view');
+            if (rlv) rlv.classList.add('d-none');
             document.getElementById('error-message').classList.add('d-none');
             document.getElementById('success-message').classList.add('d-none');
             
             // Don't hide saved-info-section here - let showSavedInformation handle it
-            // The saved-info-section visibility should be managed by showSavedInformation function
+        }
+
+        function showResultsListView(results) {
+            document.getElementById('scanner-view').classList.add('d-none');
+            document.getElementById('ticket-view').classList.add('d-none');
+            document.getElementById('results-list-view').classList.remove('d-none');
+            document.getElementById('error-message').classList.add('d-none');
+            const container = document.getElementById('results-list-container');
+            if (!container) return;
+            container.innerHTML = results.map(function(r) {
+                const usedBadge = r.is_used ? '<span class="badge bg-warning text-dark ms-2">Usado</span>' : '';
+                let earlyLine = '';
+                if (r.has_early_access && r.grupo_nombre) {
+                    const desde = r.ingreso_anticipado_desde ? ' — desde ' + r.ingreso_anticipado_desde : '';
+                    earlyLine = '<br><small class="text-success"><i class="fas fa-clock me-1"></i>Ingreso anticipado — ' + (r.grupo_nombre || '') + desde + '</small>';
+                } else if (r.grupo_nombre) {
+                    earlyLine = '<br><small class="text-muted">Grupo: ' + r.grupo_nombre + '</small>';
+                }
+                return '<div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">' +
+                    '<div><strong>' + (r.holder_name || '—') + '</strong>' + (r.document_number ? ' <span class="text-muted">' + r.document_number + '</span>' : '') + '<br><small class="text-muted">' + (r.ticket_type || '') + '</small>' + usedBadge + earlyLine + '</div>' +
+                    '<button type="button" class="btn btn-sm btn-outline-primary ver-bono-btn" data-key="' + r.key + '"><i class="fas fa-ticket-alt me-1"></i> Ver bono</button>' +
+                    '</div>';
+            }).join('');
+            container.querySelectorAll('.ver-bono-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    checkTicket(btn.dataset.key);
+                });
+            });
         }
 
         async function initializeScanner() {
@@ -644,9 +702,9 @@
             const dniInput = document.getElementById('dni-search-input');
             const btn = document.getElementById('dni-search-btn');
             if (!dniInput || !btn) return;
-            const dni = (dniInput.value || '').trim();
-            if (!dni) {
-                showError('Ingresá el DNI para buscar');
+            const q = (dniInput.value || '').trim();
+            if (!q) {
+                showError('Ingresá DNI o apellido para buscar');
                 return;
             }
             const eventSlug = '{{ event.slug|default:"" }}';
@@ -657,7 +715,7 @@
             try {
                 btn.disabled = true;
                 document.getElementById('error-message').classList.add('d-none');
-                const url = `/api/tickets/check-by-dni/?event_slug=${encodeURIComponent(eventSlug)}&dni=${encodeURIComponent(dni)}`;
+                const url = `/api/tickets/check-by-dni/?event_slug=${encodeURIComponent(eventSlug)}&q=${encodeURIComponent(q)}`;
                 const response = await fetch(url, {
                     headers: {
                         'X-CSRFToken': getCSRFToken(),
@@ -666,23 +724,36 @@
                 });
                 const data = await response.json();
                 if (response.ok) {
-                    displayTicketInfo(data);
-                    showTicketView();
-                    if (isScanning) {
-                        await stopScanning();
-                        const toggleButton = document.getElementById('toggleCamera');
-                        const startButton = document.getElementById('startCameraBtn');
-                        startButton.style.display = 'block';
-                        toggleButton.classList.add('d-none');
-                        isScanning = false;
+                    if (data.results && data.results.length > 0) {
+                        showResultsListView(data.results);
+                        if (isScanning) {
+                            await stopScanning();
+                            const toggleButton = document.getElementById('toggleCamera');
+                            const startButton = document.getElementById('startCameraBtn');
+                            startButton.style.display = 'block';
+                            toggleButton.classList.add('d-none');
+                            isScanning = false;
+                        }
+                        dniInput.value = '';
+                    } else {
+                        displayTicketInfo(data);
+                        showTicketView();
+                        if (isScanning) {
+                            await stopScanning();
+                            const toggleButton = document.getElementById('toggleCamera');
+                            const startButton = document.getElementById('startCameraBtn');
+                            startButton.style.display = 'block';
+                            toggleButton.classList.add('d-none');
+                            isScanning = false;
+                        }
+                        dniInput.value = '';
                     }
-                    dniInput.value = '';
                 } else {
-                    showError(data.error || 'No se encontró ningún bono con ese DNI');
+                    showError(data.error || 'No se encontró ningún bono');
                 }
             } catch (err) {
-                console.error('Check by DNI error:', err);
-                showError('Error al buscar por DNI: ' + (err.message || 'Error desconocido'));
+                console.error('Check by DNI/apellido error:', err);
+                showError('Error al buscar: ' + (err.message || 'Error desconocido'));
             } finally {
                 btn.disabled = false;
             }
@@ -902,6 +973,21 @@
                 ticketScannedBy.textContent = ticket.scanned_by.full_name;
             } else {
                 scannedByContainer.classList.add('d-none');
+            }
+
+            // Ingreso anticipado / Grupo (con fechas)
+            const groupInfoContainer = document.getElementById('group-info-container');
+            const ticketGroupInfo = document.getElementById('ticket-group-info');
+            if (ticket.group_info && ticket.group_info.grupo_nombre) {
+                groupInfoContainer.classList.remove('d-none');
+                const early = ticket.group_info.has_early_access ? 'Sí' : 'No';
+                let text = 'Ingreso anticipado: ' + early + ' — Grupo: ' + ticket.group_info.grupo_nombre;
+                if (ticket.group_info.ingreso_anticipado_desde) {
+                    text += ' — desde ' + ticket.group_info.ingreso_anticipado_desde;
+                }
+                ticketGroupInfo.textContent = text;
+            } else {
+                groupInfoContainer.classList.add('d-none');
             }
 
             // Check if ticket has existing data (notes or photos)
@@ -1290,6 +1376,10 @@
                         checkTicketByDni();
                     }
                 });
+            }
+            const backFromResults = document.getElementById('backFromResults');
+            if (backFromResults) {
+                backFromResults.addEventListener('click', showScannerView);
             }
             
             // Add event listener for increment attendees left button
