@@ -142,6 +142,18 @@
                                     <i class="fas fa-stop me-2"></i>Detener Cámara
                                 </button>
                             </div>
+                            {% if event %}
+                            <!-- Buscar por DNI -->
+                            <div class="border-top pt-3 mt-3">
+                                <label class="form-label text-muted small mb-2">Buscar por DNI</label>
+                                <div class="input-group">
+                                    <input type="text" id="dni-search-input" class="form-control form-control-lg" placeholder="Ingresá el DNI" inputmode="numeric" autocomplete="off">
+                                    <button type="button" id="dni-search-btn" class="btn btn-outline-primary btn-lg">
+                                        <i class="fas fa-search me-1"></i> Buscar
+                                    </button>
+                                </div>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -625,6 +637,54 @@
             } catch (err) {
                 console.error('Check ticket error:', err);
                 showError('Error al verificar el bono: ' + (err.message || 'Error desconocido'));
+            }
+        }
+
+        async function checkTicketByDni() {
+            const dniInput = document.getElementById('dni-search-input');
+            const btn = document.getElementById('dni-search-btn');
+            if (!dniInput || !btn) return;
+            const dni = (dniInput.value || '').trim();
+            if (!dni) {
+                showError('Ingresá el DNI para buscar');
+                return;
+            }
+            const eventSlug = '{{ event.slug|default:"" }}';
+            if (!eventSlug) {
+                showError('No hay evento seleccionado');
+                return;
+            }
+            try {
+                btn.disabled = true;
+                document.getElementById('error-message').classList.add('d-none');
+                const url = `/api/tickets/check-by-dni/?event_slug=${encodeURIComponent(eventSlug)}&dni=${encodeURIComponent(dni)}`;
+                const response = await fetch(url, {
+                    headers: {
+                        'X-CSRFToken': getCSRFToken(),
+                        'Content-Type': 'application/json',
+                    }
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    displayTicketInfo(data);
+                    showTicketView();
+                    if (isScanning) {
+                        await stopScanning();
+                        const toggleButton = document.getElementById('toggleCamera');
+                        const startButton = document.getElementById('startCameraBtn');
+                        startButton.style.display = 'block';
+                        toggleButton.classList.add('d-none');
+                        isScanning = false;
+                    }
+                    dniInput.value = '';
+                } else {
+                    showError(data.error || 'No se encontró ningún bono con ese DNI');
+                }
+            } catch (err) {
+                console.error('Check by DNI error:', err);
+                showError('Error al buscar por DNI: ' + (err.message || 'Error desconocido'));
+            } finally {
+                btn.disabled = false;
             }
         }
 
@@ -1216,6 +1276,21 @@
         document.addEventListener('DOMContentLoaded', function() {
             initializeScanner();
             hideWhatsAppWidgets();
+            
+            // Buscar por DNI
+            const dniSearchBtn = document.getElementById('dni-search-btn');
+            const dniSearchInput = document.getElementById('dni-search-input');
+            if (dniSearchBtn) {
+                dniSearchBtn.addEventListener('click', checkTicketByDni);
+            }
+            if (dniSearchInput) {
+                dniSearchInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        checkTicketByDni();
+                    }
+                });
+            }
             
             // Add event listener for increment attendees left button
             const incrementBtn = document.getElementById('decrement-occupancy-btn');

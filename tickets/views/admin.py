@@ -5,6 +5,7 @@ from django.utils import timezone
 from tickets.models import NewTicket
 from events.models import Event
 from django.core.exceptions import ObjectDoesNotExist
+from user_profile.models import Profile
 
 def is_admin_or_puerta(user):
     return user.is_superuser or user.groups.filter(name='Puerta').exists()
@@ -22,6 +23,45 @@ def has_scanner_access(user, event=None):
             return True
     # Fallback to old group-based logic for backward compatibility
     return user.groups.filter(name='Puerta').exists()
+
+
+def _ticket_check_response(ticket):
+    """Build the JSON response dict for check_ticket / check_ticket_by_dni."""
+    profile = getattr(ticket.holder, 'profile', None) if ticket.holder else None
+    user_info = None
+    if ticket.holder:
+        user_info = {
+            'first_name': ticket.holder.first_name,
+            'last_name': ticket.holder.last_name,
+            'document_type': profile.document_type if profile else None,
+            'document_number': profile.document_number if profile else None,
+        }
+    return {
+        'key': ticket.key,
+        'ticket_type': str(ticket.ticket_type),
+        'is_used': ticket.is_used,
+        'used_at': ticket.used_at.isoformat() if ticket.used_at else None,
+        'scanned_by': {
+            'id': ticket.scanned_by.id,
+            'username': ticket.scanned_by.username,
+            'full_name': ticket.scanned_by.get_full_name() or ticket.scanned_by.username,
+            'email': ticket.scanned_by.email,
+        } if ticket.scanned_by else None,
+        'notes': ticket.notes,
+        'photos': [
+            {
+                'id': photo.id,
+                'url': photo.photo.url,
+                'name': photo.photo.name.split('/')[-1],
+                'uploaded_at': photo.created_at.isoformat() if photo.created_at else None,
+                'uploaded_by': photo.uploaded_by.get_full_name() or photo.uploaded_by.username,
+            }
+            for photo in ticket.ticket_photos.all()
+        ],
+        'owner_name': f"{ticket.owner.first_name} {ticket.owner.last_name}" if ticket.owner else None,
+        'user_info': user_info,
+    }
+
 
 @user_passes_test(is_admin_or_puerta)
 def scan_tickets(request):
@@ -158,40 +198,38 @@ def check_ticket(request, ticket_key):
         if not has_scanner_access(request.user, ticket.event):
             return JsonResponse({'error': 'No tienes permisos para verificar tickets de este evento'}, status=403)
         
-        return JsonResponse({
-            'key': ticket.key,
-            'ticket_type': str(ticket.ticket_type),
-            'is_used': ticket.is_used,
-            'used_at': ticket.used_at.isoformat() if ticket.used_at else None,
-            'scanned_by': {
-                'id': ticket.scanned_by.id,
-                'username': ticket.scanned_by.username,
-                'full_name': ticket.scanned_by.get_full_name() or ticket.scanned_by.username,
-                'email': ticket.scanned_by.email
-            } if ticket.scanned_by else None,
-            'notes': ticket.notes,
-            'photos': [
-                {
-                    'id': photo.id,
-                    'url': photo.photo.url,
-                    'name': photo.photo.name.split('/')[-1],  # Get filename
-                    'uploaded_at': photo.created_at.isoformat() if photo.created_at else None,
-                    'uploaded_by': photo.uploaded_by.get_full_name() or photo.uploaded_by.username
-                }
-                for photo in ticket.ticket_photos.all()
-            ],
-            'owner_name': f"{ticket.owner.first_name} {ticket.owner.last_name}" if ticket.owner else None,
-            'user_info': {
-                'first_name': ticket.holder.first_name,
-                'last_name': ticket.holder.last_name,
-                'document_type': ticket.holder.profile.document_type,
-                'document_number': ticket.holder.profile.document_number
-            } if ticket.holder else None
-        })
+        return JsonResponse(_ticket_check_response(ticket))
     except ObjectDoesNotExist:
         return JsonResponse({'error': 'Bono no encontrado'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def check_ticket_by_dni(request):
+    """Look up a ticket by holder DNI for the current event (scanner search by DNI)."""
+    event_slug = request.GET.get('event_slug')
+    dni = (request.GET.get('dni') or '').strip()
+    if not event_slug:
+        return JsonResponse({'error': 'Falta el evento (event_slug)'}, status=400)
+    if not dni:
+        return JsonResponse({'error': 'Ingresá el DNI para buscar'}, status=400)
+    try:
+        event = Event.objects.get(slug=event_slug)
+        if not has_scanner_access(request.user, event):
+            return JsonResponse({'error': 'No tienes permisos para verificar tickets de este evento'}, status=403)
+        profile = Profile.objects.filter(document_number__iexact=dni).first()
+        if not profile:
+            return JsonResponse({'error': 'No se encontró ningún bono con ese DNI en este evento'}, status=404)
+        ticket = NewTicket.objects.filter(event=event, holder=profile.user).order_by('id').first()
+        if not ticket:
+            return JsonResponse({'error': 'No se encontró ningún bono con ese DNI en este evento'}, status=404)
+        return JsonResponse(_ticket_check_response(ticket))
+    except Event.DoesNotExist:
+        return JsonResponse({'error': 'Evento no encontrado'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
 
 @login_required
 def mark_ticket_used(request, ticket_key):

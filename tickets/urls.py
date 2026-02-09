@@ -58,6 +58,7 @@ urlpatterns = [
 
     path('scan/', admin.scan_tickets, name='scan_tickets'),
     path('scan/<slug:event_slug>/', admin.scan_tickets_event, name='scan_tickets_event'),
+    path('api/tickets/check-by-dni/', admin.check_ticket_by_dni, name='check_ticket_by_dni'),
     path('api/tickets/<str:ticket_key>/check/', admin.check_ticket, name='check_ticket'),
     path('api/tickets/<str:ticket_key>/check-public/', admin.check_ticket_public, name='check_ticket_public'),
     path('api/tickets/<str:ticket_key>/mark-used/', admin.mark_ticket_used, name='mark_ticket_used'),
