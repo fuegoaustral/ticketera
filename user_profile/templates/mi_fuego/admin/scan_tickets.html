@@ -139,17 +139,16 @@
                                         <div class="corner-bottom-left"></div>
                                     </div>
                                 </div>
-                                <div id="camera-placeholder" class="text-center" style="color: #6c757d;">
+                                <div id="camera-placeholder" class="scanner-placeholder-tap d-flex flex-column align-items-center justify-content-center text-center" style="position: absolute; inset: 0; color: #6c757d; cursor: pointer;">
                                     <i class="fas fa-camera fa-3x mb-3" style="color: #6c757d;"></i>
-                                    <p class="mb-0" style="color: #6c757d;">Presiona el botón para iniciar la cámara</p>
+                                    <button type="button" id="startCameraBtn" class="btn btn-success scanner-start-btn">
+                                        <i class="fas fa-camera me-2"></i>Iniciar Cámara
+                                    </button>
                                 </div>
                             </div>
                             
-                            <!-- Camera Controls -->
+                            <!-- Camera Controls (solo Detener) -->
                             <div class="text-center mb-4">
-                                <button id="startCameraBtn" class="btn btn-success btn-lg me-2">
-                                    <i class="fas fa-camera me-2"></i>Iniciar Cámara
-                                </button>
                                 <button id="toggleCamera" class="btn btn-outline-danger btn-lg d-none">
                                     <i class="fas fa-stop me-2"></i>Detener Cámara
                                 </button>
@@ -181,7 +180,7 @@
             </div>
         </div>
 
-        <div id="ticket-view" class="d-none">
+        <div id="ticket-view" class="d-none" data-has-venue-capacity="{% if event.venue_capacity %}true{% else %}false{% endif %}">
             <div class="row justify-content-center">
                 <div class="col-md-8 col-lg-6">
                     <div class="card">
@@ -192,7 +191,12 @@
                             </button>
                         </div>
                         <div id="ticket-used-alert" class="alert alert-warning d-none mx-3 mt-3 mb-0">
-                            <i class="fas fa-exclamation-triangle me-2"></i>Usado
+                            <i class="fas fa-exclamation-triangle me-2"></i><span id="ticket-used-alert-text">Usado</span>
+                        </div>
+                        <div class="text-center mx-3 mt-2 mb-0 d-none" id="mark-left-btn-wrapper">
+                            <button id="mark-left-btn" class="btn btn-outline-warning scanner-mark-left-btn" title="Registrar que esta persona salió del venue">
+                                <i class="fas fa-user-minus me-2"></i><span id="mark-left-btn-label">Marcar como que salió</span>
+                            </button>
                         </div>
                         <div class="card-body">
                             <div id="ticket-info">
@@ -242,7 +246,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div id="ticket-actions" class="d-flex justify-content-center">
+                                <div id="ticket-actions" class="d-flex flex-wrap justify-content-center gap-2">
                                     <button id="mark-is-used" class="btn btn-success btn-lg d-none">
                                         <i class="fas fa-check-circle me-2"></i>Marcar como Usado
                                     </button>
@@ -437,6 +441,38 @@
             margin-top: 1rem;
         }
         
+        /* Botón Iniciar Cámara: más grande, centrado, texto blanco */
+        .scanner-start-btn {
+            font-size: 1.35rem !important;
+            padding: 0.75rem 1.75rem !important;
+            color: #fff !important;
+            background-color: #198754 !important;
+            border-color: #198754 !important;
+        }
+        .scanner-start-btn:hover, .scanner-start-btn:focus {
+            color: #fff !important;
+            background-color: #157347 !important;
+            border-color: #146c43 !important;
+        }
+        .scanner-placeholder-tap:active {
+            opacity: 0.95;
+        }
+        /* Botón "Marcar como que salió" más grande */
+        .scanner-mark-left-btn {
+            font-size: 1.2rem !important;
+            padding: 0.7rem 1.5rem !important;
+        }
+        @media (max-width: 768px) {
+            .scanner-start-btn {
+                font-size: 1.15rem !important;
+                padding: 0.65rem 1.35rem !important;
+            }
+            .scanner-mark-left-btn {
+                font-size: 1.1rem !important;
+                padding: 0.6rem 1.25rem !important;
+            }
+        }
+
         /* Hide WhatsApp widget in scanner */
         .wa-widget {
             display: none !important;
@@ -568,7 +604,11 @@
                 selectedDeviceId = backCamera ? backCamera.deviceId : videoDevices[0].deviceId;
                 codeReader = new ZXing.BrowserMultiFormatReader();
                 
-                document.getElementById('startCameraBtn').addEventListener('click', toggleCamera);
+                document.getElementById('startCameraBtn').addEventListener('click', function(e) { e.stopPropagation(); toggleCamera(); });
+                const placeholder = document.getElementById('camera-placeholder');
+                if (placeholder) {
+                    placeholder.addEventListener('click', function() { if (!isScanning) toggleCamera(); });
+                }
                 document.getElementById('toggleCamera').addEventListener('click', toggleCamera);
                 document.getElementById('backToScanner').addEventListener('click', () => {
                     showScannerView();
@@ -601,15 +641,13 @@
             if (!isScanning) {
                 try {
                     await startScanning();
-                    startButton.style.display = 'none';
                     toggleButton.classList.remove('d-none');
-                    toggleButton.textContent = 'Detener Cámara';
-                    toggleButton.classList.replace('btn-primary', 'btn-danger');
+                    toggleButton.innerHTML = '<i class="fas fa-stop me-2"></i>Detener Cámara';
                     isScanning = true;
                     scanningOverlay.classList.remove('d-none');
                     video.style.display = 'block';
-                    // Hide the camera placeholder
-                    document.getElementById('camera-placeholder').style.display = 'none';
+                    const ph = document.getElementById('camera-placeholder');
+                    if (ph) ph.style.display = 'none';
                 } catch (err) {
                     console.error('Camera start error:', err);
                     if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
@@ -620,13 +658,12 @@
                 }
             } else {
                 await stopScanning();
-                startButton.style.display = 'block';
                 toggleButton.classList.add('d-none');
                 isScanning = false;
                 scanningOverlay.classList.add('d-none');
                 video.style.display = 'none';
-                // Show the camera placeholder again
-                document.getElementById('camera-placeholder').style.display = 'block';
+                const ph = document.getElementById('camera-placeholder');
+                if (ph) ph.style.display = 'flex';
             }
         }
 
@@ -685,8 +722,10 @@
                     showTicketView();
                     await stopScanning();
                     const toggleButton = document.getElementById('toggleCamera');
-                    const startButton = document.getElementById('startCameraBtn');
-                    startButton.style.display = 'block';
+                    const ph = document.getElementById('camera-placeholder');
+                    const video = document.getElementById('qr-video');
+                    if (ph) ph.style.display = 'flex';
+                    if (video) video.style.display = 'none';
                     toggleButton.classList.add('d-none');
                     isScanning = false;
                 } else {
@@ -729,8 +768,10 @@
                         if (isScanning) {
                             await stopScanning();
                             const toggleButton = document.getElementById('toggleCamera');
-                            const startButton = document.getElementById('startCameraBtn');
-                            startButton.style.display = 'block';
+                            const ph = document.getElementById('camera-placeholder');
+                            const video = document.getElementById('qr-video');
+                            if (ph) ph.style.display = 'flex';
+                            if (video) video.style.display = 'none';
                             toggleButton.classList.add('d-none');
                             isScanning = false;
                         }
@@ -741,8 +782,10 @@
                         if (isScanning) {
                             await stopScanning();
                             const toggleButton = document.getElementById('toggleCamera');
-                            const startButton = document.getElementById('startCameraBtn');
-                            startButton.style.display = 'block';
+                            const ph = document.getElementById('camera-placeholder');
+                            const video = document.getElementById('qr-video');
+                            if (ph) ph.style.display = 'flex';
+                            if (video) video.style.display = 'none';
                             toggleButton.classList.add('d-none');
                             isScanning = false;
                         }
@@ -951,12 +994,18 @@
             const scannedByContainer = document.getElementById('scanned-by-container');
             const ticketScannedBy = document.getElementById('ticket-scanned-by');
             const markIsUsedButton = document.getElementById('mark-is-used');
+            const markLeftBtn = document.getElementById('mark-left-btn');
+            const markLeftBtnWrapper = document.getElementById('mark-left-btn-wrapper');
             const ticketUsedAlert = document.getElementById('ticket-used-alert');
             
             ticketInfo.style.display = 'block';
             ticketOwner.textContent = ticket.owner_name || 'Invitado';
             ticketType.textContent = ticket.ticket_type;
-            ticketStatus.textContent = ticket.is_used ? 'Usado' : 'No usado';
+            if (ticket.is_used) {
+                ticketStatus.textContent = ticket.holder_left ? 'Salió' : 'Usado';
+            } else {
+                ticketStatus.textContent = 'No usado';
+            }
             ticketStatus.className = 'mb-0';
             ticketKey.textContent = ticket.key;
             
@@ -997,6 +1046,40 @@
             if (ticket.is_used) {
                 markIsUsedButton.classList.add('d-none');
                 ticketUsedAlert.classList.remove('d-none');
+                const alertText = document.getElementById('ticket-used-alert-text');
+                const btnLabel = document.getElementById('mark-left-btn-label');
+                if (ticket.holder_left) {
+                    if (alertText) alertText.textContent = 'Salió';
+                    if (btnLabel) btnLabel.textContent = 'Registrar que volvió a entrar';
+                } else {
+                    if (alertText) alertText.textContent = 'Usado';
+                    if (btnLabel) btnLabel.textContent = 'Marcar como que salió';
+                }
+                if (markLeftBtnWrapper) markLeftBtnWrapper.classList.remove('d-none');
+                if (markLeftBtn) {
+                    markLeftBtn.onclick = async function() {
+                        const url = ticket.holder_left
+                            ? `/api/tickets/${ticket.key}/mark-returned/`
+                            : `/api/tickets/${ticket.key}/mark-left/`;
+                        try {
+                            const resp = await fetch(url, {
+                                method: 'POST',
+                                headers: { 'X-CSRFToken': getCSRFToken(), 'Content-Type': 'application/json' }
+                            });
+                            const data = await resp.json();
+                            if (resp.ok) {
+                                displayTicketInfo(data);
+                                updateOccupancyFromStats();
+                                showSuccess(data.holder_left ? 'Registrado: salió del venue' : 'Registrado: volvió a entrar.');
+                                setTimeout(() => document.getElementById('success-message').classList.add('d-none'), 2500);
+                            } else {
+                                showError(data.error || 'Error');
+                            }
+                        } catch (e) {
+                            showError('Error al actualizar');
+                        }
+                    };
+                }
                 
                 if (hasNotes || hasPhotos) {
                     // Show saved information if ticket has data
@@ -1009,6 +1092,7 @@
                 markIsUsedButton.classList.remove('d-none');
                 ticketUsedAlert.classList.add('d-none');
                 markIsUsedButton.onclick = () => markTicketAsUsed(ticket.key);
+                if (markLeftBtnWrapper) markLeftBtnWrapper.classList.add('d-none');
                 
                 // For unused tickets, show existing information if available
                 if (hasNotes || hasPhotos) {

@@ -1,0 +1,129 @@
+{% extends 'tickets/barbu_base.html' %}
+{% load static %}
+
+{% block page_title %}Dashboard — {{ event.name }}{% endblock %}
+
+{% block menu %}{% endblock %}
+
+{% block innercontent %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0"><i class="fas fa-chart-line me-2"></i>Dashboard: {{ event.name }}</h4>
+        <a href="{% url 'scan_tickets_event' event.slug %}" class="btn btn-outline-success">
+            <i class="fas fa-qrcode me-1"></i>Ir al Scanner
+        </a>
+    </div>
+
+    <p class="text-muted small mb-3">
+        Período: <strong>{{ time_min|date:"d/m/Y H:i" }}</strong> — <strong>{{ time_max|date:"d/m/Y H:i" }}</strong>
+        (desde la primera entrada/salida hasta la última)
+    </p>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card border-0 bg-success bg-opacity-10">
+                <div class="card-body text-center py-4">
+                    <h2 class="text-success mb-0">{{ total_entraron }}</h2>
+                    <p class="text-muted mb-0">Entraron</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 bg-warning bg-opacity-10">
+                <div class="card-body text-center py-4">
+                    <h2 class="text-warning mb-0">{{ total_salieron }}</h2>
+                    <p class="text-muted mb-0">Salieron</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-sign-in-alt me-2"></i>Entradas por hora</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="chart-entries" height="120"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-sign-out-alt me-2"></i>Salidas por hora</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="chart-exits" height="120"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+    var entriesData = {{ histogram_entries_json|safe }};
+    var exitsData = {{ histogram_exits_json|safe }};
+
+    var entryLabels = entriesData.map(function(d) { return d.label; });
+    var entryCounts = entriesData.map(function(d) { return d.count; });
+    var exitLabels = exitsData.map(function(d) { return d.label; });
+    var exitCounts = exitsData.map(function(d) { return d.count; });
+
+    var barOptions = {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: { stepSize: 1 }
+            }
+        }
+    };
+
+    if (entryLabels.length) {
+        new Chart(document.getElementById('chart-entries'), {
+            type: 'bar',
+            data: {
+                labels: entryLabels,
+                datasets: [{
+                    label: 'Entradas',
+                    data: entryCounts,
+                    backgroundColor: 'rgba(25, 135, 84, 0.6)',
+                    borderColor: 'rgb(25, 135, 84)',
+                    borderWidth: 1
+                }]
+            },
+            options: barOptions
+        });
+    } else {
+        document.getElementById('chart-entries').parentNode.innerHTML = '<p class="text-muted text-center py-4">Aún no hay datos de entradas.</p>';
+    }
+
+    if (exitLabels.length) {
+        new Chart(document.getElementById('chart-exits'), {
+            type: 'bar',
+            data: {
+                labels: exitLabels,
+                datasets: [{
+                    label: 'Salidas',
+                    data: exitCounts,
+                    backgroundColor: 'rgba(255, 193, 7, 0.6)',
+                    borderColor: 'rgb(255, 193, 7)',
+                    borderWidth: 1
+                }]
+            },
+            options: barOptions
+        });
+    } else {
+        document.getElementById('chart-exits').parentNode.innerHTML = '<p class="text-muted text-center py-4">Aún no hay datos de salidas.</p>';
+    }
+})();
+</script>
+{% endblock %}

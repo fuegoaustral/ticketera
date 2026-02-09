@@ -69,6 +69,7 @@ def _ticket_check_response(ticket):
         'key': ticket.key,
         'ticket_type': str(ticket.ticket_type),
         'is_used': ticket.is_used,
+        'holder_left': getattr(ticket, 'holder_left', False),
         'used_at': ticket.used_at.isoformat() if ticket.used_at else None,
         'scanned_by': {
             'id': ticket.scanned_by.id,
@@ -101,6 +102,79 @@ def _ticket_check_response(ticket):
 @user_passes_test(is_admin_or_puerta)
 def scan_tickets(request):
     return render(request, 'mi_fuego/admin/scan_tickets.html')
+
+
+@login_required
+def scanner_dashboard(request, event_slug):
+    """Dashboard de entradas/salidas para puerta y admin: totales e histogramas por tiempo."""
+    import json
+    from collections import defaultdict
+    from datetime import datetime, timedelta
+
+    event = get_object_or_404(Event, slug=event_slug)
+    if not has_scanner_access(request.user, event):
+        return HttpResponseForbidden("No tienes permisos para acceder al dashboard de este evento")
+
+    # Tickets que entraron (is_used) y que salieron (holder_left); left_at puede ser None si es registro viejo
+    used_tickets = NewTicket.objects.filter(event=event, is_used=True).values_list('used_at', flat=True)
+    used_at_list = [t for t in used_tickets if t is not None]
+    left_tickets = NewTicket.objects.filter(event=event, holder_left=True).values_list('left_at', flat=True)
+    left_at_list = [t for t in left_tickets if t is not None]
+
+    total_entraron = len(used_at_list)
+    total_salieron = len(left_at_list)
+
+    # Timeframe: desde el primero hasta el último (entrada o salida)
+    all_times = used_at_list + left_at_list
+    if not all_times:
+        time_min = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        time_max = timezone.now()
+        histogram_entries = []
+        histogram_exits = []
+    else:
+        time_min = timezone.localtime(min(all_times)).replace(minute=0, second=0, microsecond=0)
+        time_max_utc = max(all_times)
+        time_max = timezone.localtime(time_max_utc)
+        if time_max.minute or time_max.second or time_max.microsecond:
+            time_max = time_max.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+        else:
+            time_max = time_max.replace(minute=0, second=0, microsecond=0)
+
+        buckets_entries = defaultdict(int)
+        buckets_exits = defaultdict(int)
+        current = time_min
+        while current <= time_max:
+            key = current.strftime("%d/%m %H:%M")
+            buckets_entries[key] = 0
+            buckets_exits[key] = 0
+            current += timedelta(hours=1)
+
+        for utc_dt in used_at_list:
+            local_dt = timezone.localtime(utc_dt)
+            bucket = local_dt.replace(minute=0, second=0, microsecond=0)
+            key = bucket.strftime("%d/%m %H:%M")
+            buckets_entries[key] = buckets_entries.get(key, 0) + 1
+        for utc_dt in left_at_list:
+            local_dt = timezone.localtime(utc_dt)
+            bucket = local_dt.replace(minute=0, second=0, microsecond=0)
+            key = bucket.strftime("%d/%m %H:%M")
+            buckets_exits[key] = buckets_exits.get(key, 0) + 1
+
+        labels = sorted(buckets_entries.keys(), key=lambda x: datetime.strptime(x, "%d/%m %H:%M"))
+        histogram_entries = [{"label": lb, "count": buckets_entries[lb]} for lb in labels]
+        histogram_exits = [{"label": lb, "count": buckets_exits[lb]} for lb in labels]
+
+    context = {
+        "event": event,
+        "total_entraron": total_entraron,
+        "total_salieron": total_salieron,
+        "time_min": time_min,
+        "time_max": time_max,
+        "histogram_entries_json": json.dumps(histogram_entries),
+        "histogram_exits_json": json.dumps(histogram_exits),
+    }
+    return render(request, "mi_fuego/admin/scanner_dashboard.html", context)
+
 
 @login_required
 def scan_tickets_event(request, event_slug):
@@ -319,39 +393,64 @@ def mark_ticket_used(request, ticket_key):
         ticket.scanned_by = request.user
         ticket.save()
         
-        return JsonResponse({
-            'key': ticket.key,
-            'ticket_type': str(ticket.ticket_type),
-            'is_used': ticket.is_used,
-            'used_at': ticket.used_at.isoformat() if ticket.used_at else None,
-            'scanned_by': {
-                'id': ticket.scanned_by.id,
-                'username': ticket.scanned_by.username,
-                'full_name': ticket.scanned_by.get_full_name() or ticket.scanned_by.username,
-                'email': ticket.scanned_by.email
-            } if ticket.scanned_by else None,
-            'notes': ticket.notes,
-            'photos': [
-                {
-                    'id': photo.id,
-                    'url': photo.photo.url,
-                    'name': photo.photo.name.split('/')[-1],  # Get filename
-                    'uploaded_at': photo.created_at.isoformat() if photo.created_at else None,
-                    'uploaded_by': photo.uploaded_by.get_full_name() or photo.uploaded_by.username
-                }
-                for photo in ticket.ticket_photos.all()
-            ],
-            'owner_name': f"{ticket.owner.first_name} {ticket.owner.last_name}" if ticket.owner else "Sin asignar",
-            'user_info': {
-                'first_name': ticket.holder.first_name if ticket.holder else None,
-                'last_name': ticket.holder.last_name if ticket.holder else None,
-                'email': ticket.holder.email if ticket.holder else None
-            } if ticket.holder else None
-        })
+        return JsonResponse(_ticket_check_response(ticket))
     except NewTicket.DoesNotExist:
         return JsonResponse({'error': 'Bono no encontrado'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def mark_ticket_left(request, ticket_key):
+    """Mark this ticket's holder as having left the venue (salió)."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    try:
+        ticket = NewTicket.objects.get(key=ticket_key)
+        if not has_scanner_access(request.user, ticket.event):
+            return JsonResponse({'error': 'No tienes permisos'}, status=403)
+        if not ticket.is_used:
+            return JsonResponse({'error': 'El bono no está marcado como usado'}, status=400)
+        if getattr(ticket, 'holder_left', False):
+            return JsonResponse({'error': 'Ya está registrado como que salió'}, status=400)
+        ticket.holder_left = True
+        ticket.left_at = timezone.now()
+        ticket.save()
+        event = ticket.event
+        if event.venue_capacity is not None:
+            event.attendees_left += 1
+            event.save(update_fields=['attendees_left'])
+        return JsonResponse(_ticket_check_response(ticket))
+    except NewTicket.DoesNotExist:
+        return JsonResponse({'error': 'Bono no encontrado'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def mark_ticket_returned(request, ticket_key):
+    """Mark this ticket's holder as having returned to the venue (volvió a entrar)."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    try:
+        ticket = NewTicket.objects.get(key=ticket_key)
+        if not has_scanner_access(request.user, ticket.event):
+            return JsonResponse({'error': 'No tienes permisos'}, status=403)
+        if not getattr(ticket, 'holder_left', False):
+            return JsonResponse({'error': 'Este bono no estaba registrado como que salió'}, status=400)
+        ticket.holder_left = False
+        ticket.left_at = None
+        ticket.save()
+        event = ticket.event
+        if event.venue_capacity is not None and event.attendees_left > 0:
+            event.attendees_left -= 1
+            event.save(update_fields=['attendees_left'])
+        return JsonResponse(_ticket_check_response(ticket))
+    except NewTicket.DoesNotExist:
+        return JsonResponse({'error': 'Bono no encontrado'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
 
 @login_required
 def increment_attendees_left(request, event_slug):

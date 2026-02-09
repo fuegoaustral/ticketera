@@ -325,6 +325,8 @@ class NewTicket(BaseModel):
     is_used = models.BooleanField(default=False)
     used_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when the ticket was marked as used")
     scanned_by = models.ForeignKey(User, related_name='scanned_tickets', null=True, blank=True, on_delete=models.SET_NULL, help_text="User who scanned/marked the ticket as used")
+    holder_left = models.BooleanField(default=False, help_text="True if the holder was marked as having left the venue (salió); can be set back to False when they return (volvió a entrar)")
+    left_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when the holder was marked as having left the venue")
     notes = models.TextField(null=True, blank=True, help_text="Notes about the ticket usage")
 
     volunteer_ranger = models.BooleanField('Rangers', null=True, blank=True, )
