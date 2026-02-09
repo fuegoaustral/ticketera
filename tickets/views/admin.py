@@ -3,7 +3,7 @@ from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponseForbidden
 from django.utils import timezone
 from tickets.models import NewTicket
-from events.models import Event
+from events.models import Event, GrupoMiembro
 from django.core.exceptions import ObjectDoesNotExist
 from user_profile.models import Profile
 
@@ -25,6 +25,35 @@ def has_scanner_access(user, event=None):
     return user.groups.filter(name='Puerta').exists()
 
 
+def _group_info_for_ticket(ticket):
+    """Return early access and group info for the ticket's holder (or owner)."""
+    user = ticket.holder or ticket.owner
+    if not user:
+        return None
+    gm = GrupoMiembro.objects.filter(
+        grupo__event=ticket.event,
+        user=user,
+    ).select_related('grupo', 'grupo__tipo').first()
+    if not gm:
+        return None
+    has_early = gm.ingreso_anticipado or bool(gm.ingreso_anticipado_fecha)
+    grupo_label = gm.grupo.nombre
+    if getattr(gm.grupo, 'tipo', None) and gm.grupo.tipo:
+        grupo_label = f"{gm.grupo.tipo.nombre} - {gm.grupo.nombre}"
+    # Fecha desde la cual tiene ingreso anticipado (hora tal como en la DB, sin convertir timezone)
+    ingreso_desde = None
+    if gm.ingreso_anticipado_fecha:
+        ingreso_desde = gm.ingreso_anticipado_fecha.strftime("%d/%m/%Y")
+    elif gm.grupo.ingreso_anticipado_desde:
+        ingreso_desde = gm.grupo.ingreso_anticipado_desde.strftime("%d/%m/%Y %H:%M")
+    return {
+        'has_early_access': has_early,
+        'grupo_nombre': grupo_label,
+        'ingreso_anticipado_desde': ingreso_desde,
+        'late_checkout': gm.late_checkout,
+    }
+
+
 def _ticket_check_response(ticket):
     """Build the JSON response dict for check_ticket / check_ticket_by_dni."""
     profile = getattr(ticket.holder, 'profile', None) if ticket.holder else None
@@ -36,7 +65,7 @@ def _ticket_check_response(ticket):
             'document_type': profile.document_type if profile else None,
             'document_number': profile.document_number if profile else None,
         }
-    return {
+    out = {
         'key': ticket.key,
         'ticket_type': str(ticket.ticket_type),
         'is_used': ticket.is_used,
@@ -61,6 +90,12 @@ def _ticket_check_response(ticket):
         'owner_name': f"{ticket.owner.first_name} {ticket.owner.last_name}" if ticket.owner else None,
         'user_info': user_info,
     }
+    group_info = _group_info_for_ticket(ticket)
+    if group_info:
+        out['group_info'] = group_info
+    else:
+        out['group_info'] = None
+    return out
 
 
 @user_passes_test(is_admin_or_puerta)
@@ -207,24 +242,57 @@ def check_ticket(request, ticket_key):
 
 @login_required
 def check_ticket_by_dni(request):
-    """Look up a ticket by holder DNI for the current event (scanner search by DNI)."""
+    """Look up ticket(s) by DNI or last name for the current event. Returns single ticket or list of results."""
     event_slug = request.GET.get('event_slug')
-    dni = (request.GET.get('dni') or '').strip()
+    q = (request.GET.get('q') or request.GET.get('dni') or '').strip()
     if not event_slug:
         return JsonResponse({'error': 'Falta el evento (event_slug)'}, status=400)
-    if not dni:
-        return JsonResponse({'error': 'Ingresá el DNI para buscar'}, status=400)
+    if not q:
+        return JsonResponse({'error': 'Ingresá DNI o apellido para buscar'}, status=400)
     try:
         event = Event.objects.get(slug=event_slug)
         if not has_scanner_access(request.user, event):
             return JsonResponse({'error': 'No tienes permisos para verificar tickets de este evento'}, status=403)
-        profile = Profile.objects.filter(document_number__iexact=dni).first()
-        if not profile:
+
+        # 1) Try exact DNI match first
+        profile = Profile.objects.filter(document_number__iexact=q).first()
+        if profile:
+            ticket = NewTicket.objects.filter(event=event, holder=profile.user).order_by('id').first()
+            if ticket:
+                return JsonResponse(_ticket_check_response(ticket))
             return JsonResponse({'error': 'No se encontró ningún bono con ese DNI en este evento'}, status=404)
-        ticket = NewTicket.objects.filter(event=event, holder=profile.user).order_by('id').first()
-        if not ticket:
-            return JsonResponse({'error': 'No se encontró ningún bono con ese DNI en este evento'}, status=404)
-        return JsonResponse(_ticket_check_response(ticket))
+
+        # 2) Search by last name (holder)
+        tickets = (
+            NewTicket.objects.filter(event=event, holder__last_name__icontains=q)
+            .select_related('holder', 'ticket_type')
+            .order_by('holder__last_name', 'holder__first_name')
+        )
+        if not tickets.exists():
+            return JsonResponse({'error': 'No se encontró ningún bono con ese DNI o apellido en este evento'}, status=404)
+        if tickets.count() == 1:
+            return JsonResponse(_ticket_check_response(tickets[0]))
+
+        # 3) Multiple matches: return list for user to choose
+        def _holder_doc(t):
+            if not t.holder:
+                return ''
+            p = getattr(t.holder, 'profile', None)
+            return p.document_number if p else ''
+        results = []
+        for t in tickets:
+            gi = _group_info_for_ticket(t)
+            results.append({
+                'key': str(t.key),
+                'ticket_type': str(t.ticket_type),
+                'holder_name': f'{t.holder.first_name or ""} {t.holder.last_name or ""}'.strip() if t.holder else '',
+                'document_number': _holder_doc(t),
+                'is_used': t.is_used,
+                'has_early_access': gi['has_early_access'] if gi else False,
+                'grupo_nombre': gi['grupo_nombre'] if gi else None,
+                'ingreso_anticipado_desde': gi.get('ingreso_anticipado_desde') if gi else None,
+            })
+        return JsonResponse({'results': results})
     except Event.DoesNotExist:
         return JsonResponse({'error': 'Evento no encontrado'}, status=404)
     except Exception as e:
