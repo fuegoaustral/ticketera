@@ -37,11 +37,16 @@
                                         </p>
                                     {% endif %}
                                     
-                                    <div class="mt-auto">
+                                    <div class="mt-auto d-flex flex-column gap-2">
                                         <a href="{% url 'scan_tickets_event' scanner_event.slug %}" 
                                            class="btn btn-success w-100" style="color: white;">
                                             <i class="fas fa-qrcode me-2"></i>
                                             Abrir Scanner
+                                        </a>
+                                        <a href="{% url 'scanner_dashboard' scanner_event.slug %}" 
+                                           class="btn btn-outline-primary w-100">
+                                            <i class="fas fa-chart-line me-2"></i>
+                                            Dashboard entradas/salidas
                                         </a>
                                     </div>
                                 </div>

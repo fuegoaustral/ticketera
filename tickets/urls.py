@@ -58,10 +58,13 @@ urlpatterns = [
 
     path('scan/', admin.scan_tickets, name='scan_tickets'),
     path('scan/<slug:event_slug>/', admin.scan_tickets_event, name='scan_tickets_event'),
+    path('scan/<slug:event_slug>/dashboard/', admin.scanner_dashboard, name='scanner_dashboard'),
     path('api/tickets/check-by-dni/', admin.check_ticket_by_dni, name='check_ticket_by_dni'),
     path('api/tickets/<str:ticket_key>/check/', admin.check_ticket, name='check_ticket'),
     path('api/tickets/<str:ticket_key>/check-public/', admin.check_ticket_public, name='check_ticket_public'),
     path('api/tickets/<str:ticket_key>/mark-used/', admin.mark_ticket_used, name='mark_ticket_used'),
+    path('api/tickets/<str:ticket_key>/mark-left/', admin.mark_ticket_left, name='mark_ticket_left'),
+    path('api/tickets/<str:ticket_key>/mark-returned/', admin.mark_ticket_returned, name='mark_ticket_returned'),
     path('api/tickets/<str:ticket_key>/update-notes/', admin.update_ticket_notes, name='update_ticket_notes'),
     path('api/tickets/<str:ticket_key>/delete-photo/', admin.delete_ticket_photo, name='delete_ticket_photo'),
     path('api/events/<slug:event_slug>/stats/', admin.event_stats_api, name='event_stats_api'),

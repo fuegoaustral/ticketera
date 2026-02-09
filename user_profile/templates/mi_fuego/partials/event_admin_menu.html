@@ -66,6 +66,12 @@
                             </a>
                         </li>
                         <li class="menu-subitem">
+                            <a class="menu-sublink" href="{% url 'scanner_dashboard' admin_event.slug %}">
+                                <i class="fas fa-chart-area me-2"></i>
+                                Dashboard entradas/salidas
+                            </a>
+                        </li>
+                        <li class="menu-subitem">
                             <a class="menu-sublink{% if nav_secondary == 'caja_'|add:admin_event.slug %} active{% endif %}"
                                href="{% url 'caja' admin_event.slug %}">
                                 <i class="fas fa-cash-register me-2"></i>
