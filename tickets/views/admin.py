@@ -40,12 +40,12 @@ def _group_info_for_ticket(ticket):
     grupo_label = gm.grupo.nombre
     if getattr(gm.grupo, 'tipo', None) and gm.grupo.tipo:
         grupo_label = f"{gm.grupo.tipo.nombre} - {gm.grupo.nombre}"
-    # Fecha desde la cual tiene ingreso anticipado (hora tal como en la DB, sin convertir timezone)
+    # Fecha desde la cual tiene ingreso anticipado (convertida a timezone local GMT-3 para la UI)
     ingreso_desde = None
     if gm.ingreso_anticipado_fecha:
         ingreso_desde = gm.ingreso_anticipado_fecha.strftime("%d/%m/%Y")
     elif gm.grupo.ingreso_anticipado_desde:
-        ingreso_desde = gm.grupo.ingreso_anticipado_desde.strftime("%d/%m/%Y %H:%M")
+        ingreso_desde = timezone.localtime(gm.grupo.ingreso_anticipado_desde).strftime("%d/%m/%Y %H:%M")
     return {
         'has_early_access': has_early,
         'grupo_nombre': grupo_label,

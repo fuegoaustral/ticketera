@@ -317,13 +317,12 @@ def my_ticket_view(request, event_slug=None):
                     else:
                         ticket_dto['ingreso_anticipado_fecha'] = None
                     if grupo_miembro.grupo.ingreso_anticipado_desde:
-                        # Mostrar hora tal como está en la DB (sin convertir timezone)
-                        ticket_dto['ingreso_anticipado_desde'] = grupo_miembro.grupo.ingreso_anticipado_desde.strftime("%d/%m/%Y %H:%M")
+                        ticket_dto['ingreso_anticipado_desde'] = timezone.localtime(grupo_miembro.grupo.ingreso_anticipado_desde).strftime("%d/%m/%Y %H:%M")
                     else:
                         ticket_dto['ingreso_anticipado_desde'] = None
                     ticket_dto['has_late_checkout'] = grupo_miembro.late_checkout
                     if grupo_miembro.grupo.late_checkout_hasta:
-                        ticket_dto['late_checkout_hasta'] = grupo_miembro.grupo.late_checkout_hasta.strftime("%d/%m/%Y %H:%M")
+                        ticket_dto['late_checkout_hasta'] = timezone.localtime(grupo_miembro.grupo.late_checkout_hasta).strftime("%d/%m/%Y %H:%M")
                     else:
                         ticket_dto['late_checkout_hasta'] = None
                     ticket_dto['restriccion'] = grupo_miembro.restriccion
@@ -2456,13 +2455,12 @@ def my_tickets_ajax(request, event_slug=None):
                     else:
                         ticket_dto['ingreso_anticipado_fecha'] = None
                     if grupo_miembro.grupo.ingreso_anticipado_desde:
-                        # Mostrar hora tal como está en la DB (sin convertir timezone)
-                        ticket_dto['ingreso_anticipado_desde'] = grupo_miembro.grupo.ingreso_anticipado_desde.strftime("%d/%m/%Y %H:%M")
+                        ticket_dto['ingreso_anticipado_desde'] = timezone.localtime(grupo_miembro.grupo.ingreso_anticipado_desde).strftime("%d/%m/%Y %H:%M")
                     else:
                         ticket_dto['ingreso_anticipado_desde'] = None
                     ticket_dto['has_late_checkout'] = grupo_miembro.late_checkout
                     if grupo_miembro.grupo.late_checkout_hasta:
-                        ticket_dto['late_checkout_hasta'] = grupo_miembro.grupo.late_checkout_hasta.strftime("%d/%m/%Y %H:%M")
+                        ticket_dto['late_checkout_hasta'] = timezone.localtime(grupo_miembro.grupo.late_checkout_hasta).strftime("%d/%m/%Y %H:%M")
                     else:
                         ticket_dto['late_checkout_hasta'] = None
                     ticket_dto['restriccion'] = grupo_miembro.restriccion
@@ -2773,13 +2771,13 @@ def download_ticket_pdf(request, ticket_key):
                 if grupo_miembro.ingreso_anticipado_fecha:
                     body_elements.append(Paragraph(f'<b>Ingreso Anticipado:</b> Podés ingresar desde el {grupo_miembro.ingreso_anticipado_fecha.strftime("%d/%m/%Y")}', normal_style))
                 elif grupo_miembro.grupo.ingreso_anticipado_desde:
-                    body_elements.append(Paragraph(f'<b>Ingreso Anticipado:</b> Podés ingresar desde el {grupo_miembro.grupo.ingreso_anticipado_desde.strftime("%d/%m/%Y %H:%M")}', normal_style))
+                    body_elements.append(Paragraph(f'<b>Ingreso Anticipado:</b> Podés ingresar desde el {timezone.localtime(grupo_miembro.grupo.ingreso_anticipado_desde).strftime("%d/%m/%Y %H:%M")}', normal_style))
                 else:
                     body_elements.append(Paragraph(f'<b>Ingreso Anticipado:</b> Tenés ingreso anticipado habilitado', normal_style))
             
             if grupo_miembro.late_checkout:
                 if grupo_miembro.grupo.late_checkout_hasta:
-                    body_elements.append(Paragraph(f'<b>Late Checkout:</b> Podés salir hasta el {grupo_miembro.grupo.late_checkout_hasta.strftime("%d/%m/%Y %H:%M")}', normal_style))
+                    body_elements.append(Paragraph(f'<b>Late Checkout:</b> Podés salir hasta el {timezone.localtime(grupo_miembro.grupo.late_checkout_hasta).strftime("%d/%m/%Y %H:%M")}', normal_style))
                 else:
                     body_elements.append(Paragraph(f'<b>Late Checkout:</b> Tenés late checkout habilitado', normal_style))
             
