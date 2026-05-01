@@ -1295,6 +1295,34 @@ def event_admin_view(request, event_slug):
         payment_method_total_ordenes += ordenes_i
         payment_method_total_bonos += bonos_i
 
+    # Bonos vendidos por día (fecha local del proyecto), órdenes confirmadas
+    from django.db.models import Count
+    from django.db.models.functions import TruncDate
+
+    sales_rows = (
+        NewTicket.objects.filter(
+            event=event,
+            order__status=Order.OrderStatus.CONFIRMED,
+        )
+        .annotate(
+            sale_day=TruncDate(
+                "created_at", tzinfo=timezone.get_current_timezone()
+            )
+        )
+        .values("sale_day")
+        .annotate(bonos=Count("id"))
+        .order_by("sale_day")
+    )
+    sales_by_day_chart = [
+        {
+            "date": row["sale_day"].isoformat(),
+            "label": row["sale_day"].strftime("%d/%m"),
+            "count": row["bonos"],
+        }
+        for row in sales_rows
+        if row["sale_day"] is not None
+    ]
+
     # MercadoPago commission details (match provided SQL: ONLINE_PURCHASE only)
     with connection.cursor() as cursor:
         cursor.execute(
@@ -1519,6 +1547,8 @@ def event_admin_view(request, event_slug):
         },
         # Backward-compat: previous template expected this variable (section is now removed).
         "caja_payment_method_breakdown": [],
+        "sales_by_day_chart_json": json.dumps(sales_by_day_chart),
+        "sales_chart_timezone": settings.TIME_ZONE,
     }
     
     return render(request, "mi_fuego/event_admin.html", context)
