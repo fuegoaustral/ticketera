@@ -1877,12 +1877,16 @@ def event_management_view(request, event_slug):
         
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
-            # Format datetime fields for HTML5 datetime-local input
+            # Format datetime fields for HTML5 datetime-local input (always "local" wall time,
+            # no TZ suffix). DB values are UTC-aware with USE_TZ; strftime on them would show
+            # UTC clock in the widget while Django parses submitted values in TIME_ZONE — mismatch.
             if self.instance and self.instance.pk:
                 if self.instance.start:
-                    self.initial['start'] = self.instance.start.strftime('%Y-%m-%dT%H:%M')
+                    start_local = timezone.localtime(self.instance.start)
+                    self.initial['start'] = start_local.strftime('%Y-%m-%dT%H:%M')
                 if self.instance.end:
-                    self.initial['end'] = self.instance.end.strftime('%Y-%m-%dT%H:%M')
+                    end_local = timezone.localtime(self.instance.end)
+                    self.initial['end'] = end_local.strftime('%Y-%m-%dT%H:%M')
     
     # Handle form submission
     if request.method == 'POST':
