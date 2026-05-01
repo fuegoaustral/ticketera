@@ -1295,6 +1295,34 @@ def event_admin_view(request, event_slug):
         payment_method_total_ordenes += ordenes_i
         payment_method_total_bonos += bonos_i
 
+    # Bonos vendidos por día (fecha local del proyecto), órdenes confirmadas
+    from django.db.models import Count
+    from django.db.models.functions import TruncDate
+
+    sales_rows = (
+        NewTicket.objects.filter(
+            event=event,
+            order__status=Order.OrderStatus.CONFIRMED,
+        )
+        .annotate(
+            sale_day=TruncDate(
+                "created_at", tzinfo=timezone.get_current_timezone()
+            )
+        )
+        .values("sale_day")
+        .annotate(bonos=Count("id"))
+        .order_by("sale_day")
+    )
+    sales_by_day_chart = [
+        {
+            "date": row["sale_day"].isoformat(),
+            "label": row["sale_day"].strftime("%d/%m"),
+            "count": row["bonos"],
+        }
+        for row in sales_rows
+        if row["sale_day"] is not None
+    ]
+
     # MercadoPago commission details (match provided SQL: ONLINE_PURCHASE only)
     with connection.cursor() as cursor:
         cursor.execute(
@@ -1519,6 +1547,8 @@ def event_admin_view(request, event_slug):
         },
         # Backward-compat: previous template expected this variable (section is now removed).
         "caja_payment_method_breakdown": [],
+        "sales_by_day_chart_json": json.dumps(sales_by_day_chart),
+        "sales_chart_timezone": settings.TIME_ZONE,
     }
     
     return render(request, "mi_fuego/event_admin.html", context)
@@ -1877,12 +1907,16 @@ def event_management_view(request, event_slug):
         
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
-            # Format datetime fields for HTML5 datetime-local input
+            # Format datetime fields for HTML5 datetime-local input (always "local" wall time,
+            # no TZ suffix). DB values are UTC-aware with USE_TZ; strftime on them would show
+            # UTC clock in the widget while Django parses submitted values in TIME_ZONE — mismatch.
             if self.instance and self.instance.pk:
                 if self.instance.start:
-                    self.initial['start'] = self.instance.start.strftime('%Y-%m-%dT%H:%M')
+                    start_local = timezone.localtime(self.instance.start)
+                    self.initial['start'] = start_local.strftime('%Y-%m-%dT%H:%M')
                 if self.instance.end:
-                    self.initial['end'] = self.instance.end.strftime('%Y-%m-%dT%H:%M')
+                    end_local = timezone.localtime(self.instance.end)
+                    self.initial['end'] = end_local.strftime('%Y-%m-%dT%H:%M')
     
     # Handle form submission
     if request.method == 'POST':

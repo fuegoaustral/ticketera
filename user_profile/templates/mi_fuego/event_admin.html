@@ -183,6 +183,20 @@
                         </div>
                     </div>
 
+                    <!-- Bonos vendidos por día -->
+                    <div class="stats-card mb-4">
+                        <h5 class="mb-3">
+                            <i class="fas fa-chart-bar me-2"></i>
+                            Bonos vendidos por día
+                        </h5>
+                        <p class="text-muted small mb-3">
+                            Cantidad de bonos emitidos por día calendario (zona {{ sales_chart_timezone }}), solo órdenes confirmadas.
+                        </p>
+                        <div class="position-relative" style="min-height: 280px;">
+                            <canvas id="chart-sales-by-day"></canvas>
+                        </div>
+                    </div>
+
                     <!-- Progress Bar for Tickets Sold -->
                     {% if event.max_tickets %}
                         <div class="stats-card">
@@ -430,4 +444,66 @@
             </div>
         </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script>
+    (function () {
+        var salesByDay = {{ sales_by_day_chart_json|safe }};
+        var canvas = document.getElementById('chart-sales-by-day');
+        if (!canvas) return;
+        var wrap = canvas.closest('.position-relative');
+        if (!salesByDay.length) {
+            wrap.innerHTML = '<p class="text-muted text-center py-5 mb-0">Todavía no hay ventas de bonos con orden confirmada.</p>';
+            return;
+        }
+        var labels = salesByDay.map(function (d) { return d.label; });
+        var counts = salesByDay.map(function (d) { return d.count; });
+        var dates = salesByDay.map(function (d) { return d.date; });
+        new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Bonos',
+                    data: counts,
+                    backgroundColor: 'rgba(40, 158, 109, 0.55)',
+                    borderColor: 'rgb(40, 158, 109)',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    maxBarThickness: 36
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: function (items) {
+                                var i = items[0].dataIndex;
+                                return dates[i] || items[0].label;
+                            },
+                            label: function (ctx) {
+                                var n = ctx.parsed.y;
+                                return n + (n === 1 ? ' bono' : ' bonos');
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Día' },
+                        ticks: { maxRotation: 45, minRotation: 0, autoSkip: true, maxTicksLimit: 31 }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1 },
+                        title: { display: true, text: 'Cantidad de bonos' }
+                    }
+                }
+            }
+        });
+    })();
+    </script>
 {% endblock truecontent %}
