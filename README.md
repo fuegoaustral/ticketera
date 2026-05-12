@@ -426,8 +426,8 @@ flowchart LR
         CW["📊 CloudWatch Logs"]
 
         APIGW --> Django
-        EB -->|rate(5 min)| Crons
-        EB -->|cron 17:00 UTC| Crons
+        EB -->|"rate(5 min)"| Crons
+        EB -->|"cron 17:00 UTC"| Crons
         Django --> RDS
         Crons --> RDS
         Django --> S3Static
