@@ -1,7 +1,10 @@
 from django.urls import path
+from django.views.decorators.csrf import csrf_exempt
 
 from .views import home, order, ticket, checkout, webhooks, new_ticket
 from tickets.views import admin
+from tickets.views.broadcast_holder_tickets_email import broadcast_holder_tickets_email
+from tickets.views.send_holder_tickets_email import send_holder_tickets_email
 
 urlpatterns = [
     # Main event (/) and event-specific URLs
@@ -9,8 +12,21 @@ urlpatterns = [
     
     # Events listing (must come before slug pattern)
     path('eventos/', home.events_listing, name='events_listing'),
-    
-    # Event-specific URLs
+
+    # Single-segment paths must come before <slug:event_slug>/ or they are treated as event slugs.
+    path('ping/', home.ping, name='ping'),
+    path(
+        'broadcast-holder-ticket-emails/',
+        csrf_exempt(broadcast_holder_tickets_email),
+        name='broadcast_holder_tickets_email',
+    ),
+
+    # Event-specific URLs (subpaths before the bare event slug catch-all)
+    path(
+        '<slug:event_slug>/send-holder-tickets-email/',
+        csrf_exempt(send_holder_tickets_email),
+        name='send_holder_tickets_email',
+    ),
     path('<slug:event_slug>/', home.home, name='event_home'),
 
     # Order related paths
@@ -53,8 +69,6 @@ urlpatterns = [
 
     path('ticket/<str:ticket_key>/assign', new_ticket.assign_ticket, name='assign_ticket'),
     path('ticket/<str:ticket_key>/unassign', new_ticket.unassign_ticket, name='unassign_ticket'),
-
-    path('ping/', home.ping, name='ping'),
 
     path('scan/', admin.scan_tickets, name='scan_tickets'),
     path('scan/<slug:event_slug>/', admin.scan_tickets_event, name='scan_tickets_event'),
