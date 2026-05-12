@@ -384,18 +384,204 @@ python manage.py collectstatic --settings=deprepagos.settings_prod
 
 ## 🏗️ Arquitectura
 
+> 🗺️ **Vista de pájaro** del sistema: cómo se conectan usuarios, infra de AWS, integraciones externas y CI/CD.
+
+### 🌐 Diagrama de Alto Nivel
+
+```mermaid
+flowchart LR
+    %% =========================
+    %% Actores
+    %% =========================
+    subgraph Users["👥 Usuarios"]
+        Buyer["🎟️ Comprador<br/><i>browser</i>"]
+        Staff["🛡️ Staff / Admin<br/><i>/admin</i>"]
+    end
+
+    %% =========================
+    %% CI/CD
+    %% =========================
+    subgraph CICD["🚀 CI/CD"]
+        GH["GitHub<br/><i>main / dev</i>"]
+        GHA["GitHub Actions<br/><i>deploy-dev / deploy-prod</i>"]
+        Zappa["📦 Zappa<br/><i>package + deploy</i>"]
+        GH --> GHA --> Zappa
+    end
+
+    %% =========================
+    %% AWS
+    %% =========================
+    subgraph AWS["☁️ AWS — us-east-1"]
+        R53["🌎 Route 53 / ACM<br/><i>eventos.fuegoaustral.org<br/>dev.fuegoaustral.org</i>"]
+        APIGW["🚪 API Gateway<br/><i>HTTPS</i>"]
+
+        subgraph Lambda["λ AWS Lambda — Python 3.13"]
+            Django["🐍 Django 4.2<br/><i>tickets · events ·<br/>user_profile · espaciozen</i>"]
+            Crons["⏰ Cron Handlers<br/><i>payment_check · email_crons</i>"]
+        end
+
+        EB["🗓️ EventBridge<br/><i>schedules</i>"]
+        S3Static["🪣 S3 · faprivate<br/><i>static + media</i>"]
+        RDS[("🐘 RDS PostgreSQL 16.8")]
+        CW["📊 CloudWatch Logs"]
+
+        APIGW --> Django
+        EB -->|rate(5 min)| Crons
+        EB -->|cron 17:00 UTC| Crons
+        Django --> RDS
+        Crons --> RDS
+        Django --> S3Static
+        Django --> CW
+        Crons --> CW
+    end
+
+    %% =========================
+    %% Integraciones externas
+    %% =========================
+    subgraph Ext["🔌 Integraciones Externas"]
+        MP["💳 MercadoPago<br/><i>checkout + webhook</i>"]
+        Google["🔐 Google OAuth2<br/><i>django-allauth</i>"]
+        SMTP["📧 SMTP<br/><i>transactional email</i>"]
+        Twilio["📱 Twilio Verify<br/><i>phone OTP</i>"]
+        Chatwoot["💬 Chatwoot<br/><i>support widget</i>"]
+    end
+
+    %% =========================
+    %% Conexiones principales
+    %% =========================
+    Buyer -->|HTTPS| R53 --> APIGW
+    Staff -->|HTTPS| R53
+
+    Django <-->|create preference| MP
+    MP -->|POST /webhooks/mercadopago| APIGW
+    Django <-->|OAuth2| Google
+    Django -->|send| SMTP
+    Django <-->|verify| Twilio
+    Buyer <-.->|chat| Chatwoot
+
+    Zappa -. deploy .-> Lambda
+    Zappa -. upload .-> S3Static
+
+    %% =========================
+    %% Estilos
+    %% =========================
+    classDef aws fill:#FFF4E5,stroke:#FF9900,stroke-width:1px,color:#222;
+    classDef ext fill:#EAF4FF,stroke:#1E88E5,stroke-width:1px,color:#222;
+    classDef cicd fill:#F3E5F5,stroke:#8E24AA,stroke-width:1px,color:#222;
+    classDef users fill:#E8F5E9,stroke:#43A047,stroke-width:1px,color:#222;
+    classDef db fill:#FFEBEE,stroke:#E53935,stroke-width:1px,color:#222;
+
+    class R53,APIGW,Lambda,Django,Crons,EB,S3Static,CW aws;
+    class RDS db;
+    class MP,Google,SMTP,Twilio,Chatwoot ext;
+    class GH,GHA,Zappa cicd;
+    class Buyer,Staff users;
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Frontend      │    │   Django App     │    │   AWS Lambda    │
-│   (Templates)   │◄──►│   (Python 3.13)  │◄──►│   (Zappa)       │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                │
-                                ▼
-                       ┌──────────────────┐
-                       │   PostgreSQL     │
-                       │   (RDS v16.8)    │
-                       └──────────────────┘
+
+### 🧩 Componentes Principales
+
+| Capa | Tecnología | Detalle |
+|---|---|---|
+| 🎨 **Frontend** | Django Templates + Bootstrap 5 + CKEditor 5 | SSR clásico, sin SPA |
+| 🐍 **Backend** | Django 4.2 / Python 3.13 | Apps: `tickets`, `events`, `user_profile`, `espaciozen` |
+| 🚪 **Edge** | API Gateway + ACM + Route 53 | TLS y dominios `eventos.fuegoaustral.org` / `dev.fuegoaustral.org` |
+| ⚡ **Compute** | AWS Lambda (Zappa, `slim_handler`) | 1024 MB · timeout 300s · `keep_warm` activo |
+| 🐘 **Datos** | Amazon RDS PostgreSQL 16.8 | Schema único · migraciones Django |
+| 🗄️ **Storage** | S3 `faprivate` | Estáticos + uploads vía `django_s3_storage` |
+| 📊 **Observabilidad** | CloudWatch Logs + `django-auditlog` | `zappa tail` para streaming |
+| ⏰ **Jobs** | EventBridge → Lambda | Ver tabla de cron jobs ↓ |
+| 🔐 **Auth** | `django-allauth` + Google OAuth2 | Email obligatorio, verificación mandatory |
+| 💳 **Pagos** | MercadoPago Checkout Pro | Webhook firmado en `/webhooks/mercadopago` |
+
+### ⏰ Jobs Programados (EventBridge → Lambda)
+
+| Job | Schedule | Función |
+|---|---|---|
+| 💰 `check_pending_payments` | `rate(5 minutes)` | Reconcilia pagos pendientes contra MercadoPago |
+| 📬 `send_pending_actions_emails` | `cron(0 17 * * ? *)` | Recordatorios diarios de acciones pendientes |
+
+### 🔄 Flujo de Compra de un Ticket
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as 🎟️ Comprador
+    participant D as 🐍 Django (Lambda)
+    participant DB as 🐘 PostgreSQL
+    participant MP as 💳 MercadoPago
+    participant E as 📧 SMTP
+
+    U->>D: GET /evento/:slug
+    D->>DB: SELECT evento + tickets disponibles
+    D-->>U: HTML con formulario de compra
+
+    U->>D: POST /comprar (datos + cantidad)
+    D->>DB: INSERT Order (status=pending)
+    D->>MP: create_preference()
+    MP-->>D: init_point (URL checkout)
+    D-->>U: 302 → init_point
+
+    U->>MP: completa pago en MercadoPago
+    MP-->>U: redirect a /payment/success
+
+    par Webhook async
+        MP->>D: POST /webhooks/mercadopago (firmado)
+        D->>MP: GET /v1/payments/:id (verificar)
+        D->>DB: UPDATE Order (status=paid) + emitir tickets
+        D->>E: enviar tickets por email
+    and Cron de respaldo (cada 5 min)
+        D->>MP: poll pagos pendientes
+        D->>DB: reconciliar estados
+    end
 ```
+
+### 🌳 Entornos
+
+| Entorno | Branch | URL | Lambda alias | DB |
+|---|---|---|---|---|
+| 🧪 **dev** | `dev` | `https://dev.fuegoaustral.org` | `deprepagos-dev` | RDS dev |
+| 🚀 **prod** | `main` | `https://eventos.fuegoaustral.org` | `deprepagos-prod` | RDS prod |
+
+<details>
+<summary>📜 Diagrama ASCII (fallback para terminales sin renderizado Mermaid)</summary>
+
+```text
+                        ┌────────────────────────────────────────────┐
+                        │              👥 Usuarios                    │
+                        │   Comprador  ·  Staff (/admin)              │
+                        └───────────────────┬────────────────────────┘
+                                            │ HTTPS
+                                            ▼
+                        ┌────────────────────────────────────────────┐
+                        │  🌎 Route 53 + ACM  →  🚪 API Gateway       │
+                        └───────────────────┬────────────────────────┘
+                                            ▼
+        ┌──────────────────────────────────────────────────────────────────┐
+        │                  ☁️  AWS Lambda  (Python 3.13, Zappa)             │
+        │  ┌────────────────────────────┐    ┌───────────────────────────┐ │
+        │  │  🐍 Django 4.2              │    │  ⏰ Cron Handlers          │ │
+        │  │  tickets · events ·         │    │  payment_check (5 min)    │ │
+        │  │  user_profile · espaciozen  │    │  email_crons   (17:00)    │ │
+        │  └─────┬──────┬──────┬─────────┘    └────────────┬──────────────┘ │
+        └────────┼──────┼──────┼───────────────────────────┼────────────────┘
+                 │      │      │                           │
+                 ▼      ▼      ▼                           ▼
+        ┌──────────┐ ┌─────────┐ ┌────────────┐    ┌──────────────┐
+        │ 🐘 RDS    │ │ 🪣 S3    │ │ 📊 CW Logs │    │ 🗓️ EventBridge│
+        │ PG 16.8  │ │faprivate│ │            │    │  schedules   │
+        └──────────┘ └─────────┘ └────────────┘    └──────────────┘
+                                            ▲
+                                            │
+                  ┌─────────────────────────┴──────────────────────────┐
+                  │              🔌 Integraciones Externas              │
+                  │  💳 MercadoPago · 🔐 Google OAuth2 · 📧 SMTP        │
+                  │  📱 Twilio Verify · 💬 Chatwoot                    │
+                  └────────────────────────────────────────────────────┘
+
+                       🚀 CI/CD:  GitHub  →  GH Actions  →  Zappa  →  Lambda + S3
+```
+
+</details>
 
 ## 🛠️ Tecnologías
 

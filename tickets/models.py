@@ -234,16 +234,48 @@ class Order(BaseModel):
             mint_tickets(self)
 
     def send_confirmation_email(self):
-
-        send_mail(
-            template_name='order_success',
-            recipient_list=[self.email],
-            context={
+        kwargs = {
+            'template_name': 'order_success',
+            'recipient_list': [self.email],
+            'context': {
                 'order': self,
                 'event': self.event,
                 'has_many_tickets': NewTicket.objects.filter(holder=self.user, event=self.event).count() > 1,
-            }
-        )
+            },
+        }
+
+        if self.event and not self.event.attendee_must_be_registered:
+            try:
+                from tickets.ticket_pdf import build_new_ticket_pdf_bytes, new_ticket_pdf_filename
+            except ImportError:
+                logging.warning(
+                    'Order %s: ticket PDF deps missing; confirmation email without attachments',
+                    self.id,
+                )
+            else:
+                tickets = list(
+                    NewTicket.objects.filter(order=self, event=self.event)
+                    .select_related('event', 'ticket_type', 'owner', 'holder', 'owner__profile')
+                    .order_by('id')
+                )
+                if tickets:
+                    try:
+                        kwargs['attachments'] = [
+                            (
+                                new_ticket_pdf_filename(t),
+                                build_new_ticket_pdf_bytes(t),
+                                'application/pdf',
+                            )
+                            for t in tickets
+                        ]
+                    except Exception as e:
+                        logging.exception(
+                            'Order %s: failed to attach ticket PDFs to confirmation email: %s',
+                            self.id,
+                            e,
+                        )
+
+        send_mail(**kwargs)
         logging.info(f'Order {self.id} confirmation email sent')
 
     def get_payment_preference(self):
