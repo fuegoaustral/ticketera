@@ -36,6 +36,8 @@ class Event(BaseModel):
     title = models.TextField()
     description = models.TextField()
 
+    soldout_message = models.TextField(blank=True, default='', help_text="Rich text message shown when tickets are sold out (HTML allowed)")
+
     attendee_must_be_registered = models.BooleanField(default=True, help_text="If checked, all attendees must be registered users")
     
     admins = models.ManyToManyField(User, blank=True, related_name='admin_events', help_text="Users who can administer this event")
