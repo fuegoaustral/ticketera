@@ -14,12 +14,14 @@
 
         {% include 'emails/partials/btn.html' with label='Mis Bonos' href='/mi-fuego/mis-bonos'  domain=domain %}
 
-        {% if has_many_tickets %}
-            <p>Recorda que cada persona debe tener su bono en su cuenta. Si compraste mas de uno, debes transferiselo a
-                la
-                persona
-                correspondiente.</p>
-            <p>Tenes tiempo hasta el <b>{{ event.transfers_enabled_until|date:"d/m" }}</b> para hacerlo.</p>
+        {% if event.attendee_must_be_registered %}
+            {% if has_many_tickets %}
+                <p>Recorda que cada persona debe tener su bono en su cuenta. Si compraste mas de uno, debes transferiselo a
+                    la persona correspondiente.</p>
+                <p>Tenes tiempo hasta el <b>{{ event.transfers_enabled_until|date:"d/m" }}</b> para hacerlo.</p>
+            {% endif %}
+        {% else %}
+            <p>Adjuntamos tus bonos en este correo. Cada persona debe presentar su bono para ingresar al evento.</p>
         {% endif %}
 
 
