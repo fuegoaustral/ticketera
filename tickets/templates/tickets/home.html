@@ -16,11 +16,6 @@
                 <button class="btn btn-secondary disabled"><span id="countdown"></span></button>
             {% endif %}
         </div>
-        {% if not ticket_types and not next_ticket_type and event.soldout_message and tickets_remaining <= 0 %}
-            <div class="container-xxl mt-4">
-                <div class="rich-text text-center">{{ event.soldout_message|safe }}</div>
-            </div>
-        {% endif %}
         <div class="container-xxl home-section">
             <div class="row d-flex justify-content-center">
                 <div class="col-lg-4">

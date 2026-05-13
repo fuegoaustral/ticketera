@@ -47,9 +47,8 @@ def home(request, event_slug=None):
         context.update({
             'coupon': coupon,
             'ticket_types': ticket_types,
-            'current_event': event,
-            'has_multiple_events': has_multiple_events,
-            'tickets_remaining': event.tickets_remaining(),
+            'current_event': event,  # Add current event to context
+            'has_multiple_events': has_multiple_events,  # Add flag for multiple events
         })
         
         # Only add next_ticket_type to context if there are no available ticket types

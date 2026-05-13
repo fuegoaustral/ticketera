@@ -1891,12 +1891,10 @@ def event_management_view(request, event_slug):
                 'name', 'description', 'location', 'location_url',
                 'start', 'end', 'header_image',
                 'max_tickets', 'venue_capacity',
-                'attendee_must_be_registered',
-                'soldout_message'
+                'attendee_must_be_registered'
             ]
             widgets = {
                 'description': CKEditor5Widget(config_name='extends'),
-                'soldout_message': CKEditor5Widget(config_name='extends'),
                 'start': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
                 'end': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
                 'name': forms.TextInput(attrs={'class': 'form-control'}),
