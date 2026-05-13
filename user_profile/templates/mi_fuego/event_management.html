@@ -187,21 +187,21 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group mb-3">
-                                    <label for="{{ form.max_tickets.id_for_label }}" class="form-label">Máximo de Tickets</label>
-                                    {{ form.max_tickets }}
-                                    <small class="form-text text-muted">Dejar vacío para ilimitado</small>
-                                    {% if form.max_tickets.errors %}
-                                        <div class="text-danger">{{ form.max_tickets.errors }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group mb-3">
                                     <label for="{{ form.venue_capacity.id_for_label }}" class="form-label">Capacidad del Lugar</label>
                                     {{ form.venue_capacity }}
                                     <small class="form-text text-muted">Capacidad máxima del venue (opcional)</small>
                                     {% if form.venue_capacity.errors %}
                                         <div class="text-danger">{{ form.venue_capacity.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.max_tickets.id_for_label }}" class="form-label">Máximo de Tickets</label>
+                                    {{ form.max_tickets }}
+                                    <small class="form-text text-muted">Dejar vacío para ilimitado</small>
+                                    {% if form.max_tickets.errors %}
+                                        <div class="text-danger">{{ form.max_tickets.errors }}</div>
                                     {% endif %}
                                 </div>
                             </div>

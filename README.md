@@ -2,6 +2,8 @@
 
 > **Sistema de venta de tickets para eventos de Fuego Austral** 🔥
 
+**Documentación de dominio y reglas de negocio** (casos de uso, modelos, integraciones): ver la carpeta [`docs/`](docs/README.md).
+
 [![Python](https://img.shields.io/badge/Python-3.13-blue.svg)](https://python.org)
 [![Django](https://img.shields.io/badge/Django-4.2-green.svg)](https://djangoproject.com)
 [![AWS Lambda](https://img.shields.io/badge/AWS-Lambda-orange.svg)](https://aws.amazon.com/lambda/)
@@ -9,6 +11,7 @@
 
 ## 📋 Índice
 
+- [📚 Documentación de producto (`/docs`)](docs/README.md)
 - [🚀 Características](#-características)
 - [🛠️ Desarrollo Local](#️-desarrollo-local)
   - [📋 Requisitos Previos](#-requisitos-previos)
@@ -426,8 +429,8 @@ flowchart LR
         CW["📊 CloudWatch Logs"]
 
         APIGW --> Django
-        EB -->|rate(5 min)| Crons
-        EB -->|cron 17:00 UTC| Crons
+        EB -->|"rate(5 min)"| Crons
+        EB -->|"cron 17:00 UTC"| Crons
         Django --> RDS
         Crons --> RDS
         Django --> S3Static

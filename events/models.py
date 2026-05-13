@@ -75,17 +75,21 @@ class Event(BaseModel):
         return super().clean(*args, **kwargs)
 
     def tickets_remaining(self):
-        from tickets.models import Order
+        from tickets.models import Order, OrderTicket
 
         if self.max_tickets:
-            # Only count tickets from ticket types that don't ignore max amount
-            tickets_sold = (Order.objects
-                            .filter(order_tickets__ticket_type__event=self)
-                            .filter(order_tickets__ticket_type__ignore_max_amount=False)
-                            .filter(status=Order.OrderStatus.CONFIRMED)
-                            .annotate(num_tickets=Sum('order_tickets__quantity'))
-                            .aggregate(tickets_sold=Sum('num_tickets'))
-                            )['tickets_sold'] or 0
+            # Sum quantities on OrderTicket rows that count toward the cap.
+            # Do not aggregate from Order + Sum(order_tickets__quantity): Django sums
+            # *all* lines on each order, including ticket types with ignore_max_amount=True,
+            # which inflates tickets_sold and blocks sales early.
+            tickets_sold = (
+                OrderTicket.objects.filter(
+                    order__status=Order.OrderStatus.CONFIRMED,
+                    ticket_type__event=self,
+                    ticket_type__ignore_max_amount=False,
+                ).aggregate(total=Sum('quantity'))['total']
+                or 0
+            )
             return self.max_tickets - tickets_sold
         else:
             return 999999999  # extra high number (easy hack)

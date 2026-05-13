@@ -146,7 +146,11 @@ class CheckoutTicketSelectionForm(forms.Form):
         tickets_remaining = event.tickets_remaining() or 0
         available_tickets = event.max_tickets_per_order
         available_tickets = min(available_tickets, tickets_remaining)
-        total_selected_tickets = sum(cleaned_data.get(field, 0) for field in self.fields if field.startswith('ticket_'))
+        total_selected_tickets = sum(
+            cleaned_data.get(field, 0)
+            for field in self.fields
+            if field.startswith('ticket_') and field.endswith('_quantity')
+        )
         
         # Check if any selected ticket type ignores max amount
         has_ignore_max_amount = any(
