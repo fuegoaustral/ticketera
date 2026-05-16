@@ -127,6 +127,7 @@ def order_summary(request, event_slug=None):
                   .filter(Q(date_to__gte=timezone.now()) | Q(date_to__isnull=True))
                   .filter(Q(ticket_count__gt=0) | Q(ticket_count__isnull=True))
                   .filter(is_direct_type=False)
+                  .filter(do_not_show_in_checkout=False)
                   .order_by('cardinality', 'price'))
 
     for ticket_type in ticket_types:

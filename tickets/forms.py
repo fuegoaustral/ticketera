@@ -87,10 +87,16 @@ class CheckoutTicketSelectionForm(forms.Form):
                           .filter(Q(date_to__gte=timezone.now()) | Q(date_to__isnull=True))
                           .filter(Q(ticket_count__gt=0) | Q(ticket_count__isnull=True))
                           .filter(is_direct_type=False)
+                          .filter(do_not_show_in_checkout=False)
                           .order_by('cardinality', 'price'))
         else:
             # Fallback to current events if no specific event
-            ticket_types = TicketType.objects.get_available_ticket_types_for_current_events().order_by('cardinality', 'price')
+            ticket_types = (
+                TicketType.objects
+                .get_available_ticket_types_for_current_events()
+                .filter(do_not_show_in_checkout=False)
+                .order_by('cardinality', 'price')
+            )
 
         self.ticket_data = []  # Initialize an empty list to store ticket data
 
