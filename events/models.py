@@ -30,6 +30,10 @@ class Event(BaseModel):
     ingreso_anticipado_limite_carga = models.DateTimeField(blank=True, null=True, help_text="Fecha límite hasta la cual se pueden cargar o modificar ingresos anticipados. Si es null, no hay límite.")
     show_multiple_tickets = models.BooleanField(default=False,
                                                 help_text="If unchecked, only the chepeast ticket will be shown.")
+    show_door_remaining = models.BooleanField(
+        default=False,
+        help_text="Si está marcado, en checkout sin entradas online se informa cuántas quedan en puerta.",
+    )
 
     # homepage
     header_image = models.ImageField(upload_to='events/heros', help_text=u"Dimensions: 1666px x 500px")
@@ -93,6 +97,23 @@ class Event(BaseModel):
             return self.max_tickets - tickets_sold
         else:
             return 999999999  # extra high number (easy hack)
+
+    def door_tickets_remaining(self):
+        """Stock disponible en puerta (tipos con show_in_caja), acotado al cupo del evento."""
+        from tickets.models import TicketType
+
+        caja_stock = (
+            TicketType.objects.filter(
+                event=self,
+                show_in_caja=True,
+                is_direct_type=False,
+                ticket_count__gt=0,
+            ).aggregate(total=Sum('ticket_count'))['total']
+            or 0
+        )
+        if self.max_tickets:
+            return min(caja_stock, max(0, self.tickets_remaining() or 0))
+        return caja_stock
 
     def volunteer_period(self):
         if self.end < timezone.now():

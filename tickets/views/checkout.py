@@ -14,6 +14,15 @@ from tickets.forms import CheckoutTicketSelectionForm, CheckoutDonationsForm
 from tickets.models import TicketType, Order, OrderTicket
 
 
+def _checkout_door_context(event, ticket_data):
+    if ticket_data or not event.show_door_remaining:
+        return {}
+    return {
+        'show_door_remaining_notice': True,
+        'door_tickets_remaining': event.door_tickets_remaining(),
+    }
+
+
 @login_required
 def select_tickets(request, event_slug=None):
     # Get event from URL slug or request
@@ -39,13 +48,16 @@ def select_tickets(request, event_slug=None):
             tickets_remaining = event.tickets_remaining() or 0
             available_tickets = event.max_tickets_per_order
             available_tickets = min(available_tickets, tickets_remaining)
-            return render(request, 'checkout/select_tickets.html', {
+            context = {
                 'form': form,
                 'ticket_data': form.ticket_data,
                 'available_tickets': available_tickets,
                 'tickets_remaining': tickets_remaining,
                 'current_event': event,
-            })
+                'event': event,
+            }
+            context.update(_checkout_door_context(event, form.ticket_data))
+            return render(request, 'checkout/select_tickets.html', context)
 
     tickets_remaining = event.tickets_remaining() or 0
     available_tickets = event.max_tickets_per_order
@@ -64,13 +76,16 @@ def select_tickets(request, event_slug=None):
 
     form = CheckoutTicketSelectionForm(initial=initial_data, event=event)
 
-    return render(request, 'checkout/select_tickets.html', {
+    context = {
         'form': form,
         'ticket_data': form.ticket_data,
         'available_tickets': available_tickets,
         'tickets_remaining': tickets_remaining,
         'current_event': event,
-    })
+        'event': event,
+    }
+    context.update(_checkout_door_context(event, form.ticket_data))
+    return render(request, 'checkout/select_tickets.html', context)
 
 
 @login_required
