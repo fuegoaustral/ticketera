@@ -2962,7 +2962,7 @@ def caja_view(request, event_slug):
                 COALESCE(SUM(too.donation_grant), 0) as donations_grant,
                 COALESCE(SUM(too.donation_art + too.donation_venue + too.donation_grant), 0) as total_donations,
                 -- Caja orders (generated_by_admin_user_id is not null)
-                COALESCE(SUM(CASE WHEN too.generated_by_admin_user_id IS NOT NULL THEN COALESCE(tot.quantity, 0) ELSE 0 END), 0) as caja_tickets_sold,
+                COUNT(DISTINCT CASE WHEN too.generated_by_admin_user_id IS NOT NULL THEN nt.id END) as caja_tickets_sold,
                 COALESCE(SUM(CASE WHEN too.generated_by_admin_user_id IS NOT NULL THEN (too.amount - COALESCE(too.donation_art, 0) - COALESCE(too.donation_venue, 0) - COALESCE(too.donation_grant, 0)) ELSE 0 END), 0) as caja_ticket_revenue,
                 COALESCE(SUM(CASE WHEN too.generated_by_admin_user_id IS NOT NULL THEN too.amount ELSE 0 END), 0) as caja_total_revenue,
                 COALESCE(SUM(CASE WHEN too.generated_by_admin_user_id IS NOT NULL THEN too.net_received_amount ELSE 0 END), 0) as caja_net_received_amount,
