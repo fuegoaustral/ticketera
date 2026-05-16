@@ -111,6 +111,15 @@
                                                     <small class="field-help">Si está marcado, este tipo de entrada aparecerá en la interfaz de caja</small>
                                                 </div>
                                             </div>
+                                            <div class="field-group">
+                                                <div class="form-check">
+                                                    <input type="checkbox" class="form-check-input" id="do_not_show_in_checkout_{{ ticket_type.id }}" {% if ticket_type.do_not_show_in_checkout %}checked{% endif %} data-field="do_not_show_in_checkout" data-ticket-type-id="{{ ticket_type.id }}">
+                                                    <label class="form-check-label field-label" for="do_not_show_in_checkout_{{ ticket_type.id }}">
+                                                        Ocultar en checkout
+                                                    </label>
+                                                    <small class="field-help">Si está marcado, este tipo de entrada no aparecerá en el flujo de compra online</small>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -208,13 +217,22 @@
                     </div>
                     
                     <div class="row">
-                        <div class="col-md-12">
+                        <div class="col-md-6">
                             <div class="form-check mb-3">
                                 <input type="checkbox" class="form-check-input" id="show_in_caja_new" name="show_in_caja" checked>
                                 <label class="form-check-label" for="show_in_caja_new">
                                     Mostrar en Caja
                                 </label>
                                 <small class="form-text text-muted d-block">Si está marcado, este tipo de entrada aparecerá en la interfaz de caja</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check mb-3">
+                                <input type="checkbox" class="form-check-input" id="do_not_show_in_checkout_new" name="do_not_show_in_checkout">
+                                <label class="form-check-label" for="do_not_show_in_checkout_new">
+                                    Ocultar en checkout
+                                </label>
+                                <small class="form-text text-muted d-block">Si está marcado, este tipo de entrada no aparecerá en el flujo de compra online</small>
                             </div>
                         </div>
                     </div>
