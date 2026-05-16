@@ -121,6 +121,7 @@ class TicketType(BaseModel):
 
     is_direct_type = models.BooleanField(default=False)
     show_in_caja = models.BooleanField(default=True)
+    do_not_show_in_checkout = models.BooleanField(default=False)
     ignore_max_amount = models.BooleanField(default=False)
     volunteer_price = models.BooleanField(default=False, help_text="Precio para voluntarios")
 
