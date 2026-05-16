@@ -1993,8 +1993,8 @@ def ticket_types_management_view(request, event_slug):
         class Meta:
             model = TicketType
             fields = [
-                'name', 'description', 'date_from', 'date_to', 
-                'price', 'ticket_count', 'show_in_caja'
+                'name', 'description', 'date_from', 'date_to',
+                'price', 'ticket_count', 'show_in_caja', 'do_not_show_in_checkout',
             ]
             widgets = {
                 'name': forms.TextInput(attrs={'class': 'form-control'}),
@@ -2004,6 +2004,7 @@ def ticket_types_management_view(request, event_slug):
                 'price': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
                 'ticket_count': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
                 'show_in_caja': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+                'do_not_show_in_checkout': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             }
     
     # Handle form submission
@@ -2145,7 +2146,7 @@ def ticket_types_ajax(request, event_slug):
                     setattr(ticket_type, field_name, parsed_date)
                 else:
                     setattr(ticket_type, field_name, None)
-            elif field_name == 'show_in_caja':
+            elif field_name in ['show_in_caja', 'do_not_show_in_checkout']:
                 setattr(ticket_type, field_name, value == 'true')
             
             ticket_type.save()

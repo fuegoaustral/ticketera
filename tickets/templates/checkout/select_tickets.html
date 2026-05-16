@@ -148,6 +148,12 @@
                                 id="continue-button"
                                 disabled>Continuar</button>
                     </form>
+                {% elif show_door_remaining_notice %}
+                <div class="alert alert-info w-100" role="alert">
+                    <p class="mb-0">
+                        No quedan más entradas online{% if door_tickets_remaining > 0 %}, todavía quedan <strong>{{ door_tickets_remaining|intcomma }}</strong> disponibles en la puerta del evento{% else %}. Tampoco quedan más entradas en puerta{% endif %}.
+                    </p>
+                </div>
                 {% else %}
                 <div class="alert alert-danger w-100" role="alert">
                     No hay tickets a la venta disponibles en este momento.
