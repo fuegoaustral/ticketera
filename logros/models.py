@@ -1,5 +1,4 @@
 from django.conf import settings
-from django.contrib.staticfiles.storage import staticfiles_storage
 from django.db import models
 
 from utils.models import BaseModel
@@ -13,9 +12,9 @@ class Achievement(BaseModel):
 
     slug = models.SlugField(unique=True, max_length=64)
     name = models.CharField(max_length=255)
-    image = models.CharField(
-        max_length=255,
-        help_text='Ruta de archivo estático, ej: img/logros/3-oscuras.jpg (tickets/static/)',
+    image = models.ImageField(
+        upload_to='logros/',
+        help_text='Imagen del logro (se sube a S3)',
     )
     description = models.TextField(blank=True)
     condition_type = models.CharField(max_length=32, choices=ConditionType.choices)
@@ -36,20 +35,8 @@ class Achievement(BaseModel):
         return self.name
 
     @property
-    def static_image_path(self):
-        """Ruta bajo tickets/static/ para {% static %} y S3."""
-        path = (self.image or '').lstrip('/')
-        if path.startswith('media/'):
-            path = path[len('media/') :]
-        if path.startswith('img/'):
-            return path
-        if path.startswith('logros/'):
-            return f'img/{path}'
-        return path
-
-    @property
     def image_url(self):
-        return staticfiles_storage.url(self.static_image_path)
+        return self.image.url if self.image else ''
 
 
 class UserAchievement(BaseModel):

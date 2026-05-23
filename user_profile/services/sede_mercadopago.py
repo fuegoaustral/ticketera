@@ -1,13 +1,13 @@
 import logging
 import re
+import unicodedata
 import uuid
+from difflib import SequenceMatcher
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
 import mercadopago
-from allauth.account.models import EmailAddress
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.db.models import Q
 from django.utils import timezone
@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__)
 ACTIVE_SUBSCRIPTION_STATUSES = {'authorized'}
 SYNC_CACHE_TIMEOUT = 3600
 SYNC_CACHE_PREFIX = 'sede_sync_'
+LAST_NAME_SIMILARITY_THRESHOLD = 0.85
+FIRST_NAME_SIMILARITY_THRESHOLD = 0.90
 
 PAYMENT_METHOD_LABELS = {
     'account_money': 'Dinero en cuenta',
@@ -49,6 +51,23 @@ def normalize_document_number(document_number):
     return digits.lstrip('0') or '0'
 
 
+def normalize_name(name):
+    if not name:
+        return ''
+    normalized = unicodedata.normalize('NFKD', str(name))
+    normalized = ''.join(char for char in normalized if not unicodedata.combining(char))
+    normalized = re.sub(r'[^a-z0-9\s]', ' ', normalized.lower())
+    return re.sub(r'\s+', ' ', normalized).strip()
+
+
+def name_similarity(left, right):
+    left = normalize_name(left)
+    right = normalize_name(right)
+    if not left or not right:
+        return 0.0
+    return SequenceMatcher(None, left, right).ratio()
+
+
 def format_payment_method(payment_method_id):
     if not payment_method_id:
         return '—'
@@ -73,40 +92,74 @@ def get_mp_sdk():
     return mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
 
 
+def _paginated_search(search_fn, filters, limit=50):
+    results = []
+    offset = 0
+    while True:
+        response = search_fn({**filters, 'limit': limit, 'offset': offset})
+        if response.get('status') != 200:
+            logger.warning('MP search failed (%s): %s', filters, response)
+            break
+
+        data = response.get('response', {})
+        batch = data.get('results', [])
+        results.extend(batch)
+
+        paging = data.get('paging', {})
+        total = paging.get('total', len(results))
+        offset += limit
+        if offset >= total or not batch:
+            break
+    return results
+
+
 def fetch_all_subscriptions(sdk=None):
+    """Fetch every subscription on the MercadoPago account."""
     sdk = sdk or get_mp_sdk()
-    plan_ids = get_sede_plan_ids()
     seen_ids = set()
     subscriptions = []
 
-    search_configs = [{'preapproval_plan_id': plan_id} for plan_id in plan_ids] if plan_ids else [{}]
-
-    for base_filters in search_configs:
-        for status in ACTIVE_SUBSCRIPTION_STATUSES:
-            offset = 0
-            limit = 50
-            while True:
-                filters = {**base_filters, 'status': status, 'limit': limit, 'offset': offset}
-                response = sdk.preapproval().search(filters)
-                if response.get('status') != 200:
-                    logger.warning('MP preapproval search failed: %s', response)
-                    break
-
-                data = response.get('response', {})
-                results = data.get('results', [])
-                for item in results:
-                    sub_id = item.get('id')
-                    if sub_id and sub_id not in seen_ids:
-                        seen_ids.add(sub_id)
-                        subscriptions.append(item)
-
-                paging = data.get('paging', {})
-                total = paging.get('total', 0)
-                offset += limit
-                if offset >= total or not results:
-                    break
+    for item in _paginated_search(sdk.preapproval().search, {}):
+        sub_id = item.get('id')
+        if sub_id and sub_id not in seen_ids:
+            seen_ids.add(sub_id)
+            subscriptions.append(item)
 
     return subscriptions
+
+
+def build_user_match_index():
+    by_email = {}
+    by_document = {}
+    by_name = []
+
+    profiles = Profile.objects.select_related('user').prefetch_related('user__emailaddress_set')
+    for profile in profiles:
+        user = profile.user
+        emails = {user.email.strip().lower()} if user.email else set()
+        emails.update(
+            email.strip().lower()
+            for email in user.emailaddress_set.values_list('email', flat=True)
+            if email
+        )
+        for email in emails:
+            by_email[email] = user
+
+        normalized_document = normalize_document_number(profile.document_number)
+        if normalized_document:
+            by_document[normalized_document] = user
+
+        by_name.append({
+            'user': user,
+            'first_name': normalize_name(user.first_name),
+            'last_name': normalize_name(user.last_name),
+        })
+
+    return {
+        'by_email': by_email,
+        'by_document': by_document,
+        'by_name': by_name,
+    }
 
 
 def _extract_identification_from_payment(payment):
@@ -116,83 +169,317 @@ def _extract_identification_from_payment(payment):
     doc_number = identification.get('number')
     if doc_number:
         return doc_type, doc_number
+
+    additional_info = payment.get('additional_info') or {}
+    additional_payer = additional_info.get('payer') or {}
+    identification = additional_payer.get('identification') or {}
+    doc_type = identification.get('type')
+    doc_number = identification.get('number')
+    if doc_number:
+        return doc_type, doc_number
+
     return None, None
 
 
-def _find_user_by_email(email):
+def _extract_names_from_payment(payment):
+    payer = payment.get('payer') or {}
+    first_name = payer.get('first_name') or ''
+    last_name = payer.get('last_name') or ''
+
+    if not first_name and not last_name:
+        additional_info = payment.get('additional_info') or {}
+        additional_payer = additional_info.get('payer') or {}
+        first_name = additional_payer.get('first_name') or first_name
+        last_name = additional_payer.get('last_name') or last_name
+
+    if not first_name and not last_name:
+        card = payment.get('card') or {}
+        cardholder = card.get('cardholder') or {}
+        full_name = cardholder.get('name') or ''
+        if full_name:
+            parts = full_name.split()
+            if len(parts) >= 2:
+                first_name = parts[0]
+                last_name = ' '.join(parts[1:])
+            else:
+                last_name = full_name
+
+    return first_name, last_name
+
+
+def _extract_email_from_payment(payment):
+    payer = payment.get('payer') or {}
+    email = payer.get('email') or ''
+    if email:
+        return email
+    additional_info = payment.get('additional_info') or {}
+    additional_payer = additional_info.get('payer') or {}
+    return additional_payer.get('email') or ''
+
+
+def _payment_belongs_to_subscription(payment, subscription_id):
+    if not subscription_id:
+        return True
+
+    metadata = payment.get('metadata') or {}
+    metadata_values = {
+        str(metadata.get('preapproval_id') or ''),
+        str(metadata.get('subscription_id') or ''),
+        str(metadata.get('preapproval_plan_id') or ''),
+    }
+    if subscription_id in metadata_values:
+        return True
+
+    description = str(payment.get('description') or '').lower()
+    external_reference = str(payment.get('external_reference') or '')
+    if subscription_id in description or subscription_id in external_reference:
+        return True
+
+    order = payment.get('order') or {}
+    order_id = str(order.get('id') or '')
+    return subscription_id in order_id
+
+
+def fetch_payments_for_subscription(sdk, subscription_id, payer_id=None):
+    seen_payment_ids = set()
+    payments = []
+
+    search_filters = [{'sort': 'date_created', 'criteria': 'desc'}]
+    if payer_id:
+        search_filters.append({'payer.id': payer_id, 'sort': 'date_created', 'criteria': 'desc'})
+    search_filters.append({'q': subscription_id, 'sort': 'date_created', 'criteria': 'desc'})
+
+    for filters in search_filters:
+        for payment in _paginated_search(sdk.payment().search, filters):
+            payment_id = payment.get('id')
+            if payment_id in seen_payment_ids:
+                continue
+            if filters.get('payer.id') and not _payment_belongs_to_subscription(payment, subscription_id):
+                continue
+            seen_payment_ids.add(payment_id)
+            payments.append(payment)
+
+    return payments
+
+
+def _add_payer_hint(hints, source, email=None, doc_type=None, doc_number=None,
+                    first_name=None, last_name=None):
+    if email:
+        hints['emails'].add(email.strip().lower())
+    if doc_number:
+        hints['documents'].append({
+            'source': source,
+            'type': doc_type,
+            'number': doc_number,
+        })
+    if first_name or last_name:
+        hints['names'].append({
+            'source': source,
+            'first_name': first_name or '',
+            'last_name': last_name or '',
+        })
+
+
+def collect_payer_hints(sdk, subscription_summary, subscription_detail, payments):
+    hints = {
+        'emails': set(),
+        'documents': [],
+        'names': [],
+    }
+
+    detail = subscription_detail or subscription_summary or {}
+    _add_payer_hint(
+        hints,
+        'subscription',
+        email=detail.get('payer_email'),
+        first_name=detail.get('payer_first_name'),
+        last_name=detail.get('payer_last_name'),
+    )
+
+    payer_id = detail.get('payer_id') or subscription_summary.get('payer_id')
+    if payer_id:
+        try:
+            response = sdk.customer().get(str(payer_id))
+            if response.get('status') == 200:
+                customer = response.get('response', {})
+                identification = customer.get('identification') or {}
+                _add_payer_hint(
+                    hints,
+                    'customer',
+                    email=customer.get('email'),
+                    doc_type=identification.get('type'),
+                    doc_number=identification.get('number'),
+                    first_name=customer.get('first_name'),
+                    last_name=customer.get('last_name'),
+                )
+        except Exception:
+            logger.exception('Failed to fetch MP customer %s', payer_id)
+
+    for payment in payments:
+        doc_type, doc_number = _extract_identification_from_payment(payment)
+        first_name, last_name = _extract_names_from_payment(payment)
+        _add_payer_hint(
+            hints,
+            'payment',
+            email=_extract_email_from_payment(payment),
+            doc_type=doc_type,
+            doc_number=doc_number,
+            first_name=first_name,
+            last_name=last_name,
+        )
+
+    return hints
+
+
+def _find_user_by_email(email, user_index):
     if not email:
         return None
-    email = email.strip().lower()
-    user = User.objects.filter(email__iexact=email).first()
-    if user:
-        return user
-    email_address = EmailAddress.objects.filter(email__iexact=email).select_related('user').first()
-    return email_address.user if email_address else None
+    return user_index['by_email'].get(email.strip().lower())
 
 
-def _find_user_by_document(document_number):
+def _find_user_by_document(document_number, user_index):
     normalized = normalize_document_number(document_number)
     if not normalized:
         return None
-
-    for profile in Profile.objects.exclude(document_number='').select_related('user'):
-        if normalize_document_number(profile.document_number) == normalized:
-            return profile.user
-    return None
+    return user_index['by_document'].get(normalized)
 
 
-def _get_document_from_customer(sdk, payer_id):
-    if not payer_id:
-        return None, None
-    try:
-        response = sdk.customer().get(str(payer_id))
-        if response.get('status') != 200:
-            return None, None
-        customer = response.get('response', {})
-        identification = customer.get('identification') or {}
-        return identification.get('type'), identification.get('number')
-    except Exception:
-        logger.exception('Failed to fetch MP customer %s', payer_id)
-        return None, None
+def _find_user_by_name(first_name, last_name, user_index):
+    target_last = normalize_name(last_name)
+    target_first = normalize_name(first_name)
+    if not target_last:
+        return None, 0.0
+
+    best_user = None
+    best_score = 0.0
+
+    for candidate in user_index['by_name']:
+        last_sim = name_similarity(target_last, candidate['last_name'])
+        if last_sim < LAST_NAME_SIMILARITY_THRESHOLD:
+            continue
+
+        if target_first and candidate['first_name']:
+            first_sim = name_similarity(target_first, candidate['first_name'])
+        elif not target_first or not candidate['first_name']:
+            first_sim = 1.0
+        else:
+            first_sim = 0.0
+
+        if first_sim < FIRST_NAME_SIMILARITY_THRESHOLD:
+            continue
+
+        score = (last_sim + first_sim) / 2
+        if score > best_score:
+            best_score = score
+            best_user = candidate['user']
+
+    return best_user, best_score
 
 
-def _get_document_from_payments(sdk, payer_id, preapproval_id):
-    if not payer_id:
-        return None, None
-    try:
-        response = sdk.payment().search({
-            'payer.id': payer_id,
-            'sort': 'date_created',
-            'criteria': 'desc',
-            'limit': 20,
-        })
-        if response.get('status') != 200:
-            return None, None
+def match_payer_hints_to_user(hints, user_index):
+    for email in hints['emails']:
+        user = _find_user_by_email(email, user_index)
+        if user:
+            return user, 'email', {'email': email}
 
-        for payment in response.get('response', {}).get('results', []):
-            metadata = payment.get('metadata') or {}
-            if preapproval_id and metadata.get('preapproval_id') not in (None, preapproval_id):
-                continue
-            doc_type, doc_number = _extract_identification_from_payment(payment)
-            if doc_number:
-                return doc_type, doc_number
-    except Exception:
-        logger.exception('Failed to fetch MP payments for payer %s', payer_id)
-    return None, None
+    seen_documents = set()
+    for document in hints['documents']:
+        normalized = normalize_document_number(document.get('number'))
+        if not normalized or normalized in seen_documents:
+            continue
+        seen_documents.add(normalized)
+        user = _find_user_by_document(document.get('number'), user_index)
+        if user:
+            return user, 'dni', {
+                'document_type': document.get('type'),
+                'document_number': document.get('number'),
+                'source': document.get('source'),
+            }
+
+    best_user = None
+    best_method = None
+    best_meta = None
+    best_score = 0.0
+
+    for name_hint in hints['names']:
+        user, score = _find_user_by_name(
+            name_hint.get('first_name'),
+            name_hint.get('last_name'),
+            user_index,
+        )
+        if user and score > best_score:
+            best_user = user
+            best_method = 'name'
+            best_meta = {
+                'first_name': name_hint.get('first_name'),
+                'last_name': name_hint.get('last_name'),
+                'score': round(score, 3),
+                'source': name_hint.get('source'),
+            }
+            best_score = score
+
+    if best_user:
+        return best_user, best_method, best_meta
+
+    return None, None, _summarize_unmatched_hints(hints)
 
 
-def _extract_subscription_details(subscription_summary, subscription_detail):
+def _summarize_unmatched_hints(hints):
+    document_numbers = []
+    seen_documents = set()
+    for document in hints['documents']:
+        normalized = normalize_document_number(document.get('number'))
+        if normalized and normalized not in seen_documents:
+            seen_documents.add(normalized)
+            document_numbers.append(document.get('number'))
+
+    names = [
+        ' '.join(filter(None, [name.get('first_name'), name.get('last_name')])).strip()
+        for name in hints['names']
+    ]
+
+    return {
+        'emails': sorted(hints['emails']),
+        'document_numbers': document_numbers,
+        'names': [name for name in names if name],
+    }
+
+
+def _pick_latest_payment(payments):
+    if not payments:
+        return None
+
+    def sort_key(payment):
+        dt = parse_mp_datetime(payment.get('date_approved') or payment.get('date_created'))
+        return dt or datetime.min.replace(tzinfo=timezone.utc)
+
+    approved = [payment for payment in payments if payment.get('status') == 'approved']
+    candidates = approved or payments
+    return max(candidates, key=sort_key)
+
+
+def _extract_subscription_details(subscription_summary, subscription_detail, payments=None):
     detail = subscription_detail or subscription_summary or {}
     summarized = detail.get('summarized') or {}
     auto_recurring = detail.get('auto_recurring') or {}
 
     last_payment_date = parse_mp_datetime(summarized.get('last_charged_date'))
+    last_amount = summarized.get('last_charged_amount')
+    payment_method = detail.get('payment_method_id') or subscription_summary.get('payment_method_id') or ''
+
+    latest_payment = _pick_latest_payment(payments or [])
+    if latest_payment:
+        if not last_payment_date:
+            last_payment_date = parse_mp_datetime(
+                latest_payment.get('date_approved') or latest_payment.get('date_created')
+            )
+        if last_amount in (None, ''):
+            last_amount = latest_payment.get('transaction_amount')
+        if not payment_method:
+            payment_method = latest_payment.get('payment_method_id') or ''
+
     next_payment_date = parse_mp_datetime(detail.get('next_payment_date'))
     member_since = parse_mp_datetime(detail.get('date_created'))
-
-    last_amount = summarized.get('last_charged_amount')
-    if last_amount in (None, ''):
-        last_amount = auto_recurring.get('transaction_amount')
 
     try:
         last_payment_amount = Decimal(str(last_amount)) if last_amount not in (None, '') else None
@@ -202,12 +489,8 @@ def _extract_subscription_details(subscription_summary, subscription_detail):
     return {
         'subscription_id': detail.get('id') or subscription_summary.get('id'),
         'status': detail.get('status') or subscription_summary.get('status') or '',
-        'payment_method': detail.get('payment_method_id') or subscription_summary.get('payment_method_id') or '',
-        'payer_email': (
-            detail.get('payer_email')
-            or subscription_summary.get('payer_email')
-            or ''
-        ),
+        'payment_method': payment_method,
+        'payer_email': detail.get('payer_email') or subscription_summary.get('payer_email') or '',
         'payer_id': detail.get('payer_id') or subscription_summary.get('payer_id'),
         'payer_first_name': detail.get('payer_first_name') or subscription_summary.get('payer_first_name') or '',
         'payer_last_name': detail.get('payer_last_name') or subscription_summary.get('payer_last_name') or '',
@@ -218,42 +501,45 @@ def _extract_subscription_details(subscription_summary, subscription_detail):
     }
 
 
-def match_subscription_to_user(sdk, subscription_summary, subscription_detail=None):
+def match_subscription_to_user(sdk, subscription_summary, subscription_detail=None, user_index=None):
+    if user_index is None:
+        user_index = build_user_match_index()
+
+    sub_id = subscription_summary.get('id')
+    if not sub_id:
+        return None, 'missing_id', None
+
     if subscription_detail is None:
-        sub_id = subscription_summary.get('id')
-        if not sub_id:
-            return None, 'missing_id', None
         response = sdk.preapproval().get(sub_id)
         if response.get('status') != 200:
             return None, 'fetch_failed', None
         subscription_detail = response.get('response', {})
 
-    details = _extract_subscription_details(subscription_summary, subscription_detail)
-    payer_email = details['payer_email']
-    payer_id = details['payer_id']
-    preapproval_id = details['subscription_id']
+    payer_id = (
+        subscription_detail.get('payer_id')
+        or subscription_summary.get('payer_id')
+    )
+    payments = fetch_payments_for_subscription(sdk, sub_id, payer_id=payer_id)
+    hints = collect_payer_hints(sdk, subscription_summary, subscription_detail, payments)
+    user, match_method, match_meta = match_payer_hints_to_user(hints, user_index)
+    details = _extract_subscription_details(subscription_summary, subscription_detail, payments)
 
-    user = _find_user_by_email(payer_email)
-    match_method = 'email' if user else None
     document_number = None
     document_type = None
-
-    if not user:
-        document_type, document_number = _get_document_from_customer(sdk, payer_id)
-        if document_number:
-            user = _find_user_by_document(document_number)
-            match_method = 'customer_dni' if user else None
-
-    if not user:
-        document_type, document_number = _get_document_from_payments(sdk, payer_id, preapproval_id)
-        if document_number:
-            user = _find_user_by_document(document_number)
-            match_method = 'payment_dni' if user else None
+    if match_meta and match_method == 'dni':
+        document_number = match_meta.get('document_number')
+        document_type = match_meta.get('document_type')
+    elif hints['documents']:
+        document_number = hints['documents'][0].get('number')
+        document_type = hints['documents'][0].get('type')
 
     return user, match_method, {
         **details,
         'document_type': document_type,
         'document_number': document_number,
+        'payments_checked': len(payments),
+        'match_meta': match_meta,
+        'hints': _summarize_unmatched_hints(hints),
     }
 
 
@@ -284,11 +570,13 @@ def apply_subscription_to_profile(profile, details):
 def start_sync():
     sdk = get_mp_sdk()
     subscriptions = fetch_all_subscriptions(sdk)
+    user_index = build_user_match_index()
     sync_id = str(uuid.uuid4())
     cache.set(
         f'{SYNC_CACHE_PREFIX}{sync_id}',
         {
             'subscriptions': subscriptions,
+            'user_index': user_index,
             'total': len(subscriptions),
             'processed': 0,
             'active_subscription_ids': [],
@@ -298,6 +586,26 @@ def start_sync():
         SYNC_CACHE_TIMEOUT,
     )
     return sync_id, len(subscriptions)
+
+
+def _format_unmatched_message(details):
+    hints = details.get('hints') or {}
+    parts = []
+
+    if hints.get('document_numbers'):
+        parts.append('DNI: ' + ', '.join(hints['document_numbers'][:3]))
+    if hints.get('names'):
+        parts.append('Nombre: ' + ', '.join(hints['names'][:3]))
+    if hints.get('emails'):
+        parts.append('Email: ' + ', '.join(hints['emails'][:3]))
+
+    payments_checked = details.get('payments_checked')
+    if payments_checked is not None:
+        parts.append(f'{payments_checked} pago(s) revisados')
+
+    if parts:
+        return 'Sin match (' + ' | '.join(parts) + ')'
+    return 'Sin match (sin datos de pagador)'
 
 
 def process_next_subscription(sync_id):
@@ -347,24 +655,27 @@ def process_next_subscription(sync_id):
     }
 
     try:
-        user, match_method, details = match_subscription_to_user(sdk, subscription_summary)
+        user, match_method, details = match_subscription_to_user(
+            sdk,
+            subscription_summary,
+            user_index=state.get('user_index'),
+        )
         if user:
             apply_subscription_to_profile(user.profile, details)
-            state['active_subscription_ids'].append(sub_id)
+            if details.get('status') in ACTIVE_SUBSCRIPTION_STATUSES:
+                state['active_subscription_ids'].append(sub_id)
             result.update({
                 'matched': True,
                 'match_method': match_method,
                 'user_email': user.email,
                 'message': f'Vinculado con {user.email} ({match_method})',
             })
+            if match_method == 'name' and details.get('match_meta'):
+                result['message'] += f" — score {details['match_meta'].get('score')}"
+            if details.get('payments_checked'):
+                result['message'] += f" — {details['payments_checked']} pago(s)"
         else:
-            doc_hint = details.get('document_number') if details else None
-            if doc_hint:
-                result['message'] = f'Sin match (DNI MP: {doc_hint})'
-            elif subscription_summary.get('payer_email'):
-                result['message'] = f'Sin match (email MP: {subscription_summary.get("payer_email")})'
-            else:
-                result['message'] = 'Sin match (no se encontró DNI ni email)'
+            result['message'] = _format_unmatched_message(details or {})
     except Exception as exc:
         logger.exception('Error syncing subscription %s', sub_id)
         result['message'] = f'Error: {exc}'
