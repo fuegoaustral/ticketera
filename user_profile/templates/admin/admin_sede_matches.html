@@ -7,8 +7,120 @@
 
   <form method="post" style="margin: 1rem 0;">
     {% csrf_token %}
+    <input type="hidden" name="action" value="run_audit">
     <button type="submit" class="button default">Run Match Audit</button>
   </form>
+
+  <h2>Suscripciones sin match (persistidas)</h2>
+  <p>Este listado se alimenta cuando corre el sync real y no logra vincular una suscripción automáticamente.</p>
+
+  <div style="overflow-x:auto; margin-bottom: 1.5rem;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Subscription ID</th>
+          <th>Payer</th>
+          <th>DNI hint</th>
+          <th>Plan / Tier</th>
+          <th>Status</th>
+          <th>Última vez visto</th>
+          <th>Resolver</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for unmatched in unmatched_rows %}
+          <tr {% if selected_unmatched and selected_unmatched.id == unmatched.id %}style="background:#f4f9ff;"{% endif %}>
+            <td><code>{{ unmatched.subscription_id }}</code></td>
+            <td>
+              {{ unmatched.payer_first_name }} {{ unmatched.payer_last_name }}<br>
+              <small>{{ unmatched.payer_email|default:"—" }}</small>
+            </td>
+            <td>{{ unmatched.document_number|default:"—" }}</td>
+            <td>
+              <code>{{ unmatched.plan_id|default:"—" }}</code><br>
+              <small>{{ unmatched.tier_name|default:"—" }}</small>
+            </td>
+            <td>{{ unmatched.status|default:"—" }}</td>
+            <td>{{ unmatched.last_seen_at|date:"d/m/Y H:i"|default:"—" }}</td>
+            <td>
+              <a class="button" href="?selected_unmatched={{ unmatched.id }}{% if user_q %}&user_q={{ user_q|urlencode }}{% endif %}">
+                Seleccionar
+              </a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="7">No hay suscripciones sin match guardadas.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Resolución manual</h2>
+  {% if selected_unmatched %}
+    <div style="margin-bottom: 0.75rem;">
+      <strong>Suscripción seleccionada:</strong>
+      <code>{{ selected_unmatched.subscription_id }}</code> —
+      {{ selected_unmatched.payer_first_name }} {{ selected_unmatched.payer_last_name }}
+      ({{ selected_unmatched.payer_email|default:"sin email" }})
+    </div>
+
+    <form method="get" style="margin-bottom: 1rem; display:flex; gap:0.5rem; align-items:center;">
+      <input type="hidden" name="selected_unmatched" value="{{ selected_unmatched.id }}">
+      <input
+        type="text"
+        name="user_q"
+        value="{{ user_q }}"
+        placeholder="Buscar usuario por nombre, apellido, DNI o email"
+        style="min-width: 360px;"
+      >
+      <button type="submit" class="button">Buscar</button>
+    </form>
+
+    {% if user_q and not user_candidates %}
+      <p>No se encontraron usuarios para <code>{{ user_q }}</code>.</p>
+    {% endif %}
+
+    {% if user_candidates %}
+      <div style="overflow-x:auto; margin-bottom: 1.5rem;">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Usuario</th>
+              <th>DNI</th>
+              <th>La Sede</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for candidate in user_candidates %}
+              <tr>
+                <td>
+                  {{ candidate.first_name }} {{ candidate.last_name }}<br>
+                  <small>{{ candidate.email }}</small>
+                </td>
+                <td>{{ candidate.profile.document_number|default:"—" }}</td>
+                <td>{% if candidate.profile.miembro_sede %}Sí{% else %}No{% endif %}</td>
+                <td>
+                  <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="assign_unmatched">
+                    <input type="hidden" name="unmatched_id" value="{{ selected_unmatched.id }}">
+                    <input type="hidden" name="user_id" value="{{ candidate.id }}">
+                    <input type="hidden" name="search_query" value="{{ user_q }}">
+                    <button type="submit" class="button default">Vincular manualmente</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  {% else %}
+    <p>Seleccioná una suscripción sin match para asignarla manualmente.</p>
+  {% endif %}
 
   {% if report %}
     <div style="margin-bottom: 1rem;">

@@ -1,10 +1,13 @@
 from django.contrib import messages
+from django.contrib.auth.models import User
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.cache import cache
+from django.db.models import Q
 from django.shortcuts import render, redirect
 from django.views.decorators.http import require_http_methods
 
-from user_profile.services.sede_mercadopago import run_match_audit
+from user_profile.models import SedeUnmatchedSubscription
+from user_profile.services.sede_mercadopago import run_match_audit, apply_subscription_to_profile
 
 
 CACHE_KEY = 'sede_match_audit_latest_v1'
@@ -57,10 +60,79 @@ def _build_user_rows(rows):
     return user_rows
 
 
+def _search_users(query, limit=50):
+    if not query:
+        return []
+
+    query = query.strip()
+    if not query:
+        return []
+
+    users = (
+        User.objects.select_related('profile')
+        .filter(profile__isnull=False)
+        .filter(
+            Q(email__icontains=query)
+            | Q(first_name__icontains=query)
+            | Q(last_name__icontains=query)
+            | Q(profile__document_number__icontains=query)
+            | Q(emailaddress__email__icontains=query)
+        )
+        .distinct()
+        .order_by('last_name', 'first_name', 'email')[:limit]
+    )
+    return list(users)
+
+
+def _build_manual_details(unmatched):
+    return {
+        'subscription_id': unmatched.subscription_id,
+        'plan_id': unmatched.plan_id or '',
+        'tier_name': unmatched.tier_name or '',
+        'status': unmatched.status or '',
+        'payment_method': unmatched.payment_method or '',
+        'last_payment_date': unmatched.last_payment_date,
+        'last_payment_amount': unmatched.last_payment_amount,
+        'next_payment_date': unmatched.next_payment_date,
+        'member_since': unmatched.member_since,
+    }
+
+
 @staff_member_required
 @require_http_methods(['GET', 'POST'])
 def admin_sede_matches_view(request):
     if request.method == 'POST':
+        action = request.POST.get('action') or ''
+        if action == 'assign_unmatched':
+            unmatched_id = request.POST.get('unmatched_id')
+            user_id = request.POST.get('user_id')
+            search_query = request.POST.get('search_query', '')
+            try:
+                unmatched = SedeUnmatchedSubscription.objects.get(id=unmatched_id)
+            except SedeUnmatchedSubscription.DoesNotExist:
+                messages.error(request, 'No se encontró la suscripción no matcheada.')
+                return redirect('admin_sede_matches_view')
+
+            try:
+                user = User.objects.select_related('profile').get(id=user_id)
+            except User.DoesNotExist:
+                messages.error(request, 'No se encontró el usuario seleccionado.')
+                return redirect(f"{request.path}?selected_unmatched={unmatched.id}&user_q={search_query}")
+
+            profile = getattr(user, 'profile', None)
+            if not profile:
+                messages.error(request, 'El usuario no tiene profile asociado.')
+                return redirect(f"{request.path}?selected_unmatched={unmatched.id}&user_q={search_query}")
+
+            details = _build_manual_details(unmatched)
+            apply_subscription_to_profile(profile, details, match_method='manual')
+            unmatched.delete()
+            messages.success(
+                request,
+                f'Suscripción {details["subscription_id"]} vinculada manualmente a {user.email}.',
+            )
+            return redirect('admin_sede_matches_view')
+
         report = run_match_audit()
         if report.get('error'):
             messages.error(request, report['error'])
@@ -81,6 +153,16 @@ def admin_sede_matches_view(request):
     report = cache.get(CACHE_KEY)
     rows = (report or {}).get('rows') or []
     user_rows = _build_user_rows(rows)
+    unmatched_rows = SedeUnmatchedSubscription.objects.order_by('-last_seen_at', '-updated_at')[:200]
+    selected_unmatched_id = request.GET.get('selected_unmatched')
+    selected_unmatched = None
+    if selected_unmatched_id:
+        selected_unmatched = SedeUnmatchedSubscription.objects.filter(id=selected_unmatched_id).first()
+    if selected_unmatched is None and unmatched_rows:
+        selected_unmatched = unmatched_rows[0]
+
+    user_q = request.GET.get('user_q', '').strip()
+    user_candidates = _search_users(user_q) if user_q else []
     return render(
         request,
         'admin/admin_sede_matches.html',
@@ -91,5 +173,9 @@ def admin_sede_matches_view(request):
             'rows': rows,
             'user_rows': user_rows,
             'generated_at': (report or {}).get('generated_at'),
+            'unmatched_rows': unmatched_rows,
+            'selected_unmatched': selected_unmatched,
+            'user_q': user_q,
+            'user_candidates': user_candidates,
         },
     )
