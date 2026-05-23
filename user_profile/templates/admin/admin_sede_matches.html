@@ -22,6 +22,37 @@
       <strong>Usuarios con +1 activa:</strong> {{ summary.users_with_multiple_active }}
     </div>
 
+    <h2>Resumen por usuario</h2>
+    <div style="overflow-x:auto; margin-bottom: 1.5rem;">
+      <table id="result_list_users" class="table">
+        <thead>
+          <tr>
+            <th>Usuario</th>
+            <th>Suscripciones activas</th>
+            <th>Suscripciones matcheadas</th>
+            <th>Planes</th>
+            <th>Tiers</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user_row in user_rows %}
+            <tr>
+              <td>{{ user_row.user_email }}</td>
+              <td>{{ user_row.active_count }}</td>
+              <td>{{ user_row.matched_count }}</td>
+              <td>{{ user_row.plans }}</td>
+              <td>{{ user_row.tiers }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="5">Sin usuarios matcheados en el último audit.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Detalle por suscripción</h2>
     <div style="overflow-x:auto;">
       <table id="result_list" class="table">
         <thead>
