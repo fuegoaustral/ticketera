@@ -140,6 +140,16 @@
                 Mis logros
             </a>
         </div>
+
+        {% if request.user.profile.miembro_sede %}
+        <div class="menu-section">
+            <a class="menu-section-title menu-section-link{% if nav_primary == "la_sede" %} active{% endif %}"
+               href="{% url "la_sede" %}">
+                <i class="fas fa-house-chimney me-2"></i>
+                La Sede
+            </a>
+        </div>
+        {% endif %}
         
     </div>
     

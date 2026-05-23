@@ -167,6 +167,7 @@ def check_order_status(request, order_key):
                 'name': ua.achievement.name,
                 'description': ua.achievement.description,
                 'image_url': ua.achievement.image_url,
+                'static_image_path': ua.achievement.static_image_path,
             }
             for ua in pending
         ]

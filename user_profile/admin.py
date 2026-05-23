@@ -12,6 +12,25 @@ class ProfileInline(admin.StackedInline):
     model = Profile
     can_delete = False
     verbose_name_plural = 'profile'
+    readonly_fields = (
+        'sede_subscription_id', 'sede_subscription_status', 'sede_payment_method',
+        'sede_last_payment_date', 'sede_last_payment_amount', 'sede_next_payment_date',
+        'sede_member_since', 'sede_synced_at',
+    )
+    fieldsets = (
+        (None, {
+            'fields': (
+                'document_type', 'document_number', 'phone', 'profile_completion',
+            ),
+        }),
+        ('La Sede', {
+            'fields': (
+                'miembro_sede', 'sede_subscription_id', 'sede_subscription_status',
+                'sede_payment_method', 'sede_last_payment_date', 'sede_last_payment_amount',
+                'sede_next_payment_date', 'sede_member_since', 'sede_synced_at',
+            ),
+        }),
+    )
 
 
 # Crea una nueva clase que extienda de LibraryUserAdmin
@@ -19,7 +38,7 @@ class CustomUserAdmin(UserAdmin):
     inlines = (ProfileInline,)
     list_display = (
         'email', 'is_staff', 'is_superuser', 'first_name', 'last_name', 'get_phone', 'get_document_type',
-        'get_document_number')
+        'get_document_number', 'get_miembro_sede')
     
     search_fields = ('email', 'first_name', 'last_name', 'profile__document_number', 'profile__phone')
 
@@ -37,6 +56,12 @@ class CustomUserAdmin(UserAdmin):
         return instance.profile.document_number
 
     get_document_number.short_description = 'Document Number'
+
+    def get_miembro_sede(self, instance):
+        return instance.profile.miembro_sede
+
+    get_miembro_sede.short_description = 'La Sede'
+    get_miembro_sede.boolean = True
 
 
 # Quitar el registro original y registrar el nuevo UserAdmin

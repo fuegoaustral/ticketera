@@ -204,6 +204,13 @@ MERCADOPAGO = {
     'COLLECTOR_USER_ID': os.environ.get('MERCADOPAGO_COLLECTOR_USER_ID'),
 }
 
+SEDE_SUBSCRIPTION_PLAN_IDS = [
+    plan_id.strip()
+    for plan_id in os.environ.get('SUBS_IDS', '').split(',')
+    if plan_id.strip()
+]
+SEDE_DEFAULT_PLAN_ID = '2c9380847dbdc0a1017dbe5e16a1005c'
+
 EMAIL_HOST = os.environ.get('EMAIL_HOST')
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
