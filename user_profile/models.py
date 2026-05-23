@@ -107,3 +107,29 @@ class SedeSubscription(BaseModel):
 
     def __str__(self):
         return f'{self.subscription_id} ({self.status})'
+
+
+class SedeUnmatchedSubscription(BaseModel):
+    subscription_id = models.CharField(max_length=64, unique=True)
+    plan_id = models.CharField(max_length=64, blank=True, default='')
+    tier_name = models.CharField(max_length=255, blank=True, default='')
+    status = models.CharField(max_length=32, blank=True, default='')
+    payer_id = models.CharField(max_length=64, blank=True, default='')
+    payer_email = models.CharField(max_length=255, blank=True, default='')
+    payer_first_name = models.CharField(max_length=255, blank=True, default='')
+    payer_last_name = models.CharField(max_length=255, blank=True, default='')
+    document_number = models.CharField(max_length=128, blank=True, default='')
+    payment_method = models.CharField(max_length=64, blank=True, default='')
+    last_payment_date = models.DateTimeField(null=True, blank=True)
+    last_payment_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    next_payment_date = models.DateTimeField(null=True, blank=True)
+    member_since = models.DateTimeField(null=True, blank=True)
+    hints = models.JSONField(default=dict, blank=True)
+    unresolved_reason = models.CharField(max_length=255, blank=True, default='')
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ('-last_seen_at', '-updated_at')
+
+    def __str__(self):
+        return f'Unmatched {self.subscription_id} ({self.status})'

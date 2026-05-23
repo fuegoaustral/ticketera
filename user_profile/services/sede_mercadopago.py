@@ -15,7 +15,7 @@ from django.db import DatabaseError
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
-from user_profile.models import Profile, SedeSubscription
+from user_profile.models import Profile, SedeSubscription, SedeUnmatchedSubscription
 
 logger = logging.getLogger(__name__)
 
@@ -722,8 +722,6 @@ def _format_unmatched_message(details):
         parts.append('DNI: ' + ', '.join(hints['document_numbers'][:3]))
     if hints.get('names'):
         parts.append('Nombre: ' + ', '.join(hints['names'][:3]))
-    if hints.get('emails'):
-        parts.append('Email: ' + ', '.join(hints['emails'][:3]))
 
     payments_checked = details.get('payments_checked')
     if payments_checked is not None:
@@ -732,6 +730,48 @@ def _format_unmatched_message(details):
     if parts:
         return 'Sin match (' + ' | '.join(parts) + ')'
     return 'Sin match (sin datos de pagador)'
+
+
+def _clear_unmatched_subscription(subscription_id):
+    if not subscription_id:
+        return
+    SedeUnmatchedSubscription.objects.filter(subscription_id=subscription_id).delete()
+
+
+def _store_unmatched_subscription(subscription_summary, details, result_message):
+    subscription_id = (details or {}).get('subscription_id') or (subscription_summary or {}).get('id')
+    if not subscription_id:
+        return
+
+    hints = (details or {}).get('hints') or {}
+    document_numbers = hints.get('document_numbers') or []
+    normalized_doc_hint = ', '.join(document_numbers[:5])
+
+    SedeUnmatchedSubscription.objects.update_or_create(
+        subscription_id=subscription_id,
+        defaults={
+            'plan_id': (details or {}).get('plan_id') or (subscription_summary or {}).get('preapproval_plan_id') or '',
+            'tier_name': (details or {}).get('tier_name') or (subscription_summary or {}).get('reason') or '',
+            'status': (details or {}).get('status') or (subscription_summary or {}).get('status') or '',
+            'payer_id': str((details or {}).get('payer_id') or (subscription_summary or {}).get('payer_id') or ''),
+            'payer_email': (details or {}).get('payer_email') or (subscription_summary or {}).get('payer_email') or '',
+            'payer_first_name': (details or {}).get('payer_first_name') or (subscription_summary or {}).get(
+                'payer_first_name'
+            ) or '',
+            'payer_last_name': (details or {}).get('payer_last_name') or (subscription_summary or {}).get(
+                'payer_last_name'
+            ) or '',
+            'document_number': normalized_doc_hint,
+            'payment_method': (details or {}).get('payment_method') or '',
+            'last_payment_date': (details or {}).get('last_payment_date'),
+            'last_payment_amount': (details or {}).get('last_payment_amount'),
+            'next_payment_date': (details or {}).get('next_payment_date'),
+            'member_since': (details or {}).get('member_since'),
+            'hints': hints,
+            'unresolved_reason': result_message or '',
+            'last_seen_at': timezone.now(),
+        },
+    )
 
 
 def _deactivate_stale_members(active_subscription_ids, log):
@@ -783,7 +823,7 @@ def _process_subscription(sdk, subscription_summary, user_index, assigned_users,
     if not user:
         result['message'] = _format_unmatched_message(details or {})
         log.info('  No match: %s', result['message'])
-        return result, None
+        return result, None, details or {}
 
     previous_name = assigned_users.get(user.id)
     if previous_name and payer_name and name_similarity(previous_name, payer_name) < 0.5:
@@ -792,7 +832,7 @@ def _process_subscription(sdk, subscription_summary, user_index, assigned_users,
             f'no coincide con "{payer_name}"'
         )
         log.warning('  %s', result['message'])
-        return result, None
+        return result, None, details or {}
 
     if apply_changes:
         apply_subscription_to_profile(user.profile, details, match_method=match_method)
@@ -817,7 +857,7 @@ def _process_subscription(sdk, subscription_summary, user_index, assigned_users,
         match_method,
         active,
     )
-    return result, sub_id if active else None
+    return result, sub_id if active else None, details or {}
 
 
 def run_match_audit(log=None):
@@ -858,7 +898,7 @@ def run_match_audit(log=None):
 
         log.info('[AUDIT %d/%d] %s — %s (%s)', index, total, sub_id, payer_name, status)
         try:
-            result, active_sub_id = _process_subscription(
+            result, active_sub_id, _details = _process_subscription(
                 sdk,
                 subscription_summary,
                 user_index,
@@ -968,7 +1008,7 @@ def run_full_sync(log=None):
         )
 
         try:
-            result, active_sub_id = _process_subscription(
+            result, active_sub_id, details = _process_subscription(
                 sdk,
                 subscription_summary,
                 user_index,
@@ -977,12 +1017,15 @@ def run_full_sync(log=None):
             )
             if result.get('matched'):
                 matched_count += 1
+                _clear_unmatched_subscription(sub_id)
                 if active_sub_id:
                     active_subscription_ids.append(active_sub_id)
             elif result.get('message', '').startswith('Conflicto'):
                 conflict_count += 1
+                _store_unmatched_subscription(subscription_summary, details, result.get('message'))
             else:
                 unmatched_count += 1
+                _store_unmatched_subscription(subscription_summary, details, result.get('message'))
         except Exception as exc:
             error_count += 1
             log.exception('  Error processing subscription %s: %s', sub_id, exc)

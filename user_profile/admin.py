@@ -3,7 +3,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
 from django.utils.html import format_html_join
 
-from .models import Profile, SedeSubscription
+from .models import Profile, SedeSubscription, SedeUnmatchedSubscription
 
 
 User.__str__ = lambda self: f'{self.first_name} {self.last_name} ({self.email})'
@@ -106,3 +106,17 @@ class SedeSubscriptionAdmin(admin.ModelAdmin):
         return instance.profile.user.email
 
     get_user_email.short_description = 'User email'
+
+
+@admin.register(SedeUnmatchedSubscription)
+class SedeUnmatchedSubscriptionAdmin(admin.ModelAdmin):
+    list_display = (
+        'subscription_id', 'payer_email', 'document_number',
+        'plan_id', 'tier_name', 'status', 'last_seen_at',
+    )
+    list_filter = ('status', 'plan_id')
+    search_fields = (
+        'subscription_id', 'payer_email', 'payer_first_name', 'payer_last_name',
+        'document_number', 'plan_id', 'tier_name',
+    )
+    readonly_fields = [field.name for field in SedeUnmatchedSubscription._meta.fields]

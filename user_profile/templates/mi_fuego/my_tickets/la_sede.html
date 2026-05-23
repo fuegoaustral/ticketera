@@ -125,16 +125,6 @@
                 </span>
             </div>
             <div class="sede-detail-row">
-                <span class="sede-detail-label">Miembro desde</span>
-                <span class="sede-detail-value">
-                    {% if profile.sede_member_since %}
-                        {{ profile.sede_member_since|date:"d/m/Y" }}
-                    {% else %}
-                        —
-                    {% endif %}
-                </span>
-            </div>
-            <div class="sede-detail-row">
                 <span class="sede-detail-label">Último pago</span>
                 <span class="sede-detail-value">
                     {% if profile.sede_last_payment_date %}
