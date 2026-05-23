@@ -14,13 +14,21 @@ Actores principales y superficies de la aplicación. Las rutas siguen [`deprepag
 
 - Gestiona bonos desde **Mi Fuego** (`/mi-fuego/…`, perfiles y URLs definidas en [`user_profile/urls.py`](../user_profile/urls.py)).
 - Asigna o desasigna titular, transfiere bonos (mientras el evento permita periodo de transferencia), ve QR en vista pública del bono (`/bono/<ticket_key>/` o con prefijo de evento). Tipos de transferencia (a usuario registrado vs otros flujos): [transferencias-de-bonos](transferencias-de-bonos.md).
+- Ve y desbloquea **logros** en `/mi-fuego/mis-bonos/logros/`; modal de celebración tras compras online confirmadas. Ver [logros](logros.md).
 
 ## Staff de caja
 
-Hay **dos** superficies (detalle en [eventos-roles-y-operacion](eventos-roles-y-operacion.md)):
+Hay **tres** superficies (detalle en [eventos-roles-y-operacion](eventos-roles-y-operacion.md) y [caja-v2](caja-v2.md)):
 
 1. **`/admin/caja/`** — usuario **staff** Django + permiso **`tickets.can_sell_tickets`**: caja backoffice con selector de evento y todos los `TicketType` del evento.
-2. **`/mi-fuego/cajas/`** y **`/mi-fuego/mis-eventos/<slug>/caja/`** — usuario en **`Event.admins`** o **`Event.access_caja`**: caja operativa con tipos **`show_in_caja=True`**.
+2. **`/mi-fuego/cajas/`** y **`/mi-fuego/mis-eventos/<slug>/caja/`** — caja legacy Mi Fuego; redirige a v2 si hay una sola caja activa.
+3. **`/mi-fuego/mis-eventos/<slug>/cajas-v2/<id>/vender/`** — caja v2 con productos, stock, MP QR/Postnet y reportes (admin de evento).
+
+## Administrador de evento (reportes caja v2)
+
+- **`/mi-fuego/mis-eventos/<slug>/reporte-cajas/`** — ventas por caja v2.
+- **`/mi-fuego/mis-eventos/<slug>/reporte-evento/`** — consolidado online + caja (bonos, donaciones, comisiones MP, productos genéricos).
+- **`/mi-fuego/mis-eventos/<slug>/reporte-stocks/`** — stock de productos.
 
 ## Staff de ingreso / scanner
 
@@ -50,5 +58,8 @@ Hay **dos** superficies (detalle en [eventos-roles-y-operacion](eventos-roles-y-
 | Bono público | `/bono/<ticket_key>/` |
 | Transferencias | `/ticket/<ticket_key>/transfer`, confirmaciones |
 | Scanner | `/scan/`, `/scan/<slug>/` |
+| Caja v2 (Mi Fuego) | `/mi-fuego/mis-eventos/<slug>/cajas-v2/<id>/vender/` |
+| Reportes evento (admin) | `/mi-fuego/mis-eventos/<slug>/reporte-evento/` |
+| Logros | `/mi-fuego/mis-bonos/logros/` |
 
 Para detalle de reglas (cupos, cupones, estados), ver [reglas-de-negocio](reglas-de-negocio.md) y [ordenes-y-pagos](ordenes-y-pagos.md).

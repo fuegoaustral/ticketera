@@ -2,9 +2,18 @@
 
 ## MercadoPago
 
+### Checkout Pro (compra online)
+
 - SDK server-side con `MERCADOPAGO_ACCESS_TOKEN` ([`deprepagos/settings.py`](../deprepagos/settings.py) diccionario `MERCADOPAGO`).
 - Preferencias de pago y consulta de pagos desde órdenes y webhooks ([`tickets/views/webhooks.py`](../tickets/views/webhooks.py)).
-- `MERCADOPAGO_WEBHOOK_SECRET` para validar webhooks firmados.
+- `MERCADOPAGO_WEBHOOK_SECRET` para validar webhooks firmados en `POST /webhooks/mercadopago`.
+
+### Instore (caja v2: QR y Postnet)
+
+- API Orders/POS/Terminals en [`caja/mercadopago_instore.py`](../caja/mercadopago_instore.py).
+- Alta automática de **store** por evento y **POS** por caja ([`caja/services/mercadopago_setup.py`](../caja/services/mercadopago_setup.py)).
+- Ventas con `external_reference = caja-sale-{id}`; handlers en [`caja/webhook_handlers.py`](../caja/webhook_handlers.py).
+- Requiere `MERCADOPAGO_COLLECTOR_USER_ID` (ID del usuario cobrador en MP). Ver [caja-v2](caja-v2.md).
 
 ## Google OAuth2 (`django-allauth`)
 

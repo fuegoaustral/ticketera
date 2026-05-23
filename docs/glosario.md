@@ -10,7 +10,10 @@
 | **Principal** | Evento con `is_main=True` mostrado en `/`. |
 | **Administrador de evento** | Usuario en `Event.admins`: scanner, caja Mi Fuego y gestión de operadores de caja para ese evento. |
 | **Caja (admin)** | `/admin/caja/`: staff + permiso `can_sell_tickets`; todos los `TicketType` del evento. |
-| **Caja (Mi Fuego)** | `/mi-fuego/mis-eventos/<slug>/caja/`: solo si sos `admins` o `access_caja` del evento; tipos con `show_in_caja`. |
+| **Caja (Mi Fuego legacy)** | `/mi-fuego/mis-eventos/<slug>/caja/`: `admins` o `access_caja`; tipos con `show_in_caja`. |
+| **Caja v2** | Módulo `caja`: productos, stock, múltiples puntos de venta, MP QR/Postnet. Ver [caja-v2](caja-v2.md). |
+| **Producto de caja** | `EventProduct`: bono (`TicketType`) o ítem genérico vendible en caja v2. |
+| **Logro** | `Achievement`: insignia desbloqueable por condición (ej. compras en N eventos). Ver [logros](logros.md). |
 | **Bono dirigido** | Plantilla `DirectTicketTemplate` (camp, arte, etc.) con cupos para emisión directa. |
 | **Responsable de grupo** | Usuario `lider` de un `Grupo` (camp/tipo); entra automático como miembro. |
 | **Scanner** | Interfaz y APIs bajo `/scan/` para validar y marcar uso de bonos. |
@@ -23,4 +26,4 @@
 | **Espacio Zen** | Módulo de reservas de espacio/calendario bajo `/espaciozen/`. |
 | **Ingreso anticipado** | Flags y cupos en `Grupo` / `GrupoMiembro` para entrada anticipada o late checkout. |
 
-Enlaces útiles: [transferencias-de-bonos](transferencias-de-bonos.md), [eventos-roles-y-operacion](eventos-roles-y-operacion.md), [evento-fa](evento-fa.md), [bonos-y-cupones](bonos-y-cupones.md), [ordenes-y-pagos](ordenes-y-pagos.md).
+Enlaces útiles: [caja-v2](caja-v2.md), [logros](logros.md), [transferencias-de-bonos](transferencias-de-bonos.md), [eventos-roles-y-operacion](eventos-roles-y-operacion.md), [evento-fa](evento-fa.md), [bonos-y-cupones](bonos-y-cupones.md), [ordenes-y-pagos](ordenes-y-pagos.md).

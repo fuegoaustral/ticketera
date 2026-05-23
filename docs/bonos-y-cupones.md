@@ -15,7 +15,7 @@ Representa una **tarifa** o categoría de bono para un `Event`.
 | `name`, `description`, `color`, `emoji` | Presentación en UI y emails. |
 | `cardinality` | Orden opcional entre tipos. |
 | `is_direct_type` | Tipos para **emisión directa** (venta admin / bonos dirigidos); **excluidos** de listados públicos habituales (`get_available_ticket_types_for_current_events`, home). Debe existir uno por evento que use redención de plantillas `DirectTicketTemplate` ([`utils/direct_sales.py`](../utils/direct_sales.py)). |
-| `show_in_caja` | Si aparece en flujos de caja. |
+| `show_in_caja` | Si aparece en flujos de caja (legacy y v2). En caja v2 debe estar activo para vincular un `EventProduct`. |
 | `ignore_max_amount` | No cuenta contra `Event.max_tickets` al agregar órdenes confirmadas. |
 | `volunteer_price` | Marca de precio especial voluntarios. |
 
@@ -48,6 +48,10 @@ Representa una **tarifa** o categoría de bono para un `Event`.
 - Flags de voluntariado (`volunteer_ranger`, etc.) según operación del evento.
 
 Al crearse un `NewTicket`, el `save()` descuenta `ticket_count` del `TicketType` en una transacción.
+
+### Stock unificado (caja v2)
+
+Con el módulo `caja`, cada `TicketType` puede tener un `EventProduct` asociado cuyo `EventProductStock.quantity` es la fuente de verdad para disponibilidad en checkout web y caja v2 ([`caja/stock.py`](../caja/stock.py)). La migración inicial copia `ticket_count` a ese stock. Ver [caja-v2](caja-v2.md).
 
 Ver también [ordenes-y-pagos](ordenes-y-pagos.md) para cuándo se crean estos registros y [reglas-de-negocio](reglas-de-negocio.md) para límites globales.
 

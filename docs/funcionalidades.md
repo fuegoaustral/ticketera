@@ -20,8 +20,21 @@ Resumen de apps Django en `INSTALLED_APPS` y responsabilidades. El código vive 
 ## `user_profile`
 
 - Perfiles de usuario, Mi Fuego, flujos post-login y completitud de perfil (middleware en [`tickets/middleware.py`](../tickets/middleware.py) referencia perfiles).
-- **Caja por evento** para operadores (`admins` / `access_caja`): listado en `/mi-fuego/cajas/` y emisión en `/mi-fuego/mis-eventos/<slug>/caja/` ([`user_profile/views.py`](../user_profile/views.py)).
+- **Caja legacy** por evento: listado en `/mi-fuego/cajas/` y emisión en `/mi-fuego/mis-eventos/<slug>/caja/` ([`user_profile/views.py`](../user_profile/views.py)); redirige a caja v2 si hay una sola caja activa.
+- Pantalla **Mis logros** en `/mi-fuego/mis-bonos/logros/`.
 - Integración con `django-allauth` para cuenta y Google.
+
+## `caja`
+
+- Caja v2: productos (`EventProduct`), stock unificado, múltiples puntos de venta (`EventCaja`), ventas (`CajaSale`) con efectivo, transferencia, MP QR y MP Postnet.
+- Integración MercadoPago Instore (stores, POS, terminales) y reportes por evento.
+- URLs bajo `/mi-fuego/` vía [`caja/urls.py`](../caja/urls.py). Detalle: [caja-v2](caja-v2.md).
+
+## `logros`
+
+- Definiciones de logros (`Achievement`) y desbloqueos por usuario (`UserAchievement`).
+- Condiciones extensibles (hoy: `purchased_events` por IDs de evento).
+- Evaluación post-pago y en Mi Fuego. Detalle: [logros](logros.md).
 
 ## `espaciozen`
 
