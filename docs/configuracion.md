@@ -31,8 +31,9 @@ Valores sensibles **no** deben commitearse: usá `.env` local basado en [`env.ex
 | Variable | Uso |
 |----------|-----|
 | `MERCADOPAGO_PUBLIC_KEY` | Front / SDK público. |
-| `MERCADOPAGO_ACCESS_TOKEN` | API server-side (preferencias y consulta de pagos). |
-| `MERCADOPAGO_WEBHOOK_SECRET` | Verificación HMAC de webhooks (`x-signature`). |
+| `MERCADOPAGO_ACCESS_TOKEN` | API server-side (preferencias, consulta de pagos, Instore caja v2). |
+| `MERCADOPAGO_WEBHOOK_SECRET` | Verificación HMAC de webhooks Checkout Pro (`x-signature`). |
+| `MERCADOPAGO_COLLECTOR_USER_ID` | ID numérico del usuario cobrador en MercadoPago; necesario para stores/POS/QR Instore en caja v2 ([`caja/mercadopago_instore.py`](../caja/mercadopago_instore.py)). |
 
 ## Email
 

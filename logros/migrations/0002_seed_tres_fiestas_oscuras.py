@@ -7,7 +7,7 @@ def seed_achievement(apps, schema_editor):
         slug='3-fiestas-oscuras',
         defaults={
             'name': '3 Fiestas oscuras',
-            'image': 'logros/3-oscuras.jpg',
+            'image': 'img/logros/3-oscuras.jpg',
             'description': 'Compraste bonos para tres fiestas oscuras de Fuego Austral.',
             'condition_type': 'purchased_events',
             'condition_config': {'event_ids': [9, 10, 17]},

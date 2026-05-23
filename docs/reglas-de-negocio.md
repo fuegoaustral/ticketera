@@ -29,6 +29,19 @@ Lista de comportamientos codificados que suelen consultar operaciones o QA. Siem
 ## Stock por tipo
 
 - Cada `NewTicket.save()` en creación decrementa `ticket_count` del `TicketType` (cuidado con dobles saves o tests).
+- **Caja v2**: el stock consultado en checkout y caja pasa por `EventProduct` / `EventProductStock` cuando existe producto vinculado ([`caja/stock.py`](../caja/stock.py)). `quantity = null` significa ilimitado. Las ventas caja registran movimientos en `EventProductStockRecord`.
+
+## Caja v2
+
+- Venta con productos de ticket exige email si hay bonos a emitir; productos solo genéricos no crean `Order`.
+- MP QR: monto mínimo **$15** (`MP_QR_MIN_AMOUNT`).
+- Una terminal Postnet MP no puede asignarse a dos cajas activas simultáneamente.
+- `mark_as_used` en venta marca bonos emitidos como ya usados (venta en puerta).
+
+## Logros
+
+- Condición `purchased_events`: orden **CONFIRMED** por usuario o email en todos los `event_ids` configurados.
+- Un logro desbloqueado no se re-evalúa; `celebration_shown` controla el modal único por logro.
 
 ## Transferencias y voluntarios
 

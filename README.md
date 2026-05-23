@@ -29,7 +29,9 @@
 ## 🚀 Características
 
 - 🎟️ **Gestión de eventos** - Crear y administrar eventos de manera sencilla
-- 💳 **Pagos integrados** - Integración con MercadoPago para procesamiento de pagos
+- 💳 **Pagos integrados** - MercadoPago checkout online e Instore (QR/Postnet) en caja v2
+- 🏪 **Caja v2** - Múltiples puntos de venta por evento, stock unificado, reportes
+- 🏆 **Logros** - Insignias desbloqueables según historial de compras
 - 🔐 **Autenticación** - Login con Google OAuth2
 - 📧 **Notificaciones** - Sistema de emails automáticos
 - ☁️ **Deploy automático** - CI/CD con GitHub Actions
@@ -178,6 +180,7 @@ DATABASES = {
    - `MERCADOPAGO_PUBLIC_KEY`
    - `MERCADOPAGO_ACCESS_TOKEN`
    - `MERCADOPAGO_WEBHOOK_SECRET`
+   - `MERCADOPAGO_COLLECTOR_USER_ID` (caja v2: stores/POS MP Instore)
 
 3. **Configurar webhook** apuntando a `{tu_url_local}/webhooks/mercadopago` 🔗
 
@@ -419,7 +422,7 @@ flowchart LR
         APIGW["🚪 API Gateway<br/><i>HTTPS</i>"]
 
         subgraph Lambda["λ AWS Lambda — Python 3.13"]
-            Django["🐍 Django 4.2<br/><i>tickets · events ·<br/>user_profile · espaciozen</i>"]
+            Django["🐍 Django 4.2<br/><i>tickets · events ·<br/>user_profile · caja · logros · espaciozen</i>"]
             Crons["⏰ Cron Handlers<br/><i>payment_check · email_crons</i>"]
         end
 
@@ -442,7 +445,7 @@ flowchart LR
     %% Integraciones externas
     %% =========================
     subgraph Ext["🔌 Integraciones Externas"]
-        MP["💳 MercadoPago<br/><i>checkout + webhook</i>"]
+        MP["💳 MercadoPago<br/><i>checkout + webhook + Instore caja</i>"]
         Google["🔐 Google OAuth2<br/><i>django-allauth</i>"]
         SMTP["📧 SMTP<br/><i>transactional email</i>"]
         Twilio["📱 Twilio Verify<br/><i>phone OTP</i>"]
@@ -486,7 +489,7 @@ flowchart LR
 | Capa | Tecnología | Detalle |
 |---|---|---|
 | 🎨 **Frontend** | Django Templates + Bootstrap 5 + CKEditor 5 | SSR clásico, sin SPA |
-| 🐍 **Backend** | Django 4.2 / Python 3.13 | Apps: `tickets`, `events`, `user_profile`, `espaciozen` |
+| 🐍 **Backend** | Django 4.2 / Python 3.13 | Apps: `tickets`, `events`, `user_profile`, `caja`, `logros`, `espaciozen` |
 | 🚪 **Edge** | API Gateway + ACM + Route 53 | TLS y dominios `eventos.fuegoaustral.org` / `dev.fuegoaustral.org` |
 | ⚡ **Compute** | AWS Lambda (Zappa, `slim_handler`) | 1024 MB · timeout 300s · `keep_warm` activo |
 | 🐘 **Datos** | Amazon RDS PostgreSQL 16.8 | Schema único · migraciones Django |
@@ -494,7 +497,7 @@ flowchart LR
 | 📊 **Observabilidad** | CloudWatch Logs + `django-auditlog` | `zappa tail` para streaming |
 | ⏰ **Jobs** | EventBridge → Lambda | Ver tabla de cron jobs ↓ |
 | 🔐 **Auth** | `django-allauth` + Google OAuth2 | Email obligatorio, verificación mandatory |
-| 💳 **Pagos** | MercadoPago Checkout Pro | Webhook firmado en `/webhooks/mercadopago` |
+| 💳 **Pagos** | MercadoPago Checkout Pro + Instore (caja v2) | Webhook firmado en `/webhooks/mercadopago` |
 
 ### ⏰ Jobs Programados (EventBridge → Lambda)
 
@@ -564,7 +567,7 @@ sequenceDiagram
         │  ┌────────────────────────────┐    ┌───────────────────────────┐ │
         │  │  🐍 Django 4.2              │    │  ⏰ Cron Handlers          │ │
         │  │  tickets · events ·         │    │  payment_check (5 min)    │ │
-        │  │  user_profile · espaciozen  │    │  email_crons   (17:00)    │ │
+        │  │  user_profile · caja · logros · espaciozen  │    │  email_crons   (17:00)    │ │
         │  └─────┬──────┬──────┬─────────┘    └────────────┬──────────────┘ │
         └────────┼──────┼──────┼───────────────────────────┼────────────────┘
                  │      │      │                           │

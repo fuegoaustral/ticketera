@@ -7,7 +7,9 @@ Esta carpeta complementa el [README principal](../README.md) del repositorio: al
 | Documento | Contenido |
 |-----------|-----------|
 | [Casos de uso](casos-de-uso.md) | Actores, flujos y URLs principales |
-| [Eventos, roles y operación](eventos-roles-y-operacion.md) | Alta de evento, admins/scanner/caja, dos cajas, bonos dirigidos, grupos e ingreso anticipado |
+| [Eventos, roles y operación](eventos-roles-y-operacion.md) | Alta de evento, admins/scanner/caja, tres flujos de caja, bonos dirigidos, grupos e ingreso anticipado |
+| [Caja v2](caja-v2.md) | Productos, stock, múltiples cajas, MP Instore (QR/Postnet), reportes |
+| [Logros](logros.md) | Achievements desbloqueables por condiciones de compra |
 | [Funcionalidades](funcionalidades.md) | Módulos Django y responsabilidades |
 | [Configuración](configuracion.md) | Variables de entorno y settings |
 | [Evento FA](evento-fa.md) | Modelo `Event`, grupos, términos y sede |
@@ -33,13 +35,15 @@ flowchart TB
   subgraph app [Ticketera]
     WebCompra[Web compra]
     MiFuego[Mi Fuego / perfil]
-    Caja[Caja admin]
+    CajaLegacy[Caja legacy]
+    CajaV2[Caja v2]
     Scan[Scanner]
     AdminDjango[Admin Django]
   end
   Comprador --> WebCompra
   Titular --> MiFuego
-  StaffCaja --> Caja
+  StaffCaja --> CajaLegacy
+  StaffCaja --> CajaV2
   Scanner --> Scan
   Admin --> AdminDjango
 ```
