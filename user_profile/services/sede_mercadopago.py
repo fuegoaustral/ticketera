@@ -1,30 +1,32 @@
 import logging
+import os
+import random
 import re
+import time
 import unicodedata
-import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from difflib import SequenceMatcher
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
 import mercadopago
 from django.conf import settings
-from django.core.cache import cache
-from django.db.models import Q
+from django.db import DatabaseError
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
-from user_profile.models import Profile
+from user_profile.models import Profile, SedeSubscription
 
 logger = logging.getLogger(__name__)
 
 ACTIVE_SUBSCRIPTION_STATUSES = {'authorized'}
-SYNC_CACHE_TIMEOUT = 3600
-SYNC_CACHE_PREFIX = 'sede_sync_'
 LAST_NAME_SIMILARITY_THRESHOLD = 0.85
 FIRST_NAME_SIMILARITY_THRESHOLD = 0.90
-MAX_SUBSCRIPTION_PAYMENTS = 30
-PRIMARY_SOURCES = {'subscription', 'customer'}
-PAYMENT_SOURCES = {'payment'}
+SUBSCRIPTION_PAYMENTS_MONTHS = 2
+ALL_HINT_SOURCES = {'subscription', 'customer', 'payment', 'invoice'}
+API_RETRY_ATTEMPTS = 4
+API_RETRY_BASE_SECONDS = 0.75
+PAYMENT_FETCH_WORKERS = int(os.environ.get('SEDE_SYNC_PAYMENT_FETCH_WORKERS', '4'))
 
 PAYMENT_METHOD_LABELS = {
     'account_money': 'Dinero en cuenta',
@@ -95,11 +97,47 @@ def get_mp_sdk():
     return mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
 
 
+def _retry_delay_seconds(attempt, response=None):
+    # Honor Retry-After if SDK exposes headers, otherwise exponential backoff + jitter.
+    headers = (response or {}).get('headers') or {}
+    retry_after = headers.get('Retry-After') or headers.get('retry-after')
+    if retry_after:
+        try:
+            return float(retry_after)
+        except (TypeError, ValueError):
+            pass
+    return API_RETRY_BASE_SECONDS * (2 ** attempt) + random.uniform(0, 0.25)
+
+
+def _call_with_backoff(search_fn, params):
+    last_response = None
+    for attempt in range(API_RETRY_ATTEMPTS):
+        response = search_fn(params)
+        status = response.get('status')
+        last_response = response
+        if status == 200:
+            return response
+        if status in (429, 500, 502, 503, 504):
+            delay = _retry_delay_seconds(attempt, response=response)
+            logger.warning(
+                'MP transient error %s for %s. Retry %d/%d in %.2fs',
+                status,
+                params,
+                attempt + 1,
+                API_RETRY_ATTEMPTS,
+                delay,
+            )
+            time.sleep(delay)
+            continue
+        return response
+    return last_response or {'status': 500, 'response': {'message': 'No response'}}
+
+
 def _paginated_search(search_fn, filters, limit=50):
     results = []
     offset = 0
     while True:
-        response = search_fn({**filters, 'limit': limit, 'offset': offset})
+        response = _call_with_backoff(search_fn, {**filters, 'limit': limit, 'offset': offset})
         if response.get('status') != 200:
             logger.warning('MP search failed (%s): %s', filters, response)
             break
@@ -136,27 +174,39 @@ def build_user_match_index():
     by_document = {}
     by_name = []
 
-    profiles = Profile.objects.select_related('user').prefetch_related('user__emailaddress_set')
-    for profile in profiles:
-        user = profile.user
-        emails = {user.email.strip().lower()} if user.email else set()
-        emails.update(
-            email.strip().lower()
-            for email in user.emailaddress_set.values_list('email', flat=True)
-            if email
-        )
-        for email in emails:
-            by_email[email] = user
+    log = logger
+    log.info('Loading profiles for match index...')
+    try:
+        profiles_qs = Profile.objects.select_related('user').prefetch_related('user__emailaddress_set')
+        processed = 0
+        for profile in profiles_qs.iterator(chunk_size=500):
+            user = profile.user
+            emails = {user.email.strip().lower()} if user.email else set()
+            # Use prefetched related objects to avoid one query per user (N+1).
+            emails.update(
+                email_obj.email.strip().lower()
+                for email_obj in user.emailaddress_set.all()
+                if getattr(email_obj, 'email', None)
+            )
+            for email in emails:
+                by_email[email] = user
 
-        normalized_document = normalize_document_number(profile.document_number)
-        if normalized_document:
-            by_document[normalized_document] = user
+            normalized_document = normalize_document_number(profile.document_number)
+            if normalized_document:
+                by_document[normalized_document] = user
 
-        by_name.append({
-            'user': user,
-            'first_name': normalize_name(user.first_name),
-            'last_name': normalize_name(user.last_name),
-        })
+            by_name.append({
+                'user': user,
+                'first_name': normalize_name(user.first_name),
+                'last_name': normalize_name(user.last_name),
+            })
+
+            processed += 1
+            if processed % 200 == 0:
+                log.info('  Indexed %d profiles...', processed)
+    except DatabaseError:
+        log.exception('Database error while building user match index')
+        raise
 
     return {
         'by_email': by_email,
@@ -210,104 +260,89 @@ def _extract_names_from_payment(payment):
     return first_name, last_name
 
 
-def _extract_email_from_payment(payment):
-    payer = payment.get('payer') or {}
-    email = payer.get('email') or ''
-    if email:
-        return email
-    additional_info = payment.get('additional_info') or {}
-    additional_payer = additional_info.get('payer') or {}
-    return additional_payer.get('email') or ''
+def _mp_api_get(sdk, uri, filters=None):
+    return sdk.preapproval()._get(uri=uri, filters=filters or {})
 
 
-def _payment_belongs_to_subscription(payment, subscription_id):
-    if not subscription_id:
+def _is_within_last_months(value, months=SUBSCRIPTION_PAYMENTS_MONTHS):
+    dt = parse_mp_datetime(value)
+    if not dt:
         return False
-
-    metadata = payment.get('metadata') or {}
-    metadata_values = {
-        str(metadata.get('preapproval_id') or ''),
-        str(metadata.get('subscription_id') or ''),
-    }
-    if subscription_id in metadata_values:
-        return True
-
-    description = str(payment.get('description') or '')
-    external_reference = str(payment.get('external_reference') or '')
-    if subscription_id in description or subscription_id in external_reference:
-        return True
-
-    order = payment.get('order') or {}
-    order_type = str(order.get('type') or '').lower()
-    if order_type == 'mercadopago' and subscription_id in str(order.get('id') or ''):
-        return True
-
-    return False
+    cutoff = timezone.now() - timedelta(days=months * 31)
+    return dt >= cutoff
 
 
-def _get_collector_payer_id():
-    collector_id = settings.MERCADOPAGO.get('COLLECTOR_USER_ID')
-    if not collector_id:
-        return None
-    try:
-        return int(collector_id)
-    except (TypeError, ValueError):
-        return None
-
-
-def fetch_payments_for_subscription(sdk, subscription_id, payer_id=None):
-    """Fetch only payments that belong to this specific subscription."""
+def fetch_subscription_recent_payments(sdk, subscription_id, log=None, months=SUBSCRIPTION_PAYMENTS_MONTHS):
+    """
+    Fetch subscription invoices via /authorized_payments/search, filter last N months,
+    then load full payment records for payer identification data.
+    """
+    log = log or logger
     if not subscription_id:
-        return []
+        return [], []
 
+    log.info('  Searching authorized payments for subscription %s', subscription_id)
+    # MercadoPago authorized payments search can reject high limit values.
+    # In this account, limit=10 is accepted consistently.
+    invoices = _paginated_search(
+        lambda filters: _mp_api_get(sdk, '/authorized_payments/search', filters),
+        {'preapproval_id': subscription_id},
+        limit=10,
+    )
+    log.info('  Found %d invoice(s) total', len(invoices))
+
+    recent_invoices = [
+        invoice for invoice in invoices
+        if _is_within_last_months(invoice.get('debit_date') or invoice.get('date_created'), months)
+    ]
+    log.info(
+        '  %d invoice(s) within last %d month(s)',
+        len(recent_invoices),
+        months,
+    )
+
+    payment_ids = []
     seen_payment_ids = set()
+    for invoice in recent_invoices:
+        payment_ref = invoice.get('payment') or {}
+        payment_id = payment_ref.get('id')
+        if not payment_id or payment_id in seen_payment_ids:
+            continue
+        seen_payment_ids.add(payment_id)
+        payment_ids.append(str(payment_id))
+
     payments = []
-    collector_payer_id = _get_collector_payer_id()
+    if payment_ids:
+        worker_count = max(1, min(PAYMENT_FETCH_WORKERS, len(payment_ids), 6))
+        log.info('  Fetching %d payment detail(s) with %d worker(s)', len(payment_ids), worker_count)
 
-    if payer_id and collector_payer_id and int(payer_id) == collector_payer_id:
-        payer_id = None
+        def fetch_payment(payment_id):
+            response = _call_with_backoff(
+                lambda _: sdk.payment().get(str(payment_id)),
+                {},
+            )
+            return payment_id, response
 
-    if payer_id:
-        for payment in _paginated_search(
-            sdk.payment().search,
-            {'payer.id': payer_id, 'sort': 'date_created', 'criteria': 'desc'},
-            limit=50,
-        ):
-            payment_id = payment.get('id')
-            if payment_id in seen_payment_ids:
-                continue
-            if not _payment_belongs_to_subscription(payment, subscription_id):
-                continue
-            seen_payment_ids.add(payment_id)
-            payments.append(payment)
-            if len(payments) >= MAX_SUBSCRIPTION_PAYMENTS:
-                break
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
+            future_map = {executor.submit(fetch_payment, pid): pid for pid in payment_ids}
+            for future in as_completed(future_map):
+                payment_id = future_map[future]
+                try:
+                    _, response = future.result()
+                    if response.get('status') == 200:
+                        payments.append(response.get('response', {}))
+                        log.info('    Loaded payment %s', payment_id)
+                    else:
+                        log.warning('    Payment %s fetch failed: %s', payment_id, response.get('status'))
+                except Exception:
+                    log.exception('    Failed to fetch payment %s', payment_id)
 
-    if not payments:
-        for payment in _paginated_search(
-            sdk.payment().search,
-            {'q': subscription_id, 'sort': 'date_created', 'criteria': 'desc'},
-            limit=50,
-        ):
-            payment_id = payment.get('id')
-            if payment_id in seen_payment_ids:
-                continue
-            if not _payment_belongs_to_subscription(payment, subscription_id):
-                continue
-            seen_payment_ids.add(payment_id)
-            payments.append(payment)
-            if len(payments) >= MAX_SUBSCRIPTION_PAYMENTS:
-                break
-
-    return payments
+    log.info('  Loaded %d full payment record(s)', len(payments))
+    return payments, recent_invoices
 
 
-def _add_payer_hint(hints, source, email=None, doc_type=None, doc_number=None,
+def _add_payer_hint(hints, source, doc_type=None, doc_number=None,
                     first_name=None, last_name=None):
-    if email:
-        normalized_email = email.strip().lower()
-        hints['emails'].add(normalized_email)
-        hints['email_sources'].setdefault(normalized_email, set()).add(source)
     if doc_number:
         hints['documents'].append({
             'source': source,
@@ -322,21 +357,27 @@ def _add_payer_hint(hints, source, email=None, doc_type=None, doc_number=None,
         })
 
 
-def collect_payer_hints(sdk, subscription_summary, subscription_detail, payments):
+def collect_payer_hints(sdk, subscription_summary, subscription_detail, payments, log=None):
+    log = log or logger
     hints = {
-        'emails': set(),
-        'email_sources': {},
         'documents': [],
         'names': [],
     }
 
     detail = subscription_detail or subscription_summary or {}
+    summary = subscription_summary or {}
+    sub_first_name = detail.get('payer_first_name') or summary.get('payer_first_name')
+    sub_last_name = detail.get('payer_last_name') or summary.get('payer_last_name')
     _add_payer_hint(
         hints,
         'subscription',
-        email=detail.get('payer_email'),
-        first_name=detail.get('payer_first_name'),
-        last_name=detail.get('payer_last_name'),
+        first_name=sub_first_name,
+        last_name=sub_last_name,
+    )
+    log.info(
+        '  Subscription payer: %s %s',
+        sub_first_name or '—',
+        sub_last_name or '—',
     )
 
     payer_id = detail.get('payer_id') or subscription_summary.get('payer_id')
@@ -349,14 +390,22 @@ def collect_payer_hints(sdk, subscription_summary, subscription_detail, payments
                 _add_payer_hint(
                     hints,
                     'customer',
-                    email=customer.get('email'),
                     doc_type=identification.get('type'),
                     doc_number=identification.get('number'),
                     first_name=customer.get('first_name'),
                     last_name=customer.get('last_name'),
                 )
+                log.info(
+                    '  Customer %s: DNI=%s, %s %s',
+                    payer_id,
+                    identification.get('number') or '—',
+                    customer.get('first_name') or '—',
+                    customer.get('last_name') or '—',
+                )
+            else:
+                log.warning('  Customer %s fetch failed: %s', payer_id, response.get('status'))
         except Exception:
-            logger.exception('Failed to fetch MP customer %s', payer_id)
+            log.exception('  Failed to fetch MP customer %s', payer_id)
 
     for payment in payments:
         doc_type, doc_number = _extract_identification_from_payment(payment)
@@ -364,26 +413,21 @@ def collect_payer_hints(sdk, subscription_summary, subscription_detail, payments
         _add_payer_hint(
             hints,
             'payment',
-            email=_extract_email_from_payment(payment),
             doc_type=doc_type,
             doc_number=doc_number,
             first_name=first_name,
             last_name=last_name,
         )
+        if doc_number or first_name or last_name:
+            log.info(
+                '  Payment %s: DNI=%s, %s %s',
+                payment.get('id') or '—',
+                doc_number or '—',
+                first_name or '—',
+                last_name or '—',
+            )
 
     return hints
-
-
-def _find_user_by_email(email, user_index, payer_first_name='', payer_last_name=''):
-    if not email:
-        return None
-    user = user_index['by_email'].get(email.strip().lower())
-    if not user:
-        return None
-    if payer_last_name and user.last_name:
-        if name_similarity(payer_last_name, user.last_name) < 0.5:
-            return None
-    return user
 
 
 def _find_user_by_document(document_number, user_index):
@@ -425,15 +469,13 @@ def _find_user_by_name(first_name, last_name, user_index):
     return best_user, best_score
 
 
-def _match_from_hints(hints, user_index, allowed_sources, payer_first_name='', payer_last_name=''):
-    allowed_documents = [doc for doc in hints['documents'] if doc.get('source') in allowed_sources]
-    allowed_names = [name for name in hints['names'] if name.get('source') in allowed_sources]
-    allowed_emails = {
-        email for email in hints['emails']
-        if any(source in allowed_sources for source in hints.get('email_sources', {}).get(email, []))
-    } if hints.get('email_sources') else set()
-
-    for document in allowed_documents:
+def match_payer_hints_to_user(hints, user_index):
+    seen_documents = set()
+    for document in hints['documents']:
+        normalized = normalize_document_number(document.get('number'))
+        if not normalized or normalized in seen_documents:
+            continue
+        seen_documents.add(normalized)
         user = _find_user_by_document(document.get('number'), user_index)
         if user:
             return user, 'dni', {
@@ -446,7 +488,7 @@ def _match_from_hints(hints, user_index, allowed_sources, payer_first_name='', p
     best_meta = None
     best_score = 0.0
 
-    for name_hint in allowed_names:
+    for name_hint in hints['names']:
         user, score = _find_user_by_name(
             name_hint.get('first_name'),
             name_hint.get('last_name'),
@@ -464,40 +506,6 @@ def _match_from_hints(hints, user_index, allowed_sources, payer_first_name='', p
 
     if best_user:
         return best_user, 'name', best_meta
-
-    for email in allowed_emails:
-        user = _find_user_by_email(
-            email,
-            user_index,
-            payer_first_name=payer_first_name,
-            payer_last_name=payer_last_name,
-        )
-        if user:
-            return user, 'email', {'email': email}
-
-    return None, None, None
-
-
-def match_payer_hints_to_user(hints, user_index, payer_first_name='', payer_last_name=''):
-    user, method, meta = _match_from_hints(
-        hints,
-        user_index,
-        PRIMARY_SOURCES,
-        payer_first_name=payer_first_name,
-        payer_last_name=payer_last_name,
-    )
-    if user:
-        return user, method, meta
-
-    user, method, meta = _match_from_hints(
-        hints,
-        user_index,
-        PAYMENT_SOURCES,
-        payer_first_name=payer_first_name,
-        payer_last_name=payer_last_name,
-    )
-    if user:
-        return user, method, meta
 
     return None, None, _summarize_unmatched_hints(hints)
 
@@ -517,7 +525,6 @@ def _summarize_unmatched_hints(hints):
     ]
 
     return {
-        'emails': sorted(hints['emails']),
         'document_numbers': document_numbers,
         'names': [name for name in names if name],
     }
@@ -536,7 +543,7 @@ def _pick_latest_payment(payments):
     return max(candidates, key=sort_key)
 
 
-def _extract_subscription_details(subscription_summary, subscription_detail, payments=None):
+def _extract_subscription_details(subscription_summary, subscription_detail, payments=None, invoices=None):
     detail = subscription_detail or subscription_summary or {}
     summarized = detail.get('summarized') or {}
     auto_recurring = detail.get('auto_recurring') or {}
@@ -555,6 +562,18 @@ def _extract_subscription_details(subscription_summary, subscription_detail, pay
             last_amount = latest_payment.get('transaction_amount')
         if not payment_method:
             payment_method = latest_payment.get('payment_method_id') or ''
+    elif invoices:
+        latest_invoice = max(
+            invoices,
+            key=lambda inv: parse_mp_datetime(inv.get('debit_date') or inv.get('date_created'))
+            or datetime.min.replace(tzinfo=timezone.utc),
+        )
+        if not last_payment_date:
+            last_payment_date = parse_mp_datetime(
+                latest_invoice.get('debit_date') or latest_invoice.get('date_created')
+            )
+        if last_amount in (None, ''):
+            last_amount = latest_invoice.get('transaction_amount')
 
     next_payment_date = parse_mp_datetime(detail.get('next_payment_date'))
     member_since = parse_mp_datetime(detail.get('date_created'))
@@ -566,6 +585,8 @@ def _extract_subscription_details(subscription_summary, subscription_detail, pay
 
     return {
         'subscription_id': detail.get('id') or subscription_summary.get('id'),
+        'plan_id': detail.get('preapproval_plan_id') or subscription_summary.get('preapproval_plan_id') or '',
+        'tier_name': detail.get('reason') or subscription_summary.get('reason') or '',
         'status': detail.get('status') or subscription_summary.get('status') or '',
         'payment_method': payment_method,
         'payer_email': detail.get('payer_email') or subscription_summary.get('payer_email') or '',
@@ -579,7 +600,8 @@ def _extract_subscription_details(subscription_summary, subscription_detail, pay
     }
 
 
-def match_subscription_to_user(sdk, subscription_summary, subscription_detail=None, user_index=None):
+def match_subscription_to_user(sdk, subscription_summary, subscription_detail=None, user_index=None, log=None):
+    log = log or logger
     if user_index is None:
         user_index = build_user_match_index()
 
@@ -588,34 +610,17 @@ def match_subscription_to_user(sdk, subscription_summary, subscription_detail=No
         return None, 'missing_id', None
 
     if subscription_detail is None:
+        log.info('  Fetching subscription detail %s', sub_id)
         response = sdk.preapproval().get(sub_id)
         if response.get('status') != 200:
+            log.warning('  Subscription detail fetch failed: %s', response.get('status'))
             return None, 'fetch_failed', None
         subscription_detail = response.get('response', {})
 
-    payer_id = (
-        subscription_detail.get('payer_id')
-        or subscription_summary.get('payer_id')
-    )
-    payments = fetch_payments_for_subscription(sdk, sub_id, payer_id=payer_id)
-    hints = collect_payer_hints(sdk, subscription_summary, subscription_detail, payments)
-    payer_first_name = (
-        subscription_detail.get('payer_first_name')
-        or subscription_summary.get('payer_first_name')
-        or ''
-    )
-    payer_last_name = (
-        subscription_detail.get('payer_last_name')
-        or subscription_summary.get('payer_last_name')
-        or ''
-    )
-    user, match_method, match_meta = match_payer_hints_to_user(
-        hints,
-        user_index,
-        payer_first_name=payer_first_name,
-        payer_last_name=payer_last_name,
-    )
-    details = _extract_subscription_details(subscription_summary, subscription_detail, payments)
+    payments, invoices = fetch_subscription_recent_payments(sdk, sub_id, log=log)
+    hints = collect_payer_hints(sdk, subscription_summary, subscription_detail, payments, log=log)
+    user, match_method, match_meta = match_payer_hints_to_user(hints, user_index)
+    details = _extract_subscription_details(subscription_summary, subscription_detail, payments, invoices)
 
     document_number = None
     document_type = None
@@ -631,21 +636,40 @@ def match_subscription_to_user(sdk, subscription_summary, subscription_detail=No
         'document_type': document_type,
         'document_number': document_number,
         'payments_checked': len(payments),
+        'invoices_checked': len(invoices),
         'match_meta': match_meta,
         'hints': _summarize_unmatched_hints(hints),
     }
 
 
-def apply_subscription_to_profile(profile, details):
-    profile.miembro_sede = details.get('status') in ACTIVE_SUBSCRIPTION_STATUSES
-    profile.sede_subscription_id = details.get('subscription_id') or ''
-    profile.sede_subscription_status = details.get('status') or ''
-    profile.sede_payment_method = details.get('payment_method') or ''
-    profile.sede_last_payment_date = details.get('last_payment_date')
-    profile.sede_last_payment_amount = details.get('last_payment_amount')
-    profile.sede_next_payment_date = details.get('next_payment_date')
-    profile.sede_member_since = details.get('member_since')
-    profile.sede_synced_at = timezone.now()
+def _refresh_profile_membership_summary(profile):
+    subs_qs = profile.sede_subscriptions.all()
+    active_subs = subs_qs.filter(is_active=True)
+    primary = (
+        active_subs.order_by('-last_payment_date', '-synced_at').first()
+        or subs_qs.order_by('-last_payment_date', '-synced_at').first()
+    )
+
+    profile.miembro_sede = active_subs.exists()
+    if primary:
+        profile.sede_subscription_id = primary.subscription_id or ''
+        profile.sede_subscription_status = primary.status or ''
+        profile.sede_payment_method = primary.payment_method or ''
+        profile.sede_last_payment_date = primary.last_payment_date
+        profile.sede_last_payment_amount = primary.last_payment_amount
+        profile.sede_next_payment_date = primary.next_payment_date
+        profile.sede_member_since = primary.member_since
+        profile.sede_synced_at = primary.synced_at or timezone.now()
+    else:
+        profile.sede_subscription_id = ''
+        profile.sede_subscription_status = ''
+        profile.sede_payment_method = ''
+        profile.sede_last_payment_date = None
+        profile.sede_last_payment_amount = None
+        profile.sede_next_payment_date = None
+        profile.sede_member_since = None
+        profile.sede_synced_at = timezone.now()
+
     profile.save(update_fields=[
         'miembro_sede',
         'sede_subscription_id',
@@ -660,26 +684,34 @@ def apply_subscription_to_profile(profile, details):
     ])
 
 
-def start_sync():
-    sdk = get_mp_sdk()
-    subscriptions = fetch_all_subscriptions(sdk)
-    user_index = build_user_match_index()
-    sync_id = str(uuid.uuid4())
-    cache.set(
-        f'{SYNC_CACHE_PREFIX}{sync_id}',
-        {
-            'subscriptions': subscriptions,
-            'user_index': user_index,
-            'total': len(subscriptions),
-            'processed': 0,
-            'active_subscription_ids': [],
-            'assigned_users': {},
-            'results': [],
-            'done': False,
+def apply_subscription_to_profile(profile, details, match_method=''):
+    subscription_id = details.get('subscription_id') or ''
+    if not subscription_id:
+        return
+
+    is_active = details.get('status') in ACTIVE_SUBSCRIPTION_STATUSES
+    sub, _ = SedeSubscription.objects.update_or_create(
+        subscription_id=subscription_id,
+        defaults={
+            'profile': profile,
+            'plan_id': details.get('plan_id') or '',
+            'tier_name': details.get('tier_name') or '',
+            'status': details.get('status') or '',
+            'payment_method': details.get('payment_method') or '',
+            'last_payment_date': details.get('last_payment_date'),
+            'last_payment_amount': details.get('last_payment_amount'),
+            'next_payment_date': details.get('next_payment_date'),
+            'member_since': details.get('member_since'),
+            'is_active': is_active,
+            'matched_via': match_method or '',
+            'synced_at': timezone.now(),
         },
-        SYNC_CACHE_TIMEOUT,
     )
-    return sync_id, len(subscriptions)
+    if sub.profile_id != profile.id:
+        sub.profile = profile
+        sub.save(update_fields=['profile', 'updated_at'])
+
+    _refresh_profile_membership_summary(profile)
 
 
 def _format_unmatched_message(details):
@@ -702,132 +734,281 @@ def _format_unmatched_message(details):
     return 'Sin match (sin datos de pagador)'
 
 
-def process_next_subscription(sync_id):
-    cache_key = f'{SYNC_CACHE_PREFIX}{sync_id}'
-    state = cache.get(cache_key)
-    if not state:
-        return {'error': 'Sync session expired. Please start again.'}
+def _deactivate_stale_members(active_subscription_ids, log):
+    active_ids = set(active_subscription_ids)
+    stale_subs = SedeSubscription.objects.filter(is_active=True).exclude(subscription_id__in=active_ids)
+    stale_count = stale_subs.count()
+    if stale_count:
+        log.info('Deactivating %d stale subscription(s)', stale_count)
+    affected_profile_ids = list(stale_subs.values_list('profile_id', flat=True).distinct())
+    stale_subs.update(is_active=False, status='inactive', synced_at=timezone.now())
 
-    if state['done']:
-        return {
-            'done': True,
-            'total': state['total'],
-            'processed': state['processed'],
-            'result': state['results'][-1] if state['results'] else None,
-            'summary': _build_sync_summary(state),
-        }
+    for profile in Profile.objects.filter(id__in=affected_profile_ids):
+        _refresh_profile_membership_summary(profile)
 
-    subscriptions = state['subscriptions']
-    index = state['processed']
-    if index >= len(subscriptions):
-        _finalize_sync(state)
-        cache.set(cache_key, state, SYNC_CACHE_TIMEOUT)
-        return {
-            'done': True,
-            'total': state['total'],
-            'processed': state['processed'],
-            'summary': _build_sync_summary(state),
-        }
+    return stale_count
 
-    sdk = get_mp_sdk()
-    subscription_summary = subscriptions[index]
+
+def _process_subscription(sdk, subscription_summary, user_index, assigned_users, log, apply_changes=True):
     sub_id = subscription_summary.get('id', '')
     payer_name = ' '.join(filter(None, [
         subscription_summary.get('payer_first_name'),
         subscription_summary.get('payer_last_name'),
     ])).strip()
+    payer_email = subscription_summary.get('payer_email') or '—'
+    status = subscription_summary.get('status') or '—'
 
     result = {
         'subscription_id': sub_id,
+        'plan_id': subscription_summary.get('preapproval_plan_id') or '—',
+        'tier_name': subscription_summary.get('reason') or '—',
         'payer_name': payer_name or '—',
-        'payer_email': subscription_summary.get('payer_email') or '—',
-        'status': subscription_summary.get('status') or '—',
+        'payer_email': payer_email,
+        'status': status,
         'matched': False,
         'match_method': None,
         'user_email': None,
         'message': '',
     }
 
-    try:
-        user, match_method, details = match_subscription_to_user(
-            sdk,
-            subscription_summary,
-            user_index=state.get('user_index'),
+    user, match_method, details = match_subscription_to_user(
+        sdk,
+        subscription_summary,
+        user_index=user_index,
+        log=log,
+    )
+    payments_checked = (details or {}).get('payments_checked', 0)
+    log.info('  Payments checked: %d', payments_checked)
+
+    if not user:
+        result['message'] = _format_unmatched_message(details or {})
+        log.info('  No match: %s', result['message'])
+        return result, None
+
+    previous_name = assigned_users.get(user.id)
+    if previous_name and payer_name and name_similarity(previous_name, payer_name) < 0.5:
+        result['message'] = (
+            f'Conflicto: {user.email} ya vinculado a "{previous_name}", '
+            f'no coincide con "{payer_name}"'
         )
-        if user:
-            assigned_users = state.setdefault('assigned_users', {})
-            previous_name = assigned_users.get(user.id)
-            if previous_name and payer_name and name_similarity(previous_name, payer_name) < 0.5:
-                result['message'] = (
-                    f'Conflicto: {user.email} ya vinculado a "{previous_name}", '
-                    f'no coincide con "{payer_name}"'
-                )
+        log.warning('  %s', result['message'])
+        return result, None
+
+    if apply_changes:
+        apply_subscription_to_profile(user.profile, details, match_method=match_method)
+    assigned_users[user.id] = payer_name or user.get_full_name()
+
+    result.update({
+        'matched': True,
+        'match_method': match_method,
+        'user_id': user.id,
+        'user_email': user.email,
+        'message': f'Vinculado con {user.email} ({match_method})',
+    })
+    if match_method == 'name' and details.get('match_meta'):
+        result['message'] += f" — score {details['match_meta'].get('score')}"
+    if payments_checked:
+        result['message'] += f' — {payments_checked} pago(s)'
+
+    active = details.get('status') in ACTIVE_SUBSCRIPTION_STATUSES
+    log.info(
+        '  Matched -> %s via %s (active=%s)',
+        user.email,
+        match_method,
+        active,
+    )
+    return result, sub_id if active else None
+
+
+def run_match_audit(log=None):
+    """
+    Build full match report without persisting any Profile changes.
+    Returns a dict with summary and detailed per-subscription rows.
+    """
+    log = log or logger
+    log.info('=' * 80)
+    log.info('La Sede match audit started')
+
+    access_token = settings.MERCADOPAGO.get('ACCESS_TOKEN')
+    if not access_token:
+        log.error('MERCADOPAGO_ACCESS_TOKEN not configured')
+        return {'error': 'MERCADOPAGO_ACCESS_TOKEN not configured'}
+
+    sdk = get_mp_sdk()
+    subscriptions = fetch_all_subscriptions(sdk)
+    user_index = build_user_match_index()
+
+    matched_count = 0
+    unmatched_count = 0
+    conflict_count = 0
+    error_count = 0
+    active_candidate_count = 0
+    assigned_users = {}
+    rows = []
+    active_by_user = {}
+
+    total = len(subscriptions)
+    for index, subscription_summary in enumerate(subscriptions, start=1):
+        sub_id = subscription_summary.get('id', '—')
+        payer_name = ' '.join(filter(None, [
+            subscription_summary.get('payer_first_name'),
+            subscription_summary.get('payer_last_name'),
+        ])).strip() or '—'
+        status = subscription_summary.get('status') or '—'
+
+        log.info('[AUDIT %d/%d] %s — %s (%s)', index, total, sub_id, payer_name, status)
+        try:
+            result, active_sub_id = _process_subscription(
+                sdk,
+                subscription_summary,
+                user_index,
+                assigned_users,
+                log,
+                apply_changes=False,
+            )
+            rows.append(result)
+            if result.get('matched'):
+                matched_count += 1
+                if active_sub_id:
+                    active_candidate_count += 1
+                    active_by_user[result.get('user_id')] = active_by_user.get(result.get('user_id'), 0) + 1
+            elif result.get('message', '').startswith('Conflicto'):
+                conflict_count += 1
             else:
-                apply_subscription_to_profile(user.profile, details)
-                assigned_users[user.id] = payer_name or user.get_full_name()
-                if details.get('status') in ACTIVE_SUBSCRIPTION_STATUSES:
-                    state['active_subscription_ids'].append(sub_id)
-                result.update({
-                    'matched': True,
-                    'match_method': match_method,
-                    'user_email': user.email,
-                    'message': f'Vinculado con {user.email} ({match_method})',
-                })
-                if match_method == 'name' and details.get('match_meta'):
-                    result['message'] += f" — score {details['match_meta'].get('score')}"
-                if details.get('payments_checked'):
-                    result['message'] += f" — {details['payments_checked']} pago(s)"
-        else:
-            result['message'] = _format_unmatched_message(details or {})
-    except Exception as exc:
-        logger.exception('Error syncing subscription %s', sub_id)
-        result['message'] = f'Error: {exc}'
+                unmatched_count += 1
+        except Exception as exc:
+            error_count += 1
+            log.exception('  Audit error processing %s: %s', sub_id, exc)
+            rows.append({
+                'subscription_id': sub_id,
+                'payer_name': payer_name,
+                'payer_email': subscription_summary.get('payer_email') or '—',
+                'status': status,
+                'matched': False,
+                'match_method': None,
+                'user_email': None,
+                'message': f'Error: {exc}',
+            })
 
-    state['processed'] += 1
-    state['results'].append(result)
+    for row in rows:
+        user_id = row.get('user_id')
+        row['active_subscriptions_for_user'] = active_by_user.get(user_id, 0) if user_id else 0
 
-    if state['processed'] >= state['total']:
-        _finalize_sync(state)
-        cache.set(cache_key, state, SYNC_CACHE_TIMEOUT)
-        return {
-            'done': True,
-            'total': state['total'],
-            'processed': state['processed'],
-            'result': result,
-            'summary': _build_sync_summary(state),
-        }
+    summary = {
+        'total': total,
+        'matched': matched_count,
+        'unmatched': unmatched_count,
+        'conflicts': conflict_count,
+        'errors': error_count,
+        'active_candidates': active_candidate_count,
+        'users_with_multiple_active': sum(1 for count in active_by_user.values() if count > 1),
+    }
+    log.info('La Sede match audit completed: %s', summary)
+    log.info('=' * 80)
 
-    cache.set(cache_key, state, SYNC_CACHE_TIMEOUT)
     return {
-        'done': False,
-        'total': state['total'],
-        'processed': state['processed'],
-        'result': result,
+        'summary': summary,
+        'rows': rows,
+        'generated_at': timezone.now(),
     }
 
 
-def _finalize_sync(state):
-    active_ids = set(state.get('active_subscription_ids', []))
-    stale_profiles = Profile.objects.filter(miembro_sede=True).exclude(
-        Q(sede_subscription_id='') | Q(sede_subscription_id__in=active_ids)
-    )
-    deactivated = stale_profiles.update(
-        miembro_sede=False,
-        sede_subscription_status='inactive',
-        sede_synced_at=timezone.now(),
-    )
-    state['deactivated'] = deactivated
-    state['matched'] = len(active_ids)
-    state['done'] = True
+def run_full_sync(log=None):
+    """Sync all MercadoPago subscriptions with platform users. Returns summary dict."""
+    log = log or logger
+    log.info('=' * 80)
+    log.info('La Sede membership sync started')
 
+    access_token = settings.MERCADOPAGO.get('ACCESS_TOKEN')
+    if not access_token:
+        log.error('MERCADOPAGO_ACCESS_TOKEN not configured')
+        return {'error': 'MERCADOPAGO_ACCESS_TOKEN not configured'}
 
-def _build_sync_summary(state):
-    results = state.get('results', [])
-    matched = sum(1 for item in results if item.get('matched'))
-    unmatched = len(results) - matched
-    return {
-        'total': state.get('total', 0),
-        'matched': matched,
-        'unmatched': unmatched,
-        'deactivated': state.get('deactivated', 0),
+    plan_ids = get_sede_plan_ids()
+    log.info('MercadoPago configured. Plan IDs: %s', plan_ids or 'all')
+
+    sdk = get_mp_sdk()
+
+    log.info('Fetching subscriptions from MercadoPago...')
+    subscriptions = fetch_all_subscriptions(sdk)
+    total = len(subscriptions)
+    log.info('Found %d subscription(s)', total)
+
+    log.info('Building user match index...')
+    user_index = build_user_match_index()
+    log.info(
+        'User index ready: %d emails, %d documents, %d name entries',
+        len(user_index['by_email']),
+        len(user_index['by_document']),
+        len(user_index['by_name']),
+    )
+
+    assigned_users = {}
+    active_subscription_ids = []
+    matched_count = 0
+    unmatched_count = 0
+    conflict_count = 0
+    error_count = 0
+
+    for index, subscription_summary in enumerate(subscriptions, start=1):
+        sub_id = subscription_summary.get('id', '—')
+        payer_name = ' '.join(filter(None, [
+            subscription_summary.get('payer_first_name'),
+            subscription_summary.get('payer_last_name'),
+        ])).strip() or '—'
+        status = subscription_summary.get('status') or '—'
+
+        log.info(
+            '[%d/%d] Subscription %s — %s (%s)',
+            index,
+            total,
+            sub_id,
+            payer_name,
+            status,
+        )
+
+        try:
+            result, active_sub_id = _process_subscription(
+                sdk,
+                subscription_summary,
+                user_index,
+                assigned_users,
+                log,
+            )
+            if result.get('matched'):
+                matched_count += 1
+                if active_sub_id:
+                    active_subscription_ids.append(active_sub_id)
+            elif result.get('message', '').startswith('Conflicto'):
+                conflict_count += 1
+            else:
+                unmatched_count += 1
+        except Exception as exc:
+            error_count += 1
+            log.exception('  Error processing subscription %s: %s', sub_id, exc)
+
+    log.info('Deactivating stale members...')
+    deactivated = _deactivate_stale_members(active_subscription_ids, log)
+
+    summary = {
+        'total': total,
+        'matched': matched_count,
+        'unmatched': unmatched_count,
+        'conflicts': conflict_count,
+        'errors': error_count,
+        'active_members': len(active_subscription_ids),
+        'deactivated': deactivated,
     }
+
+    log.info('=' * 80)
+    log.info('La Sede membership sync completed')
+    log.info('Total subscriptions: %d', summary['total'])
+    log.info('Matched: %d', summary['matched'])
+    log.info('Unmatched: %d', summary['unmatched'])
+    log.info('Conflicts: %d', summary['conflicts'])
+    log.info('Errors: %d', summary['errors'])
+    log.info('Active members: %d', summary['active_members'])
+    log.info('Deactivated: %d', summary['deactivated'])
+    log.info('=' * 80)
+
+    return summary

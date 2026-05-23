@@ -5,7 +5,7 @@ from django.urls import path, include
 
 from tickets.admin import admin_caja_view, email_has_account, admin_caja_order_view, admin_direct_tickets_view, \
     admin_direct_tickets_buyer_view, admin_direct_tickets_congrats_view
-from user_profile.admin_sede import admin_sede_view, admin_sede_sync_start, admin_sede_sync_process
+from user_profile.admin_sede_matches import admin_sede_matches_view
 
 urlpatterns = [
     path('admin/caja/', admin_caja_view, name='admin_caja_view'),
@@ -17,10 +17,7 @@ urlpatterns = [
     path('admin/direct_tickets/buyer/', admin_direct_tickets_buyer_view, name='admin_direct_tickets_buyer_view'),
     path('admin/direct_tickets/congrats/<int:new_order_id>/', admin_direct_tickets_congrats_view,
          name='admin_direct_tickets_congrats_view'),
-
-    path('admin/sede/', admin_sede_view, name='admin_sede_view'),
-    path('admin/sede/sync/start/', admin_sede_sync_start, name='admin_sede_sync_start'),
-    path('admin/sede/sync/process/', admin_sede_sync_process, name='admin_sede_sync_process'),
+    path('admin/sede/matches/', admin_sede_matches_view, name='admin_sede_matches_view'),
 
     path('admin/', admin.site.urls),
 
