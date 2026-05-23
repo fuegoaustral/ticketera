@@ -8,6 +8,7 @@ from caja.views.admin_views import (
 )
 from caja.views.report_views import (
     caja_sales_report_view,
+    event_report_view,
     stock_report_view,
 )
 from caja.views.operator_views import (

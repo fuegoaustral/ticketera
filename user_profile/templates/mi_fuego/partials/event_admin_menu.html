@@ -30,6 +30,20 @@
                             </a>
                         </li>
                         <li class="menu-subitem">
+                            <a class="menu-sublink{% if nav_secondary == 'caja_sales_report_'|add:admin_event.slug %} active{% endif %}"
+                               href="{% url 'caja_sales_report' admin_event.slug %}">
+                                <i class="fas fa-chart-pie me-2"></i>
+                                Reporte de cajas
+                            </a>
+                        </li>
+                        <li class="menu-subitem">
+                            <a class="menu-sublink{% if nav_secondary == 'event_report_'|add:admin_event.slug %} active{% endif %}"
+                               href="{% url 'event_report' admin_event.slug %}">
+                                <i class="fas fa-file-invoice-dollar me-2"></i>
+                                Reporte de evento
+                            </a>
+                        </li>
+                        <li class="menu-subitem">
                             <a class="menu-sublink{% if nav_secondary == 'bonus_report_'|add:admin_event.slug %} active{% endif %}"
                                href="{% url 'bonus_report' admin_event.slug %}">
                                 <i class="fas fa-chart-bar me-2"></i>
@@ -118,13 +132,6 @@
                                     </li>
                                 {% endfor %}
                             </ul>
-                        </li>
-                        <li class="menu-subitem">
-                            <a class="menu-sublink{% if nav_secondary == 'caja_sales_report_'|add:admin_event.slug %} active{% endif %}"
-                               href="{% url 'caja_sales_report' admin_event.slug %}">
-                                <i class="fas fa-chart-pie me-2"></i>
-                                Reporte de cajas
-                            </a>
                         </li>
                     </ul>
                 </li>
