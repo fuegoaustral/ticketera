@@ -82,6 +82,7 @@ INSTALLED_APPS = [
     'events.apps.EventsConfig',
     'espaciozen.apps.EspaciozenConfig',
     'caja.apps.CajaConfig',
+    'logros.apps.LogrosConfig',
 ]
 
 MIDDLEWARE = [

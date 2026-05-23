@@ -9,6 +9,8 @@ from .views import (
     transferable_tickets_view,
     volunteering,
     my_orders_view,
+    mis_logros_view,
+    logros_mark_celebration_shown,
     my_events_view,
     event_admin_view,
     puerta_admin_view,
@@ -46,6 +48,8 @@ urlpatterns = [
     # Specific paths (must come before generic slug pattern)
     path("mis-bonos/eventos-anteriores/", my_ticket_view, {"event_slug": "eventos-anteriores"}, name="my_ticket_past"),
     path("mis-bonos/ordenes/", my_orders_view, name="my_orders"),
+    path("mis-bonos/logros/", mis_logros_view, name="mis_logros"),
+    path("mis-bonos/logros/celebracion-vista/", logros_mark_celebration_shown, name="logros_mark_celebration_shown"),
     path("mis-eventos/", my_events_view, name="my_events"),
     path("mis-eventos/<slug:event_slug>/", event_admin_view, name="event_admin"),
     path("mis-eventos/<slug:event_slug>/configuracion/", event_management_view, name="event_management"),

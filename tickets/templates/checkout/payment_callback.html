@@ -36,21 +36,41 @@
         </div>
     </div>
 </div>
+
+{% include 'mi_fuego/partials/logro_unlocked_modal.html' %}
+
 <script type="text/javascript">
+        let achievementQueue = [];
+
+        function showNextAchievementModal() {
+            if (!achievementQueue.length) return;
+            const achievement = achievementQueue.shift();
+            const modalEl = document.getElementById('logroUnlockedModal');
+            showLogroUnlockedModal(achievement);
+            if (modalEl) {
+                modalEl.addEventListener('hidden.bs.modal', function onHidden() {
+                    modalEl.removeEventListener('hidden.bs.modal', onHidden);
+                    showNextAchievementModal();
+                }, { once: true });
+            }
+        }
+
         function checkOrderStatus() {
             fetch("{% url 'check_order_status' order_key=order_key %}")
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === "CONFIRMED") {
                         document.getElementById('loading-section').style = 'display: none !important';
-                        console.log('here')
-                        console.log(document.getElementById('loading-section').style.display)
                         document.getElementById('success-section').style.display = 'block';
+
+                        if (data.new_achievements && data.new_achievements.length) {
+                            achievementQueue = data.new_achievements.slice();
+                            showNextAchievementModal();
+                        }
                     } else if (data.status === "REFUNDED") {
                         document.getElementById('loading-section').style = 'display: none !important';
                         document.getElementById('refunded-section').style.display = 'block';
                     } else {
-                        // If status is still pending, check again after 5 seconds
                         setTimeout(checkOrderStatus, 5000);
                     }
                 })
@@ -58,7 +78,6 @@
         }
 
         document.addEventListener("DOMContentLoaded", function () {
-            // Perform the first check immediately
             checkOrderStatus();
         });
 </script>

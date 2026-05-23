@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.contrib.auth import update_session_auth_hash
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_http_methods
 from django.contrib.auth.models import User
 from django.conf import settings
 import json
@@ -1044,6 +1044,83 @@ def my_orders_view(request):
             "now": timezone.now(),
         },
     )
+
+
+def _mi_fuego_sidebar_context(request):
+    main_event = Event.get_main_event()
+    user_events = Event.get_active_events().filter(
+        newticket__holder=request.user
+    ).distinct().order_by('-is_main', 'name')
+    my_ticket = NewTicket.objects.filter(
+        holder=request.user, event=main_event, owner=request.user
+    ).first() if main_event else None
+    events_with_volunteer_info = []
+    for event in user_events:
+        grupos_liderados = Grupo.objects.filter(
+            event=event,
+            lider=request.user
+        ).select_related('tipo').exists()
+        events_with_volunteer_info.append({
+            'event': event,
+            'can_volunteer': can_user_volunteer_for_event(request.user, event),
+            'has_grupos': grupos_liderados,
+        })
+    return {
+        "event": main_event,
+        "active_events": user_events,
+        "events_with_volunteer_info": events_with_volunteer_info,
+        "my_ticket": my_ticket.get_dto(user=request.user) if my_ticket else None,
+        "now": timezone.now(),
+    }
+
+
+@login_required
+def mis_logros_view(request):
+    from logros.services import (
+        check_and_unlock_for_user,
+        get_achievements_for_user,
+        get_pending_celebrations,
+    )
+
+    check_and_unlock_for_user(request.user)
+    logros = get_achievements_for_user(request.user)
+    pending = get_pending_celebrations(request.user)
+    pending_celebrations = [
+        {
+            'slug': ua.achievement.slug,
+            'name': ua.achievement.name,
+            'description': ua.achievement.description,
+            'image_url': ua.achievement.image_url,
+        }
+        for ua in pending
+    ]
+
+    context = _mi_fuego_sidebar_context(request)
+    context.update({
+        'logros': logros,
+        'pending_celebrations': pending_celebrations,
+        'nav_primary': 'logros',
+        'nav_secondary': 'mis_logros',
+    })
+    return render(request, 'mi_fuego/my_tickets/mis_logros.html', context)
+
+
+@login_required
+@require_http_methods(['POST'])
+def logros_mark_celebration_shown(request):
+    from logros.services import mark_celebrations_shown
+
+    try:
+        body = json.loads(request.body or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'invalid json'}, status=400)
+
+    slugs = body.get('slugs') or []
+    if not isinstance(slugs, list):
+        return JsonResponse({'error': 'slugs must be a list'}, status=400)
+
+    mark_celebrations_shown(request.user, slugs)
+    return JsonResponse({'ok': True})
 
 
 @login_required
