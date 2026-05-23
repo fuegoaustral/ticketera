@@ -13,6 +13,12 @@
     <button type="submit" class="button default">Refresh subscriptions</button>
   </form>
 
+  <form method="post" style="margin: 0 0 1rem 0;">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="run_sync_now">
+    <button type="submit" class="button default">Run sync now</button>
+  </form>
+
   <div style="overflow-x:auto;">
     <table class="table">
       <thead>

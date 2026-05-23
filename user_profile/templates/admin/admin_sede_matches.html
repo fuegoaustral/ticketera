@@ -1,35 +1,57 @@
 {% extends "admin/base_site.html" %}
 
 {% block content %}
+<style>
+  .sede-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  }
+  .sede-modal {
+    width: min(920px, 92vw);
+    max-height: 85vh;
+    overflow: auto;
+    background: #fff;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+  }
+  .sede-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+  }
+  .sede-muted {
+    color: #666;
+    font-size: 0.9rem;
+  }
+</style>
+
 <div>
-  <h1>La Sede — Match Audit</h1>
-  <p>Vista de verificacion de matches entre suscripciones MercadoPago y usuarios (sin modificar datos).</p>
+  <h1>La Sede — Active Unmatched Subscriptions</h1>
+  <p>Solo se muestran suscripciones activas (personas que están pagando) que todavía no están matcheadas a un <code>user_profile</code>.</p>
+  <p><strong>Total pendientes:</strong> {{ unmatched_rows|length }}</p>
 
-  <form method="post" style="margin: 1rem 0;">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="run_audit">
-    <button type="submit" class="button default">Run Match Audit</button>
-  </form>
-
-  <h2>Suscripciones sin match (persistidas)</h2>
-  <p>Este listado se alimenta cuando corre el sync real y no logra vincular una suscripción automáticamente.</p>
-
-  <div style="overflow-x:auto; margin-bottom: 1.5rem;">
-    <table class="table">
+  <div style="overflow-x:auto; margin-top: 1rem;">
+    <table class="table" id="unmatched-table">
       <thead>
         <tr>
           <th>Subscription ID</th>
           <th>Payer</th>
           <th>DNI hint</th>
           <th>Plan / Tier</th>
-          <th>Status</th>
           <th>Última vez visto</th>
-          <th>Resolver</th>
+          <th>Acción</th>
         </tr>
       </thead>
       <tbody>
         {% for unmatched in unmatched_rows %}
-          <tr {% if selected_unmatched and selected_unmatched.id == unmatched.id %}style="background:#f4f9ff;"{% endif %}>
+          <tr id="unmatched-row-{{ unmatched.id }}">
             <td><code>{{ unmatched.subscription_id }}</code></td>
             <td>
               {{ unmatched.payer_first_name }} {{ unmatched.payer_last_name }}<br>
@@ -40,168 +62,213 @@
               <code>{{ unmatched.plan_id|default:"—" }}</code><br>
               <small>{{ unmatched.tier_name|default:"—" }}</small>
             </td>
-            <td>{{ unmatched.status|default:"—" }}</td>
             <td>{{ unmatched.last_seen_at|date:"d/m/Y H:i"|default:"—" }}</td>
             <td>
-              <a class="button" href="?selected_unmatched={{ unmatched.id }}{% if user_q %}&user_q={{ user_q|urlencode }}{% endif %}">
-                Seleccionar
-              </a>
+              <button
+                type="button"
+                class="button default open-match-modal"
+                data-unmatched-id="{{ unmatched.id }}"
+                data-subscription-id="{{ unmatched.subscription_id }}"
+                data-payer-name="{{ unmatched.payer_first_name }} {{ unmatched.payer_last_name }}"
+                data-payer-email="{{ unmatched.payer_email }}"
+                data-document-number="{{ unmatched.document_number }}"
+              >
+                Match
+              </button>
             </td>
           </tr>
         {% empty %}
           <tr>
-            <td colspan="7">No hay suscripciones sin match guardadas.</td>
+            <td colspan="6">No hay suscripciones activas sin match.</td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+</div>
 
-  <h2>Resolución manual</h2>
-  {% if selected_unmatched %}
-    <div style="margin-bottom: 0.75rem;">
-      <strong>Suscripción seleccionada:</strong>
-      <code>{{ selected_unmatched.subscription_id }}</code> —
-      {{ selected_unmatched.payer_first_name }} {{ selected_unmatched.payer_last_name }}
-      ({{ selected_unmatched.payer_email|default:"sin email" }})
+<div id="match-modal-backdrop" class="sede-modal-backdrop">
+  <div class="sede-modal">
+    <div class="sede-modal-header">
+      <h2 style="margin:0;">Match subscription</h2>
+      <button type="button" class="button" id="close-modal-btn">Cerrar</button>
     </div>
 
-    <form method="get" style="margin-bottom: 1rem; display:flex; gap:0.5rem; align-items:center;">
-      <input type="hidden" name="selected_unmatched" value="{{ selected_unmatched.id }}">
+    <div id="modal-subscription-summary" style="margin-bottom: 1rem;"></div>
+
+    <div style="display:flex; gap: 0.5rem; margin-bottom: 0.75rem;">
       <input
+        id="user-search-input"
         type="text"
-        name="user_q"
-        value="{{ user_q }}"
-        placeholder="Buscar usuario por nombre, apellido, DNI o email"
+        placeholder="Buscar por nombre, apellido, DNI o email"
         style="min-width: 360px;"
       >
-      <button type="submit" class="button">Buscar</button>
-    </form>
-
-    {% if user_q and not user_candidates %}
-      <p>No se encontraron usuarios para <code>{{ user_q }}</code>.</p>
-    {% endif %}
-
-    {% if user_candidates %}
-      <div style="overflow-x:auto; margin-bottom: 1.5rem;">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Usuario</th>
-              <th>DNI</th>
-              <th>La Sede</th>
-              <th>Acción</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for candidate in user_candidates %}
-              <tr>
-                <td>
-                  {{ candidate.first_name }} {{ candidate.last_name }}<br>
-                  <small>{{ candidate.email }}</small>
-                </td>
-                <td>{{ candidate.profile.document_number|default:"—" }}</td>
-                <td>{% if candidate.profile.miembro_sede %}Sí{% else %}No{% endif %}</td>
-                <td>
-                  <form method="post">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="assign_unmatched">
-                    <input type="hidden" name="unmatched_id" value="{{ selected_unmatched.id }}">
-                    <input type="hidden" name="user_id" value="{{ candidate.id }}">
-                    <input type="hidden" name="search_query" value="{{ user_q }}">
-                    <button type="submit" class="button default">Vincular manualmente</button>
-                  </form>
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    {% endif %}
-  {% else %}
-    <p>Seleccioná una suscripción sin match para asignarla manualmente.</p>
-  {% endif %}
-
-  {% if report %}
-    <div style="margin-bottom: 1rem;">
-      <strong>Generado:</strong> {{ generated_at }}<br>
-      <strong>Total:</strong> {{ summary.total }} |
-      <strong>Match:</strong> {{ summary.matched }} |
-      <strong>Sin match:</strong> {{ summary.unmatched }} |
-      <strong>Conflictos:</strong> {{ summary.conflicts }} |
-      <strong>Errores:</strong> {{ summary.errors }} |
-      <strong>Activas con match:</strong> {{ summary.active_candidates }} |
-      <strong>Usuarios con +1 activa:</strong> {{ summary.users_with_multiple_active }}
+      <button type="button" class="button" id="user-search-btn">Buscar</button>
     </div>
+    <div class="sede-muted" style="margin-bottom: 0.5rem;">La búsqueda consulta usuarios en tiempo real.</div>
 
-    <h2>Resumen por usuario</h2>
-    <div style="overflow-x:auto; margin-bottom: 1.5rem;">
-      <table id="result_list_users" class="table">
-        <thead>
-          <tr>
-            <th>Usuario</th>
-            <th>Suscripciones activas</th>
-            <th>Suscripciones matcheadas</th>
-            <th>Planes</th>
-            <th>Tiers</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for user_row in user_rows %}
-            <tr>
-              <td>{{ user_row.user_email }}</td>
-              <td>{{ user_row.active_count }}</td>
-              <td>{{ user_row.matched_count }}</td>
-              <td>{{ user_row.plans }}</td>
-              <td>{{ user_row.tiers }}</td>
-            </tr>
-          {% empty %}
-            <tr>
-              <td colspan="5">Sin usuarios matcheados en el último audit.</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    <h2>Detalle por suscripción</h2>
-    <div style="overflow-x:auto;">
-      <table id="result_list" class="table">
-        <thead>
-          <tr>
-            <th>Subscription ID</th>
-            <th>Plan / Tier</th>
-            <th>Payer</th>
-            <th>Status</th>
-            <th>Matched</th>
-            <th>Metodo</th>
-            <th>Usuario</th>
-            <th>Activas usuario</th>
-            <th>Mensaje</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in rows %}
-            <tr>
-              <td><code>{{ row.subscription_id }}</code></td>
-              <td>
-                <code>{{ row.plan_id|default:"—" }}</code><br>
-                <small>{{ row.tier_name|default:"—" }}</small>
-              </td>
-              <td>{{ row.payer_name }}<br><small>{{ row.payer_email }}</small></td>
-              <td>{{ row.status }}</td>
-              <td>{% if row.matched %}Si{% else %}No{% endif %}</td>
-              <td>{{ row.match_method|default:"—" }}</td>
-              <td>{{ row.user_email|default:"—" }}</td>
-              <td>{{ row.active_subscriptions_for_user|default:0 }}</td>
-              <td>{{ row.message }}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  {% else %}
-    <p>No hay audit cargado aun. Ejecuta <em>Run Match Audit</em>.</p>
-  {% endif %}
+    <div id="user-search-results" style="overflow-x:auto;"></div>
+    <div id="match-status" style="margin-top: 0.75rem;"></div>
+  </div>
 </div>
+
+<form style="display:none;">{% csrf_token %}</form>
+
+<script>
+  (function () {
+    const modalBackdrop = document.getElementById('match-modal-backdrop');
+    const closeModalBtn = document.getElementById('close-modal-btn');
+    const openButtons = document.querySelectorAll('.open-match-modal');
+    const summary = document.getElementById('modal-subscription-summary');
+    const searchInput = document.getElementById('user-search-input');
+    const searchBtn = document.getElementById('user-search-btn');
+    const resultsContainer = document.getElementById('user-search-results');
+    const statusContainer = document.getElementById('match-status');
+    const csrfTokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
+
+    let currentUnmatchedId = null;
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function openModal(btn) {
+      currentUnmatchedId = btn.dataset.unmatchedId;
+      const subscriptionId = btn.dataset.subscriptionId || '—';
+      const payerName = btn.dataset.payerName || '—';
+      const payerEmail = btn.dataset.payerEmail || '—';
+      const documentNumber = btn.dataset.documentNumber || '—';
+
+      summary.innerHTML = `
+        <div><strong>Subscription:</strong> <code>${escapeHtml(subscriptionId)}</code></div>
+        <div><strong>Payer:</strong> ${escapeHtml(payerName)} (${escapeHtml(payerEmail)})</div>
+        <div><strong>DNI hint:</strong> ${escapeHtml(documentNumber)}</div>
+      `;
+      resultsContainer.innerHTML = '';
+      statusContainer.textContent = '';
+      searchInput.value = '';
+      modalBackdrop.style.display = 'flex';
+      searchInput.focus();
+    }
+
+    function closeModal() {
+      modalBackdrop.style.display = 'none';
+      currentUnmatchedId = null;
+    }
+
+    async function searchUsers() {
+      const q = searchInput.value.trim();
+      if (!q) {
+        resultsContainer.innerHTML = '<p>Ingresá un término para buscar.</p>';
+        return;
+      }
+
+      resultsContainer.innerHTML = '<p>Buscando...</p>';
+      statusContainer.textContent = '';
+
+      try {
+        const url = `{% url 'admin_sede_matches_user_search' %}?q=${encodeURIComponent(q)}`;
+        const response = await fetch(url, { method: 'GET' });
+        const data = await response.json();
+        const users = data.results || [];
+
+        if (!users.length) {
+          resultsContainer.innerHTML = '<p>No se encontraron usuarios.</p>';
+          return;
+        }
+
+        resultsContainer.innerHTML = `
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th>DNI</th>
+                <th>La Sede</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${users.map((user) => `
+                <tr>
+                  <td>${escapeHtml(user.full_name || '—')}<br><small>${escapeHtml(user.email || '—')}</small></td>
+                  <td>${escapeHtml(user.document_number || '—')}</td>
+                  <td>${user.miembro_sede ? 'Sí' : 'No'}</td>
+                  <td>
+                    <button type="button" class="button default do-match-btn" data-user-id="${user.id}">
+                      Match
+                    </button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+
+        const matchButtons = resultsContainer.querySelectorAll('.do-match-btn');
+        matchButtons.forEach((btn) => {
+          btn.addEventListener('click', () => doMatch(btn.dataset.userId));
+        });
+      } catch (error) {
+        resultsContainer.innerHTML = '<p>Error buscando usuarios.</p>';
+      }
+    }
+
+    async function doMatch(userId) {
+      if (!currentUnmatchedId || !userId) {
+        return;
+      }
+      statusContainer.textContent = 'Vinculando...';
+
+      try {
+        const formData = new URLSearchParams();
+        formData.append('unmatched_id', currentUnmatchedId);
+        formData.append('user_id', userId);
+
+        const response = await fetch(`{% url 'admin_sede_matches_assign' %}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': csrfTokenInput ? csrfTokenInput.value : '',
+          },
+          body: formData.toString(),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || 'No se pudo vincular');
+        }
+
+        statusContainer.textContent = data.message || 'Vinculado correctamente.';
+        const row = document.getElementById(`unmatched-row-${currentUnmatchedId}`);
+        if (row) {
+          row.remove();
+        }
+        setTimeout(closeModal, 600);
+      } catch (error) {
+        statusContainer.textContent = error.message || 'Error al vincular.';
+      }
+    }
+
+    openButtons.forEach((btn) => {
+      btn.addEventListener('click', () => openModal(btn));
+    });
+    closeModalBtn.addEventListener('click', closeModal);
+    searchBtn.addEventListener('click', searchUsers);
+    searchInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        searchUsers();
+      }
+    });
+    modalBackdrop.addEventListener('click', (event) => {
+      if (event.target === modalBackdrop) {
+        closeModal();
+      }
+    });
+  })();
+</script>
 {% endblock %}
