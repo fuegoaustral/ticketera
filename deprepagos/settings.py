@@ -135,14 +135,31 @@ WSGI_APPLICATION = 'deprepagos.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
 
+db_host = os.environ.get('DB_HOST', '127.0.0.1')
+db_sslmode = os.environ.get('DB_SSLMODE')
+if not db_sslmode and db_host not in ('127.0.0.1', 'localhost'):
+    # Most managed PostgreSQL instances (RDS/Supabase) require encrypted connections.
+    db_sslmode = 'require'
+
+db_options = {}
+if db_sslmode:
+    db_options['sslmode'] = db_sslmode
+db_connect_timeout = os.environ.get('DB_CONNECT_TIMEOUT')
+if db_connect_timeout:
+    db_options['connect_timeout'] = int(db_connect_timeout)
+elif db_host not in ('127.0.0.1', 'localhost'):
+    # Fail fast instead of hanging when remote DB access is blocked.
+    db_options['connect_timeout'] = 10
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ.get('DB_DATABASE', 'deprepagos'),
         'USER': os.environ.get('DB_USER', 'mauro'),
         'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-        'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
+        'HOST': db_host,
         'PORT': os.environ.get('DB_PORT', '5432'),
+        'OPTIONS': db_options,
     }
 }
 print(f'DATABASE HOST: {DATABASES["default"]["HOST"]}')

@@ -1,0 +1,64 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div>
+  <h1>La Sede — Match Audit</h1>
+  <p>Vista de verificacion de matches entre suscripciones MercadoPago y usuarios (sin modificar datos).</p>
+
+  <form method="post" style="margin: 1rem 0;">
+    {% csrf_token %}
+    <button type="submit" class="button default">Run Match Audit</button>
+  </form>
+
+  {% if report %}
+    <div style="margin-bottom: 1rem;">
+      <strong>Generado:</strong> {{ generated_at }}<br>
+      <strong>Total:</strong> {{ summary.total }} |
+      <strong>Match:</strong> {{ summary.matched }} |
+      <strong>Sin match:</strong> {{ summary.unmatched }} |
+      <strong>Conflictos:</strong> {{ summary.conflicts }} |
+      <strong>Errores:</strong> {{ summary.errors }} |
+      <strong>Activas con match:</strong> {{ summary.active_candidates }} |
+      <strong>Usuarios con +1 activa:</strong> {{ summary.users_with_multiple_active }}
+    </div>
+
+    <div style="overflow-x:auto;">
+      <table id="result_list" class="table">
+        <thead>
+          <tr>
+            <th>Subscription ID</th>
+            <th>Plan / Tier</th>
+            <th>Payer</th>
+            <th>Status</th>
+            <th>Matched</th>
+            <th>Metodo</th>
+            <th>Usuario</th>
+            <th>Activas usuario</th>
+            <th>Mensaje</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td><code>{{ row.subscription_id }}</code></td>
+              <td>
+                <code>{{ row.plan_id|default:"—" }}</code><br>
+                <small>{{ row.tier_name|default:"—" }}</small>
+              </td>
+              <td>{{ row.payer_name }}<br><small>{{ row.payer_email }}</small></td>
+              <td>{{ row.status }}</td>
+              <td>{% if row.matched %}Si{% else %}No{% endif %}</td>
+              <td>{{ row.match_method|default:"—" }}</td>
+              <td>{{ row.user_email|default:"—" }}</td>
+              <td>{{ row.active_subscriptions_for_user|default:0 }}</td>
+              <td>{{ row.message }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>No hay audit cargado aun. Ejecuta <em>Run Match Audit</em>.</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -85,3 +85,25 @@ class Profile(BaseModel):
                             user_already_has_ticket = True
 
                         transfer.ticket.save()
+
+
+class SedeSubscription(BaseModel):
+    profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='sede_subscriptions')
+    subscription_id = models.CharField(max_length=64, unique=True)
+    plan_id = models.CharField(max_length=64, blank=True, default='')
+    tier_name = models.CharField(max_length=255, blank=True, default='')
+    status = models.CharField(max_length=32, blank=True, default='')
+    payment_method = models.CharField(max_length=64, blank=True, default='')
+    last_payment_date = models.DateTimeField(null=True, blank=True)
+    last_payment_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    next_payment_date = models.DateTimeField(null=True, blank=True)
+    member_since = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=False)
+    matched_via = models.CharField(max_length=16, blank=True, default='')
+    synced_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ('-is_active', '-last_payment_date', '-created_at')
+
+    def __str__(self):
+        return f'{self.subscription_id} ({self.status})'

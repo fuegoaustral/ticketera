@@ -1,8 +1,9 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
+from django.utils.html import format_html_join
 
-from .models import Profile
+from .models import Profile, SedeSubscription
 
 
 User.__str__ = lambda self: f'{self.first_name} {self.last_name} ({self.email})'
@@ -15,7 +16,7 @@ class ProfileInline(admin.StackedInline):
     readonly_fields = (
         'sede_subscription_id', 'sede_subscription_status', 'sede_payment_method',
         'sede_last_payment_date', 'sede_last_payment_amount', 'sede_next_payment_date',
-        'sede_member_since', 'sede_synced_at',
+        'sede_member_since', 'sede_synced_at', 'sede_subscriptions_summary',
     )
     fieldsets = (
         (None, {
@@ -27,10 +28,29 @@ class ProfileInline(admin.StackedInline):
             'fields': (
                 'miembro_sede', 'sede_subscription_id', 'sede_subscription_status',
                 'sede_payment_method', 'sede_last_payment_date', 'sede_last_payment_amount',
-                'sede_next_payment_date', 'sede_member_since', 'sede_synced_at',
+                'sede_next_payment_date', 'sede_member_since', 'sede_synced_at', 'sede_subscriptions_summary',
             ),
         }),
     )
+
+    def sede_subscriptions_summary(self, instance):
+        rows = instance.sede_subscriptions.order_by('-is_active', '-last_payment_date')[:20]
+        if not rows:
+            return '-'
+        return format_html_join(
+            '\n',
+            '{}',
+            (
+                (
+                    f'[{ "ACTIVE" if row.is_active else "inactive"}] '
+                    f'{row.subscription_id} | plan={row.plan_id or "-"} | '
+                    f'tier={row.tier_name or "-"} | status={row.status or "-"}'
+                ,)
+                for row in rows
+            ),
+        )
+
+    sede_subscriptions_summary.short_description = 'La Sede subscriptions'
 
 
 # Crea una nueva clase que extienda de LibraryUserAdmin
@@ -67,3 +87,22 @@ class CustomUserAdmin(UserAdmin):
 # Quitar el registro original y registrar el nuevo UserAdmin
 admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)
+
+
+@admin.register(SedeSubscription)
+class SedeSubscriptionAdmin(admin.ModelAdmin):
+    list_display = (
+        'subscription_id', 'get_user_email', 'plan_id', 'tier_name',
+        'status', 'is_active', 'matched_via', 'synced_at',
+    )
+    list_filter = ('is_active', 'status', 'plan_id', 'matched_via')
+    search_fields = (
+        'subscription_id', 'plan_id', 'tier_name', 'profile__user__email',
+        'profile__user__first_name', 'profile__user__last_name',
+    )
+    readonly_fields = [field.name for field in SedeSubscription._meta.fields]
+
+    def get_user_email(self, instance):
+        return instance.profile.user.email
+
+    get_user_email.short_description = 'User email'
