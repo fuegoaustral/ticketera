@@ -1,0 +1,57 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div>
+  <h1>La Sede — Subscription Plans</h1>
+  <p>
+    Refrescá los planes de suscripción de MercadoPago y habilitá/deshabilitá cuáles se usan para matchear usuarios.
+  </p>
+
+  <form method="post" style="margin: 1rem 0;">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="refresh">
+    <button type="submit" class="button default">Refresh subscriptions</button>
+  </form>
+
+  <div style="overflow-x:auto;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Enabled</th>
+          <th>Plan ID</th>
+          <th>Name</th>
+          <th>Subscriptions</th>
+          <th>Last seen</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for plan in plans %}
+          <tr>
+            <td>{% if plan.is_enabled %}Sí{% else %}No{% endif %}</td>
+            <td><code>{{ plan.plan_id }}</code></td>
+            <td>{{ plan.plan_name|default:"—" }}</td>
+            <td>{{ plan.subscriptions_count }}</td>
+            <td>{{ plan.last_seen_at|date:"d/m/Y H:i"|default:"—" }}</td>
+            <td>
+              <form method="post" style="display:inline;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="toggle_plan">
+                <input type="hidden" name="plan_id" value="{{ plan.plan_id }}">
+                <input type="hidden" name="enabled" value="{% if plan.is_enabled %}0{% else %}1{% endif %}">
+                <button type="submit" class="button">
+                  {% if plan.is_enabled %}Disable{% else %}Enable{% endif %}
+                </button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="6">No hay planes cargados todavía. Presioná <em>Refresh subscriptions</em>.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
