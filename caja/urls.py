@@ -11,6 +11,7 @@ from caja.views import (
     caja_sales_report_view,
     caja_v2_operator_view,
     cajas_list_view,
+    event_report_view,
     product_edit_view,
     product_stock_view,
     products_list_view,
@@ -35,6 +36,11 @@ urlpatterns = [
         'mis-eventos/<slug:event_slug>/reporte-cajas/',
         caja_sales_report_view,
         name='caja_sales_report',
+    ),
+    path(
+        'mis-eventos/<slug:event_slug>/reporte-evento/',
+        event_report_view,
+        name='event_report',
     ),
     path(
         'mis-eventos/<slug:event_slug>/reporte-stocks/',

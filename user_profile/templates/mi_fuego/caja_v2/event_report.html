@@ -1,0 +1,213 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% load humanize %}
+
+{% block submenu %}
+  {% include 'mi_fuego/partials/event_admin_menu.html' %}
+{% endblock submenu %}
+
+{% block truecontent %}
+<style>
+  .report-stat {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    text-align: center;
+    height: 100%;
+  }
+  .report-stat .value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #289e6d;
+  }
+  .report-stat .label {
+    font-size: 0.75rem;
+    color: #6c757d;
+    text-transform: uppercase;
+  }
+</style>
+
+<div class="container-fluid py-3">
+  <h4 class="mb-4"><i class="fas fa-chart-line me-2"></i>Reporte de evento — {{ event.name }}</h4>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3 col-6">
+      <div class="report-stat">
+        <div class="value">{{ report.summary.tickets_total|intcomma }}</div>
+        <div class="label">Bonos emitidos</div>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="report-stat">
+        <div class="value">${{ report.summary.grand_bruto|floatformat:0|intcomma }}</div>
+        <div class="label">Total bruto</div>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="report-stat">
+        <div class="value">${{ report.summary.grand_neto|floatformat:0|intcomma }}</div>
+        <div class="label">Total neto</div>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="report-stat">
+        <div class="value">${{ report.summary.commissions_total|floatformat:0|intcomma }}</div>
+        <div class="label">Comisiones (aprox.)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-info small">
+    Los montos son aproximados. Comisiones Mercado Pago sobre compras online:
+    ~{{ report.summary.mp_pct|floatformat:1 }}% (${{ report.summary.mp_commissions|floatformat:0|intcomma }}).
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="card-header">Entradas / bonos</div>
+        <div class="card-body p-0">
+          <table class="table table-sm mb-0">
+            <tbody>
+              <tr><td>Bonos online</td><td class="text-end">{{ report.summary.tickets_online|intcomma }}</td></tr>
+              <tr><td>Bonos por caja</td><td class="text-end">{{ report.summary.tickets_caja|intcomma }}</td></tr>
+              <tr><td>Bonos usados</td><td class="text-end">{{ report.summary.tickets_used|intcomma }}</td></tr>
+              <tr class="table-light"><td>Ingresos por entradas (órdenes)</td><td class="text-end">${{ report.summary.ticket_revenue|floatformat:0|intcomma }}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="card-header">Productos (caja v2)</div>
+        <div class="card-body p-0">
+          <table class="table table-sm mb-0">
+            <tbody>
+              <tr><td>Ítems genéricos vendidos</td><td class="text-end">{{ report.summary.generic_qty|intcomma }}</td></tr>
+              <tr class="table-light"><td>Ingresos productos</td><td class="text-end">${{ report.summary.generic_revenue|floatformat:0|intcomma }}</td></tr>
+              <tr><td>Ventas caja v2 (todas)</td><td class="text-end">{{ report.summary.caja_v2_sales|intcomma }}</td></tr>
+              <tr><td>Ingresos caja v2 (todas)</td><td class="text-end">${{ report.summary.caja_v2_revenue|floatformat:0|intcomma }}</td></tr>
+            </tbody>
+          </table>
+          {% if report.generic_products %}
+            <hr class="my-0">
+            <table class="table table-sm mb-0">
+              <thead><tr><th>Producto</th><th class="text-end">Cant.</th><th class="text-end">$</th></tr></thead>
+              <tbody>
+              {% for row in report.generic_products %}
+                <tr>
+                  <td>{{ row.name }}</td>
+                  <td class="text-end">{{ row.quantity }}</td>
+                  <td class="text-end">${{ row.revenue|floatformat:0|intcomma }}</td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-4">
+    <div class="card-header">Donaciones</div>
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <tbody>
+          <tr><td>Arte</td><td class="text-end">${{ report.summary.donations_art|floatformat:0|intcomma }}</td></tr>
+          <tr><td>Sede</td><td class="text-end">${{ report.summary.donations_venue|floatformat:0|intcomma }}</td></tr>
+          <tr><td>Beca / inclusión</td><td class="text-end">${{ report.summary.donations_grant|floatformat:0|intcomma }}</td></tr>
+          <tr class="table-light fw-semibold"><td>Total donaciones</td><td class="text-end">${{ report.summary.donations_total|floatformat:0|intcomma }}</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if report.payment_breakdown %}
+  <div class="card mt-4">
+    <div class="card-header">Ventas por medio de pago (órdenes)</div>
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead>
+          <tr>
+            <th>Medio</th>
+            <th class="text-end">Órdenes</th>
+            <th class="text-end">Bruto</th>
+            <th class="text-end">Neto</th>
+            <th class="text-end">Donaciones</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for row in report.payment_breakdown %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td class="text-end">{{ row.ordenes }}</td>
+            <td class="text-end">${{ row.bruto|floatformat:0|intcomma }}</td>
+            <td class="text-end">${{ row.neto|floatformat:0|intcomma }}</td>
+            <td class="text-end">${{ row.donaciones|floatformat:0|intcomma }}</td>
+          </tr>
+        {% endfor %}
+        <tr class="table-light fw-semibold">
+          <td>Total órdenes</td>
+          <td class="text-end">{{ report.summary.orders_count }}</td>
+          <td class="text-end">${{ report.summary.orders_bruto|floatformat:0|intcomma }}</td>
+          <td class="text-end">${{ report.summary.orders_neto|floatformat:0|intcomma }}</td>
+          <td class="text-end">${{ report.summary.donations_total|floatformat:0|intcomma }}</td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if report.caja_v2_by_payment %}
+  <div class="card mt-4">
+    <div class="card-header">Caja v2 por medio de pago</div>
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Medio</th><th class="text-end">Ventas</th><th class="text-end">Ingresos</th></tr></thead>
+        <tbody>
+        {% for row in report.caja_v2_by_payment %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td class="text-end">{{ row.count }}</td>
+            <td class="text-end">${{ row.revenue|floatformat:0|intcomma }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if event.venue_capacity %}
+  <div class="card mt-4">
+    <div class="card-header">Ocupación del venue</div>
+    <div class="card-body">
+      <p class="mb-2">{{ report.summary.venue_occupancy }} / {{ report.summary.venue_capacity }} ({{ report.summary.occupancy_percentage|floatformat:1 }}%)</p>
+      <div class="progress" style="height: 1.25rem;">
+        <div class="progress-bar bg-info" style="width: {{ report.summary.occupancy_percentage|floatformat:0 }}%;">
+          {{ report.summary.occupancy_percentage|floatformat:1 }}%
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card mt-4 border-success">
+    <div class="card-body">
+      <div class="row text-center">
+        <div class="col-md-6">
+          <div class="text-muted small">TOTAL BRUTO EVENTO</div>
+          <div class="fs-4 fw-bold text-success">${{ report.summary.grand_bruto|floatformat:0|intcomma }}</div>
+        </div>
+        <div class="col-md-6">
+          <div class="text-muted small">TOTAL NETO EVENTO</div>
+          <div class="fs-4 fw-bold">${{ report.summary.grand_neto|floatformat:0|intcomma }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

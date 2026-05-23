@@ -66,10 +66,18 @@
 
     <div class="alert alert-info" id="total-display">Total: $0</div>
 
-    <div class="d-grid gap-2 d-md-flex">
-      <button class="btn btn-success flex-fill" data-pay="EFECTIVO">Efectivo</button>
-      <button class="btn btn-primary flex-fill" data-pay="TRANSFERENCIA">Transferencia</button>
-      {% if mp_qr_ready %}<button class="btn btn-info flex-fill" data-pay="MP_QR">MP QR</button>{% endif %}
+    <div id="cash-method-picker" class="mb-2" style="display:none;">
+      <p class="small text-muted mb-2 mb-md-1">¿Cómo pagó?</p>
+      <div class="d-grid gap-2 d-md-flex">
+        <button type="button" class="btn btn-success flex-fill" data-cash-pick="EFECTIVO">Efectivo</button>
+        <button type="button" class="btn btn-primary flex-fill" data-cash-pick="TRANSFERENCIA">Transferencia</button>
+        <button type="button" class="btn btn-outline-secondary" data-cash-pick-cancel>Cancelar</button>
+      </div>
+    </div>
+
+    <div class="d-grid gap-2 d-md-flex" id="pay-buttons">
+      <button class="btn btn-success flex-fill" data-pay="CASH">Efectivo / Transferencia</button>
+      {% if mp_qr_ready %}<button class="btn btn-info flex-fill" data-pay="MP_QR">QR (Mercadopago/MODO/Lemon/etc)</button>{% endif %}
       {% if mp_point_ready %}<button class="btn btn-warning flex-fill" data-pay="MP_POINT">MP Postnet</button>{% endif %}
     </div>
   </div>
@@ -119,13 +127,29 @@
   let statusUrl = null;
   let cancelUrl = null;
   let activePayBtn = null;
-  const payButtons = document.querySelectorAll('[data-pay]');
+  const payButtons = document.querySelectorAll('#pay-buttons [data-pay]');
+  const cashMethodPicker = document.getElementById('cash-method-picker');
+  const payButtonsRow = document.getElementById('pay-buttons');
   const PAY_LABELS = {
+    CASH: 'Efectivo / Transferencia',
     EFECTIVO: 'Efectivo',
     TRANSFERENCIA: 'Transferencia',
-    MP_QR: 'MP QR',
+    MP_QR: 'QR',
     MP_POINT: 'MP Postnet',
   };
+
+  payButtons.forEach((btn) => {
+    btn.dataset.payLabel = btn.textContent.trim();
+  });
+
+  function payButtonLabel(btn) {
+    return btn.dataset.payLabel || PAY_LABELS[btn.dataset.pay] || btn.dataset.pay;
+  }
+
+  function showCashMethodPicker(show) {
+    cashMethodPicker.style.display = show ? 'block' : 'none';
+    payButtonsRow.style.display = show ? 'none' : '';
+  }
 
   function getLines() {
     const lines = [];
@@ -194,8 +218,7 @@
     cart.removeAttribute('aria-busy');
     payButtons.forEach((b) => {
       b.disabled = false;
-      const method = b.dataset.pay;
-      b.textContent = PAY_LABELS[method] || b.dataset.pay;
+      b.textContent = payButtonLabel(b);
     });
     activePayBtn = null;
   }
@@ -227,6 +250,7 @@
     cancelUrl = null;
     setPayProcessing(false);
     resetMpQrUi();
+    showCashMethodPicker(false);
     document.getElementById('point-section').style.display = 'none';
     document.getElementById('success-section').style.display = 'none';
     document.getElementById('caja-header').style.display = '';
@@ -340,59 +364,83 @@
   document.getElementById('mp-qr-cancel').addEventListener('click', cancelPendingSale);
   document.getElementById('point-cancel').addEventListener('click', cancelPendingSale);
 
-  document.querySelectorAll('[data-pay]').forEach(btn => {
+  document.querySelector('[data-cash-pick-cancel]').addEventListener('click', () => {
+    showCashMethodPicker(false);
+  });
+
+  document.querySelectorAll('[data-cash-pick]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const cashBtn = document.querySelector('[data-pay="CASH"]');
+      processSale(btn.dataset.cashPick, cashBtn);
+    });
+  });
+
+  async function processSale(paymentMethod, btn) {
+    const lines = getLines();
+    if (!lines.length) {
+      alert('Seleccioná al menos un producto');
+      return;
+    }
+    showCashMethodPicker(false);
+    setPayProcessing(true, btn);
+    try {
+      const sale = await postJson(createUrl, {
+        payment_method: paymentMethod,
+        lines,
+        email: document.getElementById('customer-email')?.value || '',
+        mark_as_used: document.getElementById('mark-as-used')?.checked ?? false,
+      });
+
+      if (sale.status === 'PAID') {
+        showSuccess(sale.total_amount);
+        return;
+      }
+
+      const base = createUrl.replace('/api/sales/', '/api/sales/' + sale.sale_id + '/');
+      statusUrl = base + 'status/';
+      cancelUrl = base + 'cancel/';
+      const totalLabel = 'Total: $' + parseFloat(sale.total_amount).toLocaleString('es-AR');
+
+      if (paymentMethod === 'MP_QR') {
+        showMpQrScreen(totalLabel);
+        setMpQrLoading(true, 'Generando QR...');
+        const qr = await postJson(base + 'pay/mp-qr/', {});
+        if (!qr.qr_data && !qr.qr_image) throw new Error('Mercado Pago no devolvió un QR');
+        renderDynamicQr(qr);
+        setMpQrLoading(false);
+        document.getElementById('mp-qr-waiting').style.display = 'block';
+        pollDelay = 2000;
+        pollStatus((data) => showSuccess(data.total_amount));
+        return;
+      }
+
+      if (paymentMethod === 'MP_POINT') {
+        setPayProcessing(false);
+        hideAllScreens();
+        document.getElementById('point-section').style.display = 'block';
+        await postJson(base + 'pay/mp-point/', {});
+        pollDelay = 2000;
+        pollStatus((data) => showSuccess(data.total_amount));
+      }
+    } catch (e) {
+      setPayProcessing(false);
+      alert(e.message);
+      resetToCaja();
+    }
+  }
+
+  payButtons.forEach(btn => {
     btn.addEventListener('click', async () => {
       const lines = getLines();
       if (!lines.length) {
         alert('Seleccioná al menos un producto');
         return;
       }
-      const paymentMethod = btn.dataset.pay;
-      setPayProcessing(true, btn);
-      try {
-        const sale = await postJson(createUrl, {
-          payment_method: paymentMethod,
-          lines,
-          email: document.getElementById('customer-email')?.value || '',
-          mark_as_used: document.getElementById('mark-as-used')?.checked ?? false,
-        });
-
-        if (sale.status === 'PAID') {
-          showSuccess(sale.total_amount);
-          return;
-        }
-
-        const base = createUrl.replace('/api/sales/', '/api/sales/' + sale.sale_id + '/');
-        statusUrl = base + 'status/';
-        cancelUrl = base + 'cancel/';
-        const totalLabel = 'Total: $' + parseFloat(sale.total_amount).toLocaleString('es-AR');
-
-        if (paymentMethod === 'MP_QR') {
-          showMpQrScreen(totalLabel);
-          setMpQrLoading(true, 'Generando QR...');
-          const qr = await postJson(base + 'pay/mp-qr/', {});
-          if (!qr.qr_data && !qr.qr_image) throw new Error('Mercado Pago no devolvió un QR');
-          renderDynamicQr(qr);
-          setMpQrLoading(false);
-          document.getElementById('mp-qr-waiting').style.display = 'block';
-          pollDelay = 2000;
-          pollStatus((data) => showSuccess(data.total_amount));
-          return;
-        }
-
-        if (paymentMethod === 'MP_POINT') {
-          setPayProcessing(false);
-          hideAllScreens();
-          document.getElementById('point-section').style.display = 'block';
-          await postJson(base + 'pay/mp-point/', {});
-          pollDelay = 2000;
-          pollStatus((data) => showSuccess(data.total_amount));
-        }
-      } catch (e) {
-        setPayProcessing(false);
-        alert(e.message);
-        resetToCaja();
+      if (btn.dataset.pay === 'CASH') {
+        showCashMethodPicker(true);
+        return;
       }
+      await processSale(btn.dataset.pay, btn);
     });
   });
 })();

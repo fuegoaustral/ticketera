@@ -154,7 +154,23 @@ def check_order_status(request, order_key):
     order = Order.objects.get(key=order_key)
     if order.email != request.user.email:
         return HttpResponseForbidden('Forbidden')
-    return JsonResponse({"status": order.status})
+
+    payload = {"status": order.status}
+    if order.status == Order.OrderStatus.CONFIRMED:
+        from logros.services import check_and_unlock_for_user, get_pending_celebrations
+
+        check_and_unlock_for_user(request.user)
+        pending = get_pending_celebrations(request.user)
+        payload['new_achievements'] = [
+            {
+                'slug': ua.achievement.slug,
+                'name': ua.achievement.name,
+                'description': ua.achievement.description,
+                'image_url': ua.achievement.image_url,
+            }
+            for ua in pending
+        ]
+    return JsonResponse(payload)
 
 @login_required
 def checkout_payment_callback(request, order_key):
