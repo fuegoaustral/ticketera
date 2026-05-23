@@ -1091,7 +1091,6 @@ def mis_logros_view(request):
             'name': ua.achievement.name,
             'description': ua.achievement.description,
             'image_url': ua.achievement.image_url,
-            'static_image_path': ua.achievement.static_image_path,
         }
         for ua in pending
     ]

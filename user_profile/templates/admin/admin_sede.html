@@ -113,11 +113,11 @@
 {% block content %}
 <div class="sede-admin">
     <h1>La Sede — Miembros</h1>
-    <p>Sincronizá las suscripciones de MercadoPago con los usuarios de la plataforma (match por email o DNI).</p>
+    <p>Sincronizá todas las suscripciones de MercadoPago y sus pagos con los usuarios de la plataforma (match por DNI, email o nombre similar).</p>
 
     <div class="sede-actions">
         <button type="button" id="sync-btn" class="button default">Sync</button>
-        <span class="plan-ids">Planes: {{ plan_ids|join:", "|default:"todos" }}</span>
+        <span class="plan-ids">Cuenta completa de MercadoPago{% if plan_ids %} · planes configurados: {{ plan_ids|join:", " }}{% endif %}</span>
         <span id="member-count"><strong>{{ members|length }}</strong> miembro(s) activo(s)</span>
     </div>
 
