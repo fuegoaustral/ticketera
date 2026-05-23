@@ -22,6 +22,9 @@ SYNC_CACHE_TIMEOUT = 3600
 SYNC_CACHE_PREFIX = 'sede_sync_'
 LAST_NAME_SIMILARITY_THRESHOLD = 0.85
 FIRST_NAME_SIMILARITY_THRESHOLD = 0.90
+MAX_SUBSCRIPTION_PAYMENTS = 30
+PRIMARY_SOURCES = {'subscription', 'customer'}
+PAYMENT_SOURCES = {'payment'}
 
 PAYMENT_METHOD_LABELS = {
     'account_money': 'Dinero en cuenta',
@@ -219,45 +222,82 @@ def _extract_email_from_payment(payment):
 
 def _payment_belongs_to_subscription(payment, subscription_id):
     if not subscription_id:
-        return True
+        return False
 
     metadata = payment.get('metadata') or {}
     metadata_values = {
         str(metadata.get('preapproval_id') or ''),
         str(metadata.get('subscription_id') or ''),
-        str(metadata.get('preapproval_plan_id') or ''),
     }
     if subscription_id in metadata_values:
         return True
 
-    description = str(payment.get('description') or '').lower()
+    description = str(payment.get('description') or '')
     external_reference = str(payment.get('external_reference') or '')
     if subscription_id in description or subscription_id in external_reference:
         return True
 
     order = payment.get('order') or {}
-    order_id = str(order.get('id') or '')
-    return subscription_id in order_id
+    order_type = str(order.get('type') or '').lower()
+    if order_type == 'mercadopago' and subscription_id in str(order.get('id') or ''):
+        return True
+
+    return False
+
+
+def _get_collector_payer_id():
+    collector_id = settings.MERCADOPAGO.get('COLLECTOR_USER_ID')
+    if not collector_id:
+        return None
+    try:
+        return int(collector_id)
+    except (TypeError, ValueError):
+        return None
 
 
 def fetch_payments_for_subscription(sdk, subscription_id, payer_id=None):
+    """Fetch only payments that belong to this specific subscription."""
+    if not subscription_id:
+        return []
+
     seen_payment_ids = set()
     payments = []
+    collector_payer_id = _get_collector_payer_id()
 
-    search_filters = [{'sort': 'date_created', 'criteria': 'desc'}]
+    if payer_id and collector_payer_id and int(payer_id) == collector_payer_id:
+        payer_id = None
+
     if payer_id:
-        search_filters.append({'payer.id': payer_id, 'sort': 'date_created', 'criteria': 'desc'})
-    search_filters.append({'q': subscription_id, 'sort': 'date_created', 'criteria': 'desc'})
-
-    for filters in search_filters:
-        for payment in _paginated_search(sdk.payment().search, filters):
+        for payment in _paginated_search(
+            sdk.payment().search,
+            {'payer.id': payer_id, 'sort': 'date_created', 'criteria': 'desc'},
+            limit=50,
+        ):
             payment_id = payment.get('id')
             if payment_id in seen_payment_ids:
                 continue
-            if filters.get('payer.id') and not _payment_belongs_to_subscription(payment, subscription_id):
+            if not _payment_belongs_to_subscription(payment, subscription_id):
                 continue
             seen_payment_ids.add(payment_id)
             payments.append(payment)
+            if len(payments) >= MAX_SUBSCRIPTION_PAYMENTS:
+                break
+
+    if not payments:
+        for payment in _paginated_search(
+            sdk.payment().search,
+            {'q': subscription_id, 'sort': 'date_created', 'criteria': 'desc'},
+            limit=50,
+        ):
+            payment_id = payment.get('id')
+            if payment_id in seen_payment_ids:
+                continue
+            if not _payment_belongs_to_subscription(payment, subscription_id):
+                continue
+            seen_payment_ids.add(payment_id)
+            payments.append(payment)
+            if len(payments) >= MAX_SUBSCRIPTION_PAYMENTS:
+                break
 
     return payments
 
@@ -265,7 +305,9 @@ def fetch_payments_for_subscription(sdk, subscription_id, payer_id=None):
 def _add_payer_hint(hints, source, email=None, doc_type=None, doc_number=None,
                     first_name=None, last_name=None):
     if email:
-        hints['emails'].add(email.strip().lower())
+        normalized_email = email.strip().lower()
+        hints['emails'].add(normalized_email)
+        hints['email_sources'].setdefault(normalized_email, set()).add(source)
     if doc_number:
         hints['documents'].append({
             'source': source,
@@ -283,6 +325,7 @@ def _add_payer_hint(hints, source, email=None, doc_type=None, doc_number=None,
 def collect_payer_hints(sdk, subscription_summary, subscription_detail, payments):
     hints = {
         'emails': set(),
+        'email_sources': {},
         'documents': [],
         'names': [],
     }
@@ -331,10 +374,16 @@ def collect_payer_hints(sdk, subscription_summary, subscription_detail, payments
     return hints
 
 
-def _find_user_by_email(email, user_index):
+def _find_user_by_email(email, user_index, payer_first_name='', payer_last_name=''):
     if not email:
         return None
-    return user_index['by_email'].get(email.strip().lower())
+    user = user_index['by_email'].get(email.strip().lower())
+    if not user:
+        return None
+    if payer_last_name and user.last_name:
+        if name_similarity(payer_last_name, user.last_name) < 0.5:
+            return None
+    return user
 
 
 def _find_user_by_document(document_number, user_index):
@@ -376,18 +425,15 @@ def _find_user_by_name(first_name, last_name, user_index):
     return best_user, best_score
 
 
-def match_payer_hints_to_user(hints, user_index):
-    for email in hints['emails']:
-        user = _find_user_by_email(email, user_index)
-        if user:
-            return user, 'email', {'email': email}
+def _match_from_hints(hints, user_index, allowed_sources, payer_first_name='', payer_last_name=''):
+    allowed_documents = [doc for doc in hints['documents'] if doc.get('source') in allowed_sources]
+    allowed_names = [name for name in hints['names'] if name.get('source') in allowed_sources]
+    allowed_emails = {
+        email for email in hints['emails']
+        if any(source in allowed_sources for source in hints.get('email_sources', {}).get(email, []))
+    } if hints.get('email_sources') else set()
 
-    seen_documents = set()
-    for document in hints['documents']:
-        normalized = normalize_document_number(document.get('number'))
-        if not normalized or normalized in seen_documents:
-            continue
-        seen_documents.add(normalized)
+    for document in allowed_documents:
         user = _find_user_by_document(document.get('number'), user_index)
         if user:
             return user, 'dni', {
@@ -397,11 +443,10 @@ def match_payer_hints_to_user(hints, user_index):
             }
 
     best_user = None
-    best_method = None
     best_meta = None
     best_score = 0.0
 
-    for name_hint in hints['names']:
+    for name_hint in allowed_names:
         user, score = _find_user_by_name(
             name_hint.get('first_name'),
             name_hint.get('last_name'),
@@ -409,7 +454,6 @@ def match_payer_hints_to_user(hints, user_index):
         )
         if user and score > best_score:
             best_user = user
-            best_method = 'name'
             best_meta = {
                 'first_name': name_hint.get('first_name'),
                 'last_name': name_hint.get('last_name'),
@@ -419,7 +463,41 @@ def match_payer_hints_to_user(hints, user_index):
             best_score = score
 
     if best_user:
-        return best_user, best_method, best_meta
+        return best_user, 'name', best_meta
+
+    for email in allowed_emails:
+        user = _find_user_by_email(
+            email,
+            user_index,
+            payer_first_name=payer_first_name,
+            payer_last_name=payer_last_name,
+        )
+        if user:
+            return user, 'email', {'email': email}
+
+    return None, None, None
+
+
+def match_payer_hints_to_user(hints, user_index, payer_first_name='', payer_last_name=''):
+    user, method, meta = _match_from_hints(
+        hints,
+        user_index,
+        PRIMARY_SOURCES,
+        payer_first_name=payer_first_name,
+        payer_last_name=payer_last_name,
+    )
+    if user:
+        return user, method, meta
+
+    user, method, meta = _match_from_hints(
+        hints,
+        user_index,
+        PAYMENT_SOURCES,
+        payer_first_name=payer_first_name,
+        payer_last_name=payer_last_name,
+    )
+    if user:
+        return user, method, meta
 
     return None, None, _summarize_unmatched_hints(hints)
 
@@ -521,7 +599,22 @@ def match_subscription_to_user(sdk, subscription_summary, subscription_detail=No
     )
     payments = fetch_payments_for_subscription(sdk, sub_id, payer_id=payer_id)
     hints = collect_payer_hints(sdk, subscription_summary, subscription_detail, payments)
-    user, match_method, match_meta = match_payer_hints_to_user(hints, user_index)
+    payer_first_name = (
+        subscription_detail.get('payer_first_name')
+        or subscription_summary.get('payer_first_name')
+        or ''
+    )
+    payer_last_name = (
+        subscription_detail.get('payer_last_name')
+        or subscription_summary.get('payer_last_name')
+        or ''
+    )
+    user, match_method, match_meta = match_payer_hints_to_user(
+        hints,
+        user_index,
+        payer_first_name=payer_first_name,
+        payer_last_name=payer_last_name,
+    )
     details = _extract_subscription_details(subscription_summary, subscription_detail, payments)
 
     document_number = None
@@ -580,6 +673,7 @@ def start_sync():
             'total': len(subscriptions),
             'processed': 0,
             'active_subscription_ids': [],
+            'assigned_users': {},
             'results': [],
             'done': False,
         },
@@ -661,19 +755,28 @@ def process_next_subscription(sync_id):
             user_index=state.get('user_index'),
         )
         if user:
-            apply_subscription_to_profile(user.profile, details)
-            if details.get('status') in ACTIVE_SUBSCRIPTION_STATUSES:
-                state['active_subscription_ids'].append(sub_id)
-            result.update({
-                'matched': True,
-                'match_method': match_method,
-                'user_email': user.email,
-                'message': f'Vinculado con {user.email} ({match_method})',
-            })
-            if match_method == 'name' and details.get('match_meta'):
-                result['message'] += f" — score {details['match_meta'].get('score')}"
-            if details.get('payments_checked'):
-                result['message'] += f" — {details['payments_checked']} pago(s)"
+            assigned_users = state.setdefault('assigned_users', {})
+            previous_name = assigned_users.get(user.id)
+            if previous_name and payer_name and name_similarity(previous_name, payer_name) < 0.5:
+                result['message'] = (
+                    f'Conflicto: {user.email} ya vinculado a "{previous_name}", '
+                    f'no coincide con "{payer_name}"'
+                )
+            else:
+                apply_subscription_to_profile(user.profile, details)
+                assigned_users[user.id] = payer_name or user.get_full_name()
+                if details.get('status') in ACTIVE_SUBSCRIPTION_STATUSES:
+                    state['active_subscription_ids'].append(sub_id)
+                result.update({
+                    'matched': True,
+                    'match_method': match_method,
+                    'user_email': user.email,
+                    'message': f'Vinculado con {user.email} ({match_method})',
+                })
+                if match_method == 'name' and details.get('match_meta'):
+                    result['message'] += f" — score {details['match_meta'].get('score')}"
+                if details.get('payments_checked'):
+                    result['message'] += f" — {details['payments_checked']} pago(s)"
         else:
             result['message'] = _format_unmatched_message(details or {})
     except Exception as exc:
