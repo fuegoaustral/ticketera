@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 ACTIVE_SUBSCRIPTION_STATUSES = {'authorized'}
 LAST_NAME_SIMILARITY_THRESHOLD = 0.85
 FIRST_NAME_SIMILARITY_THRESHOLD = 0.90
-SUBSCRIPTION_PAYMENTS_MONTHS = 2
+SUBSCRIPTION_PAYMENTS_LOOKBACK_DAYS = 375
 ALL_HINT_SOURCES = {'subscription', 'customer', 'payment', 'invoice'}
 API_RETRY_ATTEMPTS = 4
 API_RETRY_BASE_SECONDS = 0.75
@@ -319,15 +319,15 @@ def _mp_api_get(sdk, uri, filters=None):
     return sdk.preapproval()._get(uri=uri, filters=filters or {})
 
 
-def _is_within_last_months(value, months=SUBSCRIPTION_PAYMENTS_MONTHS):
+def _is_within_lookback_window(value, days=SUBSCRIPTION_PAYMENTS_LOOKBACK_DAYS):
     dt = parse_mp_datetime(value)
     if not dt:
         return False
-    cutoff = timezone.now() - timedelta(days=months * 31)
+    cutoff = timezone.now() - timedelta(days=days)
     return dt >= cutoff
 
 
-def fetch_subscription_recent_payments(sdk, subscription_id, log=None, months=SUBSCRIPTION_PAYMENTS_MONTHS):
+def fetch_subscription_recent_payments(sdk, subscription_id, log=None, lookback_days=SUBSCRIPTION_PAYMENTS_LOOKBACK_DAYS):
     """
     Fetch subscription invoices via /authorized_payments/search, filter last N months,
     then load full payment records for payer identification data.
@@ -348,12 +348,12 @@ def fetch_subscription_recent_payments(sdk, subscription_id, log=None, months=SU
 
     recent_invoices = [
         invoice for invoice in invoices
-        if _is_within_last_months(invoice.get('debit_date') or invoice.get('date_created'), months)
+        if _is_within_lookback_window(invoice.get('debit_date') or invoice.get('date_created'), lookback_days)
     ]
     log.info(
-        '  %d invoice(s) within last %d month(s)',
+        '  %d invoice(s) within last %d day(s)',
         len(recent_invoices),
-        months,
+        lookback_days,
     )
 
     payment_ids = []
@@ -745,27 +745,35 @@ def apply_subscription_to_profile(profile, details, match_method=''):
         return
 
     is_active = details.get('status') in ACTIVE_SUBSCRIPTION_STATUSES
-    sub, _ = SedeSubscription.objects.update_or_create(
-        subscription_id=subscription_id,
-        defaults={
-            'profile': profile,
-            'plan_id': details.get('plan_id') or '',
-            'tier_name': details.get('tier_name') or '',
-            'status': details.get('status') or '',
-            'payment_method': details.get('payment_method') or '',
-            'last_payment_date': details.get('last_payment_date'),
-            'last_payment_amount': details.get('last_payment_amount'),
-            'next_payment_date': details.get('next_payment_date'),
-            'member_since': details.get('member_since'),
-            'is_active': is_active,
-            'matched_via': match_method or '',
-            'synced_at': timezone.now(),
-        },
-    )
-    if sub.profile_id != profile.id:
-        sub.profile = profile
-        sub.save(update_fields=['profile', 'updated_at'])
+    defaults = {
+        'plan_id': details.get('plan_id') or '',
+        'tier_name': details.get('tier_name') or '',
+        'status': details.get('status') or '',
+        'payment_method': details.get('payment_method') or '',
+        'last_payment_date': details.get('last_payment_date'),
+        'last_payment_amount': details.get('last_payment_amount'),
+        'next_payment_date': details.get('next_payment_date'),
+        'member_since': details.get('member_since'),
+        'is_active': is_active,
+        'matched_via': match_method or '',
+        'synced_at': timezone.now(),
+    }
 
+    existing = SedeSubscription.objects.filter(subscription_id=subscription_id).select_related('profile').first()
+    if existing:
+        # Do not replace an existing subscription/user match on periodic sync.
+        # Keep the matched profile and only refresh subscription values.
+        for field, value in defaults.items():
+            setattr(existing, field, value)
+        existing.save(update_fields=[*defaults.keys(), 'updated_at'])
+        _refresh_profile_membership_summary(existing.profile)
+        return
+
+    SedeSubscription.objects.create(
+        subscription_id=subscription_id,
+        profile=profile,
+        **defaults,
+    )
     _refresh_profile_membership_summary(profile)
 
 
