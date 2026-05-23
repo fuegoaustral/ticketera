@@ -25,6 +25,9 @@
         {% endif %}
         {% if user.is_staff %}
         <li>
+            <a href="{% url 'admin_sede_subscriptions_view' %}">LA SEDE — SUBSCRIPTIONS</a>
+        </li>
+        <li>
             <a href="{% url 'admin_sede_matches_view' %}">LA SEDE — MATCH AUDIT</a>
         </li>
         {% endif %}

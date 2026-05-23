@@ -133,3 +133,17 @@ class SedeUnmatchedSubscription(BaseModel):
 
     def __str__(self):
         return f'Unmatched {self.subscription_id} ({self.status})'
+
+
+class SedeSubscriptionPlan(BaseModel):
+    plan_id = models.CharField(max_length=64, unique=True)
+    plan_name = models.CharField(max_length=255, blank=True, default='')
+    is_enabled = models.BooleanField(default=False)
+    subscriptions_count = models.PositiveIntegerField(default=0)
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ('-is_enabled', 'plan_name', 'plan_id')
+
+    def __str__(self):
+        return f'{self.plan_name or self.plan_id} ({self.plan_id})'

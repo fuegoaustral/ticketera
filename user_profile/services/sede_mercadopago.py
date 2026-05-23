@@ -15,7 +15,12 @@ from django.db import DatabaseError
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
-from user_profile.models import Profile, SedeSubscription, SedeUnmatchedSubscription
+from user_profile.models import (
+    Profile,
+    SedeSubscription,
+    SedeSubscriptionPlan,
+    SedeUnmatchedSubscription,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,11 +47,57 @@ PAYMENT_METHOD_LABELS = {
 
 
 def get_sede_plan_ids():
+    try:
+        enabled_db_plan_ids = list(
+            SedeSubscriptionPlan.objects.filter(is_enabled=True).values_list('plan_id', flat=True)
+        )
+    except Exception:
+        enabled_db_plan_ids = []
+
+    if enabled_db_plan_ids:
+        return enabled_db_plan_ids
+
     plan_ids = list(getattr(settings, 'SEDE_SUBSCRIPTION_PLAN_IDS', []) or [])
     default_plan = getattr(settings, 'SEDE_DEFAULT_PLAN_ID', '')
     if default_plan and default_plan not in plan_ids:
         plan_ids.append(default_plan)
     return plan_ids
+
+
+def refresh_sede_subscription_plans(log=None):
+    log = log or logger
+    sdk = get_mp_sdk()
+    subscriptions = fetch_all_subscriptions(sdk=sdk)
+
+    plan_catalog = {}
+    for sub in subscriptions:
+        plan_id = (sub.get('preapproval_plan_id') or '').strip()
+        if not plan_id:
+            continue
+        plan_name = (sub.get('reason') or '').strip()
+        item = plan_catalog.setdefault(plan_id, {'name': '', 'count': 0})
+        item['count'] += 1
+        if plan_name and (not item['name'] or len(plan_name) > len(item['name'])):
+            item['name'] = plan_name
+
+    refreshed = 0
+    now = timezone.now()
+    for plan_id, info in plan_catalog.items():
+        SedeSubscriptionPlan.objects.update_or_create(
+            plan_id=plan_id,
+            defaults={
+                'plan_name': info['name'] or '',
+                'subscriptions_count': info['count'],
+                'last_seen_at': now,
+            },
+        )
+        refreshed += 1
+
+    log.info('Refreshed %d MercadoPago subscription plan(s)', refreshed)
+    return {
+        'total_subscriptions': len(subscriptions),
+        'refreshed_plans': refreshed,
+    }
 
 
 def normalize_document_number(document_number):
@@ -154,14 +205,18 @@ def _paginated_search(search_fn, filters, limit=50):
     return results
 
 
-def fetch_all_subscriptions(sdk=None):
+def fetch_all_subscriptions(sdk=None, plan_ids=None):
     """Fetch every subscription on the MercadoPago account."""
     sdk = sdk or get_mp_sdk()
     seen_ids = set()
     subscriptions = []
+    allowed_plan_ids = set(plan_ids or [])
 
     for item in _paginated_search(sdk.preapproval().search, {}):
         sub_id = item.get('id')
+        plan_id = item.get('preapproval_plan_id') or ''
+        if allowed_plan_ids and plan_id not in allowed_plan_ids:
+            continue
         if sub_id and sub_id not in seen_ids:
             seen_ids.add(sub_id)
             subscriptions.append(item)
@@ -875,7 +930,8 @@ def run_match_audit(log=None):
         return {'error': 'MERCADOPAGO_ACCESS_TOKEN not configured'}
 
     sdk = get_mp_sdk()
-    subscriptions = fetch_all_subscriptions(sdk)
+    plan_ids = get_sede_plan_ids()
+    subscriptions = fetch_all_subscriptions(sdk, plan_ids=plan_ids)
     user_index = build_user_match_index()
 
     matched_count = 0
@@ -970,7 +1026,7 @@ def run_full_sync(log=None):
     sdk = get_mp_sdk()
 
     log.info('Fetching subscriptions from MercadoPago...')
-    subscriptions = fetch_all_subscriptions(sdk)
+    subscriptions = fetch_all_subscriptions(sdk, plan_ids=plan_ids)
     total = len(subscriptions)
     log.info('Found %d subscription(s)', total)
 
