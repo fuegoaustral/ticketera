@@ -1,0 +1,123 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+
+{% block submenu %}
+    {% include 'mi_fuego/partials/event_admin_menu.html' %}
+{% endblock submenu %}
+
+{% block truecontent %}
+<style>
+.caja-v2-products .badge.text-bg-secondary {
+    background-color: #6c757d !important;
+    color: #fff !important;
+    border: none !important;
+}
+.caja-v2-products .badge.text-bg-primary {
+    background-color: #0d6efd !important;
+    color: #fff !important;
+    border: none !important;
+}
+.caja-v2-products .badge.text-bg-warning {
+    background-color: #ffc107 !important;
+    color: #212529 !important;
+    border: none !important;
+}
+</style>
+<div class="container-fluid py-3 caja-v2-products">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0"><i class="fas fa-box me-2"></i>Productos — {{ event.name }}</h4>
+        <a href="{% url 'cajas_v2' event.slug %}" class="btn btn-outline-secondary btn-sm">Cajas v2</a>
+    </div>
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="card mb-4">
+        <div class="card-header">Nuevo producto genérico</div>
+        <div class="card-body">
+            <p class="text-muted small mb-3">
+                Para vender cosas que no son entradas (bebidas, comida, merch, etc.).
+                Los bonos ya están creados automáticamente por cada tipo de entrada.
+            </p>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create">
+                <div class="row g-3 align-items-end">
+                    {% if form.ticket_type %}
+                    <div class="col-md-4">{{ form.ticket_type.label_tag }} {{ form.ticket_type }}</div>
+                    <div class="col-md-3">{{ form.name.label_tag }} {{ form.name }}</div>
+                    <div class="col-md-2">{{ form.price.label_tag }} {{ form.price }}</div>
+                    {% else %}
+                    <div class="col-md-5">{{ form.name.label_tag }} {{ form.name }}</div>
+                    <div class="col-md-2">{{ form.price.label_tag }} {{ form.price }}</div>
+                    {% endif %}
+                    <div class="col-md-2" id="initial-stock-wrap">
+                        {{ form.initial_stock.label_tag }}
+                        {{ form.initial_stock }}
+                    </div>
+                    <div class="col-md-1">
+                        <div class="form-check mt-4">
+                            {{ form.unlimited_stock }}
+                            <label class="form-check-label" for="id_unlimited_stock">{{ form.unlimited_stock.label }}</label>
+                        </div>
+                    </div>
+                </div>
+                {% if form.errors %}
+                    <div class="text-danger small mt-2">{{ form.errors }}</div>
+                {% endif %}
+                <button type="submit" class="btn btn-primary mt-3">Crear producto</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        const unlimited = document.getElementById('id_unlimited_stock');
+        const stockWrap = document.getElementById('initial-stock-wrap');
+        const stockInput = document.getElementById('id_initial_stock');
+        if (!unlimited || !stockWrap || !stockInput) return;
+        function sync() {
+            const isUnlimited = unlimited.checked;
+            stockWrap.style.opacity = isUnlimited ? '0.5' : '1';
+            stockInput.disabled = isUnlimited;
+            if (isUnlimited) stockInput.value = '';
+        }
+        unlimited.addEventListener('change', sync);
+        sync();
+    })();
+    </script>
+
+    <div class="card">
+        <div class="card-body p-0">
+            <table class="table mb-0">
+                <thead><tr><th>Producto</th><th>Precio</th><th>Stock</th><th></th></tr></thead>
+                <tbody>
+                {% for product in products %}
+                    <tr>
+                        <td>
+                            {{ product.display_name }}
+                            {% if product.ticket_type %}
+                                <span class="badge text-bg-secondary">Bono</span>
+                            {% else %}
+                                <span class="badge text-bg-primary">Genérico</span>
+                            {% endif %}
+                            {% if not product.is_active %}
+                                <span class="badge text-bg-warning">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td>${{ product.price|floatformat:0 }}</td>
+                        <td>{% if product.stock.quantity is None %}Ilimitado{% else %}{{ product.stock.quantity }}{% endif %}</td>
+                        <td class="text-end">
+                            <a href="{% url 'caja_product_edit' event.slug product.id %}" class="btn btn-sm btn-outline-secondary">Editar</a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="4" class="text-muted p-3">No hay productos.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,174 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% load humanize %}
+
+{% block submenu %}
+  {% include 'mi_fuego/partials/event_admin_menu.html' %}
+{% endblock submenu %}
+
+{% block truecontent %}
+<style>
+  .report-stat {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    text-align: center;
+    height: 100%;
+  }
+  .report-stat .value {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #289e6d;
+  }
+  .report-stat .label {
+    font-size: 0.8rem;
+    color: #6c757d;
+    text-transform: uppercase;
+  }
+</style>
+
+<div class="container-fluid py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h4 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Reporte de cajas — {{ event.name }}</h4>
+    <a href="{% url 'cajas_v2' event.slug %}" class="btn btn-outline-secondary btn-sm">Cajas v2</a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="report-stat">
+        <div class="value">${{ report.summary.total_revenue|floatformat:0|intcomma }}</div>
+        <div class="label">Ingresos (caja v2)</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="report-stat">
+        <div class="value">{{ report.summary.total_sales|intcomma }}</div>
+        <div class="label">Ventas pagadas</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="report-stat">
+        <div class="value">{{ report.summary.items_sold|intcomma }}</div>
+        <div class="label">Ítems vendidos</div>
+      </div>
+    </div>
+  </div>
+
+  {% if not has_sales %}
+    <div class="alert alert-info">Todavía no hay ventas pagadas en cajas v2 para este evento.</div>
+  {% else %}
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <div class="card h-100">
+          <div class="card-header">Ventas por caja</div>
+          <div class="card-body"><canvas id="chart-by-caja" height="220"></canvas></div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card h-100">
+          <div class="card-header">Ventas por producto</div>
+          <div class="card-body"><canvas id="chart-by-item" height="220"></canvas></div>
+        </div>
+      </div>
+      <div class="col-lg-8">
+        <div class="card h-100">
+          <div class="card-header">Ventas por hora</div>
+          <div class="card-body"><canvas id="chart-by-hour" height="200"></canvas></div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="card h-100">
+          <div class="card-header">Por medio de pago</div>
+          <div class="card-body"><canvas id="chart-by-payment" height="200"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-4">
+      <div class="card-header">Detalle por caja</div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Caja</th><th class="text-end">Ventas</th><th class="text-end">Ingresos</th></tr></thead>
+          <tbody>
+          {% for row in report.by_caja %}
+            <tr>
+              <td>{{ row.event_caja__name }}</td>
+              <td class="text-end">{{ row.count }}</td>
+              <td class="text-end">${{ row.revenue|floatformat:0|intcomma }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="row g-4 mt-3">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>Stock actual (productos con límite)</span>
+          <a href="{% url 'caja_stock_report' event.slug %}" class="btn btn-sm btn-outline-secondary">Reporte completo</a>
+        </div>
+        <div class="card-body"><canvas id="chart-stock" height="180"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+  const palette = ['#289e6d', '#0d6efd', '#ffc107', '#dc3545', '#6f42c1', '#20c997', '#fd7e14'];
+
+  function barChart(canvasId, data, valueKey, label) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !data.length) {
+      if (canvas) canvas.parentNode.innerHTML = '<p class="text-muted text-center py-4 mb-0">Sin datos.</p>';
+      return;
+    }
+    new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: data.map(d => d.label),
+        datasets: [{
+          label: label,
+          data: data.map(d => d[valueKey]),
+          backgroundColor: palette.map(c => c + '99'),
+          borderColor: palette,
+          borderWidth: 1,
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } },
+      },
+    });
+  }
+
+  {% if has_sales %}
+  barChart('chart-by-caja', {{ report.charts.by_caja|safe }}, 'revenue', 'Ingresos');
+  barChart('chart-by-item', {{ report.charts.by_item|safe }}, 'quantity', 'Unidades');
+  barChart('chart-by-hour', {{ report.charts.by_hour|safe }}, 'revenue', 'Ingresos');
+  const paymentData = {{ report.charts.by_payment|safe }};
+  const payCanvas = document.getElementById('chart-by-payment');
+  if (payCanvas && paymentData.length) {
+    new Chart(payCanvas, {
+      type: 'doughnut',
+      data: {
+        labels: paymentData.map(d => d.label),
+        datasets: [{
+          data: paymentData.map(d => d.revenue),
+          backgroundColor: palette,
+        }],
+      },
+      options: { responsive: true },
+    });
+  }
+  {% endif %}
+
+  barChart('chart-stock', {{ report.charts.stock|safe }}, 'quantity', 'Unidades en stock');
+})();
+</script>
+{% endblock %}

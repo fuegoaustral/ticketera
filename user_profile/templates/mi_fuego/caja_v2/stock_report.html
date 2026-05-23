@@ -1,0 +1,82 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+
+{% block submenu %}
+  {% include 'mi_fuego/partials/event_admin_menu.html' %}
+{% endblock submenu %}
+
+{% block truecontent %}
+<div class="container-fluid py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h4 class="mb-0"><i class="fas fa-warehouse me-2"></i>Reporte de stocks — {{ event.name }}</h4>
+    <a href="{% url 'caja_products' event.slug %}" class="btn btn-outline-secondary btn-sm">Productos</a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3 col-6">
+      <div class="card text-center"><div class="card-body py-3">
+        <div class="fw-bold fs-4">{{ report.summary.total_products }}</div>
+        <div class="text-muted small">Productos</div>
+      </div></div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="card text-center"><div class="card-body py-3">
+        <div class="fw-bold fs-4">{{ report.summary.active_products }}</div>
+        <div class="text-muted small">Activos</div>
+      </div></div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="card text-center"><div class="card-body py-3">
+        <div class="fw-bold fs-4">{{ report.summary.unlimited_count }}</div>
+        <div class="text-muted small">Ilimitados</div>
+      </div></div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="card text-center"><div class="card-body py-3">
+        <div class="fw-bold fs-4 text-warning">{{ report.summary.low_stock_count }}</div>
+        <div class="text-muted small">Stock bajo (≤5)</div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Tipo</th>
+            <th class="text-end">Precio</th>
+            <th class="text-end">Stock</th>
+            <th>Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for row in report.rows %}
+          <tr>
+            <td>{{ row.name }}</td>
+            <td>{% if row.is_ticket %}<span class="badge text-bg-secondary">Bono</span>{% else %}<span class="badge text-bg-primary">Genérico</span>{% endif %}</td>
+            <td class="text-end">${{ row.price|floatformat:0 }}</td>
+            <td class="text-end">
+              {% if row.quantity is None %}
+                Ilimitado
+              {% elif row.quantity <= 5 %}
+                <span class="text-warning fw-semibold">{{ row.stock_label }}</span>
+              {% else %}
+                {{ row.stock_label }}
+              {% endif %}
+            </td>
+            <td>{% if row.is_active %}<span class="text-success">Activo</span>{% else %}<span class="text-muted">Inactivo</span>{% endif %}</td>
+            <td class="text-end">
+              <a href="{% url 'caja_product_edit' event.slug row.product.id %}" class="btn btn-sm btn-outline-secondary">Editar</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="text-muted p-3">No hay productos.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

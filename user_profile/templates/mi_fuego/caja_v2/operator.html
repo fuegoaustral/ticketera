@@ -1,0 +1,400 @@
+{% extends 'tickets/barbu_base.html' %}
+{% block title %}Caja v2 - {{ caja.name }} - {% endblock %}
+{% block full_content %}
+<div class="container-fluid py-3" id="caja-v2-app"
+     data-create-url="{% url 'caja_v2_api_create_sale' event.slug caja.id %}"
+     data-csrf="{{ csrf_token }}">
+  <h4 class="mb-3" id="caja-header"><i class="fas fa-cash-register me-2"></i>{{ caja.name }} — {{ event.name }}</h4>
+
+  {% if has_ticket_products %}
+    {% include 'mi_fuego/caja_v2/ticket_stats_panel.html' %}
+  {% endif %}
+
+  <style>
+    #cart-section.caja-processing {
+      pointer-events: none;
+      opacity: 0.55;
+    }
+    #cart-section.caja-processing .qty-stepper button,
+    #cart-section.caja-processing .qty-input,
+    #cart-section.caja-processing input,
+    #cart-section.caja-processing .form-check-input {
+      pointer-events: none;
+    }
+  </style>
+
+  <div id="cart-section">
+    <div class="list-group mb-3">
+      {% for item in products %}
+      <div class="list-group-item">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <strong>{{ item.product.display_name }}</strong>
+            <div class="small text-muted">
+              {% if item.unlimited %}Ilimitado{% else %}Stock: {{ item.available }}{% endif %}
+            </div>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="fw-bold">${{ item.product.price|floatformat:0 }}</span>
+            <div class="input-group input-group-sm qty-stepper" style="width:120px;">
+              <button type="button" class="btn btn-outline-secondary qty-minus" aria-label="Menos">−</button>
+              <input type="number" min="0" max="{% if item.unlimited %}9999{% else %}{{ item.available }}{% endif %}"
+                     value="0" class="form-control text-center qty-input"
+                     data-product-id="{{ item.product.id }}"
+                     data-price="{{ item.product.price }}"
+                     data-name="{{ item.product.display_name }}">
+              <button type="button" class="btn btn-outline-secondary qty-plus" aria-label="Más">+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="alert alert-warning">Esta caja no tiene productos asignados.</div>
+      {% endfor %}
+    </div>
+
+    {% if has_ticket_products %}
+    <div class="mb-3" id="ticket-customer-fields">
+      <label class="form-label">Email (opcional)</label>
+      <input type="email" id="customer-email" class="form-control">
+    </div>
+    <div class="form-check mb-3" id="ticket-mark-used-field">
+      <input class="form-check-input" type="checkbox" id="mark-as-used" checked>
+      <label class="form-check-label" for="mark-as-used">Marcar bonos como usados (venta en puerta)</label>
+    </div>
+    {% endif %}
+
+    <div class="alert alert-info" id="total-display">Total: $0</div>
+
+    <div class="d-grid gap-2 d-md-flex">
+      <button class="btn btn-success flex-fill" data-pay="EFECTIVO">Efectivo</button>
+      <button class="btn btn-primary flex-fill" data-pay="TRANSFERENCIA">Transferencia</button>
+      {% if mp_qr_ready %}<button class="btn btn-info flex-fill" data-pay="MP_QR">MP QR</button>{% endif %}
+      {% if mp_point_ready %}<button class="btn btn-warning flex-fill" data-pay="MP_POINT">MP Postnet</button>{% endif %}
+    </div>
+  </div>
+
+  <div id="mp-qr-section" style="display:none;" class="text-center py-4">
+    <p class="text-muted mb-1" id="mp-qr-total"></p>
+    <div id="mp-qr-container" class="d-flex justify-content-center my-3" style="min-height:280px;align-items:center;"></div>
+    <div id="mp-qr-loading" class="mb-3">
+      <div class="spinner-border text-primary" role="status"></div>
+      <p class="text-muted mt-2 mb-0" id="mp-qr-loading-text">Generando QR...</p>
+    </div>
+    <div id="mp-qr-waiting" class="mb-3" style="display:none;">
+      <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+      <span class="text-muted ms-2">Esperando pago...</span>
+    </div>
+    <button type="button" class="btn btn-outline-danger" id="mp-qr-cancel">Cancelar</button>
+  </div>
+
+  <div id="point-section" style="display:none;" class="text-center mt-4">
+    <h5>Completá el pago en el Postnet</h5>
+    <div class="spinner-border text-primary my-3" role="status"></div>
+    <p class="text-muted" id="point-status-text">Esperando pago...</p>
+    <button type="button" class="btn btn-outline-danger mt-2" id="point-cancel">Cancelar</button>
+  </div>
+
+  <div id="success-section" style="display:none;" class="text-center py-5">
+    <div class="mb-3">
+      <i class="fas fa-check-circle text-success" style="font-size:4rem;"></i>
+    </div>
+    <h4 class="mb-2">¡Listo!</h4>
+    <p class="mb-4" id="success-message"></p>
+    <button type="button" class="btn btn-primary btn-lg px-5" id="success-ok">OK</button>
+    <p class="text-muted small mt-3 mb-0" id="success-countdown"></p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+<script>
+(function() {
+  const app = document.getElementById('caja-v2-app');
+  const createUrl = app.dataset.createUrl;
+  const csrf = app.dataset.csrf;
+
+  let pollTimer = null;
+  let countdownTimer = null;
+  let pollDelay = 2000;
+  let statusUrl = null;
+  let cancelUrl = null;
+  let activePayBtn = null;
+  const payButtons = document.querySelectorAll('[data-pay]');
+  const PAY_LABELS = {
+    EFECTIVO: 'Efectivo',
+    TRANSFERENCIA: 'Transferencia',
+    MP_QR: 'MP QR',
+    MP_POINT: 'MP Postnet',
+  };
+
+  function getLines() {
+    const lines = [];
+    document.querySelectorAll('.qty-input').forEach(input => {
+      const qty = parseInt(input.value) || 0;
+      if (qty > 0) {
+        lines.push({ product_id: parseInt(input.dataset.productId), quantity: qty });
+      }
+    });
+    return lines;
+  }
+
+  function updateTotal() {
+    let total = 0;
+    document.querySelectorAll('.qty-input').forEach(input => {
+      const qty = parseInt(input.value) || 0;
+      total += qty * parseFloat(input.dataset.price);
+    });
+    document.getElementById('total-display').textContent = 'Total: $' + total.toLocaleString('es-AR');
+  }
+
+  function clampQty(input, delta) {
+    const min = parseInt(input.min) || 0;
+    const max = parseInt(input.max) || 9999;
+    const next = Math.min(max, Math.max(min, (parseInt(input.value) || 0) + delta));
+    input.value = next;
+    updateTotal();
+  }
+
+  document.querySelectorAll('.qty-stepper').forEach(stepper => {
+    const input = stepper.querySelector('.qty-input');
+    stepper.querySelector('.qty-minus').addEventListener('click', () => clampQty(input, -1));
+    stepper.querySelector('.qty-plus').addEventListener('click', () => clampQty(input, 1));
+    input.addEventListener('input', updateTotal);
+  });
+
+  async function postJson(url, body) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+      body: JSON.stringify(body || {}),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error');
+    return data;
+  }
+
+  function setPayProcessing(active, btn) {
+    const cart = document.getElementById('cart-section');
+    if (active) {
+      cart.classList.add('caja-processing');
+      cart.setAttribute('aria-busy', 'true');
+      payButtons.forEach((b) => {
+        b.disabled = true;
+      });
+      if (btn) {
+        activePayBtn = btn;
+        const method = btn.dataset.pay;
+        btn.innerHTML =
+          '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>' +
+          (PAY_LABELS[method] || 'Procesando') + '…';
+      }
+      return;
+    }
+    cart.classList.remove('caja-processing');
+    cart.removeAttribute('aria-busy');
+    payButtons.forEach((b) => {
+      b.disabled = false;
+      const method = b.dataset.pay;
+      b.textContent = PAY_LABELS[method] || b.dataset.pay;
+    });
+    activePayBtn = null;
+  }
+
+  function hideAllScreens() {
+    document.getElementById('caja-header').style.display = 'none';
+    document.getElementById('cart-section').style.display = 'none';
+    document.getElementById('mp-qr-section').style.display = 'none';
+    document.getElementById('point-section').style.display = 'none';
+    document.getElementById('success-section').style.display = 'none';
+  }
+
+  function resetMpQrUi() {
+    document.getElementById('mp-qr-section').style.display = 'none';
+    document.getElementById('mp-qr-total').textContent = '';
+    document.getElementById('mp-qr-container').innerHTML = '';
+    document.getElementById('mp-qr-container').style.visibility = 'visible';
+    document.getElementById('mp-qr-loading').style.display = 'none';
+    document.getElementById('mp-qr-waiting').style.display = 'none';
+    document.getElementById('mp-qr-loading-text').textContent = 'Generando QR...';
+  }
+
+  function resetToCaja() {
+    clearTimeout(pollTimer);
+    clearTimeout(countdownTimer);
+    pollTimer = null;
+    countdownTimer = null;
+    statusUrl = null;
+    cancelUrl = null;
+    setPayProcessing(false);
+    resetMpQrUi();
+    document.getElementById('point-section').style.display = 'none';
+    document.getElementById('success-section').style.display = 'none';
+    document.getElementById('caja-header').style.display = '';
+    document.getElementById('cart-section').style.display = '';
+    document.querySelectorAll('.qty-input').forEach(i => { i.value = '0'; });
+    const email = document.getElementById('customer-email');
+    if (email) email.value = '';
+    const markUsed = document.getElementById('mark-as-used');
+    if (markUsed) markUsed.checked = true;
+    updateTotal();
+  }
+
+  function returnToCajaAfterSale() {
+    clearTimeout(pollTimer);
+    clearTimeout(countdownTimer);
+    window.location.reload();
+  }
+
+  function renderDynamicQr(qrResponse) {
+    const container = document.getElementById('mp-qr-container');
+    container.innerHTML = '';
+    if (qrResponse.qr_image) {
+      const img = document.createElement('img');
+      img.src = qrResponse.qr_image;
+      img.alt = 'QR de pago';
+      img.className = 'img-fluid';
+      img.style.maxWidth = '280px';
+      container.appendChild(img);
+      return;
+    }
+    const qrData = qrResponse.qr_data || qrResponse;
+    if (typeof QRCode === 'undefined') {
+      throw new Error('No se pudo cargar el generador de QR');
+    }
+    const canvas = document.createElement('canvas');
+    container.appendChild(canvas);
+    QRCode.toCanvas(canvas, qrData, { width: 280, margin: 2 });
+  }
+
+  function setMpQrLoading(visible, text) {
+    document.getElementById('mp-qr-loading').style.display = visible ? 'block' : 'none';
+    document.getElementById('mp-qr-container').style.visibility = visible ? 'hidden' : 'visible';
+    if (text) document.getElementById('mp-qr-loading-text').textContent = text;
+  }
+
+  function showMpQrScreen(totalLabel) {
+    setPayProcessing(false);
+    hideAllScreens();
+    document.getElementById('mp-qr-section').style.display = 'block';
+    document.getElementById('mp-qr-total').textContent = totalLabel;
+    document.getElementById('mp-qr-container').innerHTML = '';
+    setMpQrLoading(true, 'Generando QR...');
+  }
+
+  function pollStatus(onPaid) {
+    fetch(statusUrl).then(r => r.json()).then(data => {
+      if (data.status === 'PAID') {
+        onPaid(data);
+        return;
+      }
+      if (data.status === 'CANCELLED' || data.status === 'EXPIRED') {
+        alert('Pago cancelado o expirado');
+        resetToCaja();
+        return;
+      }
+      pollTimer = setTimeout(() => pollStatus(onPaid), pollDelay);
+      pollDelay = Math.min(Math.round(pollDelay * 1.5), 10000);
+    }).catch(() => {
+      pollTimer = setTimeout(() => pollStatus(onPaid), pollDelay);
+    });
+  }
+
+  function showSuccess(totalAmount) {
+    clearTimeout(pollTimer);
+    setPayProcessing(false);
+    hideAllScreens();
+    const formatted = parseFloat(totalAmount).toLocaleString('es-AR');
+    document.getElementById('success-message').textContent =
+      'Pago confirmado por $' + formatted;
+    document.getElementById('success-section').style.display = 'block';
+
+    let secondsLeft = 5;
+    const countdownEl = document.getElementById('success-countdown');
+    function tickCountdown() {
+      countdownEl.textContent = 'Volviendo a la caja en ' + secondsLeft + '...';
+      if (secondsLeft <= 0) {
+        returnToCajaAfterSale();
+        return;
+      }
+      secondsLeft -= 1;
+      countdownTimer = setTimeout(tickCountdown, 1000);
+    }
+    tickCountdown();
+
+    document.getElementById('success-ok').onclick = function() {
+      returnToCajaAfterSale();
+    };
+  }
+
+  async function cancelPendingSale() {
+    if (!cancelUrl) {
+      resetToCaja();
+      return;
+    }
+    try {
+      await postJson(cancelUrl, {});
+    } catch (e) { /* ignore */ }
+    resetToCaja();
+  }
+
+  document.getElementById('mp-qr-cancel').addEventListener('click', cancelPendingSale);
+  document.getElementById('point-cancel').addEventListener('click', cancelPendingSale);
+
+  document.querySelectorAll('[data-pay]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const lines = getLines();
+      if (!lines.length) {
+        alert('Seleccioná al menos un producto');
+        return;
+      }
+      const paymentMethod = btn.dataset.pay;
+      setPayProcessing(true, btn);
+      try {
+        const sale = await postJson(createUrl, {
+          payment_method: paymentMethod,
+          lines,
+          email: document.getElementById('customer-email')?.value || '',
+          mark_as_used: document.getElementById('mark-as-used')?.checked ?? false,
+        });
+
+        if (sale.status === 'PAID') {
+          showSuccess(sale.total_amount);
+          return;
+        }
+
+        const base = createUrl.replace('/api/sales/', '/api/sales/' + sale.sale_id + '/');
+        statusUrl = base + 'status/';
+        cancelUrl = base + 'cancel/';
+        const totalLabel = 'Total: $' + parseFloat(sale.total_amount).toLocaleString('es-AR');
+
+        if (paymentMethod === 'MP_QR') {
+          showMpQrScreen(totalLabel);
+          setMpQrLoading(true, 'Generando QR...');
+          const qr = await postJson(base + 'pay/mp-qr/', {});
+          if (!qr.qr_data && !qr.qr_image) throw new Error('Mercado Pago no devolvió un QR');
+          renderDynamicQr(qr);
+          setMpQrLoading(false);
+          document.getElementById('mp-qr-waiting').style.display = 'block';
+          pollDelay = 2000;
+          pollStatus((data) => showSuccess(data.total_amount));
+          return;
+        }
+
+        if (paymentMethod === 'MP_POINT') {
+          setPayProcessing(false);
+          hideAllScreens();
+          document.getElementById('point-section').style.display = 'block';
+          await postJson(base + 'pay/mp-point/', {});
+          pollDelay = 2000;
+          pollStatus((data) => showSuccess(data.total_amount));
+        }
+      } catch (e) {
+        setPayProcessing(false);
+        alert(e.message);
+        resetToCaja();
+      }
+    });
+  });
+})();
+</script>
+{% endblock %}

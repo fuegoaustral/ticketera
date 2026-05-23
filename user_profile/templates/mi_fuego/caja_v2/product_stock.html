@@ -1,0 +1,66 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% block submenu %}{% include 'mi_fuego/partials/event_admin_menu.html' %}{% endblock %}
+{% block truecontent %}
+<div class="container-fluid py-3">
+  <h4>Stock: {{ product.display_name }}</h4>
+  <p>Disponible: {% if available is None %}Ilimitado{% else %}{{ available }}{% endif %}</p>
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+  <form method="post" class="card card-body mt-3">
+    {% csrf_token %}
+    <div class="mb-3">
+      <div class="form-check">
+        {{ form.unlimited }}
+        <label class="form-check-label" for="id_unlimited">{{ form.unlimited.label }}</label>
+      </div>
+    </div>
+    <div id="delta-wrap" class="mb-3">
+      {{ form.delta.label_tag }}
+      {{ form.delta }}
+      <div class="form-text">Sumá o restá unidades (ej. +10 o -5). Opcional al pasar de ilimitado a limitado.</div>
+    </div>
+    <div class="mb-3">
+      {{ form.notes.label_tag }}
+      {{ form.notes }}
+    </div>
+    {% if form.errors %}
+      <div class="text-danger small mb-2">{{ form.errors }}</div>
+    {% endif %}
+    <button class="btn btn-primary">Aplicar</button>
+    <a href="{% url 'caja_products' event.slug %}" class="btn btn-link">Volver</a>
+  </form>
+  <h5 class="mt-4">Historial</h5>
+  <table class="table table-sm">
+    <thead><tr><th>Fecha</th><th>Delta</th><th>Saldo</th><th>Motivo</th><th>Notas</th></tr></thead>
+    <tbody>
+    {% for r in records %}
+      <tr>
+        <td>{{ r.created_at|date:'d/m/Y H:i' }}</td>
+        <td>{{ r.delta }}</td>
+        <td>{% if r.balance_after is None %}∞{% else %}{{ r.balance_after }}{% endif %}</td>
+        <td>{{ r.get_reason_display }}</td>
+        <td>{{ r.notes }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<script>
+(function() {
+  const unlimited = document.getElementById('id_unlimited');
+  const deltaWrap = document.getElementById('delta-wrap');
+  const deltaInput = document.getElementById('id_delta');
+  if (!unlimited || !deltaWrap) return;
+  function sync() {
+    const isUnlimited = unlimited.checked;
+    deltaWrap.style.opacity = isUnlimited ? '0.5' : '1';
+    if (deltaInput) deltaInput.disabled = isUnlimited;
+  }
+  unlimited.addEventListener('change', sync);
+  sync();
+})();
+</script>
+{% endblock %}

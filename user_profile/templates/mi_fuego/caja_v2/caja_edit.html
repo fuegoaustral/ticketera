@@ -1,0 +1,150 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% block submenu %}{% include 'mi_fuego/partials/event_admin_menu.html' %}{% endblock %}
+{% block truecontent %}
+<div class="container-fluid py-3">
+  <h4>Caja: {{ caja.name }}</h4>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="row g-4 mt-1">
+    <div class="col-lg-6">
+      <form method="post" class="card card-body">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_caja">
+        {{ caja_form.as_p }}
+        <button class="btn btn-primary">Guardar caja</button>
+      </form>
+      <form method="post" class="card card-body mt-3">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_products">
+        <h6>Productos en esta caja</h6>
+        <p class="text-muted small mb-2">
+          Los bonos ya existen por tipo de entrada. Para vender otras cosas (bebidas, merch, etc.),
+          <a href="{% url 'caja_products' event.slug %}">creá productos genéricos</a> primero.
+        </p>
+        <p class="fw-semibold small mb-1">Productos genéricos</p>
+        {% for product in active_products|default:all_products %}
+          {% if not product.ticket_type_id %}
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="products" value="{{ product.id }}" id="p{{ product.id }}" {% if product.id in assigned_ids %}checked{% endif %}>
+              <label class="form-check-label" for="p{{ product.id }}">{{ product.display_name }} — ${{ product.price|floatformat:0 }}</label>
+            </div>
+          {% endif %}
+        {% empty %}
+          <p class="text-muted small mb-2">No hay productos activos.</p>
+        {% endfor %}
+        {% if not generic_products %}
+          <p class="text-muted small mb-2">Todavía no hay productos genéricos activos. <a href="{% url 'caja_products' event.slug %}">Crear uno</a> y marcá <strong>Activo</strong> al editar.</p>
+        {% endif %}
+        {% if inactive_generic_products %}
+          <p class="text-muted small mb-1 mt-2">Inactivos (no se venden en caja hasta activarlos en Productos):</p>
+          {% for product in inactive_generic_products %}
+            <div class="form-check text-muted">
+              <input class="form-check-input" type="checkbox" disabled>
+              <label class="form-check-label">
+                {{ product.display_name }} — ${{ product.price|floatformat:0 }}
+                <a href="{% url 'caja_product_edit' event.slug product.id %}" class="small">Activar</a>
+              </label>
+            </div>
+          {% endfor %}
+        {% endif %}
+        <p class="fw-semibold small mb-1 mt-3">Bonos / entradas</p>
+        {% for product in active_products|default:all_products %}
+          {% if product.ticket_type_id %}
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="products" value="{{ product.id }}" id="p{{ product.id }}" {% if product.id in assigned_ids %}checked{% endif %}>
+              <label class="form-check-label" for="p{{ product.id }}">{{ product.display_name }} — ${{ product.price|floatformat:0 }}</label>
+            </div>
+          {% endif %}
+        {% endfor %}
+        <button class="btn btn-primary mt-2">Guardar productos</button>
+      </form>
+    </div>
+    <div class="col-lg-6">
+      <div class="card card-body">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <h6 class="mb-0">Mercado Pago — QR en pantalla</h6>
+          <form method="post" class="mb-0">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="refresh_mp_qr">
+            <button type="submit" class="btn btn-outline-primary btn-sm">
+              {% if mp_qr_ready %}Actualizar QR{% else %}Configurar QR{% endif %}
+            </button>
+          </form>
+        </div>
+        {% if mp_qr_ready %}
+          <p class="mb-0 text-success"><i class="fas fa-check-circle me-1"></i> Listo para cobrar con QR en pantalla.</p>
+        {% else %}
+          <p class="mb-0 text-muted">QR no configurado. Creá la caja de nuevo o usá «Configurar QR» para crear store y POS en Mercado Pago.</p>
+        {% endif %}
+      </div>
+
+      <div class="card card-body mt-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="mb-0">Point Smart (Postnet)</h6>
+          {% if mp_point_ready %}
+            <span class="badge bg-success">Vinculado</span>
+          {% endif %}
+        </div>
+        {% if mp_config.terminal_id %}
+          <p class="small text-muted mb-2">Terminal actual: <code>{{ mp_config.terminal_id }}</code></p>
+          <form method="post" class="mb-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="unlink_terminal">
+            <button type="submit" class="btn btn-outline-secondary btn-sm">Desvincular</button>
+          </form>
+        {% endif %}
+
+        {% if terminals_error %}
+          <p class="text-danger small mb-0">No se pudieron cargar los Point Smart: {{ terminals_error }}</p>
+        {% elif terminal_rows %}
+          <div class="list-group list-group-flush">
+            {% for row in terminal_rows %}
+              {% with terminal=row.terminal %}
+              <div class="list-group-item px-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                  <strong>{{ terminal.id }}</strong>
+                  {% if terminal.operating_mode %}
+                    <span class="badge bg-light text-dark ms-1">{{ terminal.operating_mode }}</span>
+                  {% endif %}
+                  {% if terminal.external_pos_id %}
+                    <div class="small text-muted">POS: {{ terminal.external_pos_id }}</div>
+                  {% endif %}
+                  {% if row.is_current %}
+                    <div class="small text-success">Esta caja</div>
+                  {% elif row.linked_caja %}
+                    <div class="small text-warning">Vinculado a «{{ row.linked_caja.name }}»</div>
+                  {% endif %}
+                </div>
+                {% if not row.is_current %}
+                  {% if row.linked_caja %}
+                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="Ya usado por otra caja">Vincular con caja</button>
+                  {% else %}
+                    <form method="post" class="mb-0">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="link_terminal">
+                      <input type="hidden" name="terminal_id" value="{{ terminal.id }}">
+                      {% if terminal.pos_id %}<input type="hidden" name="terminal_pos_id" value="{{ terminal.pos_id }}">{% endif %}
+                      {% if terminal.store_id %}<input type="hidden" name="terminal_store_id" value="{{ terminal.store_id }}">{% endif %}
+                      <button type="submit" class="btn btn-sm btn-primary">Vincular con caja</button>
+                    </form>
+                  {% endif %}
+                {% endif %}
+              </div>
+              {% endwith %}
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="text-muted mb-0">No hay Point Smart activos en la cuenta de Mercado Pago.</p>
+        {% endif %}
+      </div>
+
+      <a href="{% url 'caja_v2_operator' event.slug caja.id %}" class="btn btn-success mt-3">Abrir caja</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

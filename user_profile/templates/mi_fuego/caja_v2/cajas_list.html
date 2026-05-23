@@ -1,0 +1,36 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% block submenu %}{% include 'mi_fuego/partials/event_admin_menu.html' %}{% endblock %}
+{% block truecontent %}
+<div class="container-fluid py-3">
+  <div class="d-flex justify-content-between mb-3">
+    <h4>Cajas v2 — {{ event.name }}</h4>
+    <a href="{% url 'caja_products' event.slug %}" class="btn btn-outline-secondary btn-sm">Productos</a>
+  </div>
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+  <form method="post" class="card card-body mb-4">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="create">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-4">{{ form.name.label_tag }} {{ form.name }}</div>
+      <div class="col-md-2"><button type="submit" class="btn btn-primary">Nueva caja</button></div>
+    </div>
+    {% if form.errors %}
+      <div class="text-danger small mt-2">{{ form.errors }}</div>
+    {% endif %}
+  </form>
+  <div class="list-group">
+  {% for caja in cajas %}
+    <a href="{% url 'caja_v2_edit' event.slug caja.id %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+      <span>{{ caja.name }}{% if not caja.is_active %} <span class="badge bg-secondary">Inactiva</span>{% endif %}</span>
+      <span class="text-muted">{{ caja.products.count }} productos</span>
+    </a>
+  {% empty %}
+    <div class="text-muted">No hay cajas configuradas.</div>
+  {% endfor %}
+  </div>
+</div>
+{% endblock %}

@@ -1,3 +1,4 @@
+{% load caja_menu %}
 <!-- Mobile menu toggle button -->
 <div class="mobile-menu-toggle d-lg-none mb-3">
     <button class="btn btn-outline-secondary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-expanded="false" aria-controls="sidebarMenu">
@@ -25,7 +26,7 @@
                             <a class="menu-sublink{% if event and admin_event.slug == event.slug and nav_secondary == 'event_admin_'|add:admin_event.slug %} active{% endif %}"
                                href="{% url 'event_admin' admin_event.slug %}">
                                 <i class="fas fa-chart-line me-2"></i>
-                                Reporte de ventas
+                                Reporte de venta de bonos
                             </a>
                         </li>
                         <li class="menu-subitem">
@@ -72,10 +73,57 @@
                             </a>
                         </li>
                         <li class="menu-subitem">
-                            <a class="menu-sublink{% if nav_secondary == 'caja_'|add:admin_event.slug %} active{% endif %}"
-                               href="{% url 'caja' admin_event.slug %}">
+                            <a class="menu-sublink{% if nav_secondary == 'caja_events' %} active{% endif %}"
+                               href="{% url 'caja_events' %}">
                                 <i class="fas fa-cash-register me-2"></i>
                                 Caja
+                            </a>
+                        </li>
+                        <li class="menu-subitem">
+                            <a class="menu-sublink{% if nav_secondary == 'caja_products_'|add:admin_event.slug %} active{% endif %}"
+                               href="{% url 'caja_products' admin_event.slug %}">
+                                <i class="fas fa-box me-2"></i>
+                                Productos (Caja v2)
+                            </a>
+                        </li>
+                        <li class="menu-subitem">
+                            <a class="menu-sublink{% if nav_secondary == 'caja_stock_report_'|add:admin_event.slug %} active{% endif %}"
+                               href="{% url 'caja_stock_report' admin_event.slug %}">
+                                <i class="fas fa-warehouse me-2"></i>
+                                Reporte de stocks
+                            </a>
+                        </li>
+                        <li class="menu-subitem menu-cajas-v2-group">
+                            <a class="menu-sublink{% if nav_secondary == 'cajas_v2_'|add:admin_event.slug %} active{% endif %}"
+                               href="{% url 'cajas_v2' admin_event.slug %}">
+                                <i class="fas fa-store me-2"></i>
+                                Cajas v2
+                            </a>
+                            <ul class="menu-sublist menu-sublist-nested">
+                                {% cajas_v2_for_event admin_event as event_cajas %}
+                                {% for caja in event_cajas %}
+                                    <li class="menu-subitem">
+                                        <a class="menu-sublink menu-sublink-caja{% if nav_secondary == 'caja_v2_'|add:admin_event.slug|add:'_'|add:caja.id %} active{% endif %}"
+                                           href="{% url 'caja_v2_operator' admin_event.slug caja.id %}">
+                                            <i class="fas fa-cash-register me-2"></i>
+                                            {{ caja.name }}
+                                        </a>
+                                    </li>
+                                {% empty %}
+                                    <li class="menu-subitem">
+                                        <span class="menu-sublink text-muted menu-sublink-caja">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            Sin cajas
+                                        </span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </li>
+                        <li class="menu-subitem">
+                            <a class="menu-sublink{% if nav_secondary == 'caja_sales_report_'|add:admin_event.slug %} active{% endif %}"
+                               href="{% url 'caja_sales_report' admin_event.slug %}">
+                                <i class="fas fa-chart-pie me-2"></i>
+                                Reporte de cajas
                             </a>
                         </li>
                     </ul>
@@ -161,6 +209,24 @@
         margin: 0;
         margin-left: 1rem;
         margin-top: 0.25rem;
+    }
+
+    .menu-sublist-nested {
+        display: block !important;
+        margin-left: 0.75rem;
+        margin-top: 0.125rem;
+        padding-left: 0.5rem;
+        border-left: 2px solid #e9ecef;
+    }
+
+    .menu-cajas-v2-group > .menu-sublink {
+        font-weight: 600;
+        color: #495057 !important;
+    }
+
+    .menu-sublink-caja {
+        padding-left: 0.75rem !important;
+        font-size: 0.8rem;
     }
     
     .menu-separator {

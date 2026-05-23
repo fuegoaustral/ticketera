@@ -81,6 +81,7 @@ INSTALLED_APPS = [
     'tickets.apps.TicketsConfig',
     'events.apps.EventsConfig',
     'espaciozen.apps.EspaciozenConfig',
+    'caja.apps.CajaConfig',
 ]
 
 MIDDLEWARE = [
@@ -122,6 +123,7 @@ TEMPLATES = [
                 'utils.context_processors.env',
                 'utils.context_processors.chatwoot_identifier_hash',
                 'utils.context_processors.pending_terms_and_conditions',
+                'caja.context_processors.cajas_v2_menu',
             ],
         },
     },
@@ -197,7 +199,8 @@ STATICFILES_FINDERS = (
 MERCADOPAGO = {
     'PUBLIC_KEY': os.environ.get('MERCADOPAGO_PUBLIC_KEY'),
     'ACCESS_TOKEN': os.environ.get('MERCADOPAGO_ACCESS_TOKEN'),
-    'WEBHOOK_SECRET': os.environ.get('MERCADOPAGO_WEBHOOK_SECRET')
+    'WEBHOOK_SECRET': os.environ.get('MERCADOPAGO_WEBHOOK_SECRET'),
+    'COLLECTOR_USER_ID': os.environ.get('MERCADOPAGO_COLLECTOR_USER_ID'),
 }
 
 EMAIL_HOST = os.environ.get('EMAIL_HOST')
@@ -251,6 +254,11 @@ LOGGING = {
         'level': 'DEBUG',
     },
     'loggers': {
+        'caja.http': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
         'botocore': {
             'level': 'ERROR',  # Change to ERROR to reduce logs
             'handlers': ['console'],
