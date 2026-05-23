@@ -36,8 +36,20 @@ class Achievement(BaseModel):
         return self.name
 
     @property
+    def static_image_path(self):
+        """Ruta bajo tickets/static/ para {% static %} y S3."""
+        path = (self.image or '').lstrip('/')
+        if path.startswith('media/'):
+            path = path[len('media/') :]
+        if path.startswith('img/'):
+            return path
+        if path.startswith('logros/'):
+            return f'img/{path}'
+        return path
+
+    @property
     def image_url(self):
-        return staticfiles_storage.url(self.image)
+        return staticfiles_storage.url(self.static_image_path)
 
 
 class UserAchievement(BaseModel):

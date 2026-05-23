@@ -1,5 +1,6 @@
 {% extends 'mi_fuego/my_tickets/index.html' %}
 {% load static %}
+{# Imágenes en tickets/static/img/logros/ → S3 vía collectstatic #}
 
 {% block truecontent %}
     <style>
@@ -75,7 +76,7 @@
             {% for item in logros %}
                 <div class="logro-card{% if item.unlocked %} unlocked{% else %} locked{% endif %}">
                     <div class="logro-image-wrap">
-                        <img src="{{ item.achievement.image_url }}"
+                        <img src="{% static item.achievement.static_image_path %}"
                              alt="{{ item.achievement.name }}"
                              loading="lazy">
                     </div>

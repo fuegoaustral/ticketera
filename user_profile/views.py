@@ -1091,6 +1091,7 @@ def mis_logros_view(request):
             'name': ua.achievement.name,
             'description': ua.achievement.description,
             'image_url': ua.achievement.image_url,
+            'static_image_path': ua.achievement.static_image_path,
         }
         for ua in pending
     ]
@@ -1103,6 +1104,37 @@ def mis_logros_view(request):
         'nav_secondary': 'mis_logros',
     })
     return render(request, 'mi_fuego/my_tickets/mis_logros.html', context)
+
+
+SUBSCRIPTION_STATUS_LABELS = {
+    'authorized': 'Activa',
+    'paused': 'Pausada',
+    'cancelled': 'Cancelada',
+    'pending': 'Pendiente',
+    'inactive': 'Inactiva',
+}
+
+
+@login_required
+def la_sede_view(request):
+    profile = request.user.profile
+    if not profile.miembro_sede:
+        raise Http404
+
+    from user_profile.services.sede_mercadopago import format_payment_method
+
+    context = _mi_fuego_sidebar_context(request)
+    context.update({
+        'profile': profile,
+        'payment_method_label': format_payment_method(profile.sede_payment_method),
+        'subscription_status_label': SUBSCRIPTION_STATUS_LABELS.get(
+            profile.sede_subscription_status,
+            profile.sede_subscription_status or 'Activa',
+        ),
+        'nav_primary': 'la_sede',
+        'nav_secondary': 'credencial',
+    })
+    return render(request, 'mi_fuego/my_tickets/la_sede.html', context)
 
 
 @login_required

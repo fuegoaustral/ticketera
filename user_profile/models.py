@@ -33,6 +33,21 @@ class Profile(BaseModel):
     phone = models.CharField(max_length=15, validators=[RegexValidator(r'^\+?1?\d{9,15}$')])
     profile_completion = models.CharField(max_length=15, choices=PROFILE_COMPLETION_CHOICES, default=NONE)
 
+    miembro_sede = models.BooleanField(default=False, verbose_name='Miembro de La Sede')
+    sede_subscription_id = models.CharField(max_length=64, blank=True, default='')
+    sede_subscription_status = models.CharField(max_length=32, blank=True, default='')
+    sede_payment_method = models.CharField(max_length=64, blank=True, default='')
+    sede_last_payment_date = models.DateTimeField(null=True, blank=True)
+    sede_last_payment_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    sede_next_payment_date = models.DateTimeField(null=True, blank=True)
+    sede_member_since = models.DateTimeField(null=True, blank=True)
+    sede_synced_at = models.DateTimeField(null=True, blank=True)
+
+    @property
+    def sede_payment_method_label(self):
+        from user_profile.services.sede_mercadopago import format_payment_method
+        return format_payment_method(self.sede_payment_method)
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._old_profile_completion = self.profile_completion

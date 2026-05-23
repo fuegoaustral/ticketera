@@ -1,0 +1,170 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% load humanize %}
+
+{% block page_title %}La Sede{% endblock page_title %}
+
+{% block truecontent %}
+<style>
+    .sede-credential-wrap {
+        display: flex;
+        justify-content: center;
+        padding: 1rem 0 2rem;
+    }
+
+    .sede-credential {
+        width: 100%;
+        max-width: 420px;
+        border-radius: 1rem;
+        overflow: hidden;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+        background: linear-gradient(145deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        color: #fff;
+    }
+
+    .sede-credential-header {
+        padding: 1.5rem 1.5rem 1rem;
+        text-align: center;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .sede-credential-header h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+
+    .sede-credential-header p {
+        margin: 0.35rem 0 0;
+        opacity: 0.75;
+        font-size: 0.85rem;
+    }
+
+    .sede-credential-body {
+        padding: 1.5rem;
+    }
+
+    .sede-member-name {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+
+    .sede-member-dni {
+        opacity: 0.8;
+        margin-bottom: 1.25rem;
+        font-size: 0.95rem;
+    }
+
+    .sede-detail-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 0.65rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        font-size: 0.9rem;
+    }
+
+    .sede-detail-row:last-child {
+        border-bottom: none;
+    }
+
+    .sede-detail-label {
+        opacity: 0.65;
+        flex-shrink: 0;
+    }
+
+    .sede-detail-value {
+        text-align: right;
+        font-weight: 500;
+    }
+
+    .sede-status-badge {
+        display: inline-block;
+        background: rgba(40, 158, 109, 0.25);
+        color: #7dffb8;
+        padding: 0.2rem 0.65rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .sede-credential-footer {
+        padding: 1rem 1.5rem;
+        background: rgba(0, 0, 0, 0.2);
+        text-align: center;
+        font-size: 0.75rem;
+        opacity: 0.6;
+    }
+</style>
+
+<div class="mb-4">
+    <h2 class="mb-1">La Sede</h2>
+    <p class="text-muted mb-0">Tu credencial de miembro del espacio comunal.</p>
+</div>
+
+<div class="sede-credential-wrap">
+    <div class="sede-credential">
+        <div class="sede-credential-header">
+            <h3>Fuego Austral</h3>
+            <p>La Sede — Espacio Comunal</p>
+        </div>
+        <div class="sede-credential-body">
+            <div class="sede-member-name">{{ user.get_full_name|default:user.email }}</div>
+            <div class="sede-member-dni">
+                {% if profile.document_type == 'DNI' %}DNI{% else %}{{ profile.get_document_type_display }}{% endif %}
+                {{ profile.document_number }}
+            </div>
+
+            <div class="sede-detail-row">
+                <span class="sede-detail-label">Estado</span>
+                <span class="sede-detail-value">
+                    <span class="sede-status-badge">{{ subscription_status_label }}</span>
+                </span>
+            </div>
+            <div class="sede-detail-row">
+                <span class="sede-detail-label">Miembro desde</span>
+                <span class="sede-detail-value">
+                    {% if profile.sede_member_since %}
+                        {{ profile.sede_member_since|date:"d/m/Y" }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </span>
+            </div>
+            <div class="sede-detail-row">
+                <span class="sede-detail-label">Último pago</span>
+                <span class="sede-detail-value">
+                    {% if profile.sede_last_payment_date %}
+                        {{ profile.sede_last_payment_date|date:"d/m/Y" }}
+                        {% if profile.sede_last_payment_amount %}
+                            — ${{ profile.sede_last_payment_amount|floatformat:0|intcomma }}
+                        {% endif %}
+                    {% else %}
+                        —
+                    {% endif %}
+                </span>
+            </div>
+            <div class="sede-detail-row">
+                <span class="sede-detail-label">Modo de pago</span>
+                <span class="sede-detail-value">{{ payment_method_label }}</span>
+            </div>
+            <div class="sede-detail-row">
+                <span class="sede-detail-label">Próximo pago</span>
+                <span class="sede-detail-value">
+                    {% if profile.sede_next_payment_date %}
+                        {{ profile.sede_next_payment_date|date:"d/m/Y" }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+        <div class="sede-credential-footer">
+            ID {{ profile.sede_subscription_id|default:"—" }}
+        </div>
+    </div>
+</div>
+{% endblock %}
