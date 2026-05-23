@@ -20,6 +20,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
 
     path('mi-fuego/', include('allauth.urls')),
+    path('mi-fuego/', include('caja.urls')),
     path('mi-fuego/', include('user_profile.urls')),
     path('ckeditor5/', include('django_ckeditor_5.urls')),
     path('espaciozen/', include('espaciozen.urls')),

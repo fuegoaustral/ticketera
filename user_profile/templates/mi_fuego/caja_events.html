@@ -9,41 +9,57 @@
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
-            {% if caja_events %}
+            <h4 class="mb-4"><i class="fas fa-cash-register me-2"></i>Cajas</h4>
+
+            {% if events_with_cajas %}
                 <div class="row">
-                    {% for caja_event in caja_events %}
+                    {% for item in events_with_cajas %}
                         <div class="col-md-6 col-lg-4 mb-4">
                             <div class="card h-100">
                                 <div class="card-body d-flex flex-column">
                                     <div class="d-flex align-items-center mb-3">
                                         <div class="flex-shrink-0">
                                             <div class="caja-icon">
-                                                <i class="fas fa-cash-register fa-2x text-white"></i>
+                                                <i class="fas fa-store fa-2x text-white"></i>
                                             </div>
                                         </div>
                                         <div class="flex-grow-1 ms-3">
-                                            <h5 class="card-title mb-1">{{ caja_event.name }}</h5>
+                                            <h5 class="card-title mb-1">{{ item.event.name }}</h5>
                                             <p class="card-text text-muted small mb-0">
                                                 <i class="fas fa-calendar me-1"></i>
-                                                {{ caja_event.start|date:"d/m/Y H:i" }}
+                                                {{ item.event.start|date:"d/m/Y H:i" }}
                                             </p>
                                         </div>
                                     </div>
-                                    
-                                    {% if caja_event.location %}
+
+                                    {% if item.event.location %}
                                         <p class="card-text text-muted small mb-3">
                                             <i class="fas fa-map-marker-alt me-1"></i>
-                                            {{ caja_event.location }}
+                                            {{ item.event.location }}
                                         </p>
                                     {% endif %}
-                                    
-                                    <div class="mt-auto">
-                                        <a href="{% url 'caja' caja_event.slug %}" 
-                                           class="btn btn-success w-100" style="color: white;">
-                                            <i class="fas fa-cash-register me-2"></i>
-                                            Abrir Caja
-                                        </a>
-                                    </div>
+
+                                    {% if item.cajas %}
+                                        <ul class="list-group list-group-flush mb-0 mt-auto">
+                                            {% for caja in item.cajas %}
+                                                <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                                                    <span>
+                                                        <i class="fas fa-cash-register me-2 text-success"></i>
+                                                        {{ caja.name }}
+                                                    </span>
+                                                    <a href="{% url 'caja_v2_operator' item.event.slug caja.id %}"
+                                                       class="btn btn-success btn-sm" style="color: white;">
+                                                        Abrir
+                                                    </a>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% else %}
+                                        <p class="text-muted small mt-auto mb-0">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            Este evento aún no tiene cajas activas.
+                                        </p>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -52,38 +68,37 @@
             {% else %}
                 <div class="text-center py-5">
                     <i class="fas fa-cash-register fa-4x text-muted mb-4"></i>
-                    <h4 class="text-muted">No tienes acceso a caja</h4>
-                    <p class="text-muted">No tienes permisos para acceder a la caja de ningún evento.</p>
-                    <p class="text-muted">Contacta a un administrador de eventos para obtener acceso.</p>
+                    <h4 class="text-muted">No tenés acceso a caja</h4>
+                    <p class="text-muted">No tenés permisos para acceder a la caja de ningún evento.</p>
+                    <p class="text-muted">Contactá a un administrador de eventos para obtener acceso.</p>
                 </div>
             {% endif %}
 
-            <!-- Instructions -->
             <div class="card mt-4">
                 <div class="card-header">
                     <h5 class="card-title mb-0">
                         <i class="fas fa-info-circle me-2"></i>
-                        Instrucciones de Uso
+                        Instrucciones de uso
                     </h5>
                 </div>
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
-                            <h6>¿Cómo usar la caja?</h6>
+                            <h6>¿Cómo vender?</h6>
                             <ul class="list-unstyled">
-                                <li><i class="fas fa-check text-success me-2"></i>Selecciona el evento para el que quieres emitir bonos</li>
-                                <li><i class="fas fa-check text-success me-2"></i>Elige el tipo de bono y la cantidad</li>
-                                <li><i class="fas fa-check text-success me-2"></i>Selecciona el método de pago (efectivo/transferencia)</li>
-                                <li><i class="fas fa-check text-success me-2"></i>Proporciona el email del comprador (opcional)</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Elegí el evento y la caja correspondiente</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Agregá productos al carrito</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Cobrá en efectivo, transferencia, MP QR o Postnet</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Email del comprador opcional para bonos</li>
                             </ul>
                         </div>
                         <div class="col-md-6">
-                            <h6>Funcionalidades de la Caja</h6>
+                            <h6>Funcionalidades</h6>
                             <ul class="list-unstyled">
-                                <li><i class="fas fa-check text-success me-2"></i>Emisión de bonos en efectivo o transferencia</li>
-                                <li><i class="fas fa-check text-success me-2"></i>Marcar bonos como usados (venta en puerta)</li>
-                                <li><i class="fas fa-check text-success me-2"></i>Creación automática de cuentas de usuario</li>
-                                <li><i class="fas fa-check text-success me-2"></i>Envío de emails con los bonos emitidos</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Productos de bono y genéricos</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Control de stock por producto</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Marcar bonos como usados en puerta</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Varias cajas por evento</li>
                             </ul>
                         </div>
                     </div>
@@ -104,23 +119,23 @@
         justify-content: center;
         color: white;
     }
-    
+
     .card {
         transition: transform 0.2s ease, box-shadow 0.2s ease;
         border: 1px solid #e9ecef;
     }
-    
+
     .card:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
-    
+
     .btn-success {
         background: linear-gradient(135deg, #289e6d, #1e7a5a);
         border: none;
         transition: all 0.2s ease;
     }
-    
+
     .btn-success:hover {
         background: linear-gradient(135deg, #1e7a5a, #155a47);
         transform: translateY(-1px);

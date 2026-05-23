@@ -1,0 +1,79 @@
+from django.urls import path
+
+from caja.views import (
+    api_cancel_sale,
+    api_create_sale,
+    api_pay_mp_point,
+    api_pay_mp_qr,
+    api_sale_status,
+    caja_edit_view,
+    caja_events_v2_view,
+    caja_sales_report_view,
+    caja_v2_operator_view,
+    cajas_list_view,
+    product_edit_view,
+    product_stock_view,
+    products_list_view,
+    stock_report_view,
+)
+
+urlpatterns = [
+    path('cajas-v2/', caja_events_v2_view, name='caja_v2_events'),
+    path('mis-eventos/<slug:event_slug>/productos/', products_list_view, name='caja_products'),
+    path(
+        'mis-eventos/<slug:event_slug>/productos/<int:product_id>/',
+        product_edit_view,
+        name='caja_product_edit',
+    ),
+    path(
+        'mis-eventos/<slug:event_slug>/productos/<int:product_id>/stock/',
+        product_stock_view,
+        name='caja_product_stock',
+    ),
+    path('mis-eventos/<slug:event_slug>/cajas-v2/', cajas_list_view, name='cajas_v2'),
+    path(
+        'mis-eventos/<slug:event_slug>/reporte-cajas/',
+        caja_sales_report_view,
+        name='caja_sales_report',
+    ),
+    path(
+        'mis-eventos/<slug:event_slug>/reporte-stocks/',
+        stock_report_view,
+        name='caja_stock_report',
+    ),
+    path(
+        'mis-eventos/<slug:event_slug>/cajas-v2/<int:caja_id>/',
+        caja_edit_view,
+        name='caja_v2_edit',
+    ),
+    path(
+        'mis-eventos/<slug:event_slug>/cajas-v2/<int:caja_id>/vender/',
+        caja_v2_operator_view,
+        name='caja_v2_operator',
+    ),
+    path(
+        'mis-eventos/<slug:event_slug>/cajas-v2/<int:caja_id>/api/sales/',
+        api_create_sale,
+        name='caja_v2_api_create_sale',
+    ),
+    path(
+        'mis-eventos/<slug:event_slug>/cajas-v2/<int:caja_id>/api/sales/<int:sale_id>/pay/mp-qr/',
+        api_pay_mp_qr,
+        name='caja_v2_api_pay_mp_qr',
+    ),
+    path(
+        'mis-eventos/<slug:event_slug>/cajas-v2/<int:caja_id>/api/sales/<int:sale_id>/pay/mp-point/',
+        api_pay_mp_point,
+        name='caja_v2_api_pay_mp_point',
+    ),
+    path(
+        'mis-eventos/<slug:event_slug>/cajas-v2/<int:caja_id>/api/sales/<int:sale_id>/status/',
+        api_sale_status,
+        name='caja_v2_api_sale_status',
+    ),
+    path(
+        'mis-eventos/<slug:event_slug>/cajas-v2/<int:caja_id>/api/sales/<int:sale_id>/cancel/',
+        api_cancel_sale,
+        name='caja_v2_api_cancel_sale',
+    ),
+]

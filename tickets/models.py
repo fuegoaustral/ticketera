@@ -46,41 +46,42 @@ class Coupon(BaseModel):
 
 
 class TicketTypeManager(models.Manager):
+    def _with_stock_filter(self, queryset):
+        from caja.stock import ticket_types_with_stock_queryset
+        return ticket_types_with_stock_queryset(queryset)
+
     # get all available ticket types for available events
     def get_available_ticket_types_for_current_events(self):
         active_events = Event.get_active_events()
-        return (self
+        qs = (self
                 .filter(event__in=active_events)
                 .filter(Q(date_from__lte=timezone.now()) | Q(date_from__isnull=True))
                 .filter(Q(date_to__gte=timezone.now()) | Q(date_to__isnull=True))
-                .filter(Q(ticket_count__gt=0) | Q(ticket_count__isnull=True))
                 .filter(is_direct_type=False)
                 .order_by('cardinality', 'price')
                 )
+        return self._with_stock_filter(qs)
 
     def get_next_ticket_type_available(self, event):
-        return (self
+        qs = (self
                 .filter(event=event)
                 .filter(Q(date_from__gte=timezone.now()) | Q(date_from__isnull=True))
-                .filter(Q(ticket_count__gt=0) | Q(ticket_count__isnull=True))
                 .filter(is_direct_type=False)
                 .order_by('cardinality', 'price')
-                .first()
                 )
+        return self._with_stock_filter(qs).first()
 
     def get_available(self, coupon, event):
         if event.tickets_remaining() <= 0:
             return TicketType.objects.none()
 
-        # Get the current time using Django's timezone utility
         now = timezone.now()
 
-        # Query available ticket types for the event
         ticket_types = TicketType.objects.filter(event=event).filter(
             Q(date_from__lte=timezone.now()) | Q(date_from__isnull=True),
             Q(date_to__gte=timezone.now()) | Q(date_to__isnull=True),
-            Q(ticket_count__gt=0) | Q(ticket_count__isnull=True)
         )
+        ticket_types = self._with_stock_filter(ticket_types)
 
         # Apply coupon filtering if a coupon is provided
         if coupon:
@@ -114,7 +115,7 @@ class TicketType(BaseModel):
     description = models.TextField(max_length=2000, blank=True)
     color = models.CharField(max_length=6, default='6633ff', blank=True)
     emoji = models.CharField(max_length=255, default='🖕', blank=True)
-    ticket_count = models.IntegerField()
+    ticket_count = models.IntegerField(null=True, blank=True, help_text='Deprecated: usar stock en caja.EventProductStock')
     cardinality = models.IntegerField(null=True, blank=True, help_text="Optional ordering number for ticket types")
 
     objects = TicketTypeManager()
@@ -124,6 +125,11 @@ class TicketType(BaseModel):
     do_not_show_in_checkout = models.BooleanField(default=False)
     ignore_max_amount = models.BooleanField(default=False)
     volunteer_price = models.BooleanField(default=False, help_text="Precio para voluntarios")
+
+    @property
+    def available_stock(self):
+        from caja.stock import available_for_ticket_type
+        return available_for_ticket_type(self)
 
     def get_corresponding_ticket_type(coupon: Coupon):
         return TicketType.objects \
@@ -158,6 +164,8 @@ class Order(BaseModel):
         LOCAL_TRANSFER = 'LOCAL_TRANSFER', 'Transferencia Local'
         ONLINE_PURCHASE = 'ONLINE_PURCHASE', 'Compra Online'
         CASH_ONSITE = 'CASH_ONSITE', 'Efectivo'
+        MP_QR_CAJA = 'MP_QR_CAJA', 'Mercado Pago QR (Caja)'
+        MP_POINT_CAJA = 'MP_POINT_CAJA', 'Mercado Pago Postnet (Caja)'
         OTHER = 'OTHER', 'Otro'
 
     key = models.UUIDField(default=uuid.uuid4, editable=False)
@@ -379,15 +387,8 @@ class NewTicket(BaseModel):
 
         return img_data_base64
 
-    def save(self):
-        with transaction.atomic():
-            is_new = self.pk is None
-            super(NewTicket, self).save()
-
-            if is_new:
-                ticket_type = TicketType.objects.get(id=self.ticket_type.id)
-                ticket_type.ticket_count = ticket_type.ticket_count - 1
-                ticket_type.save()
+    def save(self, *args, **kwargs):
+        super(NewTicket, self).save(*args, **kwargs)
 
     def get_dto(self, user):
         transfer_pending = NewTicketTransfer.objects.filter(ticket=self, tx_from=user,

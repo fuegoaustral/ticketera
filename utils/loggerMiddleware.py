@@ -2,36 +2,57 @@ import logging
 import time
 import uuid
 
+from caja.http_logging import format_body_for_log, sanitize_headers
+
 logger = logging.getLogger(__name__)
+
+
+def _should_log_bodies(request):
+    path = request.path
+    if '/api/' in path:
+        return True
+    if 'cajas-v2' in path and request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
+        return True
+    content_type = request.META.get('CONTENT_TYPE', '')
+    return 'application/json' in content_type
 
 
 class LoggerMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
-        # One-time configuration and initialization.
 
     def __call__(self, request):
-        # Generate a unique request UUID
         request_uuid = uuid.uuid4()
         start_time = time.time()
+        log_bodies = _should_log_bodies(request)
 
-        # Log standard request information
-        logger.info(f"------------Request {request_uuid} started------------")
-        logger.info(f"Request method: {request.method}")
-        logger.info(f"Request path: {request.path}")
-        logger.info(f"Client IP: {request.META.get('REMOTE_ADDR')}")
+        logger.info('------------Request %s started------------', request_uuid)
+        logger.info('Request method: %s', request.method)
+        logger.info('Request path: %s', request.path)
+        logger.info('Client IP: %s', request.META.get('REMOTE_ADDR'))
+        if log_bodies:
+            logger.info(
+                'Request headers: %s',
+                sanitize_headers({
+                    key[5:].replace('_', '-').title(): value
+                    for key, value in request.META.items()
+                    if key.startswith('HTTP_')
+                }),
+            )
+            if request.GET:
+                logger.info('Request query: %s', dict(request.GET))
+            if request.body:
+                logger.info('Request body: %s', format_body_for_log(request.body))
 
-        # Process the request and get the response
         response = self.get_response(request)
 
-        # Calculate response time
         duration = time.time() - start_time
-        logger.info(f"Request {request_uuid} completed in {duration:.2f} seconds")
-
-        # Log response status code and body size
-        logger.info(f"Response status code: {response.status_code}")
+        logger.info('Request %s completed in %.2f seconds', request_uuid, duration)
+        logger.info('Response status code: %s', response.status_code)
         response_body_size = len(response.content) if hasattr(response, 'content') else 0
-        logger.info(f"Response body size: {response_body_size} bytes")
-        logger.info(f"------------Request {request_uuid} ended------------")
+        logger.info('Response body size: %s bytes', response_body_size)
+        if log_bodies and hasattr(response, 'content') and response.content:
+            logger.info('Response body: %s', format_body_for_log(response.content))
+        logger.info('------------Request %s ended------------', request_uuid)
 
         return response

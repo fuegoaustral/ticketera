@@ -1,0 +1,124 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% block submenu %}{% include 'mi_fuego/partials/event_admin_menu.html' %}{% endblock %}
+{% block truecontent %}
+<div class="container-fluid py-3">
+  <h4>Editar producto: {{ product.display_name }}</h4>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="post" class="card card-body mt-3">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="save">
+    <div class="row g-3">
+      <div class="col-md-6">{{ form.ticket_type.label_tag }} {{ form.ticket_type }}</div>
+      <div class="col-md-6">{{ form.name.label_tag }} {{ form.name }}</div>
+      <div class="col-md-4">{{ form.price.label_tag }} {{ form.price }}</div>
+      <div class="col-md-4">
+        <div class="form-check mt-4">
+          {{ form.is_active }}
+          <label class="form-check-label" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="form-check mt-4">
+          {{ form.unlimited_stock }}
+          <label class="form-check-label" for="id_unlimited_stock">{{ form.unlimited_stock.label }}</label>
+        </div>
+      </div>
+    </div>
+    {% if form.errors %}
+      <div class="text-danger small mt-2">{{ form.errors }}</div>
+    {% endif %}
+    <div class="mt-3">
+      <button type="submit" class="btn btn-primary">Guardar</button>
+      <a href="{% url 'caja_products' event.slug %}" class="btn btn-link">Volver</a>
+    </div>
+  </form>
+
+  <div id="stock-section" class="card mt-4" {% if is_unlimited %}style="display:none"{% endif %}>
+    <div class="card-header">Ajustar stock</div>
+    <div class="card-body">
+      <form method="post" class="row g-2 align-items-end">
+        {% csrf_token %}
+        <div class="col-md-3">
+          {{ stock_form.quantity.label_tag }}
+          {{ stock_form.quantity }}
+        </div>
+        <div class="col-md-5">
+          {{ stock_form.notes.label_tag }}
+          {{ stock_form.notes }}
+        </div>
+        <div class="col-md-2">
+          <button type="submit" name="action" value="add_stock" class="btn btn-success w-100">Agregar</button>
+        </div>
+        <div class="col-md-2">
+          <button type="submit" name="action" value="remove_stock" class="btn btn-outline-danger w-100">Quitar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="stock-current-bar" class="stock-current-bar mt-3">
+    Cantidad actual:
+    <span id="stock-current-value">
+      {% if is_unlimited %}Ilimitado{% else %}{{ available }} unidad{{ available|pluralize:"es" }}{% endif %}
+    </span>
+  </div>
+
+  {% if records %}
+  <h5 class="mt-4">Historial de stock</h5>
+  <table class="table table-sm">
+    <thead><tr><th>Fecha</th><th>Delta</th><th>Saldo</th><th>Motivo</th><th>Notas</th></tr></thead>
+    <tbody>
+    {% for r in records %}
+      <tr>
+        <td>{{ r.created_at|date:'d/m/Y H:i' }}</td>
+        <td>{{ r.delta }}</td>
+        <td>{% if r.balance_after is None %}∞{% else %}{{ r.balance_after }}{% endif %}</td>
+        <td>{{ r.get_reason_display }}</td>
+        <td>{{ r.notes }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+
+<script>
+(function() {
+  const unlimited = document.getElementById('id_unlimited_stock');
+  const stockSection = document.getElementById('stock-section');
+  const stockValue = document.getElementById('stock-current-value');
+  const currentQty = {% if is_unlimited %}null{% else %}{{ available }}{% endif %};
+  if (!unlimited) return;
+  function sync() {
+    if (stockSection) {
+      stockSection.style.display = unlimited.checked ? 'none' : 'block';
+    }
+    if (stockValue) {
+      stockValue.textContent = unlimited.checked
+        ? 'Ilimitado'
+        : currentQty + (currentQty === 1 ? ' unidad' : ' unidades');
+    }
+  }
+  unlimited.addEventListener('change', sync);
+})();
+</script>
+<style>
+.stock-current-bar {
+  background-color: #289e6d;
+  color: #fff !important;
+  padding: 0.75rem 1rem;
+  border-radius: 0.375rem;
+  font-weight: 600;
+}
+.stock-current-bar,
+.stock-current-bar * {
+  color: #fff !important;
+}
+</style>
+{% endblock %}

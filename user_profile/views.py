@@ -2253,28 +2253,39 @@ def scanner_events_view(request):
 
 @login_required
 def caja_events_view(request):
-    """Show events where the user has caja access"""
-    # Get events where the user has caja access (either as admin or explicit caja access)
-    admin_events = Event.objects.filter(admins=request.user)
-    caja_access_events = Event.objects.filter(access_caja=request.user)
-    
-    # Combine both querysets and remove duplicates
-    caja_events = (admin_events | caja_access_events).distinct().order_by('-is_main', 'name')
-    
-    # Get the main event for context
+    """Eventos con acceso a caja y sus cajas v2 activas."""
+    from django.db.models import Q
+
+    from caja.models import EventCaja
+
+    caja_events = Event.objects.filter(
+        Q(admins=request.user) | Q(access_caja=request.user),
+    ).distinct().order_by('-is_main', 'name')
+
+    cajas_by_event = {}
+    for caja in EventCaja.objects.filter(
+        event__in=caja_events,
+        is_active=True,
+    ).select_related('event').order_by('name'):
+        cajas_by_event.setdefault(caja.event_id, []).append(caja)
+
+    events_with_cajas = [
+        {'event': event, 'cajas': cajas_by_event.get(event.id, [])}
+        for event in caja_events
+    ]
+
     main_event = Event.get_main_event()
-    
-    # Get events where user has tickets, prioritizing main event
+
     user_events = Event.get_active_events().filter(
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
-    
-    # Get the first ticket for the main event (for backward compatibility)
+
     my_ticket = NewTicket.objects.filter(
         holder=request.user, event=main_event, owner=request.user
     ).first() if main_event else None
-    
+
     context = {
+        "events_with_cajas": events_with_cajas,
         "caja_events": caja_events,
         "event": main_event,
         "active_events": user_events,
@@ -2283,7 +2294,7 @@ def caja_events_view(request):
         "my_ticket": my_ticket.get_dto(user=request.user) if my_ticket else None,
         "now": timezone.now(),
     }
-    
+
     return render(request, "mi_fuego/caja_events.html", context)
 
 
@@ -2660,7 +2671,14 @@ def caja_view(request, event_slug):
                       event.access_caja.filter(id=request.user.id).exists())
     if not has_caja_access:
         return HttpResponseForbidden("You don't have permission to access caja for this event")
-    
+
+    if request.method == 'GET':
+        from caja.models import EventCaja
+        active_cajas = EventCaja.objects.filter(event=event, is_active=True).order_by('name')
+        if active_cajas.count() == 1:
+            return redirect('caja_v2_operator', event_slug=event.slug, caja_id=active_cajas.first().id)
+        return redirect('caja_events')
+
     # Initialize form
     form = CajaEmitirBonoForm(event)
     
