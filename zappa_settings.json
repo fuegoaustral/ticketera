@@ -76,6 +76,10 @@
       {
         "function": "tickets.email_crons.send_pending_actions_emails",
         "expression": "cron(0 17 * * ? *)"
+      },
+      {
+        "function": "user_profile.sede_sync_cron.sync_sede_members",
+        "expression": "cron(0 9 * * ? *)"
       }
     ]
   }
