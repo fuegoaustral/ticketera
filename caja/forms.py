@@ -10,10 +10,11 @@ from tickets.models import TicketType
 class EventProductForm(ModelForm):
     class Meta:
         model = EventProduct
-        fields = ['name', 'price', 'is_active', 'ticket_type']
+        fields = ['name', 'price', 'image', 'is_active', 'ticket_type']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'price': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+            'image': forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'ticket_type': forms.Select(attrs={'class': 'form-select'}),
         }

@@ -71,34 +71,12 @@ def product_edit_view(request, event_slug, product_id):
     event = get_event_for_admin(request.user, event_slug)
     product = get_object_or_404(EventProduct, id=product_id, event=event)
     stock = ensure_stock_row(product)
-    records = EventProductStockRecord.objects.filter(event_product=product)[:20]
     is_unlimited = stock.quantity is None
 
     if request.method == 'POST':
-        action = request.POST.get('action', 'save')
-
-        if action in ('add_stock', 'remove_stock'):
-            stock.refresh_from_db()
-            if stock.quantity is None:
-                messages.error(request, 'No podés ajustar stock mientras el producto es ilimitado.')
-                return redirect('caja_product_edit', event_slug=event.slug, product_id=product.id)
-
-            stock_form = StockQuantityForm(request.POST)
-            if stock_form.is_valid():
-                qty = stock_form.cleaned_data['quantity']
-                delta = qty if action == 'add_stock' else -qty
-                notes = stock_form.cleaned_data.get('notes', '')
-                adjust_stock(product, delta, request.user, notes=notes)
-                verb = 'agregado' if action == 'add_stock' else 'quitado'
-                messages.success(request, f'Stock {verb}: {qty} unidad(es).')
-            else:
-                for field, errors in stock_form.errors.items():
-                    for error in errors:
-                        messages.error(request, f'{field}: {error}')
-            return redirect('caja_product_edit', event_slug=event.slug, product_id=product.id)
-
         form = EventProductEditForm(
             request.POST,
+            request.FILES,
             instance=product,
             event=event,
             stock_unlimited=is_unlimited,
@@ -119,10 +97,6 @@ def product_edit_view(request, event_slug, product_id):
     context.update({
         'product': product,
         'form': form,
-        'stock': stock,
-        'stock_form': StockQuantityForm(),
-        'records': records,
-        'available': available(product),
         'is_unlimited': is_unlimited,
     })
     return render(request, 'mi_fuego/caja_v2/product_edit.html', context)
@@ -130,7 +104,48 @@ def product_edit_view(request, event_slug, product_id):
 
 @login_required
 def product_stock_view(request, event_slug, product_id):
-    return redirect('caja_product_edit', event_slug=event_slug, product_id=product_id)
+    event = get_event_for_admin(request.user, event_slug)
+    product = get_object_or_404(EventProduct, id=product_id, event=event)
+    stock = ensure_stock_row(product)
+    records = EventProductStockRecord.objects.filter(event_product=product)[:20]
+    is_unlimited = stock.quantity is None
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action not in ('add_stock', 'remove_stock'):
+            raise Http404('Acción inválida')
+
+        stock.refresh_from_db()
+        if stock.quantity is None:
+            messages.error(request, 'No podés ajustar stock mientras el producto es ilimitado.')
+            return redirect('caja_product_stock', event_slug=event.slug, product_id=product.id)
+
+        stock_form = StockQuantityForm(request.POST)
+        if stock_form.is_valid():
+            qty = stock_form.cleaned_data['quantity']
+            delta = qty if action == 'add_stock' else -qty
+            notes = stock_form.cleaned_data.get('notes', '')
+            adjust_stock(product, delta, request.user, notes=notes)
+            verb = 'agregado' if action == 'add_stock' else 'quitado'
+            messages.success(request, f'Stock {verb}: {qty} unidad(es).')
+            return redirect('caja_product_stock', event_slug=event.slug, product_id=product.id)
+
+        for field, errors in stock_form.errors.items():
+            for error in errors:
+                messages.error(request, f'{field}: {error}')
+    else:
+        stock_form = StockQuantityForm()
+
+    context = mi_fuego_admin_context(request, event, f'caja_products_{event.slug}')
+    context.update({
+        'product': product,
+        'stock': stock,
+        'stock_form': stock_form,
+        'records': records,
+        'available': available(product),
+        'is_unlimited': is_unlimited,
+    })
+    return render(request, 'mi_fuego/caja_v2/product_stock.html', context)
 
 
 @login_required

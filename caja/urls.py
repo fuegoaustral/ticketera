@@ -2,6 +2,7 @@ from django.urls import path
 
 from caja.views import (
     api_cancel_sale,
+    api_cancel_paid_sale,
     api_create_sale,
     api_pay_mp_point,
     api_pay_mp_qr,
@@ -10,6 +11,7 @@ from caja.views import (
     caja_events_v2_view,
     caja_sales_report_view,
     caja_v2_operator_view,
+    caja_v2_summary_view,
     cajas_list_view,
     event_report_view,
     product_edit_view,
@@ -58,6 +60,11 @@ urlpatterns = [
         name='caja_v2_operator',
     ),
     path(
+        'mis-eventos/<slug:event_slug>/cajas-v2/<int:caja_id>/resumen/',
+        caja_v2_summary_view,
+        name='caja_v2_summary',
+    ),
+    path(
         'mis-eventos/<slug:event_slug>/cajas-v2/<int:caja_id>/api/sales/',
         api_create_sale,
         name='caja_v2_api_create_sale',
@@ -81,5 +88,10 @@ urlpatterns = [
         'mis-eventos/<slug:event_slug>/cajas-v2/<int:caja_id>/api/sales/<int:sale_id>/cancel/',
         api_cancel_sale,
         name='caja_v2_api_cancel_sale',
+    ),
+    path(
+        'mis-eventos/<slug:event_slug>/cajas-v2/<int:caja_id>/api/sales/<int:sale_id>/cancel-paid/',
+        api_cancel_paid_sale,
+        name='caja_v2_api_cancel_paid_sale',
     ),
 ]

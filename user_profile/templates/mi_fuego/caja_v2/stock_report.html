@@ -68,7 +68,7 @@
             </td>
             <td>{% if row.is_active %}<span class="text-success">Activo</span>{% else %}<span class="text-muted">Inactivo</span>{% endif %}</td>
             <td class="text-end">
-              <a href="{% url 'caja_product_edit' event.slug row.product.id %}" class="btn btn-sm btn-outline-secondary">Editar</a>
+              <a href="{% url 'caja_product_stock' event.slug row.product.id %}" class="btn btn-sm btn-outline-secondary">Modificar</a>
             </td>
           </tr>
         {% empty %}

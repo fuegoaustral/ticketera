@@ -21,6 +21,13 @@
     color: #212529 !important;
     border: none !important;
 }
+.caja-v2-products .product-thumb {
+    width: 36px;
+    height: 36px;
+    object-fit: cover;
+    border-radius: 0.375rem;
+    border: 1px solid #dee2e6;
+}
 </style>
 <div class="container-fluid py-3 caja-v2-products">
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -96,20 +103,27 @@
                 {% for product in products %}
                     <tr>
                         <td>
-                            {{ product.display_name }}
-                            {% if product.ticket_type %}
-                                <span class="badge text-bg-secondary">Bono</span>
-                            {% else %}
-                                <span class="badge text-bg-primary">Genérico</span>
-                            {% endif %}
-                            {% if not product.is_active %}
-                                <span class="badge text-bg-warning">Inactivo</span>
-                            {% endif %}
+                            <div class="d-flex align-items-center gap-2">
+                                {% if product.image %}
+                                    <img src="{{ product.image.url }}" alt="{{ product.display_name }}" class="product-thumb">
+                                {% endif %}
+                                <div>
+                                    {{ product.display_name }}
+                                    {% if product.ticket_type %}
+                                        <span class="badge text-bg-secondary">Bono</span>
+                                    {% else %}
+                                        <span class="badge text-bg-primary">Genérico</span>
+                                    {% endif %}
+                                    {% if not product.is_active %}
+                                        <span class="badge text-bg-warning">Inactivo</span>
+                                    {% endif %}
+                                </div>
+                            </div>
                         </td>
                         <td>${{ product.price|floatformat:0 }}</td>
                         <td>{% if product.stock.quantity is None %}Ilimitado{% else %}{{ product.stock.quantity }}{% endif %}</td>
                         <td class="text-end">
-                            <a href="{% url 'caja_product_edit' event.slug product.id %}" class="btn btn-sm btn-outline-secondary">Editar</a>
+                            <a href="{% url 'caja_product_edit' event.slug product.id %}" class="btn btn-sm btn-outline-secondary">Modificar</a>
                         </td>
                     </tr>
                 {% empty %}

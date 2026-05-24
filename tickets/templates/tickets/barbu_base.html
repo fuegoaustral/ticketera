@@ -26,13 +26,12 @@
       {% endblock title %}
     Fuego Austral &#8211; La experiencia será lo que hagamos de ella</title>
     {% block extrahead %}{% endblock %}
-    {% if user.is_authenticated and user.profile.profile_completion == 'COMPLETE' and not request.resolver_match.url_name == 'scan_tickets' and not request.resolver_match.url_name == 'scan_tickets_event' %}
+    {% if user.is_authenticated and user.profile.profile_completion == 'COMPLETE' and not request.resolver_match.url_name == 'scan_tickets' and not request.resolver_match.url_name == 'scan_tickets_event' and not request.resolver_match.url_name == 'caja' and not request.resolver_match.url_name == 'caja_v2_operator' %}
       <script>
             (function (d, t) {
                 window.chatwootSettings = {
                     locale: 'es', // Language to be set
-                    "type":"expanded_bubble",
-                    "launcherTitle":"Necesito ayuda"
+                    "type":"expanded_bubble"
                 };
                 const BASE_URL = "https://app.chatwoot.com";
                 const g = d.createElement(t), s = d.getElementsByTagName(t)[0];

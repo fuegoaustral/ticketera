@@ -21,6 +21,19 @@
     #cart-section.caja-processing .form-check-input {
       pointer-events: none;
     }
+    @media (max-width: 767.98px) {
+      footer.container-xxl {
+        display: none !important;
+      }
+    }
+    .caja-product-thumb {
+      width: 40px;
+      height: 40px;
+      object-fit: cover;
+      border-radius: 0.375rem;
+      border: 1px solid #dee2e6;
+      flex-shrink: 0;
+    }
   </style>
 
   <div id="cart-section">
@@ -28,10 +41,15 @@
       {% for item in products %}
       <div class="list-group-item">
         <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <strong>{{ item.product.display_name }}</strong>
-            <div class="small text-muted">
-              {% if item.unlimited %}Ilimitado{% else %}Stock: {{ item.available }}{% endif %}
+          <div class="d-flex align-items-center gap-2">
+            {% if item.product.image %}
+              <img src="{{ item.product.image.url }}" alt="{{ item.product.display_name }}" class="caja-product-thumb">
+            {% endif %}
+            <div>
+              <strong>{{ item.product.display_name }}</strong>
+              <div class="small text-muted">
+                {% if item.unlimited %}Ilimitado{% else %}Stock: {{ item.available }}{% endif %}
+              </div>
             </div>
           </div>
           <div class="d-flex align-items-center gap-2">
@@ -64,19 +82,10 @@
     </div>
     {% endif %}
 
-    <div class="alert alert-info" id="total-display">Total: $0</div>
-
-    <div id="cash-method-picker" class="mb-2" style="display:none;">
-      <p class="small text-muted mb-2 mb-md-1">¿Cómo pagó?</p>
-      <div class="d-grid gap-2 d-md-flex">
-        <button type="button" class="btn btn-success flex-fill" data-cash-pick="EFECTIVO">Efectivo</button>
-        <button type="button" class="btn btn-primary flex-fill" data-cash-pick="TRANSFERENCIA">Transferencia</button>
-        <button type="button" class="btn btn-outline-secondary" data-cash-pick-cancel>Cancelar</button>
-      </div>
-    </div>
+    <div class="alert alert-info mb-3" id="total-display">Total: $0</div>
 
     <div class="d-grid gap-2 d-md-flex" id="pay-buttons">
-      <button class="btn btn-success flex-fill" data-pay="CASH">Efectivo / Transferencia</button>
+      <button class="btn btn-success flex-fill text-white" data-pay="CASH" style="color: white;">Efectivo</button>
       {% if mp_qr_ready %}<button class="btn btn-info flex-fill" data-pay="MP_QR">QR (Mercadopago/MODO/Lemon/etc)</button>{% endif %}
       {% if mp_point_ready %}<button class="btn btn-warning flex-fill" data-pay="MP_POINT">MP Postnet</button>{% endif %}
     </div>
@@ -128,10 +137,8 @@
   let cancelUrl = null;
   let activePayBtn = null;
   const payButtons = document.querySelectorAll('#pay-buttons [data-pay]');
-  const cashMethodPicker = document.getElementById('cash-method-picker');
-  const payButtonsRow = document.getElementById('pay-buttons');
   const PAY_LABELS = {
-    CASH: 'Efectivo / Transferencia',
+    CASH: 'Efectivo',
     EFECTIVO: 'Efectivo',
     TRANSFERENCIA: 'Transferencia',
     MP_QR: 'QR',
@@ -144,11 +151,6 @@
 
   function payButtonLabel(btn) {
     return btn.dataset.payLabel || PAY_LABELS[btn.dataset.pay] || btn.dataset.pay;
-  }
-
-  function showCashMethodPicker(show) {
-    cashMethodPicker.style.display = show ? 'block' : 'none';
-    payButtonsRow.style.display = show ? 'none' : '';
   }
 
   function getLines() {
@@ -250,7 +252,6 @@
     cancelUrl = null;
     setPayProcessing(false);
     resetMpQrUi();
-    showCashMethodPicker(false);
     document.getElementById('point-section').style.display = 'none';
     document.getElementById('success-section').style.display = 'none';
     document.getElementById('caja-header').style.display = '';
@@ -364,24 +365,12 @@
   document.getElementById('mp-qr-cancel').addEventListener('click', cancelPendingSale);
   document.getElementById('point-cancel').addEventListener('click', cancelPendingSale);
 
-  document.querySelector('[data-cash-pick-cancel]').addEventListener('click', () => {
-    showCashMethodPicker(false);
-  });
-
-  document.querySelectorAll('[data-cash-pick]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const cashBtn = document.querySelector('[data-pay="CASH"]');
-      processSale(btn.dataset.cashPick, cashBtn);
-    });
-  });
-
   async function processSale(paymentMethod, btn) {
     const lines = getLines();
     if (!lines.length) {
       alert('Seleccioná al menos un producto');
       return;
     }
-    showCashMethodPicker(false);
     setPayProcessing(true, btn);
     try {
       const sale = await postJson(createUrl, {
@@ -437,7 +426,7 @@
         return;
       }
       if (btn.dataset.pay === 'CASH') {
-        showCashMethodPicker(true);
+        await processSale('EFECTIVO', btn);
         return;
       }
       await processSale(btn.dataset.pay, btn);

@@ -2,37 +2,58 @@
 {% block submenu %}{% include 'mi_fuego/partials/event_admin_menu.html' %}{% endblock %}
 {% block truecontent %}
 <div class="container-fluid py-3">
-  <h4>Stock: {{ product.display_name }}</h4>
-  <p>Disponible: {% if available is None %}Ilimitado{% else %}{{ available }}{% endif %}</p>
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h4 class="mb-0">Modificar stock: {{ product.display_name }}</h4>
+    <div>
+      <a href="{% url 'caja_product_edit' event.slug product.id %}" class="btn btn-outline-secondary btn-sm">Editar producto</a>
+      <a href="{% url 'caja_stock_report' event.slug %}" class="btn btn-link btn-sm">Volver al reporte</a>
+    </div>
+  </div>
+
   {% if messages %}
     {% for message in messages %}
-      <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+      <div class="alert alert-{{ message.tags }} mt-3">{{ message }}</div>
     {% endfor %}
   {% endif %}
-  <form method="post" class="card card-body mt-3">
-    {% csrf_token %}
-    <div class="mb-3">
-      <div class="form-check">
-        {{ form.unlimited }}
-        <label class="form-check-label" for="id_unlimited">{{ form.unlimited.label }}</label>
-      </div>
+
+  <div id="stock-current-bar" class="stock-current-bar mt-3">
+    Cantidad actual:
+    <span>
+      {% if is_unlimited %}Ilimitado{% else %}{{ available }} unidad{{ available|pluralize:"es" }}{% endif %}
+    </span>
+  </div>
+
+  <div class="card mt-4">
+    <div class="card-header">Ajustar stock</div>
+    <div class="card-body">
+      {% if is_unlimited %}
+        <div class="alert alert-warning mb-0">
+          Este producto está en modo ilimitado. Desactivá "Stock ilimitado" en editar producto para poder ajustarlo.
+        </div>
+      {% else %}
+      <form method="post" class="row g-2 align-items-end">
+        {% csrf_token %}
+        <div class="col-md-3">
+          {{ stock_form.quantity.label_tag }}
+          {{ stock_form.quantity }}
+        </div>
+        <div class="col-md-5">
+          {{ stock_form.notes.label_tag }}
+          {{ stock_form.notes }}
+        </div>
+        <div class="col-md-2">
+          <button type="submit" name="action" value="add_stock" class="btn btn-success w-100">Agregar</button>
+        </div>
+        <div class="col-md-2">
+          <button type="submit" name="action" value="remove_stock" class="btn btn-outline-danger w-100">Quitar</button>
+        </div>
+      </form>
+      {% endif %}
     </div>
-    <div id="delta-wrap" class="mb-3">
-      {{ form.delta.label_tag }}
-      {{ form.delta }}
-      <div class="form-text">Sumá o restá unidades (ej. +10 o -5). Opcional al pasar de ilimitado a limitado.</div>
-    </div>
-    <div class="mb-3">
-      {{ form.notes.label_tag }}
-      {{ form.notes }}
-    </div>
-    {% if form.errors %}
-      <div class="text-danger small mb-2">{{ form.errors }}</div>
-    {% endif %}
-    <button class="btn btn-primary">Aplicar</button>
-    <a href="{% url 'caja_products' event.slug %}" class="btn btn-link">Volver</a>
-  </form>
-  <h5 class="mt-4">Historial</h5>
+  </div>
+
+  {% if records %}
+  <h5 class="mt-4">Historial de stock</h5>
   <table class="table table-sm">
     <thead><tr><th>Fecha</th><th>Delta</th><th>Saldo</th><th>Motivo</th><th>Notas</th></tr></thead>
     <tbody>
@@ -47,20 +68,20 @@
     {% endfor %}
     </tbody>
   </table>
+  {% endif %}
 </div>
-<script>
-(function() {
-  const unlimited = document.getElementById('id_unlimited');
-  const deltaWrap = document.getElementById('delta-wrap');
-  const deltaInput = document.getElementById('id_delta');
-  if (!unlimited || !deltaWrap) return;
-  function sync() {
-    const isUnlimited = unlimited.checked;
-    deltaWrap.style.opacity = isUnlimited ? '0.5' : '1';
-    if (deltaInput) deltaInput.disabled = isUnlimited;
-  }
-  unlimited.addEventListener('change', sync);
-  sync();
-})();
-</script>
+
+<style>
+.stock-current-bar {
+  background-color: #289e6d;
+  color: #fff !important;
+  padding: 0.75rem 1rem;
+  border-radius: 0.375rem;
+  font-weight: 600;
+}
+.stock-current-bar,
+.stock-current-bar * {
+  color: #fff !important;
+}
+</style>
 {% endblock %}
