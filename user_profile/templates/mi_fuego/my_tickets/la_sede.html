@@ -136,44 +136,48 @@
                     <span class="sede-status-badge">{{ item.status_label }}</span>
                 </span>
             </div>
-            <div class="sede-detail-row">
-                <span class="sede-detail-label">Último pago</span>
-                <span class="sede-detail-value">
-                    {% if item.subscription.last_payment_date %}
-                        {{ item.subscription.last_payment_date|date:"d/m/Y" }}
-                        {% if item.subscription.last_payment_amount %}
-                            — ${{ item.subscription.last_payment_amount|floatformat:0|intcomma }}
+            {% if not item.is_manual_membership %}
+                <div class="sede-detail-row">
+                    <span class="sede-detail-label">Último pago</span>
+                    <span class="sede-detail-value">
+                        {% if item.subscription.last_payment_date %}
+                            {{ item.subscription.last_payment_date|date:"d/m/Y" }}
+                            {% if item.subscription.last_payment_amount %}
+                                — ${{ item.subscription.last_payment_amount|floatformat:0|intcomma }}
+                            {% endif %}
+                        {% else %}
+                            —
                         {% endif %}
-                    {% else %}
-                        —
-                    {% endif %}
-                </span>
-            </div>
-            <div class="sede-detail-row">
-                <span class="sede-detail-label">Ciclo de cobro</span>
-                <span class="sede-detail-value">{{ item.billing_cycle|default:"—" }}</span>
-            </div>
-            <div class="sede-detail-row">
-                <span class="sede-detail-label">Modo de pago</span>
-                <span class="sede-detail-value">{{ item.payment_method_label }}</span>
-            </div>
-            <div class="sede-detail-row">
-                <span class="sede-detail-label">Próximo pago</span>
-                <span class="sede-detail-value">
-                    {% if item.subscription.next_payment_date %}
-                        {{ item.subscription.next_payment_date|date:"d/m/Y" }}
-                    {% else %}
-                        —
-                    {% endif %}
-                </span>
-            </div>
-            <a class="sede-manage-link" href="{{ item.manage_url }}" target="_blank" rel="noopener noreferrer">
-                Gestionar en Mercado Pago
-            </a>
+                    </span>
+                </div>
+                <div class="sede-detail-row">
+                    <span class="sede-detail-label">Ciclo de cobro</span>
+                    <span class="sede-detail-value">{{ item.billing_cycle|default:"—" }}</span>
+                </div>
+                <div class="sede-detail-row">
+                    <span class="sede-detail-label">Modo de pago</span>
+                    <span class="sede-detail-value">{{ item.payment_method_label }}</span>
+                </div>
+                <div class="sede-detail-row">
+                    <span class="sede-detail-label">Próximo pago</span>
+                    <span class="sede-detail-value">
+                        {% if item.subscription.next_payment_date %}
+                            {{ item.subscription.next_payment_date|date:"d/m/Y" }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </span>
+                </div>
+                <a class="sede-manage-link" href="{{ item.manage_url }}" target="_blank" rel="noopener noreferrer">
+                    Gestionar en Mercado Pago
+                </a>
+            {% endif %}
         </div>
-        <div class="sede-credential-footer">
-            ID {{ item.subscription.subscription_id|default:"—" }}
-        </div>
+        {% if not item.is_manual_membership %}
+            <div class="sede-credential-footer">
+                ID {{ item.subscription.subscription_id|default:"—" }}
+            </div>
+        {% endif %}
     </div>
     {% endfor %}
 </div>
