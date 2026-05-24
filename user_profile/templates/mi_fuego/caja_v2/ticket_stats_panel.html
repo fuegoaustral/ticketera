@@ -7,10 +7,10 @@
         <div class="d-flex justify-content-between align-items-center">
           <div>
             <div class="h6 mb-1 text-primary">
-              Efectivo: ${{ caja_payment_totals.cash_total|floatformat:0|intcomma }}
+              Efectivo: <span id="caja-total-cash">${{ caja_payment_totals.cash_total|floatformat:0|intcomma }}</span>
             </div>
             <div class="h6 mb-1 text-info">
-              MP: ${{ caja_payment_totals.mp_total|floatformat:0|intcomma }}
+              MP: <span id="caja-total-mp">${{ caja_payment_totals.mp_total|floatformat:0|intcomma }}</span>
             </div>
             <div class="small text-muted">Totales de esta caja (click para ver transacciones)</div>
           </div>

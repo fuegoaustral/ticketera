@@ -132,8 +132,8 @@
                             {% endif %}
                             <div class="video-container mb-3" style="border-radius: 8px; overflow: hidden; width: 100%; height: 400px; display: flex; align-items: center; justify-content: center; background-color: #000; position: relative;">
                                 <video id="qr-video" style="background-color: #000; display: none;"></video>
+                                <div id="focus-indicator" class="focus-indicator d-none"></div>
                                 <div id="scanning-overlay" class="d-none">
-                                    <div class="scanning-bar"></div>
                                     <div class="focus-square">
                                         <div class="corner-top-right"></div>
                                         <div class="corner-bottom-left"></div>
@@ -152,6 +152,12 @@
                                 <button id="toggleCamera" class="btn btn-outline-danger btn-lg d-none">
                                     <i class="fas fa-stop me-2"></i>Detener Cámara
                                 </button>
+                                <div id="flash-switch-wrapper" class="form-check form-switch d-inline-flex align-items-center ms-3 d-none">
+                                    <input class="form-check-input me-2" type="checkbox" role="switch" id="toggleFlash" aria-label="Activar flash de cámara">
+                                    <label class="form-check-label text-warning" for="toggleFlash" id="toggleFlashLabel">
+                                        <i class="fas fa-bolt-slash me-1"></i>Flash OFF
+                                    </label>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -343,6 +349,9 @@
             background: #000;
             border: 2px solid #dee2e6;
         }
+        .video-container.is-scanning #camera-placeholder {
+            display: none !important;
+        }
         
         #qr-video {
             width: 100%;
@@ -368,26 +377,6 @@
             bottom: 0;
             z-index: 1000;
             overflow: hidden;
-        }
-        .scanning-bar {
-            position: absolute;
-            left: 0;
-            width: 100%;
-            height: 4px;
-            background-color: #00ff00;
-            animation: scan 4s linear infinite;
-            z-index: 1;
-        }
-        @keyframes scan {
-            0% {
-                top: 0;
-            }
-            50% {
-                top: 100%;
-            }
-            100% {
-                top: 0;
-            }
         }
         .focus-square {
             position: absolute;
@@ -437,8 +426,40 @@
             border-right: none;
             border-top: none;
         }
+        .focus-indicator {
+            position: absolute;
+            width: 84px;
+            height: 84px;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.3) inset;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 1100;
+            opacity: 0;
+            transition: opacity 120ms ease;
+        }
+        .focus-indicator.active {
+            opacity: 1;
+            animation: focusPulse 420ms ease;
+        }
+        @keyframes focusPulse {
+            0% { transform: translate(-50%, -50%) scale(1.18); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
         .alert {
             margin-top: 1rem;
+        }
+        #flash-switch-wrapper .form-check-input {
+            cursor: pointer;
+            width: 2.5em;
+            height: 1.35em;
+        }
+        #toggleFlashLabel {
+            cursor: pointer;
+            user-select: none;
+            min-width: 92px;
+            text-align: left;
         }
         
         /* Botón Iniciar Cámara: más grande, centrado, texto blanco */
@@ -528,6 +549,10 @@
         let selectedDeviceId;
         let codeReader;
         let isScanning = false;
+        let currentStream = null;
+        let currentVideoTrack = null;
+        let torchSupported = false;
+        let torchEnabled = false;
 
         function getCSRFToken() {
             return document.querySelector('[name=csrfmiddlewaretoken]').value;
@@ -542,6 +567,180 @@
             document.getElementById('success-message').classList.add('d-none');
             document.getElementById('notes-photos-section').classList.add('d-none');
             document.getElementById('saved-info-section').classList.add('d-none');
+        }
+
+        function setCameraUIState(scanning) {
+            const toggleButton = document.getElementById('toggleCamera');
+            const video = document.getElementById('qr-video');
+            const scanningOverlay = document.getElementById('scanning-overlay');
+            const placeholder = document.getElementById('camera-placeholder');
+            const container = document.querySelector('.video-container');
+            const flashSwitch = document.getElementById('flash-switch-wrapper');
+
+            if (container) {
+                container.classList.toggle('is-scanning', scanning);
+            }
+            if (scanningOverlay) {
+                scanningOverlay.classList.toggle('d-none', !scanning);
+            }
+            if (video) {
+                video.style.display = scanning ? 'block' : 'none';
+            }
+            if (placeholder) {
+                placeholder.style.display = scanning ? 'none' : 'flex';
+            }
+            if (toggleButton) {
+                toggleButton.classList.toggle('d-none', !scanning);
+                if (scanning) {
+                    toggleButton.innerHTML = '<i class="fas fa-stop me-2"></i>Detener Cámara';
+                }
+            }
+            if (!scanning && flashSwitch) {
+                flashSwitch.classList.add('d-none');
+            }
+        }
+
+        function updateFlashButtonState() {
+            const flashToggle = document.getElementById('toggleFlash');
+            const flashSwitch = document.getElementById('flash-switch-wrapper');
+            const flashLabel = document.getElementById('toggleFlashLabel');
+            if (!flashToggle || !flashSwitch || !flashLabel) return;
+            if (!isScanning || !torchSupported) {
+                flashSwitch.classList.add('d-none');
+                flashToggle.checked = false;
+                return;
+            }
+
+            flashSwitch.classList.remove('d-none');
+            if (torchEnabled) {
+                flashToggle.checked = true;
+                flashLabel.innerHTML = '<i class="fas fa-bolt me-1"></i>Flash ON';
+            } else {
+                flashToggle.checked = false;
+                flashLabel.innerHTML = '<i class="fas fa-bolt-slash me-1"></i>Flash OFF';
+            }
+        }
+
+        async function bindCameraTrackFromVideo(retries = 6) {
+            const video = document.getElementById('qr-video');
+            for (let i = 0; i < retries; i++) {
+                const stream = video ? video.srcObject : null;
+                if (stream && typeof stream.getVideoTracks === 'function') {
+                    const track = stream.getVideoTracks()[0];
+                    if (track) {
+                        currentStream = stream;
+                        currentVideoTrack = track;
+                        return true;
+                    }
+                }
+                await new Promise(resolve => setTimeout(resolve, 150));
+            }
+            return false;
+        }
+
+        function updateTorchSupport() {
+            torchSupported = false;
+            if (currentVideoTrack && typeof currentVideoTrack.getCapabilities === 'function') {
+                const capabilities = currentVideoTrack.getCapabilities();
+                torchSupported = !!(capabilities && capabilities.torch);
+            }
+            if (!torchSupported) {
+                torchEnabled = false;
+            }
+            updateFlashButtonState();
+        }
+
+        async function setupCameraFeatures() {
+            const bound = await bindCameraTrackFromVideo();
+            if (!bound) {
+                torchSupported = false;
+                torchEnabled = false;
+                updateFlashButtonState();
+                return;
+            }
+            updateTorchSupport();
+        }
+
+        function showFocusIndicatorAt(x, y) {
+            const indicator = document.getElementById('focus-indicator');
+            if (!indicator) return;
+            indicator.style.left = `${x}px`;
+            indicator.style.top = `${y}px`;
+            indicator.classList.remove('d-none');
+            indicator.classList.remove('active');
+            void indicator.offsetWidth;
+            indicator.classList.add('active');
+            window.setTimeout(() => {
+                indicator.classList.remove('active');
+                indicator.classList.add('d-none');
+            }, 520);
+        }
+
+        async function toggleFlash(desiredState = null) {
+            const flashToggle = document.getElementById('toggleFlash');
+            if (!isScanning || !currentVideoTrack || !torchSupported) {
+                if (flashToggle) flashToggle.checked = torchEnabled;
+                return;
+            }
+            try {
+                const nextState = desiredState === null ? !torchEnabled : !!desiredState;
+                await currentVideoTrack.applyConstraints({
+                    advanced: [{ torch: nextState }]
+                });
+                torchEnabled = nextState;
+                updateFlashButtonState();
+            } catch (err) {
+                console.warn('Torch toggle unsupported/failure:', err);
+                showError('Tu dispositivo o navegador no soporta flash de cámara.');
+                torchSupported = false;
+                torchEnabled = false;
+                if (flashToggle) flashToggle.checked = false;
+                updateFlashButtonState();
+            }
+        }
+
+        async function focusOnTap(event) {
+            if (!isScanning) return;
+
+            const video = document.getElementById('qr-video');
+            if (!video) return;
+
+            const rect = video.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            showFocusIndicatorAt(x, y);
+
+            if (!currentVideoTrack || typeof currentVideoTrack.getCapabilities !== 'function') {
+                return;
+            }
+
+            try {
+                const capabilities = currentVideoTrack.getCapabilities();
+                const advancedConstraints = [];
+
+                if (capabilities && capabilities.pointsOfInterest) {
+                    const nx = Math.min(1, Math.max(0, x / rect.width));
+                    const ny = Math.min(1, Math.max(0, y / rect.height));
+                    advancedConstraints.push({ pointsOfInterest: [{ x: nx, y: ny }] });
+                }
+
+                if (capabilities && capabilities.focusMode) {
+                    const focusModes = Array.isArray(capabilities.focusMode)
+                        ? capabilities.focusMode
+                        : [capabilities.focusMode];
+                    if (focusModes.includes('single-shot')) {
+                        advancedConstraints.push({ focusMode: 'single-shot' });
+                    } else if (focusModes.includes('continuous')) {
+                        advancedConstraints.push({ focusMode: 'continuous' });
+                    }
+                }
+
+                if (advancedConstraints.length > 0) {
+                    await currentVideoTrack.applyConstraints({ advanced: advancedConstraints });
+                }
+            } catch (err) {
+                console.warn('Tap focus unsupported/failure:', err);
+            }
         }
 
         function showTicketView() {
@@ -633,21 +832,12 @@
         }
 
         async function toggleCamera() {
-            const startButton = document.getElementById('startCameraBtn');
-            const toggleButton = document.getElementById('toggleCamera');
-            const video = document.getElementById('qr-video');
-            const scanningOverlay = document.getElementById('scanning-overlay');
-
             if (!isScanning) {
                 try {
                     await startScanning();
-                    toggleButton.classList.remove('d-none');
-                    toggleButton.innerHTML = '<i class="fas fa-stop me-2"></i>Detener Cámara';
                     isScanning = true;
-                    scanningOverlay.classList.remove('d-none');
-                    video.style.display = 'block';
-                    const ph = document.getElementById('camera-placeholder');
-                    if (ph) ph.style.display = 'none';
+                    setCameraUIState(true);
+                    await setupCameraFeatures();
                 } catch (err) {
                     console.error('Camera start error:', err);
                     if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
@@ -658,12 +848,13 @@
                 }
             } else {
                 await stopScanning();
-                toggleButton.classList.add('d-none');
                 isScanning = false;
-                scanningOverlay.classList.add('d-none');
-                video.style.display = 'none';
-                const ph = document.getElementById('camera-placeholder');
-                if (ph) ph.style.display = 'flex';
+                currentStream = null;
+                currentVideoTrack = null;
+                torchEnabled = false;
+                torchSupported = false;
+                setCameraUIState(false);
+                updateFlashButtonState();
             }
         }
 
@@ -721,13 +912,13 @@
                     displayTicketInfo(data);
                     showTicketView();
                     await stopScanning();
-                    const toggleButton = document.getElementById('toggleCamera');
-                    const ph = document.getElementById('camera-placeholder');
-                    const video = document.getElementById('qr-video');
-                    if (ph) ph.style.display = 'flex';
-                    if (video) video.style.display = 'none';
-                    toggleButton.classList.add('d-none');
                     isScanning = false;
+                    currentStream = null;
+                    currentVideoTrack = null;
+                    torchEnabled = false;
+                    torchSupported = false;
+                    setCameraUIState(false);
+                    updateFlashButtonState();
                 } else {
                     showError(data.error || 'Bono no encontrado');
                 }
@@ -767,13 +958,13 @@
                         showResultsListView(data.results);
                         if (isScanning) {
                             await stopScanning();
-                            const toggleButton = document.getElementById('toggleCamera');
-                            const ph = document.getElementById('camera-placeholder');
-                            const video = document.getElementById('qr-video');
-                            if (ph) ph.style.display = 'flex';
-                            if (video) video.style.display = 'none';
-                            toggleButton.classList.add('d-none');
                             isScanning = false;
+                            currentStream = null;
+                            currentVideoTrack = null;
+                            torchEnabled = false;
+                            torchSupported = false;
+                            setCameraUIState(false);
+                            updateFlashButtonState();
                         }
                         dniInput.value = '';
                     } else {
@@ -781,13 +972,13 @@
                         showTicketView();
                         if (isScanning) {
                             await stopScanning();
-                            const toggleButton = document.getElementById('toggleCamera');
-                            const ph = document.getElementById('camera-placeholder');
-                            const video = document.getElementById('qr-video');
-                            if (ph) ph.style.display = 'flex';
-                            if (video) video.style.display = 'none';
-                            toggleButton.classList.add('d-none');
                             isScanning = false;
+                            currentStream = null;
+                            currentVideoTrack = null;
+                            torchEnabled = false;
+                            torchSupported = false;
+                            setCameraUIState(false);
+                            updateFlashButtonState();
                         }
                         dniInput.value = '';
                     }
@@ -1445,6 +1636,7 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             initializeScanner();
+            setCameraUIState(false);
             hideWhatsAppWidgets();
             
             // Buscar por DNI
@@ -1460,6 +1652,17 @@
                         checkTicketByDni();
                     }
                 });
+            }
+            const toggleFlashInput = document.getElementById('toggleFlash');
+            if (toggleFlashInput) {
+                toggleFlashInput.addEventListener('change', function(e) {
+                    e.preventDefault();
+                    toggleFlash(e.target.checked);
+                });
+            }
+            const qrVideo = document.getElementById('qr-video');
+            if (qrVideo) {
+                qrVideo.addEventListener('click', focusOnTap);
             }
             const backFromResults = document.getElementById('backFromResults');
             if (backFromResults) {

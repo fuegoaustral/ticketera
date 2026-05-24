@@ -6,10 +6,6 @@
      data-csrf="{{ csrf_token }}">
   <h4 class="mb-3" id="caja-header"><i class="fas fa-cash-register me-2"></i>{{ caja.name }} — {{ event.name }}</h4>
 
-  {% if has_ticket_products %}
-    {% include 'mi_fuego/caja_v2/ticket_stats_panel.html' %}
-  {% endif %}
-
   <style>
     #cart-section.caja-processing {
       pointer-events: none;
@@ -34,6 +30,32 @@
       border: 1px solid #dee2e6;
       flex-shrink: 0;
     }
+    .qty-stepper .btn {
+      min-width: 36px;
+      font-size: 1.1rem;
+      line-height: 1;
+      padding: 0.35rem 0.5rem;
+    }
+    .qty-stepper .qty-input {
+      min-height: 38px;
+    }
+    .mobile-payment-screen {
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      min-height: calc(100dvh - 120px);
+    }
+    @media (max-width: 767.98px) {
+      .mobile-payment-screen {
+        min-height: calc(100dvh - 32px);
+      }
+    }
+    .success-invoice-wrap {
+      width: 100%;
+      max-width: 560px;
+      margin: 0 auto;
+    }
   </style>
 
   <div id="cart-section">
@@ -57,7 +79,7 @@
             <div class="input-group input-group-sm qty-stepper" style="width:120px;">
               <button type="button" class="btn btn-outline-secondary qty-minus" aria-label="Menos">−</button>
               <input type="number" min="0" max="{% if item.unlimited %}9999{% else %}{{ item.available }}{% endif %}"
-                     value="0" class="form-control text-center qty-input"
+                     value="0" class="form-control text-center qty-input" readonly
                      data-product-id="{{ item.product.id }}"
                      data-price="{{ item.product.price }}"
                      data-name="{{ item.product.display_name }}">
@@ -91,7 +113,7 @@
     </div>
   </div>
 
-  <div id="mp-qr-section" style="display:none;" class="text-center py-4">
+  <div id="mp-qr-section" style="display:none;" class="mobile-payment-screen py-4">
     <p class="text-muted mb-1" id="mp-qr-total"></p>
     <div id="mp-qr-container" class="d-flex justify-content-center my-3" style="min-height:280px;align-items:center;"></div>
     <div id="mp-qr-loading" class="mb-3">
@@ -112,12 +134,25 @@
     <button type="button" class="btn btn-outline-danger mt-2" id="point-cancel">Cancelar</button>
   </div>
 
-  <div id="success-section" style="display:none;" class="text-center py-5">
+  <div id="success-section" style="display:none;" class="mobile-payment-screen py-5">
     <div class="mb-3">
       <i class="fas fa-check-circle text-success" style="font-size:4rem;"></i>
     </div>
     <h4 class="mb-2">¡Listo!</h4>
     <p class="mb-4" id="success-message"></p>
+    <div class="success-invoice-wrap mb-3">
+      <div class="card text-start">
+        <div class="card-body p-3">
+          <div class="small text-muted mb-2">Detalle del pedido</div>
+          <div id="success-invoice-lines"></div>
+          <hr class="my-2">
+          <div class="d-flex justify-content-between fw-semibold">
+            <span>Total</span>
+            <span id="success-order-total"></span>
+          </div>
+        </div>
+      </div>
+    </div>
     <button type="button" class="btn btn-primary btn-lg px-5" id="success-ok">OK</button>
     <p class="text-muted small mt-3 mb-0" id="success-countdown"></p>
   </div>
@@ -153,6 +188,22 @@
     return btn.dataset.payLabel || PAY_LABELS[btn.dataset.pay] || btn.dataset.pay;
   }
 
+  function toggleCajaTotalsPanel(hidden) {
+    const panel = document.getElementById('caja-totals-panel');
+    if (!panel) return;
+    panel.style.display = hidden ? 'none' : '';
+  }
+
+  function toggleSiteHeader(hidden) {
+    document.querySelectorAll('header.container-xxl').forEach((siteHeader) => {
+      if (hidden) {
+        siteHeader.style.setProperty('display', 'none', 'important');
+      } else {
+        siteHeader.style.removeProperty('display');
+      }
+    });
+  }
+
   function getLines() {
     const lines = [];
     document.querySelectorAll('.qty-input').forEach(input => {
@@ -174,18 +225,43 @@
   }
 
   function clampQty(input, delta) {
-    const min = parseInt(input.min) || 0;
-    const max = parseInt(input.max) || 9999;
-    const next = Math.min(max, Math.max(min, (parseInt(input.value) || 0) + delta));
+    const parsedMin = parseInt(input.min, 10);
+    const parsedMax = parseInt(input.max, 10);
+    const min = Number.isNaN(parsedMin) ? 0 : parsedMin;
+    const max = Number.isNaN(parsedMax) ? 9999 : parsedMax;
+    const current = parseInt(input.value) || 0;
+    if (delta > 0 && current >= max) {
+      return;
+    }
+    const next = Math.min(max, Math.max(min, current + delta));
     input.value = next;
     updateTotal();
+    updateStepperButtons(input);
+  }
+
+  function updateStepperButtons(input) {
+    const stepper = input.closest('.qty-stepper');
+    if (!stepper) return;
+    const minusBtn = stepper.querySelector('.qty-minus');
+    const plusBtn = stepper.querySelector('.qty-plus');
+    const value = parseInt(input.value) || 0;
+    const parsedMin = parseInt(input.min, 10);
+    const parsedMax = parseInt(input.max, 10);
+    const min = Number.isNaN(parsedMin) ? 0 : parsedMin;
+    const max = Number.isNaN(parsedMax) ? 9999 : parsedMax;
+    if (minusBtn) minusBtn.disabled = value <= min;
+    if (plusBtn) plusBtn.disabled = value >= max;
   }
 
   document.querySelectorAll('.qty-stepper').forEach(stepper => {
     const input = stepper.querySelector('.qty-input');
     stepper.querySelector('.qty-minus').addEventListener('click', () => clampQty(input, -1));
     stepper.querySelector('.qty-plus').addEventListener('click', () => clampQty(input, 1));
-    input.addEventListener('input', updateTotal);
+    input.addEventListener('input', function() {
+      updateTotal();
+      updateStepperButtons(input);
+    });
+    updateStepperButtons(input);
   });
 
   async function postJson(url, body) {
@@ -226,6 +302,7 @@
   }
 
   function hideAllScreens() {
+    toggleSiteHeader(true);
     document.getElementById('caja-header').style.display = 'none';
     document.getElementById('cart-section').style.display = 'none';
     document.getElementById('mp-qr-section').style.display = 'none';
@@ -241,6 +318,11 @@
     document.getElementById('mp-qr-loading').style.display = 'none';
     document.getElementById('mp-qr-waiting').style.display = 'none';
     document.getElementById('mp-qr-loading-text').textContent = 'Generando QR...';
+    const qrCancelBtn = document.getElementById('mp-qr-cancel');
+    if (qrCancelBtn) {
+      qrCancelBtn.disabled = false;
+      qrCancelBtn.innerHTML = 'Cancelar';
+    }
   }
 
   function resetToCaja() {
@@ -251,12 +333,17 @@
     statusUrl = null;
     cancelUrl = null;
     setPayProcessing(false);
+    toggleSiteHeader(false);
     resetMpQrUi();
+    toggleCajaTotalsPanel(true);
     document.getElementById('point-section').style.display = 'none';
     document.getElementById('success-section').style.display = 'none';
     document.getElementById('caja-header').style.display = '';
     document.getElementById('cart-section').style.display = '';
-    document.querySelectorAll('.qty-input').forEach(i => { i.value = '0'; });
+    document.querySelectorAll('.qty-input').forEach(i => {
+      i.value = '0';
+      updateStepperButtons(i);
+    });
     const email = document.getElementById('customer-email');
     if (email) email.value = '';
     const markUsed = document.getElementById('mark-as-used');
@@ -299,8 +386,9 @@
 
   function showMpQrScreen(totalLabel) {
     setPayProcessing(false);
+    toggleCajaTotalsPanel(true);
     hideAllScreens();
-    document.getElementById('mp-qr-section').style.display = 'block';
+    document.getElementById('mp-qr-section').style.display = 'flex';
     document.getElementById('mp-qr-total').textContent = totalLabel;
     document.getElementById('mp-qr-container').innerHTML = '';
     setMpQrLoading(true, 'Generando QR...');
@@ -324,27 +412,54 @@
     });
   }
 
-  function showSuccess(totalAmount) {
+  function formatMoney(value) {
+    const numeric = parseFloat(value || 0);
+    return '$' + numeric.toLocaleString('es-AR');
+  }
+
+  function getSelectedLineDetails() {
+    const lines = [];
+    document.querySelectorAll('.qty-input').forEach(input => {
+      const qty = parseInt(input.value) || 0;
+      if (qty <= 0) return;
+      lines.push({
+        name: input.dataset.name,
+        quantity: qty,
+        unitPrice: parseFloat(input.dataset.price || 0),
+      });
+    });
+    return lines;
+  }
+
+  function updateCajaTotalsCard(cajaTotals) {
+    if (!cajaTotals) return;
+    const cashEl = document.getElementById('caja-total-cash');
+    const mpEl = document.getElementById('caja-total-mp');
+    if (cashEl) cashEl.textContent = formatMoney(cajaTotals.cash_total);
+    if (mpEl) mpEl.textContent = formatMoney(cajaTotals.mp_total);
+  }
+
+  function showSuccess(totalAmount, cajaTotals) {
     clearTimeout(pollTimer);
     setPayProcessing(false);
     hideAllScreens();
-    const formatted = parseFloat(totalAmount).toLocaleString('es-AR');
+    const formatted = formatMoney(totalAmount);
+    const lineDetails = getSelectedLineDetails();
+    toggleCajaTotalsPanel(false);
     document.getElementById('success-message').textContent =
-      'Pago confirmado por $' + formatted;
-    document.getElementById('success-section').style.display = 'block';
+      'Pago confirmado';
+    const linesEl = document.getElementById('success-invoice-lines');
+    linesEl.innerHTML = lineDetails.map((line) => (
+      '<div class="d-flex justify-content-between small mb-1">' +
+        '<span>' + line.name + '</span>' +
+        '<span>' + line.quantity + ' x ' + formatMoney(line.unitPrice) + '</span>' +
+      '</div>'
+    )).join('') || '<div class="small text-muted">Sin ítems.</div>';
+    document.getElementById('success-order-total').textContent = formatted;
+    updateCajaTotalsCard(cajaTotals);
+    document.getElementById('success-section').style.display = 'flex';
 
-    let secondsLeft = 5;
-    const countdownEl = document.getElementById('success-countdown');
-    function tickCountdown() {
-      countdownEl.textContent = 'Volviendo a la caja en ' + secondsLeft + '...';
-      if (secondsLeft <= 0) {
-        returnToCajaAfterSale();
-        return;
-      }
-      secondsLeft -= 1;
-      countdownTimer = setTimeout(tickCountdown, 1000);
-    }
-    tickCountdown();
+    document.getElementById('success-countdown').textContent = '';
 
     document.getElementById('success-ok').onclick = function() {
       returnToCajaAfterSale();
@@ -352,6 +467,12 @@
   }
 
   async function cancelPendingSale() {
+    const qrCancelBtn = document.getElementById('mp-qr-cancel');
+    if (qrCancelBtn && !qrCancelBtn.disabled) {
+      qrCancelBtn.disabled = true;
+      qrCancelBtn.innerHTML =
+        '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Cancelando...';
+    }
     if (!cancelUrl) {
       resetToCaja();
       return;
@@ -381,7 +502,7 @@
       });
 
       if (sale.status === 'PAID') {
-        showSuccess(sale.total_amount);
+        showSuccess(sale.total_amount, sale.caja_totals);
         return;
       }
 
@@ -399,17 +520,18 @@
         setMpQrLoading(false);
         document.getElementById('mp-qr-waiting').style.display = 'block';
         pollDelay = 2000;
-        pollStatus((data) => showSuccess(data.total_amount));
+        pollStatus((data) => showSuccess(data.total_amount, data.caja_totals));
         return;
       }
 
       if (paymentMethod === 'MP_POINT') {
         setPayProcessing(false);
+        toggleCajaTotalsPanel(true);
         hideAllScreens();
         document.getElementById('point-section').style.display = 'block';
         await postJson(base + 'pay/mp-point/', {});
         pollDelay = 2000;
-        pollStatus((data) => showSuccess(data.total_amount));
+        pollStatus((data) => showSuccess(data.total_amount, data.caja_totals));
       }
     } catch (e) {
       setPayProcessing(false);

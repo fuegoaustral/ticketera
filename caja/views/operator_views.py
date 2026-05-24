@@ -69,6 +69,15 @@ def _caja_payment_totals(caja):
     }
 
 
+def _serialized_caja_payment_totals(caja):
+    totals = _caja_payment_totals(caja)
+    return {
+        'cash_total': str(totals['cash_total']),
+        'mp_total': str(totals['mp_total']),
+        'tx_count': totals['tx_count'],
+    }
+
+
 @login_required
 def caja_v2_operator_view(request, event_slug, caja_id):
     event = get_event_for_caja(request.user, event_slug)
@@ -180,12 +189,14 @@ def api_create_sale(request, event_slug, caja_id):
             'status': sale.status,
             'total_amount': str(sale.total_amount),
             'order_key': str(sale.order.key) if sale.order_id else None,
+            'caja_totals': _serialized_caja_payment_totals(caja),
         })
 
     return JsonResponse({
         'sale_id': sale.id,
         'status': sale.status,
         'total_amount': str(sale.total_amount),
+        'caja_totals': _serialized_caja_payment_totals(caja),
     })
 
 
@@ -310,6 +321,7 @@ def api_sale_status(request, event_slug, caja_id, sale_id):
         'total_amount': str(sale.total_amount),
         'order_key': str(sale.order.key) if sale.order_id else None,
         'qr_data': sale.mp_qr_data,
+        'caja_totals': _serialized_caja_payment_totals(caja),
     })
 
 
