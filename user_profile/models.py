@@ -33,15 +33,61 @@ class Profile(BaseModel):
     phone = models.CharField(max_length=15, validators=[RegexValidator(r'^\+?1?\d{9,15}$')])
     profile_completion = models.CharField(max_length=15, choices=PROFILE_COMPLETION_CHOICES, default=NONE)
 
-    miembro_sede = models.BooleanField(default=False, verbose_name='Miembro de La Sede')
-    sede_subscription_id = models.CharField(max_length=64, blank=True, default='')
-    sede_subscription_status = models.CharField(max_length=32, blank=True, default='')
-    sede_payment_method = models.CharField(max_length=64, blank=True, default='')
-    sede_last_payment_date = models.DateTimeField(null=True, blank=True)
-    sede_last_payment_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    sede_next_payment_date = models.DateTimeField(null=True, blank=True)
-    sede_member_since = models.DateTimeField(null=True, blank=True)
-    sede_synced_at = models.DateTimeField(null=True, blank=True)
+    def _primary_sede_subscription(self):
+        if hasattr(self, '_cached_primary_sede_subscription'):
+            return self._cached_primary_sede_subscription
+        subs_qs = self.sede_subscriptions.all()
+        active = subs_qs.filter(is_active=True).order_by('-last_payment_date', '-synced_at').first()
+        if active:
+            self._cached_primary_sede_subscription = active
+            return active
+        fallback = subs_qs.order_by('-last_payment_date', '-synced_at').first()
+        self._cached_primary_sede_subscription = fallback
+        return fallback
+
+    @property
+    def miembro_sede(self):
+        return self.sede_subscriptions.filter(is_active=True).exists()
+
+    @property
+    def sede_subscription_id(self):
+        primary = self._primary_sede_subscription()
+        return primary.subscription_id if primary else ''
+
+    @property
+    def sede_subscription_status(self):
+        primary = self._primary_sede_subscription()
+        return primary.status if primary else ''
+
+    @property
+    def sede_payment_method(self):
+        primary = self._primary_sede_subscription()
+        return primary.payment_method if primary else ''
+
+    @property
+    def sede_last_payment_date(self):
+        primary = self._primary_sede_subscription()
+        return primary.last_payment_date if primary else None
+
+    @property
+    def sede_last_payment_amount(self):
+        primary = self._primary_sede_subscription()
+        return primary.last_payment_amount if primary else None
+
+    @property
+    def sede_next_payment_date(self):
+        primary = self._primary_sede_subscription()
+        return primary.next_payment_date if primary else None
+
+    @property
+    def sede_member_since(self):
+        primary = self._primary_sede_subscription()
+        return primary.member_since if primary else None
+
+    @property
+    def sede_synced_at(self):
+        primary = self._primary_sede_subscription()
+        return primary.synced_at if primary else None
 
     @property
     def sede_payment_method_label(self):
