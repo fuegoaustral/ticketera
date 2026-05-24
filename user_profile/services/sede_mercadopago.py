@@ -34,6 +34,7 @@ API_RETRY_ATTEMPTS = 4
 API_RETRY_BASE_SECONDS = 0.75
 PAYMENT_FETCH_WORKERS = int(os.environ.get('SEDE_SYNC_PAYMENT_FETCH_WORKERS', '4'))
 SUBSCRIPTION_SYNC_WORKERS = int(os.environ.get('SEDE_SYNC_SUBSCRIPTION_WORKERS', '8'))
+PREAPPROVAL_FETCH_WORKERS = int(os.environ.get('SEDE_SYNC_PREAPPROVAL_FETCH_WORKERS', '6'))
 FORCED_ACTIVE_SUBSCRIPTION_IDS = {'0fe8d0c8034d4802aab2057e4a46907f'}
 
 PAYMENT_METHOD_LABELS = {
@@ -76,6 +77,10 @@ def _is_forced_active_subscription(subscription_id):
     if not subscription_id:
         return False
     return str(subscription_id) in _get_forced_active_subscription_ids()
+
+
+def _is_active_subscription_status(status):
+    return str(status or '').strip().lower() in ACTIVE_SUBSCRIPTION_STATUSES
 
 
 def _normalize_frequency_type(value):
@@ -267,8 +272,56 @@ def fetch_all_subscriptions(sdk=None, plan_ids=None):
     seen_ids = set()
     subscriptions = []
     allowed_plan_ids = set(plan_ids or [])
+    page_limit = 50
 
-    for item in _paginated_search(sdk.preapproval().search, {}):
+    # Fetch first page to learn total and then request remaining pages concurrently.
+    first_response = _call_with_backoff(
+        sdk.preapproval().search,
+        {'limit': page_limit, 'offset': 0},
+    )
+    if first_response.get('status') != 200:
+        logger.warning('MP preapproval search first page failed: %s', first_response)
+        return subscriptions
+
+    first_data = first_response.get('response', {}) or {}
+    first_batch = first_data.get('results', []) or []
+    paging = first_data.get('paging', {}) or {}
+    total = int(paging.get('total') or len(first_batch))
+
+    all_items = list(first_batch)
+    remaining_offsets = list(range(page_limit, total, page_limit))
+    if remaining_offsets:
+        workers = max(1, min(PREAPPROVAL_FETCH_WORKERS, len(remaining_offsets), 10))
+        logger.info(
+            'Fetching %d remaining preapproval page(s) with %d worker(s)',
+            len(remaining_offsets),
+            workers,
+        )
+
+        def fetch_offset(offset):
+            response = _call_with_backoff(
+                sdk.preapproval().search,
+                {'limit': page_limit, 'offset': offset},
+            )
+            return offset, response
+
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            future_map = {executor.submit(fetch_offset, offset): offset for offset in remaining_offsets}
+            for future in as_completed(future_map):
+                offset = future_map[future]
+                try:
+                    _, response = future.result()
+                except Exception:
+                    logger.exception('Failed to fetch preapproval page offset=%s', offset)
+                    continue
+
+                if response.get('status') != 200:
+                    logger.warning('MP preapproval search failed at offset=%s: %s', offset, response.get('status'))
+                    continue
+                batch = (response.get('response', {}) or {}).get('results', []) or []
+                all_items.extend(batch)
+
+    for item in all_items:
         sub_id = item.get('id')
         plan_id = item.get('preapproval_plan_id') or ''
         if allowed_plan_ids and plan_id not in allowed_plan_ids:
@@ -935,7 +988,7 @@ def apply_subscription_to_profile(profile, details, match_method=''):
         return
 
     is_active = (
-        details.get('status') in ACTIVE_SUBSCRIPTION_STATUSES
+        _is_active_subscription_status(details.get('status'))
         or _is_forced_active_subscription(subscription_id)
     )
     defaults = {
@@ -1097,7 +1150,7 @@ def _process_subscription(
                 match_method=existing_subscription.matched_via or 'subscription_id',
             )
         active = (
-            details.get('status') in ACTIVE_SUBSCRIPTION_STATUSES
+            _is_active_subscription_status(details.get('status'))
             or _is_forced_active_subscription(sub_id)
         )
         result.update({
@@ -1152,7 +1205,7 @@ def _process_subscription(
         result['message'] += f' — {payments_checked} pago(s)'
 
     active = (
-        details.get('status') in ACTIVE_SUBSCRIPTION_STATUSES
+        _is_active_subscription_status(details.get('status'))
         or _is_forced_active_subscription(sub_id)
     )
     log.info(
@@ -1395,7 +1448,7 @@ def run_full_sync(log=None):
             existing_subscription.next_payment_date = details.get('next_payment_date')
             existing_subscription.member_since = details.get('member_since')
             existing_subscription.is_active = (
-                details.get('status') in ACTIVE_SUBSCRIPTION_STATUSES
+                _is_active_subscription_status(details.get('status'))
                 or _is_forced_active_subscription(sub_id)
             )
             existing_subscription.matched_via = existing_subscription.matched_via or 'subscription_id'
@@ -1582,7 +1635,7 @@ def run_full_sync(log=None):
             existing_subscription.next_payment_date = details.get('next_payment_date')
             existing_subscription.member_since = details.get('member_since')
             existing_subscription.is_active = (
-                details.get('status') in ACTIVE_SUBSCRIPTION_STATUSES
+                _is_active_subscription_status(details.get('status'))
                 or _is_forced_active_subscription(sub_id)
             )
             existing_subscription.synced_at = now
