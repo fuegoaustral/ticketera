@@ -1,0 +1,11 @@
+<div style="margin: 0 0 1rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
+  <a class="button {% if sede_section == 'members' %}default{% endif %}" href="{% url 'admin_sede_members_view' %}">
+    Matched Users
+  </a>
+  <a class="button {% if sede_section == 'subscriptions' %}default{% endif %}" href="{% url 'admin_sede_subscriptions_view' %}">
+    Subscriptions
+  </a>
+  <a class="button {% if sede_section == 'matches' %}default{% endif %}" href="{% url 'admin_sede_matches_view' %}">
+    Match Audit
+  </a>
+</div>

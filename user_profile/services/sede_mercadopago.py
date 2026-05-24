@@ -32,6 +32,7 @@ ALL_HINT_SOURCES = {'subscription', 'customer', 'payment', 'invoice'}
 API_RETRY_ATTEMPTS = 4
 API_RETRY_BASE_SECONDS = 0.75
 PAYMENT_FETCH_WORKERS = int(os.environ.get('SEDE_SYNC_PAYMENT_FETCH_WORKERS', '4'))
+FORCED_ACTIVE_SUBSCRIPTION_IDS = {'0fe8d0c8034d4802aab2057e4a46907f'}
 
 PAYMENT_METHOD_LABELS = {
     'account_money': 'Dinero en cuenta',
@@ -62,6 +63,17 @@ def get_sede_plan_ids():
     if default_plan and default_plan not in plan_ids:
         plan_ids.append(default_plan)
     return plan_ids
+
+
+def _get_forced_active_subscription_ids():
+    configured = set(getattr(settings, 'SEDE_FORCED_ACTIVE_SUBSCRIPTION_IDS', []) or [])
+    return FORCED_ACTIVE_SUBSCRIPTION_IDS | configured
+
+
+def _is_forced_active_subscription(subscription_id):
+    if not subscription_id:
+        return False
+    return str(subscription_id) in _get_forced_active_subscription_ids()
 
 
 def refresh_sede_subscription_plans(log=None):
@@ -538,6 +550,18 @@ def match_payer_hints_to_user(hints, user_index):
                 'document_number': document.get('number'),
                 'source': document.get('source'),
             }
+        # Argentina hint normalization:
+        # when payer DNI starts with 20/27 and still no match, try without first two and last digit.
+        if normalized.startswith(('20', '27')) and len(normalized) > 3:
+            trimmed_normalized = normalized[2:-1]
+            trimmed_user = user_index['by_document'].get(trimmed_normalized)
+            if trimmed_user:
+                return trimmed_user, 'dni_trim', {
+                    'document_type': document.get('type'),
+                    'document_number': document.get('number'),
+                    'trimmed_document_number': trimmed_normalized,
+                    'source': document.get('source'),
+                }
 
     best_user = None
     best_meta = None
@@ -638,11 +662,16 @@ def _extract_subscription_details(subscription_summary, subscription_detail, pay
     except (InvalidOperation, TypeError, ValueError):
         last_payment_amount = None
 
+    subscription_id = detail.get('id') or subscription_summary.get('id')
+    resolved_status = detail.get('status') or subscription_summary.get('status') or ''
+    if _is_forced_active_subscription(subscription_id):
+        resolved_status = 'authorized'
+
     return {
-        'subscription_id': detail.get('id') or subscription_summary.get('id'),
+        'subscription_id': subscription_id,
         'plan_id': detail.get('preapproval_plan_id') or subscription_summary.get('preapproval_plan_id') or '',
         'tier_name': detail.get('reason') or subscription_summary.get('reason') or '',
-        'status': detail.get('status') or subscription_summary.get('status') or '',
+        'status': resolved_status,
         'payment_method': payment_method,
         'payer_email': detail.get('payer_email') or subscription_summary.get('payer_email') or '',
         'payer_id': detail.get('payer_id') or subscription_summary.get('payer_id'),
@@ -744,7 +773,10 @@ def apply_subscription_to_profile(profile, details, match_method=''):
     if not subscription_id:
         return
 
-    is_active = details.get('status') in ACTIVE_SUBSCRIPTION_STATUSES
+    is_active = (
+        details.get('status') in ACTIVE_SUBSCRIPTION_STATUSES
+        or _is_forced_active_subscription(subscription_id)
+    )
     defaults = {
         'plan_id': details.get('plan_id') or '',
         'tier_name': details.get('tier_name') or '',
@@ -913,7 +945,10 @@ def _process_subscription(sdk, subscription_summary, user_index, assigned_users,
     if payments_checked:
         result['message'] += f' — {payments_checked} pago(s)'
 
-    active = details.get('status') in ACTIVE_SUBSCRIPTION_STATUSES
+    active = (
+        details.get('status') in ACTIVE_SUBSCRIPTION_STATUSES
+        or _is_forced_active_subscription(sub_id)
+    )
     log.info(
         '  Matched -> %s via %s (active=%s)',
         user.email,

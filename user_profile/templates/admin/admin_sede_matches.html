@@ -34,6 +34,7 @@
 
 <div>
   <h1>La Sede — Active Unmatched Subscriptions</h1>
+  {% include "admin/_sede_submenu.html" %}
   <p>Solo se muestran suscripciones activas (personas que están pagando) que todavía no están matcheadas a un <code>user_profile</code>.</p>
   <p><strong>Total pendientes:</strong> {{ unmatched_rows|length }}</p>
 

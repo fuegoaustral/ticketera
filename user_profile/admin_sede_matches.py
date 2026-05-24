@@ -60,6 +60,7 @@ def admin_sede_matches_view(request):
         {
             'title': 'La Sede — Unmatched Active Subscriptions',
             'unmatched_rows': unmatched_rows,
+            'sede_section': 'matches',
         },
     )
 

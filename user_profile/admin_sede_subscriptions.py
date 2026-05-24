@@ -71,5 +71,6 @@ def admin_sede_subscriptions_view(request):
         {
             'title': 'La Sede — Subscription Plans',
             'plans': plans,
+            'sede_section': 'subscriptions',
         },
     )
