@@ -5,19 +5,13 @@
   <h1>La Sede — Subscription Plans</h1>
   {% include "admin/_sede_submenu.html" %}
   <p>
-    Refrescá los planes de suscripción de MercadoPago y habilitá/deshabilitá cuáles se usan para matchear usuarios.
+    Refresca planes de Mercado Pago con upsert (sin tocar enabled) y administra qué planes se usan para matchear usuarios.
   </p>
 
   <form method="post" style="margin: 1rem 0;">
     {% csrf_token %}
     <input type="hidden" name="action" value="refresh">
-    <button type="submit" class="button default">Refresh subscriptions</button>
-  </form>
-
-  <form method="post" style="margin: 0 0 1rem 0;">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="run_sync_now">
-    <button type="submit" class="button default">Run sync now</button>
+    <button type="submit" class="button default">Refresh plans</button>
   </form>
 
   <div style="overflow-x:auto;">
@@ -27,6 +21,7 @@
           <th>Enabled</th>
           <th>Plan ID</th>
           <th>Name</th>
+          <th>Billing cycle</th>
           <th>Subscriptions</th>
           <th>Last seen</th>
           <th>Action</th>
@@ -38,6 +33,7 @@
             <td>{% if plan.is_enabled %}Sí{% else %}No{% endif %}</td>
             <td><code>{{ plan.plan_id }}</code></td>
             <td>{{ plan.plan_name|default:"—" }}</td>
+            <td>{{ plan.billing_cycle|default:"—" }}</td>
             <td>{{ plan.subscriptions_count }}</td>
             <td>{{ plan.last_seen_at|date:"d/m/Y H:i"|default:"—" }}</td>
             <td>
@@ -54,7 +50,7 @@
           </tr>
         {% empty %}
           <tr>
-            <td colspan="6">No hay planes cargados todavía. Presioná <em>Refresh subscriptions</em>.</td>
+            <td colspan="7">No hay planes cargados todavía. Presioná <em>Refresh plans</em>.</td>
           </tr>
         {% endfor %}
       </tbody>

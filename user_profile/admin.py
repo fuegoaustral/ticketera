@@ -1,10 +1,15 @@
 from django.contrib import admin
+from django.conf import settings
+from django.contrib import messages
+from django.contrib.auth import login
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
-from django.utils.html import format_html_join
+from django.utils.html import format_html, format_html_join
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import path, reverse
 
 from .models import Profile, SedeSubscription, SedeSubscriptionPlan, SedeUnmatchedSubscription
-
+from .impersonation import IMPERSONATION_ADMIN_USER_ID_SESSION_KEY
 
 User.__str__ = lambda self: f'{self.first_name} {self.last_name} ({self.email})'
 
@@ -54,7 +59,7 @@ class CustomUserAdmin(UserAdmin):
     inlines = (ProfileInline,)
     list_display = (
         'email', 'is_staff', 'is_superuser', 'first_name', 'last_name', 'get_phone', 'get_document_type',
-        'get_document_number', 'get_miembro_sede')
+        'get_document_number', 'get_miembro_sede', 'impersonate_link')
     
     search_fields = ('email', 'first_name', 'last_name', 'profile__document_number', 'profile__phone')
 
@@ -78,6 +83,61 @@ class CustomUserAdmin(UserAdmin):
 
     get_miembro_sede.short_description = 'La Sede'
     get_miembro_sede.boolean = True
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                '<int:user_id>/impersonate/',
+                self.admin_site.admin_view(self.impersonate_user_view),
+                name='user_profile_user_impersonate',
+            ),
+        ]
+        return custom_urls + urls
+
+    def impersonate_link(self, instance):
+        if instance.is_superuser:
+            return '-'
+        url = reverse('admin:user_profile_user_impersonate', args=[instance.pk])
+        return format_html('<a class="button" href="{}">Impersonalizar</a>', url)
+
+    impersonate_link.short_description = 'Impersonalizar'
+
+    def impersonate_user_view(self, request, user_id):
+        if not request.user.is_superuser:
+            self.message_user(
+                request,
+                'Solo superusuarios pueden impersonalizar usuarios.',
+                level=messages.ERROR,
+            )
+            return redirect('admin:auth_user_changelist')
+
+        target_user = get_object_or_404(User, pk=user_id)
+        if target_user.pk == request.user.pk:
+            self.message_user(
+                request,
+                'No podés impersonalizar tu propio usuario.',
+                level=messages.WARNING,
+            )
+            return redirect('admin:auth_user_change', target_user.pk)
+
+        if target_user.is_superuser:
+            self.message_user(
+                request,
+                'No se permite impersonalizar otro superusuario.',
+                level=messages.ERROR,
+            )
+            return redirect('admin:auth_user_change', target_user.pk)
+
+        request.session.setdefault(IMPERSONATION_ADMIN_USER_ID_SESSION_KEY, request.user.pk)
+        login(request, target_user, backend=settings.AUTHENTICATION_BACKENDS[0])
+
+        self.message_user(
+            request,
+            f'Ahora navegás como {target_user.email}.',
+            level=messages.INFO,
+        )
+        return redirect('mi_fuego')
 
 
 # Quitar el registro original y registrar el nuevo UserAdmin
@@ -120,6 +180,6 @@ class SedeUnmatchedSubscriptionAdmin(admin.ModelAdmin):
 
 @admin.register(SedeSubscriptionPlan)
 class SedeSubscriptionPlanAdmin(admin.ModelAdmin):
-    list_display = ('plan_id', 'plan_name', 'is_enabled', 'subscriptions_count', 'last_seen_at')
+    list_display = ('plan_id', 'plan_name', 'billing_cycle', 'is_enabled', 'subscriptions_count', 'last_seen_at')
     list_filter = ('is_enabled',)
-    search_fields = ('plan_id', 'plan_name')
+    search_fields = ('plan_id', 'plan_name', 'billing_cycle')

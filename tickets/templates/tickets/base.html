@@ -81,6 +81,29 @@
         .navbar-toggler-icon {
             background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3e%3cpath stroke='rgba(255, 255, 255, 0.5)' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
         }
+
+        .impersonation-badge {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1200;
+            background: #ffc107;
+            color: #212529;
+            border-radius: 999px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .impersonation-badge a {
+            color: #212529;
+            text-decoration: underline;
+            font-weight: 700;
+        }
     </style>
     <!-- TODO move this shit to some other place  -->
 
@@ -127,6 +150,13 @@
 
 <body class="home blog ">
 
+{% if request.session.impersonation_admin_user_id %}
+    <div class="impersonation-badge">
+        <span>Impersonalizando: {{ user.email }}</span>
+        <a href="{% url 'stop_impersonation' %}">Salir</a>
+    </div>
+{% endif %}
+
 <div class="content d-flex flex-column min-vh-100">
 
     <div id="masthead" class="site-header {% block hero %}{% endblock %}">
@@ -138,6 +168,12 @@
                     <a class="btn btn-danger text-white mb-2 mx-2" href="{% url 'my_ticket' %}">
                         Mis bonos
                     </a>
+                    {% if request.session.impersonation_admin_user_id %}
+                        <a class="btn btn-warning mb-2 mx-2 text-dark text-decoration-none"
+                           href="{% url 'stop_impersonation' %}">
+                            Salir de impersonalizacion
+                        </a>
+                    {% endif %}
                     {% if user.is_staff %}
                         <a class="btn btn-success mb-2 mx-2 text-white text-decoration-none" href="{% url 'admin:index' %}">
                              Ver Admin

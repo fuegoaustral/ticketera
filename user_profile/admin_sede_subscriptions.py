@@ -4,7 +4,6 @@ from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 
 from user_profile.models import SedeSubscriptionPlan
-from user_profile.sede_sync_cron import dispatch_sede_members_sync
 from user_profile.services.sede_mercadopago import refresh_sede_subscription_plans
 
 
@@ -20,8 +19,8 @@ def admin_sede_subscriptions_view(request):
                 messages.success(
                     request,
                     (
-                        f"Refresh listo: {summary.get('refreshed_plans', 0)} plan(es) "
-                        f"desde {summary.get('total_subscriptions', 0)} suscripción(es)."
+                        f"Refresh de planes listo: {summary.get('refreshed_plans', 0)} plan(es) "
+                        f"upsertados desde {summary.get('total_subscriptions', 0)} suscripción(es)."
                     ),
                 )
             except Exception as exc:
@@ -39,29 +38,6 @@ def admin_sede_subscriptions_view(request):
                 plan.save(update_fields=['is_enabled', 'updated_at'])
                 state = 'habilitado' if enabled else 'deshabilitado'
                 messages.success(request, f'Plan {plan.plan_id} {state}.')
-            return redirect('admin_sede_subscriptions_view')
-
-        if action == 'run_sync_now':
-            try:
-                result = dispatch_sede_members_sync()
-                if result.get('queued'):
-                    messages.success(
-                        request,
-                        'Sync La Sede disparado en background (Zappa task). Revisá logs para seguimiento.',
-                    )
-                else:
-                    summary = result.get('summary') or {}
-                    messages.success(
-                        request,
-                        (
-                            f"Sync terminado: {summary.get('matched', 0)} match, "
-                            f"{summary.get('unmatched', 0)} sin match, "
-                            f"{summary.get('conflicts', 0)} conflictos, "
-                            f"{summary.get('errors', 0)} errores."
-                        ),
-                    )
-            except Exception as exc:
-                messages.error(request, f'Error al disparar sync: {exc}')
             return redirect('admin_sede_subscriptions_view')
 
     plans = SedeSubscriptionPlan.objects.order_by('-is_enabled', 'plan_name', 'plan_id')

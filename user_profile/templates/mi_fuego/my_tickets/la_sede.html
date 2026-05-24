@@ -8,6 +8,8 @@
     .sede-credential-wrap {
         display: flex;
         justify-content: center;
+        flex-direction: column;
+        gap: 1rem;
         padding: 1rem 0 2rem;
     }
 
@@ -98,18 +100,28 @@
         font-size: 0.75rem;
         opacity: 0.6;
     }
+
+    .sede-manage-link {
+        display: inline-block;
+        margin-top: 0.4rem;
+        color: #9ad8ff;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+
+    .sede-manage-link:hover {
+        text-decoration: underline;
+        color: #c7ebff;
+    }
 </style>
 
-<div class="mb-4">
-    <h2 class="mb-1">La Sede</h2>
-    <p class="text-muted mb-0">Tu credencial de miembro del espacio comunal.</p>
-</div>
-
 <div class="sede-credential-wrap">
+    {% for item in active_subscriptions %}
     <div class="sede-credential">
         <div class="sede-credential-header">
-            <h3>Fuego Austral</h3>
-            <p>La Sede — Espacio Comunal</p>
+            <h3>{{ item.plan_name }}</h3>
+            <p>Socio</p>
         </div>
         <div class="sede-credential-body">
             <div class="sede-member-name">{{ user.get_full_name|default:user.email }}</div>
@@ -121,16 +133,16 @@
             <div class="sede-detail-row">
                 <span class="sede-detail-label">Estado</span>
                 <span class="sede-detail-value">
-                    <span class="sede-status-badge">{{ subscription_status_label }}</span>
+                    <span class="sede-status-badge">{{ item.status_label }}</span>
                 </span>
             </div>
             <div class="sede-detail-row">
                 <span class="sede-detail-label">Último pago</span>
                 <span class="sede-detail-value">
-                    {% if primary_subscription.last_payment_date %}
-                        {{ primary_subscription.last_payment_date|date:"d/m/Y" }}
-                        {% if primary_subscription.last_payment_amount %}
-                            — ${{ primary_subscription.last_payment_amount|floatformat:0|intcomma }}
+                    {% if item.subscription.last_payment_date %}
+                        {{ item.subscription.last_payment_date|date:"d/m/Y" }}
+                        {% if item.subscription.last_payment_amount %}
+                            — ${{ item.subscription.last_payment_amount|floatformat:0|intcomma }}
                         {% endif %}
                     {% else %}
                         —
@@ -139,22 +151,26 @@
             </div>
             <div class="sede-detail-row">
                 <span class="sede-detail-label">Modo de pago</span>
-                <span class="sede-detail-value">{{ payment_method_label }}</span>
+                <span class="sede-detail-value">{{ item.payment_method_label }}</span>
             </div>
             <div class="sede-detail-row">
                 <span class="sede-detail-label">Próximo pago</span>
                 <span class="sede-detail-value">
-                    {% if primary_subscription.next_payment_date %}
-                        {{ primary_subscription.next_payment_date|date:"d/m/Y" }}
+                    {% if item.subscription.next_payment_date %}
+                        {{ item.subscription.next_payment_date|date:"d/m/Y" }}
                     {% else %}
                         —
                     {% endif %}
                 </span>
             </div>
+            <a class="sede-manage-link" href="{{ item.manage_url }}" target="_blank" rel="noopener noreferrer">
+                Gestionar en Mercado Pago
+            </a>
         </div>
         <div class="sede-credential-footer">
-            ID {{ primary_subscription.subscription_id|default:"—" }}
+            ID {{ item.subscription.subscription_id|default:"—" }}
         </div>
     </div>
+    {% endfor %}
 </div>
 {% endblock %}

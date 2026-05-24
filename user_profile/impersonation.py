@@ -1,0 +1,1 @@
+IMPERSONATION_ADMIN_USER_ID_SESSION_KEY = 'impersonation_admin_user_id'
