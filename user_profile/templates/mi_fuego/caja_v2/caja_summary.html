@@ -1,0 +1,124 @@
+{% extends 'tickets/barbu_base.html' %}
+{% load humanize %}
+{% block title %}Resumen Caja - {{ caja.name }} - {% endblock %}
+{% block full_content %}
+<div class="container-fluid py-3" id="caja-summary-app" data-csrf="{{ csrf_token }}">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h4 class="mb-0"><i class="fas fa-receipt me-2"></i>Resumen — {{ caja.name }}</h4>
+    <a href="{% url 'caja_v2_operator' event.slug caja.id %}" class="btn btn-outline-secondary btn-sm">Volver a vender</a>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-6">
+      <div class="card border-0 bg-light">
+        <div class="card-body p-3">
+          <div class="small text-muted">Efectivo</div>
+          <div class="h5 mb-0">${{ caja_payment_totals.cash_total|floatformat:0|intcomma }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card border-0 bg-light">
+        <div class="card-body p-3">
+          <div class="small text-muted">Mercado Pago</div>
+          <div class="h5 mb-0">${{ caja_payment_totals.mp_total|floatformat:0|intcomma }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Transacciones</div>
+    <div class="table-responsive">
+      <table class="table table-sm mb-0 align-middle">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th>Pago</th>
+            <th class="text-end">Monto</th>
+            <th>Motivo / Detalle</th>
+            <th class="text-end">Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sale in sales %}
+          <tr>
+            <td>{{ sale.created_at|date:'d/m H:i' }}</td>
+            <td>
+              {% if sale.sale_type == 'CANCELLATION' %}
+                <span class="badge text-bg-danger">Cancelación</span>
+              {% else %}
+                <span class="badge text-bg-success">Venta</span>
+              {% endif %}
+            </td>
+            <td>{{ sale.get_payment_method_display }}</td>
+            <td class="text-end {% if sale.total_amount < 0 %}text-danger{% else %}text-success{% endif %}">
+              ${{ sale.total_amount|floatformat:0|intcomma }}
+            </td>
+            <td>
+              {% if sale.sale_type == 'CANCELLATION' and sale.related_sale_id %}
+                <div><strong>Cancelación de #{{ sale.related_sale_id }}</strong></div>
+              {% endif %}
+              {% if sale.notes %}
+                <div class="small text-muted">{{ sale.notes }}</div>
+              {% else %}
+                <span class="text-muted">-</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              {% if sale.sale_type == 'SALE' and sale.status == 'PAID' and not sale.cancellations.exists %}
+                <button
+                  type="button"
+                  class="btn btn-outline-danger btn-sm"
+                  data-cancel-sale-id="{{ sale.id }}"
+                  data-cancel-url="{% url 'caja_v2_api_cancel_paid_sale' event.slug caja.id sale.id %}">
+                  Cancelar
+                </button>
+              {% else %}
+                <span class="text-muted small">-</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">No hay transacciones registradas en esta caja.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const app = document.getElementById('caja-summary-app');
+  const csrf = app.dataset.csrf;
+  document.querySelectorAll('[data-cancel-sale-id]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const reason = prompt('Motivo de cancelación:');
+      if (!reason || !reason.trim()) return;
+      btn.disabled = true;
+      try {
+        const res = await fetch(btn.dataset.cancelUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrf,
+          },
+          body: JSON.stringify({ reason: reason.trim() }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'No se pudo cancelar la transacción');
+        window.location.reload();
+      } catch (error) {
+        alert(error.message || 'No se pudo cancelar la transacción');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+})();
+</script>
+{% endblock %}

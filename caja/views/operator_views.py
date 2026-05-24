@@ -1,12 +1,10 @@
 import json
 import logging
-import uuid
 
-from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db import models
+from django.db import models, transaction
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_GET, require_POST
 
 from caja.context import mi_fuego_admin_context
@@ -26,7 +24,6 @@ from caja.qr_utils import qr_string_to_data_url
 from caja.services.mercadopago_setup import ensure_mp_qr_config
 from caja.services.sales import create_pending_sale, finalize_caja_sale
 from caja.stock import available, InsufficientStockError
-from events.models import Event
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +33,40 @@ def _caja_products_for_sale(caja):
         event_caja=caja,
         event_product__is_active=True,
     ).select_related('event_product', 'event_product__ticket_type', 'event_product__stock')
+
+
+def _caja_payment_totals(caja):
+    paid_sales = CajaSale.objects.filter(
+        event_caja=caja,
+        status=CajaSale.Status.PAID,
+    )
+    totals = paid_sales.aggregate(
+        cash_total=models.Sum(
+            'total_amount',
+            filter=models.Q(
+                payment_method__in=[
+                    CajaSale.PaymentMethod.EFECTIVO,
+                    CajaSale.PaymentMethod.TRANSFERENCIA,
+                ],
+            ),
+            default=0,
+        ),
+        mp_total=models.Sum(
+            'total_amount',
+            filter=models.Q(
+                payment_method__in=[
+                    CajaSale.PaymentMethod.MP_QR,
+                    CajaSale.PaymentMethod.MP_POINT,
+                ],
+            ),
+            default=0,
+        ),
+    )
+    return {
+        'cash_total': totals['cash_total'] or 0,
+        'mp_total': totals['mp_total'] or 0,
+        'tx_count': paid_sales.count(),
+    }
 
 
 @login_required
@@ -72,10 +103,33 @@ def caja_v2_operator_view(request, event_slug, caja_id):
         'has_ticket_products': has_ticket_products,
         'mp_qr_ready': mp_config.qr_ready if mp_config else False,
         'mp_point_ready': mp_config.point_ready if mp_config else False,
+        'caja_payment_totals': _caja_payment_totals(caja),
     })
     if has_ticket_products:
         context['stats'] = ticket_caja_operator_stats(event)
     return render(request, 'mi_fuego/caja_v2/operator.html', context)
+
+
+@login_required
+def caja_v2_summary_view(request, event_slug, caja_id):
+    event = get_event_for_caja(request.user, event_slug)
+    caja = get_object_or_404(EventCaja, id=caja_id, event=event, is_active=True)
+    sales = (
+        CajaSale.objects.filter(
+            event_caja=caja,
+        )
+        .exclude(status=CajaSale.Status.PENDING)
+        .select_related('sold_by', 'related_sale')
+        .prefetch_related('lines__event_product', 'cancellations')
+        .order_by('-created_at')
+    )
+    context = mi_fuego_admin_context(request, event, f'caja_v2_{event.slug}_{caja.id}')
+    context.update({
+        'caja': caja,
+        'sales': sales,
+        'caja_payment_totals': _caja_payment_totals(caja),
+    })
+    return render(request, 'mi_fuego/caja_v2/caja_summary.html', context)
 
 
 @login_required
@@ -278,3 +332,50 @@ def api_cancel_sale(request, event_slug, caja_id, sale_id):
     sale.status = CajaSale.Status.CANCELLED
     sale.save(update_fields=['status', 'updated_at'])
     return JsonResponse({'sale_id': sale.id, 'status': sale.status})
+
+
+@login_required
+@require_POST
+def api_cancel_paid_sale(request, event_slug, caja_id, sale_id):
+    event = get_event_for_caja(request.user, event_slug)
+    caja = get_object_or_404(EventCaja, id=caja_id, event=event)
+    sale = get_object_or_404(
+        CajaSale,
+        id=sale_id,
+        event_caja=caja,
+        status=CajaSale.Status.PAID,
+        sale_type=CajaSale.SaleType.SALE,
+    )
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
+
+    reason = (data.get('reason') or '').strip()
+    if not reason:
+        return JsonResponse({'error': 'Debe indicar un motivo'}, status=400)
+
+    with transaction.atomic():
+        sale = CajaSale.objects.select_for_update().get(pk=sale.pk)
+        if sale.cancellations.exists():
+            return JsonResponse({'error': 'La transacción ya fue cancelada'}, status=400)
+
+        cancellation = CajaSale.objects.create(
+            event_caja=sale.event_caja,
+            sold_by=request.user,
+            payment_method=sale.payment_method,
+            sale_type=CajaSale.SaleType.CANCELLATION,
+            status=CajaSale.Status.PAID,
+            total_amount=-sale.total_amount,
+            customer_email=sale.customer_email,
+            related_sale=sale,
+            notes=f'Cancelación de tx #{sale.id}. Motivo: {reason}',
+            mark_as_used=False,
+        )
+
+    return JsonResponse({
+        'sale_id': sale.id,
+        'cancellation_id': cancellation.id,
+        'status': 'ok',
+    })

@@ -20,6 +20,7 @@ class EventProduct(BaseModel):
     )
     name = models.CharField(max_length=200, blank=True)
     price = models.DecimalField(decimal_places=2, max_digits=10, null=True, blank=True)
+    image = models.ImageField(upload_to='caja/products/', blank=True, null=True)
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -189,11 +190,28 @@ class CajaSale(BaseModel):
         CANCELLED = 'CANCELLED', 'Cancelada'
         EXPIRED = 'EXPIRED', 'Expirada'
 
+    class SaleType(models.TextChoices):
+        SALE = 'SALE', 'Venta'
+        CANCELLATION = 'CANCELLATION', 'Cancelación'
+
     event_caja = models.ForeignKey(EventCaja, on_delete=models.CASCADE, related_name='sales')
     sold_by = models.ForeignKey(User, on_delete=models.RESTRICT, related_name='caja_sales')
     payment_method = models.CharField(max_length=20, choices=PaymentMethod.choices)
+    sale_type = models.CharField(
+        max_length=20,
+        choices=SaleType.choices,
+        default=SaleType.SALE,
+    )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     total_amount = models.DecimalField(decimal_places=2, max_digits=10, default=Decimal('0'))
+    notes = models.TextField(blank=True)
+    related_sale = models.ForeignKey(
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='cancellations',
+    )
     customer_email = models.EmailField(blank=True)
     mark_as_used = models.BooleanField(default=False)
     order = models.ForeignKey(

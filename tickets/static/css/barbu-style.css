@@ -525,9 +525,13 @@ dl {
 
 .badge {
   width: fit-content;
-  color: #289e6d !important;
-  background-color: #e9f5f0;
   padding: 0.5rem;
+  color: #fff !important;
+}
+
+.badge.text-dark,
+.badge.text-black {
+  color: #212529 !important;
 }
 
 .rainbow-border {
