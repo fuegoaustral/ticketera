@@ -1,4 +1,7 @@
 <div style="margin: 0 0 1rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
+  <a class="button {% if sede_section == 'manual_members' %}default{% endif %}" href="{% url 'admin_sede_manual_members_view' %}">
+    Manual Members
+  </a>
   <a class="button {% if sede_section == 'members' %}default{% endif %}" href="{% url 'admin_sede_members_view' %}">
     Matched Users
   </a>

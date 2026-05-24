@@ -1,0 +1,184 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div>
+  <h1>La Sede — Manual Members</h1>
+  {% include "admin/_sede_submenu.html" %}
+  <p>Asocia usuarios a La Sede por fuera de Mercado Pago con Suscripcion generica.</p>
+
+  <div style="margin: 1rem 0; padding: 1rem; border: 1px solid #ddd; border-radius: 6px;">
+    <h2 style="margin-top: 0;">Buscar usuario</h2>
+    <div style="display:flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem;">
+      <input
+        id="user-search-input"
+        type="text"
+        placeholder="Buscar por nombre, apellido, DNI o email"
+        style="min-width: 360px;"
+      >
+      <button type="button" class="button" id="user-search-btn">Buscar</button>
+    </div>
+    <div id="user-search-results"></div>
+    <div id="assign-status" style="margin-top: 0.5rem;"></div>
+  </div>
+
+  <h2>Membresias manuales existentes</h2>
+  <div style="overflow-x:auto;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Usuario</th>
+          <th>DNI</th>
+          <th>Suscripcion</th>
+          <th>Plan</th>
+          <th>Estado</th>
+          <th>Sincronizado</th>
+        </tr>
+      </thead>
+      <tbody id="manual-members-table-body">
+        {% for sub in rows %}
+          <tr>
+            <td>
+              {{ sub.profile.user.first_name }} {{ sub.profile.user.last_name }}<br>
+              <small>{{ sub.profile.user.email }}</small>
+            </td>
+            <td>{{ sub.profile.document_number|default:"—" }}</td>
+            <td><code>{{ sub.subscription_id }}</code></td>
+            <td>{{ sub.tier_name|default:"Suscripcion generica" }}</td>
+            <td>{% if sub.is_active %}Activa{% else %}Inactiva{% endif %}</td>
+            <td>{{ sub.synced_at|date:"d/m/Y H:i"|default:"—" }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="6">No hay membresias manuales.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<form style="display:none;">{% csrf_token %}</form>
+
+<script>
+  (function () {
+    const searchInput = document.getElementById('user-search-input');
+    const searchBtn = document.getElementById('user-search-btn');
+    const resultsContainer = document.getElementById('user-search-results');
+    const statusContainer = document.getElementById('assign-status');
+    const csrfTokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    async function searchUsers() {
+      const q = searchInput.value.trim();
+      if (!q) {
+        resultsContainer.innerHTML = '<p>Ingresa un termino para buscar.</p>';
+        return;
+      }
+
+      resultsContainer.innerHTML = '<p>Buscando...</p>';
+      statusContainer.textContent = '';
+
+      try {
+        const url = `{% url 'admin_sede_manual_members_user_search' %}?q=${encodeURIComponent(q)}`;
+        const response = await fetch(url, { method: 'GET' });
+        const data = await response.json();
+        const users = data.results || [];
+
+        if (!users.length) {
+          resultsContainer.innerHTML = '<p>No se encontraron usuarios.</p>';
+          return;
+        }
+
+        resultsContainer.innerHTML = `
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th>DNI</th>
+                <th>La Sede actual</th>
+                <th>Suscripcion generica</th>
+                <th>Accion</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${users.map((user) => `
+                <tr>
+                  <td>${escapeHtml(user.full_name || '—')}<br><small>${escapeHtml(user.email || '—')}</small></td>
+                  <td>${escapeHtml(user.document_number || '—')}</td>
+                  <td>${user.miembro_sede ? 'Si' : 'No'}</td>
+                  <td>${user.manual_status === 'active' ? 'Activa' : user.manual_status === 'inactive' ? 'Inactiva' : 'Sin alta'}</td>
+                  <td style="display:flex; gap:0.4rem; align-items:center;">
+                    <select class="manual-status-select">
+                      <option value="active" ${user.manual_status === 'active' ? 'selected' : ''}>Activa</option>
+                      <option value="inactive" ${user.manual_status === 'inactive' ? 'selected' : ''}>Inactiva</option>
+                    </select>
+                    <button type="button" class="button default assign-manual-btn" data-user-id="${user.id}">
+                      Guardar
+                    </button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+
+        resultsContainer.querySelectorAll('.assign-manual-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const row = btn.closest('tr');
+            const select = row ? row.querySelector('.manual-status-select') : null;
+            const status = select ? select.value : '';
+            assignManual(btn.dataset.userId, status);
+          });
+        });
+      } catch (error) {
+        resultsContainer.innerHTML = '<p>Error buscando usuarios.</p>';
+      }
+    }
+
+    async function assignManual(userId, manualStatus) {
+      if (!userId || !manualStatus) {
+        return;
+      }
+      statusContainer.textContent = 'Guardando membresia manual...';
+
+      try {
+        const formData = new URLSearchParams();
+        formData.append('user_id', userId);
+        formData.append('manual_status', manualStatus);
+
+        const response = await fetch(`{% url 'admin_sede_manual_members_assign' %}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': csrfTokenInput ? csrfTokenInput.value : '',
+          },
+          body: formData.toString(),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || 'No se pudo guardar');
+        }
+        statusContainer.textContent = data.message || 'Membresia actualizada.';
+      } catch (error) {
+        statusContainer.textContent = error.message || 'Error al guardar membresia.';
+      }
+    }
+
+    searchBtn.addEventListener('click', searchUsers);
+    searchInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        searchUsers();
+      }
+    });
+  })();
+</script>
+{% endblock %}

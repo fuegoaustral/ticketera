@@ -1155,6 +1155,7 @@ def la_sede_view(request):
         plan = plans_by_id.get(subscription.plan_id)
         plan_name = ((plan.plan_name if plan else '') or '').strip()
         tier_name = (subscription.tier_name or '').strip()
+        is_manual_membership = subscription.matched_via == 'manual_generic'
         subscriptions_for_view.append({
             'subscription': subscription,
             'plan_name': plan_name or tier_name or f'Suscripcion {subscription.subscription_id}',
@@ -1165,6 +1166,7 @@ def la_sede_view(request):
                 subscription.status or 'Activa',
             ),
             'manage_url': 'https://www.mercadopago.com.ar/subscriptions',
+            'is_manual_membership': is_manual_membership,
         })
 
     context = _mi_fuego_sidebar_context(request)
