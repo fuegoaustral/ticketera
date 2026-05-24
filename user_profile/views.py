@@ -1136,7 +1136,7 @@ SUBSCRIPTION_STATUS_LABELS = {
 def la_sede_view(request):
     profile = request.user.profile
     active_subscriptions = list(
-        profile.sede_subscriptions.filter(is_active=True).order_by('-last_payment_date', '-synced_at')
+        profile.sede_subscriptions.filter(is_active=True, is_soft_removed=False).order_by('-last_payment_date', '-synced_at')
     )
     if not active_subscriptions:
         raise Http404
@@ -1158,14 +1158,13 @@ def la_sede_view(request):
         subscriptions_for_view.append({
             'subscription': subscription,
             'plan_name': plan_name or tier_name or f'Suscripcion {subscription.subscription_id}',
+            'billing_cycle': ((plan.billing_cycle if plan else '') or '').strip(),
             'payment_method_label': format_payment_method(subscription.payment_method),
             'status_label': SUBSCRIPTION_STATUS_LABELS.get(
                 subscription.status,
                 subscription.status or 'Activa',
             ),
-            'manage_url': (
-                f'https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_id={subscription.subscription_id}'
-            ),
+            'manage_url': 'https://www.mercadopago.com.ar/subscriptions',
         })
 
     context = _mi_fuego_sidebar_context(request)

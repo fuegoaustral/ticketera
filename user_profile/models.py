@@ -36,7 +36,7 @@ class Profile(BaseModel):
     def _primary_sede_subscription(self):
         if hasattr(self, '_cached_primary_sede_subscription'):
             return self._cached_primary_sede_subscription
-        subs_qs = self.sede_subscriptions.all()
+        subs_qs = self.sede_subscriptions.filter(is_soft_removed=False)
         active = subs_qs.filter(is_active=True).order_by('-last_payment_date', '-synced_at').first()
         if active:
             self._cached_primary_sede_subscription = active
@@ -47,7 +47,7 @@ class Profile(BaseModel):
 
     @property
     def miembro_sede(self):
-        return self.sede_subscriptions.filter(is_active=True).exists()
+        return self.sede_subscriptions.filter(is_active=True, is_soft_removed=False).exists()
 
     @property
     def sede_subscription_id(self):
@@ -145,6 +145,8 @@ class SedeSubscription(BaseModel):
     next_payment_date = models.DateTimeField(null=True, blank=True)
     member_since = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=False)
+    is_soft_removed = models.BooleanField(default=False)
+    soft_removed_at = models.DateTimeField(null=True, blank=True)
     matched_via = models.CharField(max_length=16, blank=True, default='')
     synced_at = models.DateTimeField(null=True, blank=True)
 

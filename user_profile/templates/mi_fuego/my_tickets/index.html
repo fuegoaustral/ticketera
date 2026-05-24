@@ -117,11 +117,29 @@
             </ul>
         </div>
         
+        {% if request.user.profile.miembro_sede %}
+        <div class="menu-section">
+            <a class="menu-section-title menu-section-link{% if nav_primary == "la_sede" %} active{% endif %}"
+               href="{% url "la_sede" %}">
+                <i class="fas fa-house-chimney me-2"></i>
+                La Sede
+            </a>
+        </div>
+        {% endif %}
+
+        <div class="menu-section">
+            <a class="menu-section-title menu-section-link{% if nav_primary == "logros" %} active{% endif %}"
+               href="{% url "mis_logros" %}">
+                <i class="fas fa-trophy me-2"></i>
+                Mis logros
+            </a>
+        </div>
+
         <div class="menu-section">
             <a class="menu-section-title menu-section-link{% if nav_primary == "tickets" and "eventos-anteriores" in request.path %} active{% endif %}"
                href="{% url "my_ticket_past" %}">
                 <i class="fas fa-archive me-2"></i>
-                Eventos Anteriores
+                Eventos pasados
             </a>
         </div>
         
@@ -132,24 +150,6 @@
                 Órdenes
             </a>
         </div>
-
-        <div class="menu-section">
-            <a class="menu-section-title menu-section-link{% if nav_primary == "logros" %} active{% endif %}"
-               href="{% url "mis_logros" %}">
-                <i class="fas fa-trophy me-2"></i>
-                Mis logros
-            </a>
-        </div>
-
-        {% if request.user.profile.miembro_sede %}
-        <div class="menu-section">
-            <a class="menu-section-title menu-section-link{% if nav_primary == "la_sede" %} active{% endif %}"
-               href="{% url "la_sede" %}">
-                <i class="fas fa-house-chimney me-2"></i>
-                La Sede
-            </a>
-        </div>
-        {% endif %}
         
     </div>
     
