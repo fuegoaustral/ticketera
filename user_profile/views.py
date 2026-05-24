@@ -6,7 +6,7 @@ from django.http import Http404, HttpResponseNotAllowed, HttpResponseForbidden, 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
-from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth import login, update_session_auth_hash
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_http_methods
 from django.contrib.auth.models import User
@@ -17,6 +17,7 @@ from events.models import Event, EventTermsAndConditions, EventTermsAndCondition
 from events.utils import get_event_from_request
 from tickets.models import NewTicket, NewTicketTransfer, Order, TicketType
 from .forms import ProfileStep1Form, ProfileStep2Form, VolunteeringForm, ProfileUpdateForm, CustomPasswordChangeForm, AddEmailForm, PhoneUpdateForm, CajaEmitirBonoForm
+from .impersonation import IMPERSONATION_ADMIN_USER_ID_SESSION_KEY
 
 
 def get_volunteer_event_for_user(user):
@@ -70,6 +71,23 @@ def puede_modificar_ingresos_anticipados(event):
 @login_required
 def my_fire_view(request):
     return redirect(reverse("my_ticket"))
+
+
+@login_required
+def stop_impersonation_view(request):
+    original_admin_user_id = request.session.pop(IMPERSONATION_ADMIN_USER_ID_SESSION_KEY, None)
+    if not original_admin_user_id:
+        messages.warning(request, 'No hay una impersonalizacion activa.')
+        return redirect('mi_fuego')
+
+    original_admin_user = User.objects.filter(pk=original_admin_user_id, is_staff=True).first()
+    if not original_admin_user:
+        messages.error(request, 'No se pudo restaurar el usuario admin original.')
+        return redirect('mi_fuego')
+
+    login(request, original_admin_user, backend=settings.AUTHENTICATION_BACKENDS[0])
+    messages.success(request, 'Volviste a tu sesion de admin.')
+    return redirect('admin:index')
 
 
 def show_past_events(request):
@@ -1117,24 +1135,43 @@ SUBSCRIPTION_STATUS_LABELS = {
 @login_required
 def la_sede_view(request):
     profile = request.user.profile
-    primary_subscription = (
-        profile.sede_subscriptions.filter(is_active=True).order_by('-last_payment_date', '-synced_at').first()
-        or profile.sede_subscriptions.order_by('-last_payment_date', '-synced_at').first()
+    active_subscriptions = list(
+        profile.sede_subscriptions.filter(is_active=True).order_by('-last_payment_date', '-synced_at')
     )
-    if not primary_subscription or not primary_subscription.is_active:
+    if not active_subscriptions:
         raise Http404
 
     from user_profile.services.sede_mercadopago import format_payment_method
+    from user_profile.models import SedeSubscriptionPlan
+
+    plan_ids = {subscription.plan_id for subscription in active_subscriptions if subscription.plan_id}
+    plans_by_id = {
+        plan.plan_id: plan
+        for plan in SedeSubscriptionPlan.objects.filter(plan_id__in=plan_ids)
+    }
+
+    subscriptions_for_view = []
+    for subscription in active_subscriptions:
+        plan = plans_by_id.get(subscription.plan_id)
+        plan_name = ((plan.plan_name if plan else '') or '').strip()
+        tier_name = (subscription.tier_name or '').strip()
+        subscriptions_for_view.append({
+            'subscription': subscription,
+            'plan_name': plan_name or tier_name or f'Suscripcion {subscription.subscription_id}',
+            'payment_method_label': format_payment_method(subscription.payment_method),
+            'status_label': SUBSCRIPTION_STATUS_LABELS.get(
+                subscription.status,
+                subscription.status or 'Activa',
+            ),
+            'manage_url': (
+                f'https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_id={subscription.subscription_id}'
+            ),
+        })
 
     context = _mi_fuego_sidebar_context(request)
     context.update({
         'profile': profile,
-        'primary_subscription': primary_subscription,
-        'payment_method_label': format_payment_method(primary_subscription.payment_method),
-        'subscription_status_label': SUBSCRIPTION_STATUS_LABELS.get(
-            primary_subscription.status,
-            primary_subscription.status or 'Activa',
-        ),
+        'active_subscriptions': subscriptions_for_view,
         'nav_primary': 'la_sede',
         'nav_secondary': 'credencial',
     })

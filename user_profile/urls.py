@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import (
     complete_profile,
+    stop_impersonation_view,
     verification_congrats,
     profile_congrats,
     my_fire_view,
@@ -46,6 +47,7 @@ urlpatterns = [
     path("perfil/send-phone-code/", send_phone_code_ajax, name="send_phone_code_ajax"),
     path("perfil/verify-phone-code/", verify_phone_code_ajax, name="verify_phone_code_ajax"),
     path("", my_fire_view, name="mi_fuego"),
+    path("impersonation/stop/", stop_impersonation_view, name="stop_impersonation"),
     # Specific paths (must come before generic slug pattern)
     path("mis-bonos/eventos-anteriores/", my_ticket_view, {"event_slug": "eventos-anteriores"}, name="my_ticket_past"),
     path("mis-bonos/ordenes/", my_orders_view, name="my_orders"),

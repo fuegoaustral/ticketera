@@ -184,6 +184,7 @@ class SedeUnmatchedSubscription(BaseModel):
 class SedeSubscriptionPlan(BaseModel):
     plan_id = models.CharField(max_length=64, unique=True)
     plan_name = models.CharField(max_length=255, blank=True, default='')
+    billing_cycle = models.CharField(max_length=64, blank=True, default='')
     is_enabled = models.BooleanField(default=False)
     subscriptions_count = models.PositiveIntegerField(default=0)
     last_seen_at = models.DateTimeField(null=True, blank=True)

@@ -77,29 +77,62 @@ def _is_forced_active_subscription(subscription_id):
     return str(subscription_id) in _get_forced_active_subscription_ids()
 
 
-def refresh_sede_subscription_plans(log=None):
-    log = log or logger
-    sdk = get_mp_sdk()
-    subscriptions = fetch_all_subscriptions(sdk=sdk)
+def _normalize_frequency_type(value):
+    mapping = {
+        'days': 'dia',
+        'day': 'dia',
+        'months': 'mes',
+        'month': 'mes',
+        'years': 'anio',
+        'year': 'anio',
+        'weeks': 'semana',
+        'week': 'semana',
+    }
+    return mapping.get(str(value or '').strip().lower(), str(value or '').strip().lower())
 
+
+def _format_billing_cycle(auto_recurring):
+    auto_recurring = auto_recurring or {}
+    frequency = auto_recurring.get('frequency')
+    frequency_type = _normalize_frequency_type(auto_recurring.get('frequency_type'))
+    if not frequency or not frequency_type:
+        return ''
+    if str(frequency) == '1':
+        return f'cada {frequency_type}'
+    return f'cada {frequency} {frequency_type}s'
+
+
+def _build_plan_catalog(subscriptions):
     plan_catalog = {}
     for sub in subscriptions:
         plan_id = (sub.get('preapproval_plan_id') or '').strip()
         if not plan_id:
             continue
         plan_name = (sub.get('reason') or '').strip()
-        item = plan_catalog.setdefault(plan_id, {'name': '', 'count': 0})
+        billing_cycle = _format_billing_cycle(sub.get('auto_recurring'))
+        item = plan_catalog.setdefault(plan_id, {'name': '', 'count': 0, 'billing_cycle': '', 'cycles': {}})
         item['count'] += 1
         if plan_name and (not item['name'] or len(plan_name) > len(item['name'])):
             item['name'] = plan_name
+        if billing_cycle:
+            item['cycles'][billing_cycle] = item['cycles'].get(billing_cycle, 0) + 1
 
+    return plan_catalog
+
+
+def _upsert_subscription_plans(plan_catalog, log=None):
+    log = log or logger
     refreshed = 0
     now = timezone.now()
     for plan_id, info in plan_catalog.items():
+        if info['cycles']:
+            info['billing_cycle'] = max(info['cycles'].items(), key=lambda pair: pair[1])[0]
+
         SedeSubscriptionPlan.objects.update_or_create(
             plan_id=plan_id,
             defaults={
                 'plan_name': info['name'] or '',
+                'billing_cycle': info['billing_cycle'] or '',
                 'subscriptions_count': info['count'],
                 'last_seen_at': now,
             },
@@ -107,6 +140,15 @@ def refresh_sede_subscription_plans(log=None):
         refreshed += 1
 
     log.info('Refreshed %d MercadoPago subscription plan(s)', refreshed)
+    return refreshed
+
+
+def refresh_sede_subscription_plans(log=None):
+    log = log or logger
+    sdk = get_mp_sdk()
+    subscriptions = fetch_all_subscriptions(sdk=sdk)
+    refreshed = _upsert_subscription_plans(_build_plan_catalog(subscriptions), log=log)
+
     return {
         'total_subscriptions': len(subscriptions),
         'refreshed_plans': refreshed,
@@ -947,7 +989,7 @@ def _process_subscription(sdk, subscription_summary, user_index, assigned_users,
             'match_method': 'subscription_id',
             'user_id': existing_subscription.profile.user_id,
             'user_email': existing_subscription.profile.user.email,
-            'message': f'Updated existing subscription for {existing_subscription.profile.user.email}',
+            'message': f'✅ Updated existing subscription for {existing_subscription.profile.user.email}',
         })
         return result, sub_id if active else None, details
 
@@ -983,7 +1025,7 @@ def _process_subscription(sdk, subscription_summary, user_index, assigned_users,
         'match_method': match_method,
         'user_id': user.id,
         'user_email': user.email,
-        'message': f'Vinculado con {user.email} ({match_method})',
+        'message': f'✅ Vinculado con {user.email} ({match_method})',
     })
     if match_method == 'name' and details.get('match_meta'):
         result['message'] += f" — score {details['match_meta'].get('score')}"
@@ -995,7 +1037,7 @@ def _process_subscription(sdk, subscription_summary, user_index, assigned_users,
         or _is_forced_active_subscription(sub_id)
     )
     log.info(
-        '  Matched -> %s via %s (active=%s)',
+        '  ✅ Matched -> %s via %s (active=%s)',
         user.email,
         match_method,
         active,
@@ -1144,6 +1186,7 @@ def run_full_sync(log=None):
 
     log.info('Fetching subscriptions from MercadoPago...')
     subscriptions = fetch_all_subscriptions(sdk, plan_ids=plan_ids)
+    refreshed_plans = _upsert_subscription_plans(_build_plan_catalog(subscriptions), log=log)
     authorized_subscriptions = [
         sub for sub in subscriptions if (sub.get('status') or '').lower() == 'authorized'
     ]
@@ -1232,6 +1275,7 @@ def run_full_sync(log=None):
 
     summary = {
         'total': total,
+        'refreshed_plans': refreshed_plans,
         'authorized_total': len(authorized_subscriptions),
         'update_only_total': len(update_only_subscriptions),
         'matched': matched_count,
