@@ -33,6 +33,7 @@ ALL_HINT_SOURCES = {'subscription', 'customer', 'payment', 'invoice'}
 API_RETRY_ATTEMPTS = 4
 API_RETRY_BASE_SECONDS = 0.75
 PAYMENT_FETCH_WORKERS = int(os.environ.get('SEDE_SYNC_PAYMENT_FETCH_WORKERS', '4'))
+SUBSCRIPTION_SYNC_WORKERS = int(os.environ.get('SEDE_SYNC_SUBSCRIPTION_WORKERS', '8'))
 FORCED_ACTIVE_SUBSCRIPTION_IDS = {'0fe8d0c8034d4802aab2057e4a46907f'}
 
 PAYMENT_METHOD_LABELS = {
@@ -495,6 +496,92 @@ def fetch_recent_payer_payments(sdk, payer_id, log=None, limit=40):
     return payments
 
 
+def _resolve_subscription_prefetch_worker_count(total_subscriptions):
+    if total_subscriptions <= 0:
+        return 1
+    return max(1, min(SUBSCRIPTION_SYNC_WORKERS, total_subscriptions, 12))
+
+
+def _prefetch_subscription_remote_data(subscription_summary, log=None, include_payments=True):
+    log = log or logger
+    sub_id = subscription_summary.get('id') or ''
+    if not sub_id:
+        return {
+            'subscription_id': sub_id,
+            'error': 'missing_id',
+            'detail': None,
+            'payments': [],
+            'invoices': [],
+        }
+
+    sdk = get_mp_sdk()
+    detail_response = sdk.preapproval().get(sub_id)
+    if detail_response.get('status') != 200:
+        return {
+            'subscription_id': sub_id,
+            'error': f'Subscription detail fetch failed: {detail_response.get("status")}',
+            'detail': None,
+            'payments': [],
+            'invoices': [],
+        }
+
+    detail_payload = detail_response.get('response', {})
+    payments = []
+    invoices = []
+    if include_payments:
+        payments, invoices = fetch_subscription_recent_payments(sdk, sub_id, log=log)
+    return {
+        'subscription_id': sub_id,
+        'error': None,
+        'detail': detail_payload,
+        'payments': payments,
+        'invoices': invoices,
+    }
+
+
+def _prefetch_subscription_remote_map(subscriptions, log=None, include_payments=True):
+    log = log or logger
+    preloaded = {}
+    workers = _resolve_subscription_prefetch_worker_count(len(subscriptions))
+    if not subscriptions:
+        return preloaded
+
+    lane_label = 'full remote data' if include_payments else 'detail data'
+    log.info(
+        'Preloading %s for %d subscription(s) with %d worker(s)...',
+        lane_label,
+        len(subscriptions),
+        workers,
+    )
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        future_map = {
+            executor.submit(
+                _prefetch_subscription_remote_data,
+                subscription_summary,
+                log,
+                include_payments,
+            ): (subscription_summary.get('id', ''))
+            for subscription_summary in subscriptions
+        }
+        for future in as_completed(future_map):
+            sub_id = future_map[future]
+            try:
+                payload = future.result()
+            except Exception as exc:
+                log.exception('  Error preloading subscription %s: %s', sub_id, exc)
+                payload = {
+                    'subscription_id': sub_id,
+                    'error': f'Preload error: {exc}',
+                    'detail': None,
+                    'payments': [],
+                    'invoices': [],
+                }
+            preloaded[sub_id] = payload
+
+    log.info('Preloaded %s for %d subscription(s)', lane_label, len(preloaded))
+    return preloaded
+
+
 def _add_payer_hint(hints, source, doc_type=None, doc_number=None,
                     first_name=None, last_name=None):
     if doc_number:
@@ -776,7 +863,15 @@ def _extract_subscription_details(subscription_summary, subscription_detail, pay
     }
 
 
-def match_subscription_to_user(sdk, subscription_summary, subscription_detail=None, user_index=None, log=None):
+def match_subscription_to_user(
+    sdk,
+    subscription_summary,
+    subscription_detail=None,
+    user_index=None,
+    log=None,
+    payments=None,
+    invoices=None,
+):
     log = log or logger
     if user_index is None:
         user_index = build_user_match_index()
@@ -793,7 +888,8 @@ def match_subscription_to_user(sdk, subscription_summary, subscription_detail=No
             return None, 'fetch_failed', None
         subscription_detail = response.get('response', {})
 
-    payments, invoices = fetch_subscription_recent_payments(sdk, sub_id, log=log)
+    if payments is None or invoices is None:
+        payments, invoices = fetch_subscription_recent_payments(sdk, sub_id, log=log)
     hints = collect_payer_hints(sdk, subscription_summary, subscription_detail, payments, log=log)
     user, match_method, match_meta = match_payer_hints_to_user(hints, user_index)
     if not user:
@@ -858,6 +954,8 @@ def apply_subscription_to_profile(profile, details, match_method=''):
 
     existing = SedeSubscription.objects.filter(subscription_id=subscription_id).select_related('profile').first()
     if existing:
+        if existing.is_soft_removed:
+            return
         # Do not replace an existing subscription/user match on periodic sync.
         # Keep the matched profile and only refresh subscription values.
         for field, value in defaults.items():
@@ -943,7 +1041,15 @@ def _deactivate_stale_members(active_subscription_ids, log):
     return stale_count
 
 
-def _process_subscription(sdk, subscription_summary, user_index, assigned_users, log, apply_changes=True):
+def _process_subscription(
+    sdk,
+    subscription_summary,
+    user_index,
+    assigned_users,
+    log,
+    apply_changes=True,
+    preloaded_remote=None,
+):
     sub_id = subscription_summary.get('id', '')
     payer_name = ' '.join(filter(None, [
         subscription_summary.get('payer_first_name'),
@@ -965,14 +1071,24 @@ def _process_subscription(sdk, subscription_summary, user_index, assigned_users,
         'message': '',
     }
 
+    preloaded_error = (preloaded_remote or {}).get('error')
+    if preloaded_error:
+        result['message'] = preloaded_error
+        return result, None, {}
+
     existing_subscription = SedeSubscription.objects.filter(subscription_id=sub_id).select_related('profile__user').first()
     if existing_subscription:
-        detail_response = sdk.preapproval().get(sub_id)
-        if detail_response.get('status') != 200:
-            result['message'] = f'Subscription detail fetch failed: {detail_response.get("status")}'
-            return result, None, {}
-        detail_payload = detail_response.get('response', {})
-        payments, invoices = fetch_subscription_recent_payments(sdk, sub_id, log=log)
+        detail_payload = (preloaded_remote or {}).get('detail')
+        payments = (preloaded_remote or {}).get('payments')
+        invoices = (preloaded_remote or {}).get('invoices')
+        if detail_payload is None:
+            detail_response = sdk.preapproval().get(sub_id)
+            if detail_response.get('status') != 200:
+                result['message'] = f'Subscription detail fetch failed: {detail_response.get("status")}'
+                return result, None, {}
+            detail_payload = detail_response.get('response', {})
+        if payments is None or invoices is None:
+            payments, invoices = fetch_subscription_recent_payments(sdk, sub_id, log=log)
         details = _extract_subscription_details(subscription_summary, detail_payload, payments, invoices)
         if apply_changes:
             apply_subscription_to_profile(
@@ -996,8 +1112,11 @@ def _process_subscription(sdk, subscription_summary, user_index, assigned_users,
     user, match_method, details = match_subscription_to_user(
         sdk,
         subscription_summary,
+        subscription_detail=(preloaded_remote or {}).get('detail'),
         user_index=user_index,
         log=log,
+        payments=(preloaded_remote or {}).get('payments'),
+        invoices=(preloaded_remote or {}).get('invoices'),
     )
     payments_checked = (details or {}).get('payments_checked', 0)
     log.info('  Payments checked: %d', payments_checked)
@@ -1171,6 +1290,7 @@ def run_match_audit(log=None):
 def run_full_sync(log=None):
     """Sync all MercadoPago subscriptions with platform users. Returns summary dict."""
     log = log or logger
+    sync_started = time.perf_counter()
     log.info('=' * 80)
     log.info('La Sede membership sync started')
 
@@ -1185,7 +1305,19 @@ def run_full_sync(log=None):
     sdk = get_mp_sdk()
 
     log.info('Fetching subscriptions from MercadoPago...')
+    fetch_started = time.perf_counter()
     subscriptions = fetch_all_subscriptions(sdk, plan_ids=plan_ids)
+    soft_removed_skipped = 0
+    soft_removed_ids = set(
+        SedeSubscription.objects.filter(is_soft_removed=True).values_list('subscription_id', flat=True)
+    )
+    if soft_removed_ids:
+        soft_removed_skipped = sum(1 for sub in subscriptions if str(sub.get('id') or '') in soft_removed_ids)
+        if soft_removed_skipped:
+            log.info('Skipping %d soft-removed subscription(s) from sync', soft_removed_skipped)
+        subscriptions = [
+            sub for sub in subscriptions if str(sub.get('id') or '') not in soft_removed_ids
+        ]
     refreshed_plans = _upsert_subscription_plans(_build_plan_catalog(subscriptions), log=log)
     authorized_subscriptions = [
         sub for sub in subscriptions if (sub.get('status') or '').lower() == 'authorized'
@@ -1194,84 +1326,336 @@ def run_full_sync(log=None):
         sub for sub in subscriptions if (sub.get('status') or '').lower() in UPDATE_ONLY_SUBSCRIPTION_STATUSES
     ]
     total = len(subscriptions)
+    fetch_duration = time.perf_counter() - fetch_started
     log.info('Found %d subscription(s)', total)
 
-    log.info('Building user match index...')
-    user_index = build_user_match_index()
-    log.info(
-        'User index ready: %d emails, %d documents, %d name entries',
-        len(user_index['by_email']),
-        len(user_index['by_document']),
-        len(user_index['by_name']),
-    )
-
-    assigned_users = {}
     active_subscription_ids = []
     matched_count = 0
     unmatched_count = 0
     conflict_count = 0
     error_count = 0
 
-    for index, subscription_summary in enumerate(authorized_subscriptions, start=1):
-        sub_id = subscription_summary.get('id', '—')
-        payer_name = ' '.join(filter(None, [
-            subscription_summary.get('payer_first_name'),
-            subscription_summary.get('payer_last_name'),
-        ])).strip() or '—'
-        status = subscription_summary.get('status') or '—'
+    authorized_started = time.perf_counter()
+    authorized_ids = [str(sub.get('id')) for sub in authorized_subscriptions if sub.get('id')]
+    existing_subscriptions = (
+        SedeSubscription.objects.filter(subscription_id__in=authorized_ids)
+        .select_related('profile__user')
+        .in_bulk(field_name='subscription_id')
+    )
+    existing_unmatched = (
+        SedeUnmatchedSubscription.objects.filter(subscription_id__in=authorized_ids).in_bulk(field_name='subscription_id')
+    )
 
+    known_matched_subscriptions = []
+    known_unmatched_subscriptions = []
+    new_candidate_subscriptions = []
+    for subscription_summary in authorized_subscriptions:
+        sub_id = subscription_summary.get('id', '—')
+        if sub_id in existing_subscriptions:
+            known_matched_subscriptions.append(subscription_summary)
+        elif sub_id in existing_unmatched:
+            known_unmatched_subscriptions.append(subscription_summary)
+        else:
+            new_candidate_subscriptions.append(subscription_summary)
+
+    log.info(
+        'Authorized lanes: %d known matched, %d known unmatched, %d new candidates',
+        len(known_matched_subscriptions),
+        len(known_unmatched_subscriptions),
+        len(new_candidate_subscriptions),
+    )
+
+    if known_matched_subscriptions:
+        known_payloads = _prefetch_subscription_remote_map(
+            known_matched_subscriptions,
+            log=log,
+            include_payments=False,
+        )
+        now = timezone.now()
+        matched_updates = []
+        for subscription_summary in known_matched_subscriptions:
+            sub_id = subscription_summary.get('id', '')
+            existing_subscription = existing_subscriptions.get(sub_id)
+            payload = known_payloads.get(sub_id, {})
+            if payload.get('error'):
+                error_count += 1
+                log.warning('  Known matched preload failed for %s: %s', sub_id, payload.get('error'))
+                continue
+
+            details = _extract_subscription_details(
+                subscription_summary,
+                payload.get('detail') or subscription_summary,
+            )
+            existing_subscription.plan_id = details.get('plan_id') or ''
+            existing_subscription.tier_name = details.get('tier_name') or ''
+            existing_subscription.status = details.get('status') or ''
+            existing_subscription.payment_method = details.get('payment_method') or ''
+            existing_subscription.last_payment_date = details.get('last_payment_date')
+            existing_subscription.last_payment_amount = details.get('last_payment_amount')
+            existing_subscription.next_payment_date = details.get('next_payment_date')
+            existing_subscription.member_since = details.get('member_since')
+            existing_subscription.is_active = (
+                details.get('status') in ACTIVE_SUBSCRIPTION_STATUSES
+                or _is_forced_active_subscription(sub_id)
+            )
+            existing_subscription.matched_via = existing_subscription.matched_via or 'subscription_id'
+            existing_subscription.synced_at = now
+            existing_subscription.updated_at = now
+            matched_updates.append(existing_subscription)
+            matched_count += 1
+            _clear_unmatched_subscription(sub_id)
+            if existing_subscription.is_active:
+                active_subscription_ids.append(sub_id)
+
+        if matched_updates:
+            SedeSubscription.objects.bulk_update(
+                matched_updates,
+                fields=[
+                    'plan_id',
+                    'tier_name',
+                    'status',
+                    'payment_method',
+                    'last_payment_date',
+                    'last_payment_amount',
+                    'next_payment_date',
+                    'member_since',
+                    'is_active',
+                    'matched_via',
+                    'synced_at',
+                    'updated_at',
+                ],
+            )
+        log.info('Updated %d known matched subscription(s) via bulk update', len(matched_updates))
+
+    if known_unmatched_subscriptions:
+        now = timezone.now()
+        unmatched_updates = []
+        for subscription_summary in known_unmatched_subscriptions:
+            sub_id = subscription_summary.get('id', '')
+            unmatched = existing_unmatched.get(sub_id)
+            if not unmatched:
+                continue
+            unmatched.plan_id = subscription_summary.get('preapproval_plan_id') or unmatched.plan_id or ''
+            unmatched.tier_name = subscription_summary.get('reason') or unmatched.tier_name or ''
+            unmatched.status = subscription_summary.get('status') or unmatched.status or ''
+            unmatched.payer_id = str(subscription_summary.get('payer_id') or unmatched.payer_id or '')
+            unmatched.payer_email = subscription_summary.get('payer_email') or unmatched.payer_email or ''
+            unmatched.payer_first_name = subscription_summary.get('payer_first_name') or unmatched.payer_first_name or ''
+            unmatched.payer_last_name = subscription_summary.get('payer_last_name') or unmatched.payer_last_name or ''
+            unmatched.last_seen_at = now
+            unmatched.updated_at = now
+            unmatched_updates.append(unmatched)
+
+        if unmatched_updates:
+            SedeUnmatchedSubscription.objects.bulk_update(
+                unmatched_updates,
+                fields=[
+                    'plan_id',
+                    'tier_name',
+                    'status',
+                    'payer_id',
+                    'payer_email',
+                    'payer_first_name',
+                    'payer_last_name',
+                    'last_seen_at',
+                    'updated_at',
+                ],
+            )
+        unmatched_count += len(known_unmatched_subscriptions)
+        log.info('Refreshed %d known unmatched subscription(s) without rematching', len(unmatched_updates))
+
+    if new_candidate_subscriptions:
+        log.info('Building user match index for new authorized candidates...')
+        user_index = build_user_match_index()
         log.info(
-            '[AUTHORIZED %d/%d] Subscription %s — %s (%s)',
-            index,
-            len(authorized_subscriptions),
-            sub_id,
-            payer_name,
-            status,
+            'User index ready: %d emails, %d documents, %d name entries',
+            len(user_index['by_email']),
+            len(user_index['by_document']),
+            len(user_index['by_name']),
+        )
+        assigned_users = {}
+        preloaded_new_candidates = _prefetch_subscription_remote_map(
+            new_candidate_subscriptions,
+            log=log,
+            include_payments=True,
         )
 
-        try:
-            result, active_sub_id, details = _process_subscription(
-                sdk,
-                subscription_summary,
-                user_index,
-                assigned_users,
-                log,
+        for index, subscription_summary in enumerate(new_candidate_subscriptions, start=1):
+            sub_id = subscription_summary.get('id', '—')
+            payer_name = ' '.join(filter(None, [
+                subscription_summary.get('payer_first_name'),
+                subscription_summary.get('payer_last_name'),
+            ])).strip() or '—'
+            status = subscription_summary.get('status') or '—'
+
+            log.info(
+                '[AUTHORIZED NEW %d/%d] Subscription %s — %s (%s)',
+                index,
+                len(new_candidate_subscriptions),
+                sub_id,
+                payer_name,
+                status,
             )
-            if result.get('matched'):
-                matched_count += 1
-                _clear_unmatched_subscription(sub_id)
-                if active_sub_id:
-                    active_subscription_ids.append(active_sub_id)
-            elif result.get('message', '').startswith('Conflicto'):
-                conflict_count += 1
-                _store_unmatched_subscription(subscription_summary, details, result.get('message'))
-            else:
-                unmatched_count += 1
-                _store_unmatched_subscription(subscription_summary, details, result.get('message'))
-        except Exception as exc:
-            error_count += 1
-            log.exception('  Error processing subscription %s: %s', sub_id, exc)
+
+            try:
+                result, active_sub_id, details = _process_subscription(
+                    sdk,
+                    subscription_summary,
+                    user_index,
+                    assigned_users,
+                    log,
+                    preloaded_remote=preloaded_new_candidates.get(sub_id),
+                )
+                if result.get('matched'):
+                    matched_count += 1
+                    _clear_unmatched_subscription(sub_id)
+                    if active_sub_id:
+                        active_subscription_ids.append(active_sub_id)
+                elif result.get('message', '').startswith('Conflicto'):
+                    conflict_count += 1
+                    _store_unmatched_subscription(subscription_summary, details, result.get('message'))
+                else:
+                    unmatched_count += 1
+                    _store_unmatched_subscription(subscription_summary, details, result.get('message'))
+            except Exception as exc:
+                error_count += 1
+                log.exception('  Error processing new subscription %s: %s', sub_id, exc)
+    authorized_duration = time.perf_counter() - authorized_started
 
     update_only_updated = 0
     update_only_ignored = 0
-    for index, subscription_summary in enumerate(update_only_subscriptions, start=1):
-        sub_id = subscription_summary.get('id', '—')
-        status = (subscription_summary.get('status') or '').lower() or '—'
-        log.info('[NON-AUTH %d/%d] Subscription %s (%s)', index, len(update_only_subscriptions), sub_id, status)
-        try:
-            outcome = _update_existing_non_authorized_subscription(sdk, subscription_summary, log)
-            if outcome in {'updated_subscription', 'updated_unmatched'}:
-                update_only_updated += 1
-            elif outcome == 'ignored_non_authorized_new':
-                update_only_ignored += 1
-            else:
-                error_count += 1
-        except Exception as exc:
-            error_count += 1
-            log.exception('  Error updating non-authorized subscription %s: %s', sub_id, exc)
+    non_auth_started = time.perf_counter()
+    update_only_ids = [str(sub.get('id')) for sub in update_only_subscriptions if sub.get('id')]
+    update_existing_subscriptions = SedeSubscription.objects.filter(subscription_id__in=update_only_ids).in_bulk(
+        field_name='subscription_id'
+    )
+    update_existing_unmatched = SedeUnmatchedSubscription.objects.filter(subscription_id__in=update_only_ids).in_bulk(
+        field_name='subscription_id'
+    )
 
+    update_known_matched = []
+    update_known_unmatched = []
+    update_new_unknown = []
+    for subscription_summary in update_only_subscriptions:
+        sub_id = subscription_summary.get('id', '')
+        if sub_id in update_existing_subscriptions:
+            update_known_matched.append(subscription_summary)
+        elif sub_id in update_existing_unmatched:
+            update_known_unmatched.append(subscription_summary)
+        else:
+            update_new_unknown.append(subscription_summary)
+
+    log.info(
+        'Non-auth lanes: %d known matched, %d known unmatched, %d unknown skipped',
+        len(update_known_matched),
+        len(update_known_unmatched),
+        len(update_new_unknown),
+    )
+
+    if update_known_matched:
+        known_non_auth_payloads = _prefetch_subscription_remote_map(
+            update_known_matched,
+            log=log,
+            include_payments=False,
+        )
+        now = timezone.now()
+        matched_non_auth_updates = []
+        for subscription_summary in update_known_matched:
+            sub_id = subscription_summary.get('id', '')
+            existing_subscription = update_existing_subscriptions.get(sub_id)
+            payload = known_non_auth_payloads.get(sub_id, {})
+            if payload.get('error'):
+                error_count += 1
+                log.warning('  Non-auth matched preload failed for %s: %s', sub_id, payload.get('error'))
+                continue
+
+            details = _extract_subscription_details(
+                subscription_summary,
+                payload.get('detail') or subscription_summary,
+            )
+            existing_subscription.plan_id = details.get('plan_id') or ''
+            existing_subscription.tier_name = details.get('tier_name') or ''
+            existing_subscription.status = details.get('status') or ''
+            existing_subscription.payment_method = details.get('payment_method') or ''
+            existing_subscription.last_payment_date = details.get('last_payment_date')
+            existing_subscription.last_payment_amount = details.get('last_payment_amount')
+            existing_subscription.next_payment_date = details.get('next_payment_date')
+            existing_subscription.member_since = details.get('member_since')
+            existing_subscription.is_active = (
+                details.get('status') in ACTIVE_SUBSCRIPTION_STATUSES
+                or _is_forced_active_subscription(sub_id)
+            )
+            existing_subscription.synced_at = now
+            existing_subscription.updated_at = now
+            matched_non_auth_updates.append(existing_subscription)
+            update_only_updated += 1
+            if existing_subscription.is_active:
+                active_subscription_ids.append(sub_id)
+
+        if matched_non_auth_updates:
+            SedeSubscription.objects.bulk_update(
+                matched_non_auth_updates,
+                fields=[
+                    'plan_id',
+                    'tier_name',
+                    'status',
+                    'payment_method',
+                    'last_payment_date',
+                    'last_payment_amount',
+                    'next_payment_date',
+                    'member_since',
+                    'is_active',
+                    'synced_at',
+                    'updated_at',
+                ],
+            )
+        log.info('Updated %d known non-auth matched subscription(s)', len(matched_non_auth_updates))
+
+    if update_known_unmatched:
+        now = timezone.now()
+        unmatched_non_auth_updates = []
+        for subscription_summary in update_known_unmatched:
+            sub_id = subscription_summary.get('id', '')
+            unmatched = update_existing_unmatched.get(sub_id)
+            if not unmatched:
+                continue
+            unmatched.plan_id = subscription_summary.get('preapproval_plan_id') or unmatched.plan_id or ''
+            unmatched.tier_name = subscription_summary.get('reason') or unmatched.tier_name or ''
+            unmatched.status = subscription_summary.get('status') or unmatched.status or ''
+            unmatched.payer_id = str(subscription_summary.get('payer_id') or unmatched.payer_id or '')
+            unmatched.payer_email = subscription_summary.get('payer_email') or unmatched.payer_email or ''
+            unmatched.payer_first_name = subscription_summary.get('payer_first_name') or unmatched.payer_first_name or ''
+            unmatched.payer_last_name = subscription_summary.get('payer_last_name') or unmatched.payer_last_name or ''
+            unmatched.last_seen_at = now
+            unmatched.updated_at = now
+            unmatched_non_auth_updates.append(unmatched)
+            update_only_updated += 1
+
+        if unmatched_non_auth_updates:
+            SedeUnmatchedSubscription.objects.bulk_update(
+                unmatched_non_auth_updates,
+                fields=[
+                    'plan_id',
+                    'tier_name',
+                    'status',
+                    'payer_id',
+                    'payer_email',
+                    'payer_first_name',
+                    'payer_last_name',
+                    'last_seen_at',
+                    'updated_at',
+                ],
+            )
+        log.info('Updated %d known non-auth unmatched subscription(s)', len(unmatched_non_auth_updates))
+
+    update_only_ignored += len(update_new_unknown)
+    non_auth_duration = time.perf_counter() - non_auth_started
+
+    deactivate_started = time.perf_counter()
     log.info('Deactivating stale members...')
     deactivated = _deactivate_stale_members(active_subscription_ids, log)
+    deactivate_duration = time.perf_counter() - deactivate_started
+    total_duration = time.perf_counter() - sync_started
 
     summary = {
         'total': total,
@@ -1286,6 +1670,14 @@ def run_full_sync(log=None):
         'deactivated': deactivated,
         'update_only_updated': update_only_updated,
         'update_only_ignored': update_only_ignored,
+        'soft_removed_skipped': soft_removed_skipped,
+        'duration_seconds': round(total_duration, 2),
+        'timings': {
+            'fetch_seconds': round(fetch_duration, 2),
+            'authorized_seconds': round(authorized_duration, 2),
+            'non_auth_seconds': round(non_auth_duration, 2),
+            'deactivate_seconds': round(deactivate_duration, 2),
+        },
     }
 
     log.info('=' * 80)
@@ -1297,6 +1689,14 @@ def run_full_sync(log=None):
     log.info('Errors: %d', summary['errors'])
     log.info('Active members: %d', summary['active_members'])
     log.info('Deactivated: %d', summary['deactivated'])
+    log.info(
+        'Timing: total=%ss fetch=%ss authorized=%ss non_auth=%ss deactivate=%ss',
+        summary['duration_seconds'],
+        summary['timings']['fetch_seconds'],
+        summary['timings']['authorized_seconds'],
+        summary['timings']['non_auth_seconds'],
+        summary['timings']['deactivate_seconds'],
+    )
     log.info('=' * 80)
 
     return summary

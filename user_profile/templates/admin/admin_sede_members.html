@@ -31,6 +31,7 @@
                   <strong>[{% if sub.is_active %}ACTIVE{% else %}inactive{% endif %}]</strong>
                   <code>{{ sub.subscription_id }}</code><br>
                   plan=<code>{{ sub.plan_id|default:"—" }}</code> |
+                  cycle={{ sub.billing_cycle|default:"—" }} |
                   tier={{ sub.tier_name|default:"—" }} |
                   status={{ sub.status|default:"—" }} |
                   method={{ sub.payment_method|default:"—" }}<br>
@@ -41,6 +42,15 @@
                   {% else %}
                     —
                   {% endif %}
+                  <br>
+                  <form method="post" style="margin-top:0.4rem;">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="soft_remove">
+                    <input type="hidden" name="subscription_id" value="{{ sub.subscription_id }}">
+                    <button type="submit" class="button deletelink" onclick="return confirm('Soft-remove subscription {{ sub.subscription_id }}? This keeps the record but excludes it from sync and profile views.');">
+                      Soft remove
+                    </button>
+                  </form>
                 </div>
               {% empty %}
                 —

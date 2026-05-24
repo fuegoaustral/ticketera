@@ -19,11 +19,17 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Sync complete: {summary['matched']} matched, "
+                f"Sync complete: {summary['total']} total, "
+                f"{summary.get('authorized_total', 0)} authorized, "
+                f"{summary.get('update_only_total', 0)} non-auth, "
+                f"{summary['matched']} matched, "
                 f"{summary['unmatched']} unmatched, "
+                f"{summary.get('update_only_ignored', 0)} non-auth ignored, "
+                f"{summary.get('soft_removed_skipped', 0)} soft-removed skipped, "
                 f"{summary['conflicts']} conflicts, "
                 f"{summary['errors']} errors, "
                 f"{summary['active_members']} active members, "
-                f"{summary['deactivated']} deactivated"
+                f"{summary['deactivated']} deactivated, "
+                f"took {summary.get('duration_seconds', 0)}s"
             )
         )
