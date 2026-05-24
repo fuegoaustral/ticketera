@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db.models import Count, Q
+from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
@@ -21,6 +22,7 @@ def admin_sede_members_view(request):
     if request.method == 'POST':
         action = request.POST.get('action') or ''
         subscription_id = request.POST.get('subscription_id') or ''
+        is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
         if action == 'soft_remove' and subscription_id:
             updated = SedeSubscription.objects.filter(
                 subscription_id=subscription_id,
@@ -32,16 +34,32 @@ def admin_sede_members_view(request):
                 soft_removed_at=timezone.now(),
                 synced_at=timezone.now(),
             )
+            if is_ajax:
+                return JsonResponse(
+                    {
+                        'ok': bool(updated),
+                        'subscription_id': subscription_id,
+                        'state_label': '[soft removed]',
+                        'message': (
+                            f'Subscription {subscription_id} was soft-removed from member sync.'
+                            if updated
+                            else f'Subscription {subscription_id} was already removed or does not exist.'
+                        ),
+                    },
+                    status=200 if updated else 400,
+                )
             if updated:
                 messages.success(request, f'Subscription {subscription_id} was soft-removed from member sync.')
             else:
                 messages.warning(request, f'Subscription {subscription_id} was already removed or does not exist.')
         else:
+            if is_ajax:
+                return JsonResponse({'ok': False, 'message': 'Invalid soft-remove request.'}, status=400)
             messages.error(request, 'Invalid soft-remove request.')
         return redirect('admin_sede_members_view')
 
     profiles = (
-        Profile.objects.filter(sede_subscriptions__isnull=False, sede_subscriptions__is_soft_removed=False)
+        Profile.objects.filter(sede_subscriptions__isnull=False)
         .select_related('user')
         .prefetch_related('sede_subscriptions')
         .distinct()
@@ -56,7 +74,7 @@ def admin_sede_members_view(request):
     rows = []
     for profile in profiles:
         subs = list(
-            profile.sede_subscriptions.filter(is_soft_removed=False).order_by('-is_active', '-last_payment_date', '-synced_at')
+            profile.sede_subscriptions.all().order_by('is_soft_removed', '-is_active', '-last_payment_date', '-synced_at')
         )
         _attach_plan_billing_cycle(subs, plan_billing_cycles)
         rows.append({

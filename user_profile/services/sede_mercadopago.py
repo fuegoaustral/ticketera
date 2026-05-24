@@ -1008,12 +1008,20 @@ def apply_subscription_to_profile(profile, details, match_method=''):
     existing = SedeSubscription.objects.filter(subscription_id=subscription_id).select_related('profile').first()
     if existing:
         if existing.is_soft_removed:
-            return
+            incoming_last_payment_date = defaults.get('last_payment_date')
+            # Soft-removed subscriptions stay excluded unless a new charge appears.
+            if not incoming_last_payment_date or incoming_last_payment_date == existing.last_payment_date:
+                return
+            existing.is_soft_removed = False
+            existing.soft_removed_at = None
         # Do not replace an existing subscription/user match on periodic sync.
         # Keep the matched profile and only refresh subscription values.
         for field, value in defaults.items():
             setattr(existing, field, value)
-        existing.save(update_fields=[*defaults.keys(), 'updated_at'])
+        update_fields = [*defaults.keys(), 'updated_at']
+        if existing.is_soft_removed is False:
+            update_fields.extend(['is_soft_removed', 'soft_removed_at'])
+        existing.save(update_fields=update_fields)
         return
 
     SedeSubscription.objects.create(
@@ -1361,15 +1369,58 @@ def run_full_sync(log=None):
     fetch_started = time.perf_counter()
     subscriptions = fetch_all_subscriptions(sdk, plan_ids=plan_ids)
     soft_removed_skipped = 0
-    soft_removed_ids = set(
-        SedeSubscription.objects.filter(is_soft_removed=True).values_list('subscription_id', flat=True)
-    )
+    soft_removed_reactivated = 0
+    soft_removed_records = SedeSubscription.objects.filter(is_soft_removed=True).in_bulk(field_name='subscription_id')
+    soft_removed_ids = set(soft_removed_records.keys())
     if soft_removed_ids:
-        soft_removed_skipped = sum(1 for sub in subscriptions if str(sub.get('id') or '') in soft_removed_ids)
+        soft_removed_candidates = [
+            sub for sub in subscriptions if str(sub.get('id') or '') in soft_removed_ids
+        ]
+        soft_removed_reactivated_ids = set()
+        if soft_removed_candidates:
+            log.info(
+                'Checking %d soft-removed subscription(s) for new payments...',
+                len(soft_removed_candidates),
+            )
+            soft_removed_payloads = _prefetch_subscription_remote_map(
+                soft_removed_candidates,
+                log=log,
+                include_payments=False,
+            )
+            for subscription_summary in soft_removed_candidates:
+                sub_id = str(subscription_summary.get('id') or '')
+                existing_subscription = soft_removed_records.get(sub_id)
+                payload = soft_removed_payloads.get(sub_id, {})
+                if not existing_subscription or payload.get('error'):
+                    continue
+                details = _extract_subscription_details(
+                    subscription_summary,
+                    payload.get('detail') or subscription_summary,
+                )
+                previous_last_payment = existing_subscription.last_payment_date
+                latest_last_payment = details.get('last_payment_date')
+                if latest_last_payment and latest_last_payment != previous_last_payment:
+                    apply_subscription_to_profile(
+                        existing_subscription.profile,
+                        details,
+                        match_method=existing_subscription.matched_via or 'subscription_id',
+                    )
+                    soft_removed_reactivated_ids.add(sub_id)
+                    soft_removed_reactivated += 1
+        soft_removed_skipped = sum(
+            1
+            for sub in subscriptions
+            if str(sub.get('id') or '') in (soft_removed_ids - soft_removed_reactivated_ids)
+        )
+        if soft_removed_reactivated:
+            log.info('Reactivated %d soft-removed subscription(s) due to new payment', soft_removed_reactivated)
         if soft_removed_skipped:
-            log.info('Skipping %d soft-removed subscription(s) from sync', soft_removed_skipped)
+            log.info(
+                'Skipping %d soft-removed subscription(s) with unchanged payment date',
+                soft_removed_skipped,
+            )
         subscriptions = [
-            sub for sub in subscriptions if str(sub.get('id') or '') not in soft_removed_ids
+            sub for sub in subscriptions if str(sub.get('id') or '') not in (soft_removed_ids - soft_removed_reactivated_ids)
         ]
     refreshed_plans = _upsert_subscription_plans(_build_plan_catalog(subscriptions), log=log)
     authorized_subscriptions = [
@@ -1724,6 +1775,7 @@ def run_full_sync(log=None):
         'update_only_updated': update_only_updated,
         'update_only_ignored': update_only_ignored,
         'soft_removed_skipped': soft_removed_skipped,
+        'soft_removed_reactivated': soft_removed_reactivated,
         'duration_seconds': round(total_duration, 2),
         'timings': {
             'fetch_seconds': round(fetch_duration, 2),

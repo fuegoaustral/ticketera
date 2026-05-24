@@ -28,7 +28,7 @@
             <td>
               {% for sub in row.subscriptions %}
                 <div style="margin-bottom:0.5rem; padding-bottom:0.5rem; border-bottom:1px solid #eee;">
-                  <strong>[{% if sub.is_active %}ACTIVE{% else %}inactive{% endif %}]</strong>
+                  <strong class="sede-subscription-state">[{% if sub.is_soft_removed %}soft removed{% elif sub.is_active %}ACTIVE{% else %}inactive{% endif %}]</strong>
                   <code>{{ sub.subscription_id }}</code><br>
                   plan=<code>{{ sub.plan_id|default:"—" }}</code> |
                   cycle={{ sub.billing_cycle|default:"—" }} |
@@ -43,11 +43,11 @@
                     —
                   {% endif %}
                   <br>
-                  <form method="post" style="margin-top:0.4rem;">
+                  <form method="post" class="js-soft-remove-form" style="margin-top:0.4rem;">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="soft_remove">
                     <input type="hidden" name="subscription_id" value="{{ sub.subscription_id }}">
-                    <button type="submit" class="button deletelink" onclick="return confirm('Soft-remove subscription {{ sub.subscription_id }}? This keeps the record but excludes it from sync and profile views.');">
+                    <button type="submit" class="button deletelink" {% if sub.is_soft_removed %}disabled{% endif %}>
                       Soft remove
                     </button>
                   </form>
@@ -66,4 +66,45 @@
     </table>
   </div>
 </div>
+<script>
+(function() {
+  const forms = document.querySelectorAll('.js-soft-remove-form');
+  if (!forms.length) return;
+
+  forms.forEach((form) => {
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const submitButton = form.querySelector('button[type="submit"]');
+      if (!submitButton || submitButton.disabled) return;
+      if (!confirm('Soft-remove this subscription? This keeps the record but excludes it from sync and profile views.')) {
+        return;
+      }
+      submitButton.disabled = true;
+
+      try {
+        const response = await fetch(window.location.href, {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+          body: new FormData(form),
+          credentials: 'same-origin',
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) {
+          throw new Error(payload.message || 'Soft remove failed');
+        }
+        const card = form.closest('div');
+        const state = card ? card.querySelector('.sede-subscription-state') : null;
+        if (state) {
+          state.textContent = payload.state_label || '[soft removed]';
+        }
+      } catch (error) {
+        submitButton.disabled = false;
+        alert(error.message || 'Soft remove failed');
+      }
+    });
+  });
+})();
+</script>
 {% endblock %}
