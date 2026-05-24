@@ -27,6 +27,7 @@ class Command(BaseCommand):
                 f"{summary.get('update_only_ignored', 0)} non-auth ignored, "
                 f"{summary.get('soft_removed_skipped', 0)} soft-removed skipped, "
                 f"{summary.get('soft_removed_reactivated', 0)} soft-removed reactivated, "
+                f"{summary.get('detail_truth_updated', 0)} detail-truth updated, "
                 f"{summary['conflicts']} conflicts, "
                 f"{summary['errors']} errors, "
                 f"{summary['active_members']} active members, "
