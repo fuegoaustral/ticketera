@@ -1,0 +1,59 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div>
+  <h1>La Sede — Multiple Active Subscriptions</h1>
+  {% include "admin/_sede_submenu.html" %}
+  <p>Usuarios con más de una suscripción activa (status authorized).</p>
+
+  <div style="overflow-x:auto;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>DNI</th>
+          <th>Active subs</th>
+          <th>Subscriptions detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>
+              {{ row.profile.user.first_name }} {{ row.profile.user.last_name }}<br>
+              <small>{{ row.profile.user.email }}</small>
+            </td>
+            <td>{{ row.profile.document_number|default:"—" }}</td>
+            <td><strong>{{ row.active_count }}</strong></td>
+            <td>
+              {% for sub in row.subscriptions %}
+                <div style="margin-bottom:0.5rem; padding-bottom:0.5rem; border-bottom:1px solid #eee;">
+                  <strong>[{% if sub.is_active %}ACTIVE{% else %}inactive{% endif %}]</strong>
+                  <code>{{ sub.subscription_id }}</code><br>
+                  plan=<code>{{ sub.plan_id|default:"—" }}</code> |
+                  tier={{ sub.tier_name|default:"—" }} |
+                  status={{ sub.status|default:"—" }} |
+                  method={{ sub.payment_method|default:"—" }}<br>
+                  last payment:
+                  {% if sub.last_payment_date %}
+                    {{ sub.last_payment_date|date:"d/m/Y H:i" }}
+                    {% if sub.last_payment_amount %} — ${{ sub.last_payment_amount }}{% endif %}
+                  {% else %}
+                    —
+                  {% endif %}
+                </div>
+              {% empty %}
+                —
+              {% endfor %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="4">No users with multiple active subscriptions.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -14,9 +14,7 @@ class ProfileInline(admin.StackedInline):
     can_delete = False
     verbose_name_plural = 'profile'
     readonly_fields = (
-        'sede_subscription_id', 'sede_subscription_status', 'sede_payment_method',
-        'sede_last_payment_date', 'sede_last_payment_amount', 'sede_next_payment_date',
-        'sede_member_since', 'sede_synced_at', 'sede_subscriptions_summary',
+        'sede_subscriptions_summary',
     )
     fieldsets = (
         (None, {
@@ -26,9 +24,7 @@ class ProfileInline(admin.StackedInline):
         }),
         ('La Sede', {
             'fields': (
-                'miembro_sede', 'sede_subscription_id', 'sede_subscription_status',
-                'sede_payment_method', 'sede_last_payment_date', 'sede_last_payment_amount',
-                'sede_next_payment_date', 'sede_member_since', 'sede_synced_at', 'sede_subscriptions_summary',
+                'sede_subscriptions_summary',
             ),
         }),
     )

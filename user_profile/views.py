@@ -1117,7 +1117,11 @@ SUBSCRIPTION_STATUS_LABELS = {
 @login_required
 def la_sede_view(request):
     profile = request.user.profile
-    if not profile.miembro_sede:
+    primary_subscription = (
+        profile.sede_subscriptions.filter(is_active=True).order_by('-last_payment_date', '-synced_at').first()
+        or profile.sede_subscriptions.order_by('-last_payment_date', '-synced_at').first()
+    )
+    if not primary_subscription or not primary_subscription.is_active:
         raise Http404
 
     from user_profile.services.sede_mercadopago import format_payment_method
@@ -1125,10 +1129,11 @@ def la_sede_view(request):
     context = _mi_fuego_sidebar_context(request)
     context.update({
         'profile': profile,
-        'payment_method_label': format_payment_method(profile.sede_payment_method),
+        'primary_subscription': primary_subscription,
+        'payment_method_label': format_payment_method(primary_subscription.payment_method),
         'subscription_status_label': SUBSCRIPTION_STATUS_LABELS.get(
-            profile.sede_subscription_status,
-            profile.sede_subscription_status or 'Activa',
+            primary_subscription.status,
+            primary_subscription.status or 'Activa',
         ),
         'nav_primary': 'la_sede',
         'nav_secondary': 'credencial',

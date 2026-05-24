@@ -94,6 +94,8 @@ def admin_sede_matches_assign(request):
     unmatched = SedeUnmatchedSubscription.objects.filter(id=unmatched_id).first()
     if not unmatched:
         return JsonResponse({'ok': False, 'error': 'Unmatched subscription not found'}, status=404)
+    if (unmatched.status or '').lower() != 'authorized':
+        return JsonResponse({'ok': False, 'error': 'Only authorized subscriptions can be matched manually'}, status=400)
 
     user = User.objects.select_related('profile').filter(id=user_id, profile__isnull=False).first()
     if not user:
