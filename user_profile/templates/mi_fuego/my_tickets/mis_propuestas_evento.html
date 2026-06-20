@@ -1,0 +1,62 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% load humanize %}
+
+{% block page_title %}Mis propuestas de evento{% endblock page_title %}
+
+{% block truecontent %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">
+                <i class="fas fa-list-check me-2"></i>
+                Mis propuestas de evento
+            </h1>
+            <p class="text-muted mb-0">Estado de las propuestas que enviaste desde La Sede.</p>
+        </div>
+        <a href="{% url 'propose_event' %}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus me-1"></i> Nueva propuesta
+        </a>
+    </div>
+
+    {% if event_requests %}
+        <div class="row g-3">
+            {% for item in event_requests %}
+                <div class="col-12 col-lg-6">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="card-title mb-0">{{ item.name }}</h5>
+                                {% if item.status == 'pending' %}
+                                    <span class="badge bg-warning text-dark">Pendiente de revisión</span>
+                                {% elif item.status == 'approved' %}
+                                    <span class="badge bg-success">Aprobada</span>
+                                {% elif item.status == 'rejected' %}
+                                    <span class="badge bg-danger">Rechazada</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ item.get_status_display }}</span>
+                                {% endif %}
+                            </div>
+                            <p class="text-muted small mb-2">
+                                Inicio: {{ item.start|date:"d/m/Y H:i" }}
+                            </p>
+                            {% if item.status == 'rejected' and item.rejection_reason %}
+                                <p class="small text-danger mb-2">{{ item.rejection_reason }}</p>
+                            {% endif %}
+                            {% if item.created_event %}
+                                <a href="{% url 'event_admin' item.created_event.slug %}" class="btn btn-sm btn-outline-primary mt-2">
+                                    Ir al panel del evento
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            Todavía no enviaste propuestas.
+            <a href="{% url 'propose_event' %}">Proponer un evento</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

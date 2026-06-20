@@ -6,7 +6,16 @@ from django.urls import path
 from django.shortcuts import render
 from django.forms import ModelForm
 import csv
-from .models import Event, EventTermsAndConditions, EventTermsAndConditionsAcceptance, GrupoTipo, Grupo, GrupoMiembro
+from .models import (
+    Event,
+    EventTermsAndConditions,
+    EventTermsAndConditionsAcceptance,
+    EventRequest,
+    EventRequestTicketType,
+    GrupoTipo,
+    Grupo,
+    GrupoMiembro,
+)
 
 
 class EventAdminForm(ModelForm):
@@ -992,9 +1001,42 @@ class GrupoMiembroAdmin(admin.ModelAdmin):
     autocomplete_fields = ('user', 'grupo')
 
 
+class EventRequestTicketTypeInline(admin.TabularInline):
+    model = EventRequestTicketType
+    extra = 0
+
+
+class EventRequestAdmin(admin.ModelAdmin):
+    list_display = (
+        'name', 'requested_by', 'status', 'start',
+        'chatwoot_conversation_id', 'created_at',
+    )
+    list_filter = ('status',)
+    search_fields = ('name', 'requested_by__email', 'location')
+    readonly_fields = (
+        'chatwoot_contact_id', 'chatwoot_conversation_id',
+        'resolved_at', 'created_at', 'updated_at',
+    )
+    inlines = [EventRequestTicketTypeInline]
+    actions = ['approve_selected_requests', 'reject_selected_requests']
+
+    @admin.action(description='Aprobar propuestas seleccionadas')
+    def approve_selected_requests(self, request, queryset):
+        from events.services.event_request_processing import approve_event_request
+        for event_request in queryset.filter(status=EventRequest.Status.PENDING):
+            approve_event_request(event_request)
+
+    @admin.action(description='Rechazar propuestas seleccionadas')
+    def reject_selected_requests(self, request, queryset):
+        from events.services.event_request_processing import reject_event_request
+        for event_request in queryset.filter(status=EventRequest.Status.PENDING):
+            reject_event_request(event_request, reason='Rechazada desde admin')
+
+
 admin.site.register(Event, EventAdmin)
 admin.site.register(EventTermsAndConditions, EventTermsAndConditionsAdmin)
 admin.site.register(EventTermsAndConditionsAcceptance, EventTermsAndConditionsAcceptanceAdmin)
 admin.site.register(GrupoTipo, GrupoTipoAdmin)
 admin.site.register(Grupo, GrupoAdmin)
 admin.site.register(GrupoMiembro, GrupoMiembroAdmin)
+admin.site.register(EventRequest, EventRequestAdmin)

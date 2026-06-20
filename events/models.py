@@ -391,7 +391,74 @@ def create_grupo_lider_miembro(sender, instance, created, **kwargs):
         )
 
 
+class EventRequest(BaseModel):
+    """Propuesta de evento por un miembro de La Sede, revisada por soporte vía Chatwoot."""
+
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'Pendiente de revisión'
+        APPROVED = 'approved', 'Aprobada'
+        REJECTED = 'rejected', 'Rechazada'
+        CANCELLED = 'cancelled', 'Cancelada'
+
+    requested_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='event_requests',
+    )
+    name = models.CharField(max_length=255)
+    description = models.TextField()
+    start = models.DateTimeField()
+    end = models.DateTimeField(null=True, blank=True)
+    header_image = models.ImageField(upload_to='events/event_requests')
+    location = models.CharField(max_length=255)
+    location_url = models.URLField(max_length=500, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    chatwoot_contact_id = models.PositiveIntegerField(null=True, blank=True)
+    chatwoot_conversation_id = models.PositiveIntegerField(null=True, blank=True, unique=True)
+    rejection_reason = models.TextField(blank=True)
+    created_event = models.ForeignKey(
+        Event,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='source_request',
+    )
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.name} ({self.get_status_display()})'
+
+    @property
+    def is_pending(self):
+        return self.status == self.Status.PENDING
+
+
+class EventRequestTicketType(BaseModel):
+    event_request = models.ForeignKey(
+        EventRequest,
+        on_delete=models.CASCADE,
+        related_name='ticket_types',
+    )
+    name = models.CharField(max_length=100)
+    description = models.TextField(max_length=2000, blank=True)
+    price = models.DecimalField(decimal_places=2, max_digits=10)
+
+    class Meta:
+        ordering = ['id']
+
+    def __str__(self):
+        return f'{self.name} (${self.price})'
+
+
 auditlog.register(Event)
 auditlog.register(GrupoTipo)
 auditlog.register(Grupo)
 auditlog.register(GrupoMiembro)
+auditlog.register(EventRequest)

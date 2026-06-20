@@ -19,6 +19,8 @@ from user_profile.admin_sede_matches import (
 )
 from user_profile.admin_sede_subscriptions import admin_sede_subscriptions_view
 
+from events.views.chatwoot_webhook import chatwoot_event_request_webhook
+
 urlpatterns = [
     path('admin/caja/', admin_caja_view, name='admin_caja_view'),
 
@@ -55,6 +57,7 @@ urlpatterns = [
     path('mi-fuego/', include('user_profile.urls')),
     path('ckeditor5/', include('django_ckeditor_5.urls')),
     path('espaciozen/', include('espaciozen.urls')),
+    path('webhooks/chatwoot/event-requests/', chatwoot_event_request_webhook, name='chatwoot_event_request_webhook'),
     path('', include('tickets.urls')),
 
 ]

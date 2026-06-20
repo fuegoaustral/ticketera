@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import PasswordChangeForm
 from django.conf import settings
-from events.models import Event
+from events.models import Event, EventRequest, EventRequestTicketType
 from tickets.models import TicketType, NewTicket, Order
 from .models import Profile
 from twilio.rest import Client
@@ -355,3 +355,70 @@ class PhoneUpdateForm(forms.ModelForm):
             return verification_check.status == 'approved'
         except TwilioException as e:
             raise Exception(f"Error verifying code: {str(e)}")
+
+
+class EventRequestForm(forms.ModelForm):
+    class Meta:
+        model = EventRequest
+        fields = [
+            'name', 'description', 'start', 'end',
+            'header_image', 'location', 'location_url',
+        ]
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del evento'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 5}),
+            'start': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
+            'end': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
+            'header_image': forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
+            'location': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Dirección del evento'}),
+            'location_url': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://maps.google.com/... (opcional)',
+            }),
+        }
+        labels = {
+            'name': 'Nombre',
+            'description': 'Descripción',
+            'start': 'Fecha y hora de inicio',
+            'end': 'Fecha y hora de fin (opcional)',
+            'header_image': 'Banner',
+            'location': 'Dirección',
+            'location_url': 'Link de Google Maps (opcional)',
+        }
+
+    def clean_end(self):
+        end = self.cleaned_data.get('end')
+        start = self.cleaned_data.get('start')
+        if end and start and end <= start:
+            raise forms.ValidationError('La fecha de fin debe ser posterior al inicio.')
+        return end
+
+
+class EventRequestTicketTypeForm(forms.ModelForm):
+    class Meta:
+        model = EventRequestTicketType
+        fields = ['name', 'description', 'price']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: General'}),
+            'description': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Descripción (opcional)',
+            }),
+            'price': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+        }
+        labels = {
+            'name': 'Nombre',
+            'description': 'Descripción (opcional)',
+            'price': 'Precio',
+        }
+
+
+EventRequestTicketTypeFormSet = forms.inlineformset_factory(
+    EventRequest,
+    EventRequestTicketType,
+    form=EventRequestTicketTypeForm,
+    extra=1,
+    min_num=1,
+    validate_min=True,
+    can_delete=True,
+)
