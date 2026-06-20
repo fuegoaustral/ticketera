@@ -161,13 +161,40 @@ def _create_conversation(contact_id):
     return data.get('id')
 
 
-def _create_message(conversation_id, content, *, message_type='incoming', private=False):
+def _create_message(conversation_id, content, *, message_type='outgoing', private=False):
     payload = {
         'content': content,
         'message_type': message_type,
         'private': private,
     }
     return _request('POST', f'/conversations/{conversation_id}/messages', json=payload)
+
+
+def _post_proposal_messages(conversation_id, event_request):
+    """
+    WebWidget inboxes reject incoming messages via Application API (422).
+    Use outgoing messages only; public message for inbox visibility + member ack.
+    """
+    proposal_text = build_proposal_message(event_request)
+    agent_note = (
+        f'Comandos para agentes:\n'
+        f'• `APROBAR {event_request.pk}` — crea el evento y da admin al solicitante\n'
+        f'• `RECHAZAR {event_request.pk} motivo opcional` — rechaza la propuesta'
+    )
+    if not _create_message(
+        conversation_id,
+        proposal_text,
+        message_type='outgoing',
+        private=False,
+    ):
+        return False
+    _create_message(
+        conversation_id,
+        agent_note,
+        message_type='outgoing',
+        private=True,
+    )
+    return True
 
 
 def post_event_request_to_chatwoot(event_request):
@@ -188,21 +215,7 @@ def post_event_request_to_chatwoot(event_request):
     if not conversation_id:
         return False
 
-    proposal_text = build_proposal_message(event_request)
-    if not _create_message(conversation_id, proposal_text, message_type='incoming'):
-        return False
-
-    _create_message(
-        conversation_id,
-        (
-            f'Comandos para agentes:\n'
-            f'• `APROBAR {event_request.pk}` — crea el evento y da admin al solicitante\n'
-            f'• `RECHAZAR {event_request.pk} motivo opcional` — rechaza la propuesta'
-        ),
-        message_type='outgoing',
-        private=True,
-    )
-
+    # Guardar IDs antes de postear mensajes (por si falla un paso posterior)
     event_request.chatwoot_contact_id = contact_id
     event_request.chatwoot_conversation_id = conversation_id
     event_request.save(update_fields=[
@@ -210,6 +223,15 @@ def post_event_request_to_chatwoot(event_request):
         'chatwoot_conversation_id',
         'updated_at',
     ])
+
+    if not _post_proposal_messages(conversation_id, event_request):
+        logger.error(
+            'Propuesta #%s: conversación %s creada pero falló el envío de mensajes',
+            event_request.pk,
+            conversation_id,
+        )
+        return False
+
     return True
 
 
