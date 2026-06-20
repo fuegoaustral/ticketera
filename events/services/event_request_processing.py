@@ -80,7 +80,7 @@ def create_event_from_request(event_request):
             ticket_count=max_tickets,
             cardinality=index,
             date_from=now,
-            date_to=event_request.start,
+            date_to=end,
             show_in_caja=True,
         )
 

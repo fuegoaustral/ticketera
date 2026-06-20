@@ -90,7 +90,7 @@ def _format_ticket_types(event_request):
 
 def build_proposal_message(event_request):
     requester = event_request.requested_by
-    requester_label = requester.get_full_name() or requester.email
+    requester_label = _contact_display_name(requester)
     start_local = timezone.localtime(event_request.start)
     end_dt = event_request.end or (event_request.start + timedelta(hours=6))
     end_local = timezone.localtime(end_dt)
@@ -127,16 +127,33 @@ def _find_contact_by_email(email):
     return None
 
 
+def _contact_display_name(user):
+    name = (user.get_full_name() or '').strip() or user.email
+    env = getattr(settings, 'ENV', 'local')
+    if env and env not in ('local', ''):
+        return f'[{env}] - {name}'
+    return name
+
+
+def _update_contact(contact_id, user):
+    payload = {
+        'name': _contact_display_name(user),
+        'email': user.email,
+    }
+    _request('PUT', f'/contacts/{contact_id}', json=payload)
+
+
 def _get_or_create_contact(event_request):
     user = event_request.requested_by
     existing_id = _find_contact_by_email(user.email)
     if existing_id:
+        _update_contact(existing_id, user)
         return existing_id
 
     identifier = f'ticketera-user-{user.pk}'
     payload = {
         'inbox_id': int(settings.CHATWOOT_SOPORTE_INBOX_ID),
-        'name': user.get_full_name() or user.email,
+        'name': _contact_display_name(user),
         'email': user.email,
         'identifier': identifier,
         'custom_attributes': {
