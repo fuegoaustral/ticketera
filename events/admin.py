@@ -1008,7 +1008,7 @@ class EventRequestTicketTypeInline(admin.TabularInline):
 
 class EventRequestAdmin(admin.ModelAdmin):
     list_display = (
-        'name', 'requested_by', 'status', 'start',
+        'name', 'requested_by', 'status', 'max_tickets', 'start',
         'chatwoot_conversation_id', 'created_at',
     )
     list_filter = ('status',)

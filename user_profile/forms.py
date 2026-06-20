@@ -362,7 +362,7 @@ class EventRequestForm(forms.ModelForm):
         model = EventRequest
         fields = [
             'name', 'description', 'start', 'end',
-            'header_image', 'location', 'location_url',
+            'header_image', 'location', 'location_url', 'max_tickets',
         ]
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del evento'}),
@@ -375,6 +375,7 @@ class EventRequestForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'https://maps.google.com/... (opcional)',
             }),
+            'max_tickets': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'placeholder': 'Ej: 500'}),
         }
         labels = {
             'name': 'Nombre',
@@ -384,6 +385,10 @@ class EventRequestForm(forms.ModelForm):
             'header_image': 'Banner',
             'location': 'Dirección',
             'location_url': 'Link de Google Maps (opcional)',
+            'max_tickets': 'Cantidad máxima de entradas',
+        }
+        help_texts = {
+            'max_tickets': 'Cupo total del evento. Al aprobar, cada tipo de entrada tendrá este mismo stock.',
         }
 
     def clean_end(self):

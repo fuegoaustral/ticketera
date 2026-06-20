@@ -78,7 +78,7 @@ def _request(method, path, **kwargs):
 def _format_ticket_types(event_request):
     lines = []
     for ticket_type in event_request.ticket_types.all():
-        line = f'- {ticket_type.name}: ${ticket_type.price:,.2f}'
+        line = f'- {ticket_type.name}: ${ticket_type.price:,.2f} (stock: {event_request.max_tickets})'
         if ticket_type.description:
             line += f' ({ticket_type.description})'
         lines.append(line)
@@ -102,6 +102,7 @@ def build_proposal_message(event_request):
         f'*Fin:* {end_local.strftime("%d/%m/%Y %H:%M")}\n'
         f'*Dirección:* {event_request.location}\n'
         + (f'*Maps:* {event_request.location_url}\n' if event_request.location_url else '')
+        + f'*Cupo máximo:* {event_request.max_tickets} entradas\n'
         + f'\n*Descripción:*\n{description_plain}\n\n'
         f'*Tipos de entrada:*\n{_format_ticket_types(event_request)}\n\n'
         f'Admin: {admin_url}\n\n'

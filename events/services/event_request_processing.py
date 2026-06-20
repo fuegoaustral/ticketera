@@ -48,6 +48,7 @@ def create_event_from_request(event_request):
         end=end,
         header_image=event_request.header_image,
         transfers_enabled_until=event_request.start,
+        max_tickets=event_request.max_tickets,
         active=True,
         is_main=False,
         slug=slug,
@@ -57,12 +58,14 @@ def create_event_from_request(event_request):
     event.admins.add(event_request.requested_by)
 
     now = timezone.now()
+    stock_per_type = event_request.max_tickets
     for index, ticket_type in enumerate(event_request.ticket_types.all().order_by('id'), start=1):
         TicketType.objects.create(
             event=event,
             name=ticket_type.name,
             description=ticket_type.description or '',
             price=ticket_type.price,
+            ticket_count=stock_per_type,
             cardinality=index,
             date_from=now,
             date_to=event_request.start,
