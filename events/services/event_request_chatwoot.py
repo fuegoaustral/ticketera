@@ -78,7 +78,8 @@ def _request(method, path, **kwargs):
 def _format_ticket_types(event_request):
     lines = []
     for ticket_type in event_request.ticket_types.all():
-        line = f'- {ticket_type.name}: ${ticket_type.price:,.2f} (stock: {event_request.max_tickets})'
+        stock = event_request.max_tickets or 300
+        line = f'- {ticket_type.name}: ${ticket_type.price:,.2f} (stock: {stock})'
         if ticket_type.description:
             line += f' ({ticket_type.description})'
         lines.append(line)

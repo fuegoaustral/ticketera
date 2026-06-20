@@ -358,6 +358,15 @@ class PhoneUpdateForm(forms.ModelForm):
 
 
 class EventRequestForm(forms.ModelForm):
+    max_tickets = forms.IntegerField(
+        label='Cantidad máxima de entradas',
+        min_value=1,
+        initial=300,
+        required=False,
+        help_text='Cupo total del evento. Al aprobar, cada tipo de entrada tendrá este mismo stock.',
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'placeholder': '300'}),
+    )
+
     class Meta:
         model = EventRequest
         fields = [
@@ -375,7 +384,6 @@ class EventRequestForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'https://maps.google.com/... (opcional)',
             }),
-            'max_tickets': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'placeholder': 'Ej: 500'}),
         }
         labels = {
             'name': 'Nombre',
@@ -385,11 +393,13 @@ class EventRequestForm(forms.ModelForm):
             'header_image': 'Banner',
             'location': 'Dirección',
             'location_url': 'Link de Google Maps (opcional)',
-            'max_tickets': 'Cantidad máxima de entradas',
         }
-        help_texts = {
-            'max_tickets': 'Cupo total del evento. Al aprobar, cada tipo de entrada tendrá este mismo stock.',
-        }
+
+    def clean_max_tickets(self):
+        value = self.cleaned_data.get('max_tickets')
+        if value in (None, ''):
+            return EventRequest._meta.get_field('max_tickets').default
+        return value
 
     def clean_end(self):
         end = self.cleaned_data.get('end')

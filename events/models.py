@@ -413,6 +413,7 @@ class EventRequest(BaseModel):
     location = models.CharField(max_length=255)
     location_url = models.URLField(max_length=500, blank=True)
     max_tickets = models.PositiveIntegerField(
+        default=300,
         help_text='Cupo máximo total del evento; se replica como stock de cada tipo de entrada.',
     )
     status = models.CharField(

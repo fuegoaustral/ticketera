@@ -1203,6 +1203,8 @@ def propose_event_view(request):
             event_request = form.save(commit=False)
             event_request.requested_by = request.user
             event_request.status = EventRequest.Status.PENDING
+            if not event_request.max_tickets:
+                event_request.max_tickets = EventRequest._meta.get_field('max_tickets').default
             event_request.save()
             formset = EventRequestTicketTypeFormSet(request.POST, instance=event_request)
             if formset.is_valid():

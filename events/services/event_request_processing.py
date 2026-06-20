@@ -12,6 +12,10 @@ from tickets.models import TicketType
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_EVENT_DURATION = timedelta(hours=6)
+DEFAULT_MAX_TICKETS = 300
+DEFAULT_MAX_TICKETS_PER_ORDER = 5
+
 APROBAR_COMMAND = re.compile(r'^APROBAR(?:\s+#?(?P<request_id>\d+))?\s*$', re.IGNORECASE)
 RECHAZAR_COMMAND = re.compile(
     r'^RECHAZAR(?:\s+#?(?P<request_id>\d+))?(?:\s+(?P<reason>.+))?\s*$',
@@ -30,13 +34,18 @@ def _unique_event_slug(name):
     return slug
 
 
+def _proposal_max_tickets(event_request):
+    return event_request.max_tickets or DEFAULT_MAX_TICKETS
+
+
 @transaction.atomic
 def create_event_from_request(event_request):
     from events.models import Event
 
-    end = event_request.end or (event_request.start + timedelta(hours=6))
+    end = event_request.end or (event_request.start + DEFAULT_EVENT_DURATION)
     slug = _unique_event_slug(event_request.name)
     ticket_type_count = event_request.ticket_types.count()
+    max_tickets = _proposal_max_tickets(event_request)
 
     event = Event(
         name=event_request.name,
@@ -48,27 +57,31 @@ def create_event_from_request(event_request):
         end=end,
         header_image=event_request.header_image,
         transfers_enabled_until=event_request.start,
-        max_tickets=event_request.max_tickets,
+        max_tickets=max_tickets,
+        max_tickets_per_order=DEFAULT_MAX_TICKETS_PER_ORDER,
         active=True,
         is_main=False,
         slug=slug,
         show_multiple_tickets=ticket_type_count > 1,
+        attendee_must_be_registered=True,
+        has_volunteers=False,
+        send_transfer_notifications=False,
     )
     event.save()
     event.admins.add(event_request.requested_by)
 
     now = timezone.now()
-    stock_per_type = event_request.max_tickets
     for index, ticket_type in enumerate(event_request.ticket_types.all().order_by('id'), start=1):
         TicketType.objects.create(
             event=event,
             name=ticket_type.name,
             description=ticket_type.description or '',
             price=ticket_type.price,
-            ticket_count=stock_per_type,
+            ticket_count=max_tickets,
             cardinality=index,
             date_from=now,
             date_to=event_request.start,
+            show_in_caja=True,
         )
 
     event_request.created_event = event
