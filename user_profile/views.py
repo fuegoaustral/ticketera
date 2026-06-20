@@ -1179,6 +1179,93 @@ def la_sede_view(request):
     return render(request, 'mi_fuego/my_tickets/la_sede.html', context)
 
 
+def _require_sede_member(user):
+    profile = getattr(user, 'profile', None)
+    return profile and profile.miembro_sede
+
+
+@login_required
+def propose_event_view(request):
+    if not _require_sede_member(request.user):
+        raise Http404
+
+    from events.models import EventRequest
+    from events.services.event_request_chatwoot import (
+        chatwoot_api_configured,
+        chatwoot_missing_config,
+        post_event_request_to_chatwoot,
+    )
+    from .forms import EventRequestForm, EventRequestTicketTypeFormSet
+
+    if request.method == 'POST':
+        form = EventRequestForm(request.POST, request.FILES)
+        if form.is_valid():
+            event_request = form.save(commit=False)
+            event_request.requested_by = request.user
+            event_request.status = EventRequest.Status.PENDING
+            if not event_request.max_tickets:
+                event_request.max_tickets = EventRequest._meta.get_field('max_tickets').default
+            event_request.save()
+            formset = EventRequestTicketTypeFormSet(request.POST, instance=event_request)
+            if formset.is_valid():
+                formset.save()
+                posted = post_event_request_to_chatwoot(event_request)
+                if posted:
+                    messages.success(
+                        request,
+                        'Propuesta enviada. Soporte la va a revisar en Chatwoot.',
+                    )
+                elif chatwoot_api_configured():
+                    messages.warning(
+                        request,
+                        'Propuesta guardada, pero no se pudo abrir la conversación en Chatwoot.',
+                    )
+                else:
+                    missing = ', '.join(chatwoot_missing_config())
+                    messages.warning(
+                        request,
+                        f'Propuesta guardada. Falta configurar Chatwoot API en el servidor ({missing}).',
+                    )
+                return redirect('my_event_requests')
+            event_request.delete()
+            formset = EventRequestTicketTypeFormSet(request.POST, instance=EventRequest())
+        else:
+            formset = EventRequestTicketTypeFormSet(request.POST, instance=EventRequest())
+        messages.error(request, 'Revisá los errores del formulario.')
+    else:
+        form = EventRequestForm()
+        formset = EventRequestTicketTypeFormSet(instance=EventRequest())
+
+    context = _mi_fuego_sidebar_context(request)
+    context.update({
+        'form': form,
+        'formset': formset,
+        'nav_primary': 'la_sede',
+        'nav_secondary': 'proponer_evento',
+    })
+    return render(request, 'mi_fuego/my_tickets/proponer_evento.html', context)
+
+
+@login_required
+def my_event_requests_view(request):
+    if not _require_sede_member(request.user):
+        raise Http404
+
+    from events.models import EventRequest
+
+    event_requests = EventRequest.objects.filter(
+        requested_by=request.user,
+    ).prefetch_related('ticket_types', 'created_event')
+
+    context = _mi_fuego_sidebar_context(request)
+    context.update({
+        'event_requests': event_requests,
+        'nav_primary': 'la_sede',
+        'nav_secondary': 'mis_propuestas',
+    })
+    return render(request, 'mi_fuego/my_tickets/mis_propuestas_evento.html', context)
+
+
 @login_required
 @require_http_methods(['POST'])
 def logros_mark_celebration_shown(request):

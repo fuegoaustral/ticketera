@@ -1,0 +1,140 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+
+{% block page_title %}Proponer evento{% endblock page_title %}
+
+{% block truecontent %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-10 col-xl-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1">
+                        <i class="fas fa-calendar-plus me-2"></i>
+                        Proponer un evento
+                    </h1>
+                    <p class="text-muted mb-0">
+                        Completá los datos y la propuesta llega a soporte por Chatwoot para revisión.
+                    </p>
+                </div>
+                <a href="{% url 'my_event_requests' %}" class="btn btn-outline-secondary btn-sm">
+                    Mis propuestas
+                </a>
+            </div>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Información del evento</h5>
+                    </div>
+                    <div class="card-body">
+                        {% for field in form %}
+                            <div class="mb-3">
+                                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <div class="form-text">{{ field.help_text }}</div>
+                                {% endif %}
+                                {% for error in field.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Tipos de entrada</h5>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="add-ticket-type">
+                            <i class="fas fa-plus me-1"></i> Agregar tipo
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        {{ formset.management_form }}
+                        <div id="ticket-type-forms">
+                            {% for ticket_form in formset %}
+                                <div class="ticket-type-row border rounded p-3 mb-3">
+                                    {% if ticket_form.DELETE %}
+                                        <div class="form-check mb-2">
+                                            {{ ticket_form.DELETE }}
+                                            <label class="form-check-label" for="{{ ticket_form.DELETE.id_for_label }}">
+                                                Eliminar este tipo
+                                            </label>
+                                        </div>
+                                    {% endif %}
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <label class="form-label">{{ ticket_form.name.label }}</label>
+                                            {{ ticket_form.name }}
+                                            {% for error in ticket_form.name.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">{{ ticket_form.price.label }}</label>
+                                            {{ ticket_form.price }}
+                                            {% for error in ticket_form.price.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">{{ ticket_form.description.label }}</label>
+                                            {{ ticket_form.description }}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        {% if formset.non_form_errors %}
+                            <div class="text-danger">{{ formset.non_form_errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-paper-plane me-1"></i> Enviar propuesta
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const addBtn = document.getElementById('add-ticket-type');
+    const container = document.getElementById('ticket-type-forms');
+    const totalFormsInput = document.getElementById('id_ticket_types-TOTAL_FORMS');
+    if (!addBtn || !container || !totalFormsInput) return;
+
+    addBtn.addEventListener('click', function () {
+        const index = parseInt(totalFormsInput.value, 10);
+        const template = container.querySelector('.ticket-type-row');
+        if (!template) return;
+        const clone = template.cloneNode(true);
+        clone.querySelectorAll('input, select, textarea').forEach(function (el) {
+            if (el.type === 'checkbox') {
+                el.checked = false;
+            } else {
+                el.value = '';
+            }
+            el.name = el.name.replace(/ticket_types-\d+-/, 'ticket_types-' + index + '-');
+            el.id = el.id.replace(/ticket_types-\d+-/, 'ticket_types-' + index + '-');
+        });
+        clone.querySelectorAll('label').forEach(function (label) {
+            if (label.htmlFor) {
+                label.htmlFor = label.htmlFor.replace(/ticket_types-\d+-/, 'ticket_types-' + index + '-');
+            }
+        });
+        container.appendChild(clone);
+        totalFormsInput.value = index + 1;
+    });
+})();
+</script>
+{% endblock %}

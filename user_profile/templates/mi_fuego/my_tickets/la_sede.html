@@ -117,6 +117,14 @@
 </style>
 
 <div class="sede-credential-wrap">
+    <div class="mb-3 text-center">
+        <a href="{% url 'propose_event' %}" class="btn btn-outline-light">
+            <i class="fas fa-calendar-plus me-1"></i> Proponer un evento
+        </a>
+        <a href="{% url 'my_event_requests' %}" class="btn btn-link text-light">
+            Ver mis propuestas
+        </a>
+    </div>
     {% for item in active_subscriptions %}
     <div class="sede-credential">
         <div class="sede-credential-header">
