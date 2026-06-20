@@ -8,6 +8,8 @@ from django.utils.html import strip_tags
 
 logger = logging.getLogger(__name__)
 
+_inbox_meta_cache = {}
+
 
 def chatwoot_api_configured():
     return bool(
@@ -163,6 +165,30 @@ def _create_conversation(contact_id):
     return data.get('id')
 
 
+def _get_inbox_meta():
+    inbox_id = str(settings.CHATWOOT_SOPORTE_INBOX_ID)
+    if inbox_id not in _inbox_meta_cache:
+        data = _request('GET', f'/inboxes/{inbox_id}')
+        _inbox_meta_cache[inbox_id] = data if isinstance(data, dict) else {}
+    return _inbox_meta_cache[inbox_id]
+
+
+def _inbox_allows_incoming_messages():
+    """Solo inboxes API aceptan incoming por Application API (y alertan a agentes)."""
+    return _get_inbox_meta().get('channel_type') == 'Channel::Api'
+
+
+def _assign_conversation(conversation_id):
+    assignee_id = getattr(settings, 'CHATWOOT_SOPORTE_ASSIGNEE_ID', '') or ''
+    if not assignee_id:
+        return
+    _request(
+        'POST',
+        f'/conversations/{conversation_id}/assignments',
+        json={'assignee_id': int(assignee_id)},
+    )
+
+
 def _create_message(conversation_id, content, *, message_type='outgoing', private=False):
     payload = {
         'content': content,
@@ -174,8 +200,8 @@ def _create_message(conversation_id, content, *, message_type='outgoing', privat
 
 def _post_proposal_messages(conversation_id, event_request):
     """
-    WebWidget inboxes reject incoming messages via Application API (422).
-    Use outgoing messages only; public message for inbox visibility + member ack.
+    Inbox API: incoming dispara notificación a agentes (unread + push/email).
+    WebWidget: solo outgoing vía API (422 en incoming); no alerta a soporte.
     """
     proposal_text = build_proposal_message(event_request)
     agent_note = (
@@ -183,10 +209,21 @@ def _post_proposal_messages(conversation_id, event_request):
         f'• `APROBAR {event_request.pk}` — crea el evento y da admin al solicitante\n'
         f'• `RECHAZAR {event_request.pk} motivo opcional` — rechaza la propuesta'
     )
+    if _inbox_allows_incoming_messages():
+        public_type = 'incoming'
+    else:
+        public_type = 'outgoing'
+        logger.warning(
+            'Inbox %s es WebWidget: la propuesta #%s no va a alertar a agentes. '
+            'Usá un inbox API (Settings → Inboxes → API) en CHATWOOT_SOPORTE_INBOX_ID.',
+            settings.CHATWOOT_SOPORTE_INBOX_ID,
+            event_request.pk,
+        )
+
     if not _create_message(
         conversation_id,
         proposal_text,
-        message_type='outgoing',
+        message_type=public_type,
         private=False,
     ):
         return False
@@ -234,6 +271,7 @@ def post_event_request_to_chatwoot(event_request):
         )
         return False
 
+    _assign_conversation(conversation_id)
     return True
 
 

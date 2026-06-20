@@ -351,6 +351,8 @@ CHATWOOT_BASE_URL = os.environ.get('CHATWOOT_BASE_URL', 'https://app.chatwoot.co
 CHATWOOT_API_ACCESS_TOKEN = os.environ.get('CHATWOOT_API_ACCESS_TOKEN', '')
 CHATWOOT_ACCOUNT_ID = os.environ.get('CHATWOOT_ACCOUNT_ID', '')
 CHATWOOT_SOPORTE_INBOX_ID = os.environ.get('CHATWOOT_SOPORTE_INBOX_ID', '')
+# Agente que recibe asignación (opcional; útil si el inbox es WebWidget)
+CHATWOOT_SOPORTE_ASSIGNEE_ID = os.environ.get('CHATWOOT_SOPORTE_ASSIGNEE_ID', '')
 
 SECRET = os.environ.get('SECRET')
 
