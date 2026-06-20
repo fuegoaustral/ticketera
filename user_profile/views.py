@@ -1190,7 +1190,11 @@ def propose_event_view(request):
         raise Http404
 
     from events.models import EventRequest
-    from events.services.event_request_chatwoot import chatwoot_api_configured, post_event_request_to_chatwoot
+    from events.services.event_request_chatwoot import (
+        chatwoot_api_configured,
+        chatwoot_missing_config,
+        post_event_request_to_chatwoot,
+    )
     from .forms import EventRequestForm, EventRequestTicketTypeFormSet
 
     if request.method == 'POST':
@@ -1215,9 +1219,10 @@ def propose_event_view(request):
                         'Propuesta guardada, pero no se pudo abrir la conversación en Chatwoot.',
                     )
                 else:
+                    missing = ', '.join(chatwoot_missing_config())
                     messages.warning(
                         request,
-                        'Propuesta guardada. Chatwoot API no está configurado en este entorno.',
+                        f'Propuesta guardada. Falta configurar Chatwoot API en el servidor ({missing}).',
                     )
                 return redirect('my_event_requests')
             event_request.delete()

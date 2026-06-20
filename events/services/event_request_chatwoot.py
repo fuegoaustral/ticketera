@@ -17,6 +17,34 @@ def chatwoot_api_configured():
     )
 
 
+def chatwoot_missing_config():
+    missing = []
+    if not settings.CHATWOOT_API_ACCESS_TOKEN:
+        missing.append('CHATWOOT_API_ACCESS_TOKEN')
+    if not settings.CHATWOOT_ACCOUNT_ID:
+        missing.append('CHATWOOT_ACCOUNT_ID')
+    if not settings.CHATWOOT_SOPORTE_INBOX_ID:
+        missing.append('CHATWOOT_SOPORTE_INBOX_ID')
+    return missing
+
+
+def _extract_contact_id(data):
+    if not data or not isinstance(data, dict):
+        return None
+    if data.get('id'):
+        return data['id']
+    payload = data.get('payload')
+    if isinstance(payload, dict):
+        contact = payload.get('contact') or payload
+        if isinstance(contact, dict) and contact.get('id'):
+            return contact['id']
+    if isinstance(payload, list) and payload:
+        first = payload[0]
+        if isinstance(first, dict) and first.get('id'):
+            return first['id']
+    return None
+
+
 def _api_url(path):
     base = settings.CHATWOOT_BASE_URL.rstrip('/')
     return f'{base}/api/v1/accounts/{settings.CHATWOOT_ACCOUNT_ID}{path}'
@@ -114,7 +142,7 @@ def _get_or_create_contact(event_request):
     data = _request('POST', '/contacts', json=payload)
     if not data:
         return None
-    contact_id = data.get('payload', {}).get('contact', {}).get('id') or data.get('id')
+    contact_id = _extract_contact_id(data)
     if contact_id:
         return contact_id
     logger.error('Chatwoot contact response sin id para propuesta #%s: %s', event_request.pk, data)
@@ -143,8 +171,13 @@ def _create_message(conversation_id, content, *, message_type='incoming', privat
 
 
 def post_event_request_to_chatwoot(event_request):
-    if not chatwoot_api_configured():
-        logger.warning('Chatwoot API no configurado; propuesta #%s sin conversación', event_request.pk)
+    missing = chatwoot_missing_config()
+    if missing:
+        logger.warning(
+            'Chatwoot API incompleta (%s); propuesta #%s sin conversación',
+            ', '.join(missing),
+            event_request.pk,
+        )
         return False
 
     contact_id = _get_or_create_contact(event_request)
