@@ -408,7 +408,7 @@ class EventRequest(BaseModel):
     name = models.CharField(max_length=255)
     description = models.TextField()
     start = models.DateTimeField()
-    end = models.DateTimeField(null=True, blank=True)
+    end = models.DateTimeField()
     header_image = models.ImageField(upload_to='events/event_requests')
     location = models.CharField(max_length=255)
     location_url = models.URLField(max_length=500, blank=True)

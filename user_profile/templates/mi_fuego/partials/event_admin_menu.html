@@ -15,15 +15,18 @@
         </h6>
         <ul class="menu-list">
             {% for admin_event in admin_events %}
-                <li class="menu-item">
-                    <div class="menu-event-title{% if event and admin_event.slug == event.slug %} active{% endif %}">
+                {% with is_selected=current_admin_event and admin_event.slug == current_admin_event.slug %}
+                <li class="menu-item{% if not is_selected %} menu-item-collapsed{% endif %}">
+                    <a class="menu-event-title{% if is_selected %} active{% endif %}"
+                       href="{% url 'event_admin' admin_event.slug %}">
                         <i class="fas fa-star me-2" style="{% if not admin_event.is_main %}opacity: 0.3;{% endif %}"></i>
                         {{ admin_event.name }}
-                    </div>
-                    
+                    </a>
+
+                    {% if is_selected %}
                     <ul class="menu-sublist">
                         <li class="menu-subitem">
-                            <a class="menu-sublink{% if event and admin_event.slug == event.slug and nav_secondary == 'event_admin_'|add:admin_event.slug %} active{% endif %}"
+                            <a class="menu-sublink{% if is_selected and nav_secondary == 'event_admin_'|add:admin_event.slug %} active{% endif %}"
                                href="{% url 'event_admin' admin_event.slug %}">
                                 <i class="fas fa-chart-line me-2"></i>
                                 Reporte de venta de bonos
@@ -134,7 +137,9 @@
                             </ul>
                         </li>
                     </ul>
+                    {% endif %}
                 </li>
+                {% endwith %}
             {% endfor %}
         </ul>
     </div>
@@ -279,6 +284,18 @@
         background-color: #f8f9fa;
         border: 1px solid #e9ecef;
         margin-bottom: 0.5rem;
+        text-decoration: none;
+    }
+
+    .menu-item-collapsed .menu-event-title {
+        margin-bottom: 0.25rem;
+        padding: 0.75rem 1rem;
+        font-size: 0.85rem;
+    }
+
+    .menu-item-collapsed .menu-event-title:hover {
+        background-color: #eef2f5;
+        color: #1e1e1e;
     }
     
     .menu-event-title.active {

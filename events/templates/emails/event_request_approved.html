@@ -1,0 +1,31 @@
+{% extends 'emails/base.html' %}
+{% block subject %}Tu propuesta de evento fue aprobada — {{ event.name|safe }}{% endblock %}
+{% block title %}
+    Propuesta aprobada
+{% endblock %}
+{% block content %}
+    <p>
+        Hola{% if user.get_full_name %} {{ user.get_full_name|safe }}{% endif %},
+    </p>
+
+    <p>
+        Tu propuesta de evento <b>{{ event.name|safe }}</b> fue aprobada y ya está creada en la ticketera.
+    </p>
+
+    <p><b>Próximos pasos</b></p>
+    <ul>
+        <li>Revisá la configuración general del evento (fechas, cupo, dirección, etc.).</li>
+        <li>Ajustá los tipos de entrada si hace falta.</li>
+    </ul>
+
+    {% include 'emails/partials/btn.html' with label='Administrar evento' href=event_admin_path %}
+
+    <p style="margin-top: 1rem;">
+        También podés editar la configuración en
+        <a href="{{ base_url }}{{ event_config_path }}">Configuración del evento</a>
+        o los
+        <a href="{{ base_url }}{{ ticket_types_path }}">tipos de entrada</a>.
+    </p>
+
+    <p>Cualquier consulta, escribinos por el chat de soporte en la web.</p>
+{% endblock %}

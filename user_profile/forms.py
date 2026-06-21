@@ -389,7 +389,7 @@ class EventRequestForm(forms.ModelForm):
             'name': 'Nombre',
             'description': 'Descripción',
             'start': 'Fecha y hora de inicio',
-            'end': 'Fecha y hora de fin (opcional)',
+            'end': 'Fecha y hora de fin',
             'header_image': 'Banner',
             'location': 'Dirección',
             'location_url': 'Link de Google Maps (opcional)',
@@ -404,7 +404,9 @@ class EventRequestForm(forms.ModelForm):
     def clean_end(self):
         end = self.cleaned_data.get('end')
         start = self.cleaned_data.get('start')
-        if end and start and end <= start:
+        if not end:
+            raise forms.ValidationError('La fecha de fin es obligatoria.')
+        if start and end <= start:
             raise forms.ValidationError('La fecha de fin debe ser posterior al inicio.')
         return end
 

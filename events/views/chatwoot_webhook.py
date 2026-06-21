@@ -1,12 +1,27 @@
 import json
 import logging
+import re
 
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
+from events.services.event_request_chatwoot import send_conversation_reply
 from events.services.event_request_processing import handle_agent_command
 
 logger = logging.getLogger(__name__)
+
+_COMMAND_HINT = re.compile(
+    r'\b(APROBAR|RECHAZAR)(?:\s+\d+|\s+motivo|\s*$)',
+    re.IGNORECASE,
+)
+
+
+def _extract_message_content(message):
+    return (
+        message.get('processed_message_content')
+        or message.get('content')
+        or ''
+    )
 
 
 def _is_agent_message(payload):
@@ -33,17 +48,25 @@ def chatwoot_event_request_webhook(request):
     if not _is_agent_message(message):
         return HttpResponse(status=200)
 
-    content = message.get('content', '')
+    content = _extract_message_content(message)
     conversation = message.get('conversation') or payload.get('conversation') or {}
     conversation_id = conversation.get('id')
 
     result = handle_agent_command(content, conversation_id=conversation_id)
     if result is None:
+        if _COMMAND_HINT.search(content):
+            logger.warning(
+                'Comando Chatwoot no reconocido (conv=%s): %r',
+                conversation_id,
+                content,
+            )
         return HttpResponse(status=200)
 
     ok, reply = result
     if not ok:
         logger.info('Comando Chatwoot ignorado o fallido: %s', reply)
+        if conversation_id:
+            send_conversation_reply(conversation_id, f'⚠️ {reply}')
     else:
         logger.info('Comando Chatwoot procesado: %s', reply)
 

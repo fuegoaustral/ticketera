@@ -21,6 +21,12 @@
                 </a>
             </div>
 
+            <div class="alert alert-info mb-4" role="status">
+                <i class="fas fa-circle-info me-2"></i>
+                Una vez aprobada la propuesta, podés ajustar las <strong>fechas</strong> y los
+                <strong>tipos de entrada</strong> desde la administración del evento en Mi Fuego.
+            </div>
+
             {% if messages %}
                 {% for message in messages %}
                     <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">

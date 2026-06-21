@@ -1,5 +1,4 @@
 import logging
-from datetime import timedelta
 
 import requests
 from django.conf import settings
@@ -92,8 +91,7 @@ def build_proposal_message(event_request):
     requester = event_request.requested_by
     requester_label = _contact_display_name(requester)
     start_local = timezone.localtime(event_request.start)
-    end_dt = event_request.end or (event_request.start + timedelta(hours=6))
-    end_local = timezone.localtime(end_dt)
+    end_local = timezone.localtime(event_request.end)
     description_plain = strip_tags(event_request.description).strip()
     admin_url = f'{settings.APP_URL.rstrip("/")}/admin/events/eventrequest/{event_request.pk}/change/'
 
@@ -109,7 +107,7 @@ def build_proposal_message(event_request):
         + f'\n*Descripción:*\n{description_plain}\n\n'
         f'*Tipos de entrada:*\n{_format_ticket_types(event_request)}\n\n'
         f'Admin: {admin_url}\n\n'
-        f'_Respondé con `APROBAR {event_request.pk}` o `RECHAZAR {event_request.pk} motivo...`_'
+        f'_Respondé en este hilo con `APROBAR` o `RECHAZAR motivo...`_'
     )
 
 
@@ -297,6 +295,17 @@ def send_chatwoot_reply(event_request, content, *, private=False):
         return False
     return bool(_create_message(
         event_request.chatwoot_conversation_id,
+        content,
+        message_type='outgoing',
+        private=private,
+    ))
+
+
+def send_conversation_reply(conversation_id, content, *, private=False):
+    if not conversation_id or not chatwoot_api_configured():
+        return False
+    return bool(_create_message(
+        conversation_id,
         content,
         message_type='outgoing',
         private=private,

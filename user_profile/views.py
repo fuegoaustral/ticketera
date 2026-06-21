@@ -14,7 +14,7 @@ from django.conf import settings
 import json
 
 from events.models import Event, EventTermsAndConditions, EventTermsAndConditionsAcceptance, Grupo, GrupoTipo, GrupoMiembro
-from events.utils import get_event_from_request
+from events.utils import get_event_from_request, get_admin_events_for_user
 from tickets.models import NewTicket, NewTicketTransfer, Order, TicketType
 from .forms import ProfileStep1Form, ProfileStep2Form, VolunteeringForm, ProfileUpdateForm, CustomPasswordChangeForm, AddEmailForm, PhoneUpdateForm, CajaEmitirBonoForm
 from .impersonation import IMPERSONATION_ADMIN_USER_ID_SESSION_KEY
@@ -1288,9 +1288,7 @@ def logros_mark_celebration_shown(request):
 def my_events_view(request):
     """Show events that the user administers"""
     # Get events where the user is an admin
-    admin_events = Event.objects.filter(
-        admins=request.user
-    ).order_by('-is_main', 'name')
+    admin_events = get_admin_events_for_user(request.user)
     
     # Get the main event for context
     main_event = Event.get_main_event()
@@ -1310,6 +1308,7 @@ def my_events_view(request):
         "mi_fuego/my_events.html",
         {
             "admin_events": admin_events,
+            "current_admin_event": None,
             "event": main_event,
             "active_events": user_events,
             "nav_primary": "events",
@@ -1589,9 +1588,7 @@ def event_admin_view(request, event_slug):
     main_event = Event.get_main_event()
     
     # Get events where the user is an admin
-    admin_events = Event.objects.filter(
-        admins=request.user
-    ).order_by('-is_main', 'name')
+    admin_events = get_admin_events_for_user(request.user)
     
     # Get events where user has tickets, prioritizing main event
     user_events = Event.get_active_events().filter(
@@ -1714,6 +1711,7 @@ def event_admin_view(request, event_slug):
     
     context = {
         "event": event,
+        "current_admin_event": event,
         "main_event": main_event,
         "admin_events": admin_events,
         "active_events": user_events,
@@ -1845,9 +1843,7 @@ def puerta_admin_view(request, event_slug):
     main_event = Event.get_main_event()
     
     # Get events where the user is an admin
-    admin_events = Event.objects.filter(
-        admins=request.user
-    ).order_by('-is_main', 'name')
+    admin_events = get_admin_events_for_user(request.user)
     
     # Get events where user has tickets, prioritizing main event
     user_events = Event.get_active_events().filter(
@@ -1861,6 +1857,7 @@ def puerta_admin_view(request, event_slug):
     
     context = {
         "event": event,
+        "current_admin_event": event,
         "main_event": main_event,
         "admin_events": admin_events,
         "active_events": user_events,
@@ -1952,9 +1949,7 @@ def caja_config_view(request, event_slug):
     main_event = Event.get_main_event()
     
     # Get events where the user is an admin
-    admin_events = Event.objects.filter(
-        admins=request.user
-    ).order_by('-is_main', 'name')
+    admin_events = get_admin_events_for_user(request.user)
     
     # Get events where user has tickets, prioritizing main event
     user_events = Event.get_active_events().filter(
@@ -1975,6 +1970,7 @@ def caja_config_view(request, event_slug):
     
     context = {
         "event": event,
+        "current_admin_event": event,
         "main_event": main_event,
         "admin_events": admin_events,
         "active_events": user_events,
@@ -2073,9 +2069,7 @@ def roles_management_view(request, event_slug):
     main_event = Event.get_main_event()
     
     # Get events where the user is an admin
-    admin_events = Event.objects.filter(
-        admins=request.user
-    ).order_by('-is_main', 'name')
+    admin_events = get_admin_events_for_user(request.user)
     
     # Get events where user has tickets, prioritizing main event
     user_events = Event.get_active_events().filter(
@@ -2089,6 +2083,7 @@ def roles_management_view(request, event_slug):
     
     context = {
         "event": event,
+        "current_admin_event": event,
         "main_event": main_event,
         "admin_events": admin_events,
         "active_events": user_events,
@@ -2180,9 +2175,7 @@ def event_management_view(request, event_slug):
     main_event = Event.get_main_event()
     
     # Get events where the user is an admin
-    admin_events = Event.objects.filter(
-        admins=request.user
-    ).order_by('-is_main', 'name')
+    admin_events = get_admin_events_for_user(request.user)
     
     # Get events where user has tickets, prioritizing main event
     user_events = Event.get_active_events().filter(
@@ -2196,6 +2189,7 @@ def event_management_view(request, event_slug):
     
     context = {
         "event": event,
+        "current_admin_event": event,
         "form": form,
         "main_event": main_event,
         "admin_events": admin_events,
@@ -2298,7 +2292,7 @@ def ticket_types_management_view(request, event_slug):
     form = TicketTypeForm()
     
     # Get user's events for navigation
-    user_events = Event.objects.filter(admins=request.user).order_by('-created_at')
+    user_events = get_admin_events_for_user(request.user)
     
     # Get user's ticket for this event
     my_ticket = None
@@ -2310,6 +2304,7 @@ def ticket_types_management_view(request, event_slug):
     
     context = {
         "event": event,
+        "current_admin_event": event,
         "ticket_types": ticket_types,
         "form": form,
         "admin_events": user_events,
@@ -2560,9 +2555,7 @@ def bonus_report_view(request, event_slug):
     main_event = Event.get_main_event()
     
     # Get events where the user is an admin
-    admin_events = Event.objects.filter(
-        admins=request.user
-    ).order_by('-is_main', 'name')
+    admin_events = get_admin_events_for_user(request.user)
     
     # Get events where user has tickets, prioritizing main event
     user_events = Event.get_active_events().filter(
@@ -2634,6 +2627,7 @@ def bonus_report_view(request, event_slug):
     
     context = {
         "event": event,
+        "current_admin_event": event,
         "main_event": main_event,
         "admin_events": admin_events,
         "active_events": user_events,
@@ -2933,7 +2927,8 @@ def caja_view(request, event_slug):
             context = {
                 "event": event,
                 "main_event": Event.get_main_event(),
-                "admin_events": Event.objects.filter(admins=request.user).order_by('-is_main', 'name'),
+                "admin_events": get_admin_events_for_user(request.user),
+                "current_admin_event": event,
                 "active_events": Event.get_active_events().filter(newticket__holder=request.user).distinct().order_by('-is_main', 'name'),
                 "nav_primary": "events",
                 "nav_secondary": f"caja_{event.slug}",
@@ -3185,9 +3180,7 @@ def caja_view(request, event_slug):
     main_event = Event.get_main_event()
     
     # Get events where the user is an admin
-    admin_events = Event.objects.filter(
-        admins=request.user
-    ).order_by('-is_main', 'name')
+    admin_events = get_admin_events_for_user(request.user)
     
     # Get events where user has tickets, prioritizing main event
     user_events = Event.get_active_events().filter(
@@ -3268,6 +3261,7 @@ def caja_view(request, event_slug):
     
     context = {
         "event": event,
+        "current_admin_event": event,
         "main_event": main_event,
         "admin_events": admin_events,
         "active_events": user_events,
