@@ -5,6 +5,11 @@ from django.http import Http404
 from .models import Event
 
 
+def get_admin_events_for_user(user):
+    """Eventos que administra el usuario, más nuevos primero."""
+    return Event.objects.filter(admins=user).order_by('-id')
+
+
 def get_event_from_request(request):
     """
     Resolve event from request using the following priority:
