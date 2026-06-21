@@ -15,18 +15,17 @@
         </h6>
         <ul class="menu-list">
             {% for admin_event in admin_events %}
-                {% with is_selected=current_admin_event and admin_event.slug == current_admin_event.slug %}
-                <li class="menu-item{% if not is_selected %} menu-item-collapsed{% endif %}">
-                    <a class="menu-event-title{% if is_selected %} active{% endif %}"
+                <li class="menu-item{% if not current_admin_event or admin_event.slug != current_admin_event.slug %} menu-item-collapsed{% endif %}">
+                    <a class="menu-event-title{% if current_admin_event and admin_event.slug == current_admin_event.slug %} active{% endif %}"
                        href="{% url 'event_admin' admin_event.slug %}">
                         <i class="fas fa-star me-2" style="{% if not admin_event.is_main %}opacity: 0.3;{% endif %}"></i>
                         {{ admin_event.name }}
                     </a>
 
-                    {% if is_selected %}
+                    {% if current_admin_event and admin_event.slug == current_admin_event.slug %}
                     <ul class="menu-sublist">
                         <li class="menu-subitem">
-                            <a class="menu-sublink{% if is_selected and nav_secondary == 'event_admin_'|add:admin_event.slug %} active{% endif %}"
+                            <a class="menu-sublink{% if nav_secondary == 'event_admin_'|add:admin_event.slug %} active{% endif %}"
                                href="{% url 'event_admin' admin_event.slug %}">
                                 <i class="fas fa-chart-line me-2"></i>
                                 Reporte de venta de bonos
@@ -139,7 +138,6 @@
                     </ul>
                     {% endif %}
                 </li>
-                {% endwith %}
             {% endfor %}
         </ul>
     </div>

@@ -1,8 +1,21 @@
 from django import template
+from django.conf import settings
 
 from tickets.models import TicketType
 
 register = template.Library()
+
+
+@register.filter
+def absolute_uri(url):
+    if not url:
+        return ''
+    if url.startswith(('http://', 'https://')):
+        return url
+    base = settings.APP_URL.rstrip('/')
+    if not url.startswith('/'):
+        url = f'/{url}'
+    return f'{base}{url}'
 
 
 @register.filter
