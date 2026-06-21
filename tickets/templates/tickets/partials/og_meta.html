@@ -1,0 +1,23 @@
+{% load form_filters %}
+{% if event and event.header_image %}
+    {% with og_image_url=event.header_image.url|absolute_uri %}
+        <meta property="og:type" content="website">
+        <meta property="og:site_name" content="Fuego Austral">
+        <meta property="og:title" content="{{ event.title|default:event.name|striptags }}">
+        {% if event.description %}
+            <meta property="og:description" content="{{ event.description|striptags|truncatechars:200 }}">
+        {% endif %}
+        <meta property="og:image" content="{{ og_image_url }}">
+        {% if event.header_image.width %}
+            <meta property="og:image:width" content="{{ event.header_image.width }}">
+            <meta property="og:image:height" content="{{ event.header_image.height }}">
+        {% endif %}
+        <meta property="og:url" content="{{ APP_URL }}{{ request.path }}">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="{{ event.title|default:event.name|striptags }}">
+        {% if event.description %}
+            <meta name="twitter:description" content="{{ event.description|striptags|truncatechars:200 }}">
+        {% endif %}
+        <meta name="twitter:image" content="{{ og_image_url }}">
+    {% endwith %}
+{% endif %}
