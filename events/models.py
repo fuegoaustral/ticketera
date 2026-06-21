@@ -156,6 +156,9 @@ class Event(BaseModel):
     @classmethod
     def get_main_event(cls):
         """Get the main event (displayed at /)"""
+        from events.services.main_event import reconcile_main_event
+
+        reconcile_main_event()
         try:
             return cls.objects.get(is_main=True, active=True)
         except cls.DoesNotExist:

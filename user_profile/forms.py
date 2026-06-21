@@ -398,6 +398,12 @@ class EventRequestForm(forms.ModelForm):
             'header_image': 'Resolución recomendada: 1666 × 500 px.',
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.is_bound:
+            self.fields['location'].initial = 'Paz Soldán 5150, CABA'
+            self.fields['location_url'].initial = 'https://maps.app.goo.gl/BUDpcUhFYLKC64Sx6'
+
     def clean_max_tickets(self):
         value = self.cleaned_data.get('max_tickets')
         if value in (None, ''):
