@@ -394,6 +394,9 @@ class EventRequestForm(forms.ModelForm):
             'location': 'Dirección',
             'location_url': 'Link de Google Maps (opcional)',
         }
+        help_texts = {
+            'header_image': 'Resolución recomendada: 1666 × 500 px.',
+        }
 
     def clean_max_tickets(self):
         value = self.cleaned_data.get('max_tickets')
