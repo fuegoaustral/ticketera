@@ -67,31 +67,41 @@
                         </button>
                     </div>
                     <div class="card-body">
+                        <p class="text-muted small mb-3">
+                            Al aprobar la propuesta, cada tipo estará a la venta desde el momento de la
+                            aprobación hasta la fecha de fin del evento.
+                        </p>
                         {{ formset.management_form }}
                         <div id="ticket-type-forms">
                             {% for ticket_form in formset %}
                                 <div class="ticket-type-row border rounded p-3 mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <span class="fw-semibold text-muted small text-uppercase">Tipo de entrada</span>
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-danger remove-ticket-type"
+                                                title="Eliminar tipo de entrada">
+                                            <i class="fas fa-trash me-1"></i> Eliminar
+                                        </button>
+                                    </div>
                                     {% if ticket_form.DELETE %}
-                                        <div class="form-check mb-2">
-                                            {{ ticket_form.DELETE }}
-                                            <label class="form-check-label" for="{{ ticket_form.DELETE.id_for_label }}">
-                                                Eliminar este tipo
-                                            </label>
-                                        </div>
+                                        <div class="d-none">{{ ticket_form.DELETE }}</div>
                                     {% endif %}
+                                    {% for hidden in ticket_form.hidden_fields %}
+                                        {{ hidden }}
+                                    {% endfor %}
                                     <div class="row g-3">
                                         <div class="col-md-4">
-                                            <label class="form-label">{{ ticket_form.name.label }}</label>
+                                            <label class="form-label" for="{{ ticket_form.name.id_for_label }}">{{ ticket_form.name.label }}</label>
                                             {{ ticket_form.name }}
                                             {% for error in ticket_form.name.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label">{{ ticket_form.price.label }}</label>
+                                            <label class="form-label" for="{{ ticket_form.price.id_for_label }}">{{ ticket_form.price.label }}</label>
                                             {{ ticket_form.price }}
                                             {% for error in ticket_form.price.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label">{{ ticket_form.description.label }}</label>
+                                            <label class="form-label" for="{{ ticket_form.description.id_for_label }}">{{ ticket_form.description.label }}</label>
                                             {{ ticket_form.description }}
                                         </div>
                                     </div>
@@ -119,15 +129,47 @@
     const totalFormsInput = document.getElementById('id_ticket_types-TOTAL_FORMS');
     if (!addBtn || !container || !totalFormsInput) return;
 
+    function visibleRows() {
+        return Array.from(container.querySelectorAll('.ticket-type-row')).filter(function (row) {
+            const deleteInput = row.querySelector('input[name$="-DELETE"]');
+            return !deleteInput || !deleteInput.checked;
+        });
+    }
+
+    function updateRemoveButtons() {
+        const rows = visibleRows();
+        container.querySelectorAll('.remove-ticket-type').forEach(function (btn) {
+            btn.disabled = rows.length <= 1;
+        });
+    }
+
+    function rewireRemoveButtons() {
+        container.querySelectorAll('.remove-ticket-type').forEach(function (btn) {
+            if (btn.dataset.wired === '1') return;
+            btn.dataset.wired = '1';
+            btn.addEventListener('click', function () {
+                const row = btn.closest('.ticket-type-row');
+                if (!row || visibleRows().length <= 1) return;
+                const deleteInput = row.querySelector('input[name$="-DELETE"]');
+                if (deleteInput) {
+                    deleteInput.checked = true;
+                }
+                row.classList.add('d-none');
+                updateRemoveButtons();
+            });
+        });
+    }
+
     addBtn.addEventListener('click', function () {
         const index = parseInt(totalFormsInput.value, 10);
-        const template = container.querySelector('.ticket-type-row');
+        const template = visibleRows()[0];
         if (!template) return;
         const clone = template.cloneNode(true);
+        clone.classList.remove('d-none');
         clone.querySelectorAll('input, select, textarea').forEach(function (el) {
             if (el.type === 'checkbox') {
                 el.checked = false;
-            } else {
+            } else if (el.type !== 'hidden') {
                 el.value = '';
             }
             el.name = el.name.replace(/ticket_types-\d+-/, 'ticket_types-' + index + '-');
@@ -138,9 +180,17 @@
                 label.htmlFor = label.htmlFor.replace(/ticket_types-\d+-/, 'ticket_types-' + index + '-');
             }
         });
+        clone.querySelectorAll('.remove-ticket-type').forEach(function (btn) {
+            delete btn.dataset.wired;
+        });
         container.appendChild(clone);
         totalFormsInput.value = index + 1;
+        rewireRemoveButtons();
+        updateRemoveButtons();
     });
+
+    rewireRemoveButtons();
+    updateRemoveButtons();
 })();
 </script>
 {% endblock %}
