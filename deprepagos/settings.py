@@ -26,7 +26,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-s$(*=)6^h$p=d6e4tpv#-s7_hg&cl!vc@yzas371ubj=+ks&cc'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-s$(*=)6^h$p=d6e4tpv#-s7_hg&cl!vc@yzas371ubj=+ks&cc')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
@@ -228,6 +228,7 @@ SEDE_SUBSCRIPTION_PLAN_IDS = [
 ]
 SEDE_DEFAULT_PLAN_ID = '2c9380847dbdc0a1017dbe5e16a1005c'
 
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
 EMAIL_HOST = os.environ.get('EMAIL_HOST')
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
@@ -244,6 +245,8 @@ TEMPLATED_EMAIL_FILE_EXTENSION = 'html'
 TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', '')
 TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
 TWILIO_VERIFY_SERVICE_SID = os.environ.get('TWILIO_VERIFY_SERVICE_SID', '')
+TWILIO_WHATSAPP_FROM = os.environ.get('TWILIO_WHATSAPP_FROM', '')
+MOCK_PHONE_VERIFICATION = os.environ.get('MOCK_PHONE_VERIFICATION', str(DEBUG)) == 'True'
 
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
@@ -252,7 +255,7 @@ SOCIALACCOUNT_PROVIDERS = {
         ],
         'APP': {
             'client_id': os.environ.get('GOOGLE_CLIENT_ID', ''),
-            'secret': os.environ.get('GOOGLE_SECRET', '')
+            'secret': os.environ.get('GOOGLE_CLIENT_SECRET', '')
         }
     }
 }
@@ -356,7 +359,6 @@ CHATWOOT_SOPORTE_ASSIGNEE_ID = os.environ.get('CHATWOOT_SOPORTE_ASSIGNEE_ID', ''
 
 SECRET = os.environ.get('SECRET')
 
-MOCK_PHONE_VERIFICATION = os.environ.get('ENV') == 'local'
 DISABLE_PHONE_VERIFICATION = 'True'
 
 # CKEditor 5 Configuration
@@ -446,4 +448,3 @@ CKEDITOR_5_CONFIGS = {
         }
     }
 }
-TWILIO_WHATSAPP_FROM = os.environ.get('TWILIO_WHATSAPP_FROM', '')
