@@ -18,8 +18,12 @@ from .models import (
     ArtProgram,
     Artwork,
     ArtworkGrantItem,
+    ArtworkGrantItemPhoto,
     ArtworkInvitation,
+    ArtworkLogisticsPerson,
     ArtworkPhoto,
+    ArtworkProvider,
+    ArtworkProviderVehicle,
 )
 
 
@@ -1060,14 +1064,28 @@ class ArtworkInvitationInline(admin.TabularInline):
     extra = 0
 
 
+class ArtworkLogisticsPersonInline(admin.TabularInline):
+    model = ArtworkLogisticsPerson
+    extra = 0
+
+
+class ArtworkProviderInline(admin.TabularInline):
+    model = ArtworkProvider
+    extra = 0
+
+
 @admin.register(Artwork)
 class ArtworkAdmin(admin.ModelAdmin):
     list_display = ('title', 'event', 'kind', 'status', 'owner', 'grant_status', 'assigned_location', 'checkout_verified_at', 'updated_at')
     list_filter = ('event', 'kind', 'status', 'grant_status', 'checkout_completed', 'submitted_at')
     search_fields = ('title', 'owner__email', 'public_description')
-    autocomplete_fields = ('owner', 'collaborators', 'operations_group', 'checkout_verified_by')
+    autocomplete_fields = ('owner', 'collaborators', 'operations_group', 'checkout_art_responsible', 'checkout_verified_by')
     readonly_fields = ('submitted_at', 'checkout_requested_at', 'created_at', 'updated_at')
-    inlines = [ArtworkGrantItemInline, ArtworkPhotoInline, ArtworkInvitationInline]
+    inlines = [ArtworkGrantItemInline, ArtworkPhotoInline, ArtworkInvitationInline, ArtworkLogisticsPersonInline, ArtworkProviderInline]
+
+
+admin.site.register(ArtworkGrantItemPhoto)
+admin.site.register(ArtworkProviderVehicle)
 
 
 admin.site.register(Event, EventAdmin)

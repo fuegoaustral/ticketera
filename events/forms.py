@@ -1,9 +1,14 @@
 from datetime import timedelta
 
 from django import forms
+from django.contrib.auth.models import User
+from django.db.models import Q
 from django.utils import timezone
 
-from .models import Artwork, ArtworkGrantItem, ArtworkInvitation, ArtworkPhoto
+from .models import (
+    Artwork, ArtworkGrantItem, ArtworkInvitation, ArtworkLogisticsPerson,
+    ArtworkPhoto, ArtworkProvider, ArtworkProviderVehicle,
+)
 
 
 ARTWORK_BLOCK_FIELDS = {
@@ -14,10 +19,18 @@ ARTWORK_BLOCK_FIELDS = {
     ),
     'grant': ('grant_requested', 'grant_justification'),
     'guide': ('public_title', 'public_description', 'preferred_location'),
-    'logistics': ('arrival_date', 'departure_date', 'crew', 'providers'),
-    'checkout': ('checkout_completed', 'checkout_notes'),
+    'logistics': ('arrival_date', 'departure_date'),
+    'checkout': ('checkout_completed', 'checkout_team_responsible', 'checkout_art_responsible', 'checkout_notes'),
     'grant_report': ('grant_report',),
 }
+
+
+def _art_responsibles(artwork):
+    if not artwork.event_id:
+        return User.objects.none()
+    return User.objects.filter(
+        Q(is_superuser=True) | Q(admin_events=artwork.event) | Q(pk=artwork.checkout_art_responsible_id),
+    ).distinct().order_by('first_name', 'last_name', 'email')
 
 
 class ArtworkForm(forms.ModelForm):
@@ -44,8 +57,6 @@ class ArtworkForm(forms.ModelForm):
             'public_description': forms.Textarea(attrs={'rows': 6, 'maxlength': 500}),
             'arrival_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
             'departure_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
-            'crew': forms.Textarea(attrs={'rows': 6}),
-            'providers': forms.Textarea(attrs={'rows': 6}),
             'checkout_notes': forms.Textarea(attrs={'rows': 5}),
             'grant_report': forms.Textarea(attrs={'rows': 8}),
         }
@@ -62,8 +73,15 @@ class ArtworkForm(forms.ModelForm):
         for field in self.fields.values():
             field.widget.attrs.setdefault('class', 'form-check-input' if isinstance(field.widget, forms.CheckboxInput) else 'form-control')
         self.fields['kind'].widget.attrs['class'] = 'form-select'
+        self.fields['checkout_team_responsible'].widget.attrs['class'] = 'form-select'
+        self.fields['checkout_art_responsible'].widget.attrs['class'] = 'form-select'
         self.fields['collaborator_emails'].widget.attrs.update({'class': 'form-control', 'placeholder': 'persona@ejemplo.com, otra@ejemplo.com'})
         self.fields['expected_version'].initial = self.instance.version if self.instance.pk else None
+        self.fields['checkout_team_responsible'].queryset = self.instance.logistics_people.all() if self.instance.pk else ArtworkLogisticsPerson.objects.none()
+        self.fields['checkout_art_responsible'].queryset = _art_responsibles(self.instance)
+        self.fields['checkout_art_responsible'].help_text = 'La coordinación de Arte asigna este responsable.'
+        if not self.is_manager:
+            self.fields['checkout_art_responsible'].disabled = True
 
         # Un borrador puede empezar incompleto; la presentación valida lo indispensable.
         self.fields['title'].required = False
@@ -224,13 +242,27 @@ class ArtworkGrantItemForm(forms.ModelForm):
     def __init__(self, *args, phase, **kwargs):
         super().__init__(*args, **kwargs)
         self.phase = phase
+        self.fields['images'] = MultipleImageField(required=False, label='Imágenes o comprobantes')
+        self.fields['images'].help_text = 'Podés seleccionar varias imágenes. Máximo 10 MB por archivo.'
+        self.fields['images'].widget.attrs['accept'] = 'image/*'
         self.fields['rate_date'].label = 'Fecha de entrega del presupuesto' if phase == ArtworkGrantItem.Phase.BUDGET else 'Fecha real de pago'
         self.fields['rate_date'].initial = self.instance.rate_date if self.instance.pk else timezone.localdate()
+        self.fields['exchange_rate'].label = 'Cotización'
         self.fields['exchange_rate'].help_text = 'Pesos por cada USD. Para ARS se guarda 1 automáticamente.'
         self.fields['rate_source'].help_text = 'Para USD: por ejemplo “BNA vendedor” o “MEP”, con referencia verificable.'
         self.fields['expected_updated_at'].initial = self.instance.updated_at.isoformat() if self.instance.pk else ''
         for field in self.fields.values():
             field.widget.attrs.setdefault('class', 'form-select' if isinstance(field.widget, forms.Select) else 'form-control')
+
+    def clean_images(self):
+        images = self.cleaned_data['images']
+        if len(images) > 10:
+            raise forms.ValidationError('Podés subir hasta 10 imágenes por vez.')
+        if any(image.size > 10 * 1024 * 1024 for image in images):
+            raise forms.ValidationError('Cada imagen puede pesar hasta 10 MB.')
+        if self.instance.pk and self.instance.photos.count() + len(images) > 30:
+            raise forms.ValidationError('Cada ítem admite hasta 30 imágenes.')
+        return images
 
     def clean(self):
         cleaned = super().clean()
@@ -270,7 +302,9 @@ class MultipleImageField(forms.ImageField):
     def clean(self, data, initial=None):
         files = data if isinstance(data, (list, tuple)) else [data]
         if not any(files):
-            raise forms.ValidationError('Seleccioná al menos una foto.')
+            if self.required:
+                raise forms.ValidationError('Seleccioná al menos una foto.')
+            return []
         clean_one = super().clean
         return [clean_one(file, initial) for file in files if file]
 
@@ -299,6 +333,83 @@ class ArtworkPhotoUploadForm(forms.Form):
         return images
 
 
+class ArtworkLogisticsPersonForm(forms.ModelForm):
+    class Meta:
+        model = ArtworkLogisticsPerson
+        fields = (
+            'first_name', 'last_name', 'email', 'phone', 'document_type', 'document_number',
+            'early_entry', 'early_entry_date', 'dismantling', 'dismantling_date',
+        )
+        widgets = {
+            'phone': forms.TextInput(attrs={'type': 'tel'}),
+            'early_entry_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+            'dismantling_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault('class', 'form-check-input' if isinstance(field.widget, forms.CheckboxInput) else ('form-select' if isinstance(field.widget, forms.Select) else 'form-control'))
+
+    def clean(self):
+        cleaned = super().clean()
+        if not cleaned.get('early_entry') and not cleaned.get('dismantling'):
+            self.add_error(None, 'Indicá si participa del ingreso anticipado, del desarme o de ambos.')
+        if not cleaned.get('early_entry'):
+            cleaned['early_entry_date'] = None
+        if not cleaned.get('dismantling'):
+            cleaned['dismantling_date'] = None
+        if cleaned.get('early_entry') and not cleaned.get('early_entry_date'):
+            self.add_error('early_entry_date', 'Indicá la fecha de ingreso anticipado.')
+        if cleaned.get('dismantling') and not cleaned.get('dismantling_date'):
+            self.add_error('dismantling_date', 'Indicá la fecha de desarme y salida.')
+        return cleaned
+
+
+class ArtworkProviderForm(forms.ModelForm):
+    class Meta:
+        model = ArtworkProvider
+        fields = (
+            'company_name', 'contact_first_name', 'contact_last_name', 'email', 'phone',
+            'service_description', 'entry_date', 'departure_date',
+        )
+        widgets = {
+            'phone': forms.TextInput(attrs={'type': 'tel'}),
+            'service_description': forms.Textarea(attrs={'rows': 5}),
+            'entry_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+            'departure_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault('class', 'form-select' if isinstance(field.widget, forms.Select) else 'form-control')
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get('entry_date') and cleaned.get('departure_date') and cleaned['departure_date'] < cleaned['entry_date']:
+            self.add_error('departure_date', 'La salida no puede ser anterior al ingreso.')
+        return cleaned
+
+
+class ArtworkProviderVehicleForm(forms.ModelForm):
+    class Meta:
+        model = ArtworkProviderVehicle
+        fields = (
+            'vehicle_type', 'plate', 'make_model', 'driver_name',
+            'driver_document_type', 'driver_document_number', 'notes',
+        )
+        widgets = {'notes': forms.Textarea(attrs={'rows': 4})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault('class', 'form-select' if isinstance(field.widget, forms.Select) else 'form-control')
+
+    def clean_plate(self):
+        return self.cleaned_data['plate'].replace(' ', '').upper()
+
+
 class ArtworkReviewForm(forms.ModelForm):
     expected_updated_at = forms.CharField(widget=forms.HiddenInput, required=False)
 
@@ -307,7 +418,8 @@ class ArtworkReviewForm(forms.ModelForm):
         fields = (
             'status', 'review_feedback', 'grant_status', 'grant_approved_amount_ars',
             'grant_decision_notes', 'grant_paid_at', 'grant_payment_reference',
-            'assigned_location', 'placement_notes', 'checkout_verified_at',
+            'assigned_location', 'placement_notes', 'checkout_team_responsible',
+            'checkout_art_responsible', 'checkout_verified_at',
             'benefit_status', 'benefit_notes',
         )
         widgets = {
@@ -322,6 +434,9 @@ class ArtworkReviewForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['expected_updated_at'].initial = self.instance.updated_at.isoformat() if self.instance.pk else ''
+        if self.instance.pk:
+            self.fields['checkout_team_responsible'].queryset = self.instance.logistics_people.all()
+            self.fields['checkout_art_responsible'].queryset = _art_responsibles(self.instance)
         for field in self.fields.values():
             field.widget.attrs.setdefault('class', 'form-select' if isinstance(field.widget, forms.Select) else 'form-control')
 

@@ -604,12 +604,20 @@ class Artwork(BaseModel):
     assigned_location = models.CharField(max_length=200, blank=True, verbose_name='Ubicación asignada')
     placement_notes = models.TextField(blank=True, verbose_name='Notas de placement')
 
-    arrival_date = models.DateField(null=True, blank=True, verbose_name='Fecha de ingreso anticipado')
-    departure_date = models.DateField(null=True, blank=True, verbose_name='Fecha de salida')
+    arrival_date = models.DateField(null=True, blank=True, verbose_name='Fecha general de ingreso anticipado')
+    departure_date = models.DateField(null=True, blank=True, verbose_name='Fecha general de desarme y salida')
     crew = models.TextField(blank=True, verbose_name='Equipo que ingresa')
     providers = models.TextField(blank=True, verbose_name='Proveedores y vehículos')
 
     checkout_completed = models.BooleanField(default=False, verbose_name='Solicito verificar el retiro y limpieza')
+    checkout_team_responsible = models.ForeignKey(
+        'ArtworkLogisticsPerson', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='team_checkout_artworks', verbose_name='Responsable del equipo de la obra',
+    )
+    checkout_art_responsible = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='art_checkout_assignments', verbose_name='Responsable de Arte',
+    )
     checkout_notes = models.TextField(blank=True, verbose_name='Notas de checkout')
     checkout_requested_at = models.DateTimeField(null=True, blank=True, verbose_name='Checkout solicitado')
     checkout_verified_at = models.DateTimeField(null=True, blank=True, verbose_name='Checkout verificado')
@@ -701,6 +709,101 @@ class ArtworkGrantItem(BaseModel):
         return f'{self.get_phase_display()} · {self.concept}'
 
 
+class ArtworkGrantItemPhoto(BaseModel):
+    item = models.ForeignKey(ArtworkGrantItem, on_delete=models.CASCADE, related_name='photos')
+    image = models.ImageField(upload_to='art/grants', storage=private_art_storage)
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        ordering = ['created_at']
+        verbose_name = 'Imagen de ítem de beca'
+        verbose_name_plural = 'Imágenes de ítems de beca'
+
+
+ART_DOCUMENT_TYPE_CHOICES = (
+    ('DNI', 'DNI'),
+    ('PASSPORT', 'Pasaporte'),
+    ('ID_CARD', 'Cédula de identidad'),
+    ('OTHER', 'Otro'),
+)
+
+
+class ArtworkLogisticsPerson(BaseModel):
+    artwork = models.ForeignKey(Artwork, on_delete=models.CASCADE, related_name='logistics_people')
+    first_name = models.CharField(max_length=100, verbose_name='Nombre')
+    last_name = models.CharField(max_length=100, verbose_name='Apellido')
+    email = models.EmailField()
+    phone = models.CharField(max_length=30, verbose_name='Teléfono')
+    document_type = models.CharField(max_length=10, choices=ART_DOCUMENT_TYPE_CHOICES, default='DNI', verbose_name='Tipo de documento')
+    document_number = models.CharField(max_length=40, verbose_name='Número de documento')
+    early_entry = models.BooleanField(default=False, verbose_name='Participa del ingreso anticipado')
+    early_entry_date = models.DateField(null=True, blank=True, verbose_name='Fecha de ingreso anticipado')
+    dismantling = models.BooleanField(default=False, verbose_name='Participa del desarme')
+    dismantling_date = models.DateField(null=True, blank=True, verbose_name='Fecha de desarme y salida')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        ordering = ['last_name', 'first_name']
+        verbose_name = 'Persona de logística de obra'
+        verbose_name_plural = 'Personas de logística de obra'
+        constraints = [
+            models.UniqueConstraint(fields=['artwork', 'document_type', 'document_number'], name='unique_artwork_logistics_document'),
+        ]
+
+    def __str__(self):
+        return f'{self.first_name} {self.last_name}'
+
+
+class ArtworkProvider(BaseModel):
+    artwork = models.ForeignKey(Artwork, on_delete=models.CASCADE, related_name='artwork_providers')
+    company_name = models.CharField(max_length=200, verbose_name='Proveedor o empresa')
+    contact_first_name = models.CharField(max_length=100, verbose_name='Nombre del contacto')
+    contact_last_name = models.CharField(max_length=100, verbose_name='Apellido del contacto')
+    email = models.EmailField()
+    phone = models.CharField(max_length=30, verbose_name='Teléfono')
+    service_description = models.TextField(verbose_name='Servicio o materiales que entrega')
+    entry_date = models.DateField(null=True, blank=True, verbose_name='Fecha de ingreso')
+    departure_date = models.DateField(null=True, blank=True, verbose_name='Fecha de salida')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        ordering = ['company_name']
+        verbose_name = 'Proveedor de obra'
+        verbose_name_plural = 'Proveedores de obra'
+
+    def __str__(self):
+        return self.company_name
+
+
+class ArtworkProviderVehicle(BaseModel):
+    class VehicleType(models.TextChoices):
+        CAR = 'car', 'Auto'
+        VAN = 'van', 'Utilitario'
+        TRUCK = 'truck', 'Camión'
+        TRAILER = 'trailer', 'Acoplado'
+        OTHER = 'other', 'Otro'
+
+    provider = models.ForeignKey(ArtworkProvider, on_delete=models.CASCADE, related_name='vehicles')
+    vehicle_type = models.CharField(max_length=10, choices=VehicleType.choices, default=VehicleType.CAR, verbose_name='Tipo de vehículo')
+    plate = models.CharField(max_length=20, verbose_name='Patente')
+    make_model = models.CharField(max_length=150, verbose_name='Marca y modelo')
+    driver_name = models.CharField(max_length=200, verbose_name='Nombre y apellido del conductor')
+    driver_document_type = models.CharField(max_length=10, choices=ART_DOCUMENT_TYPE_CHOICES, default='DNI', verbose_name='Tipo de documento del conductor')
+    driver_document_number = models.CharField(max_length=40, verbose_name='Documento del conductor')
+    notes = models.TextField(blank=True, verbose_name='Notas del vehículo')
+
+    class Meta:
+        ordering = ['plate']
+        verbose_name = 'Vehículo de proveedor de obra'
+        verbose_name_plural = 'Vehículos de proveedores de obra'
+        constraints = [
+            models.UniqueConstraint(fields=['provider', 'plate'], name='unique_artwork_provider_plate'),
+        ]
+
+    def __str__(self):
+        return f'{self.plate} · {self.provider}'
+
+
 class ArtworkPhoto(BaseModel):
     class Stage(models.TextChoices):
         PROPOSAL = 'proposal', 'Propuesta'
@@ -755,5 +858,9 @@ auditlog.register(EventRequest)
 auditlog.register(ArtProgram)
 auditlog.register(Artwork)
 auditlog.register(ArtworkGrantItem)
+auditlog.register(ArtworkGrantItemPhoto)
+auditlog.register(ArtworkLogisticsPerson)
+auditlog.register(ArtworkProvider)
+auditlog.register(ArtworkProviderVehicle)
 auditlog.register(ArtworkPhoto)
 auditlog.register(ArtworkInvitation)

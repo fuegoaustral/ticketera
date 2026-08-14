@@ -41,9 +41,12 @@ from .views import (
 )
 from events.art_views import (
     art_admin_dashboard, art_admin_export, art_dashboard, art_invitation_accept,
+    artwork_provider_delete, artwork_provider_edit, artwork_vehicle_delete,
+    artwork_vehicle_edit,
     artwork_create, artwork_edit, artwork_photo_delete, artwork_photo_upload,
     artwork_review, grant_item_create, grant_item_delete, grant_item_edit,
-    grant_report_submit, grant_submit,
+    grant_item_photo_delete, grant_report_submit, grant_submit,
+    logistics_person_delete, logistics_person_edit,
 )
 
 urlpatterns = [
@@ -70,10 +73,20 @@ urlpatterns = [
     path("arte/obra/<int:artwork_id>/beca/<str:phase>/nuevo/", grant_item_create, name="grant_item_create"),
     path("arte/obra/<int:artwork_id>/beca/item/<int:item_id>/", grant_item_edit, name="grant_item_edit"),
     path("arte/obra/<int:artwork_id>/beca/item/<int:item_id>/eliminar/", grant_item_delete, name="grant_item_delete"),
+    path("arte/obra/<int:artwork_id>/beca/item/<int:item_id>/imagen/<int:photo_id>/eliminar/", grant_item_photo_delete, name="grant_item_photo_delete"),
     path("arte/obra/<int:artwork_id>/beca/enviar/", grant_submit, name="grant_submit"),
     path("arte/obra/<int:artwork_id>/rendicion/enviar/", grant_report_submit, name="grant_report_submit"),
     path("arte/obra/<int:artwork_id>/fotos/subir/", artwork_photo_upload, name="artwork_photo_upload"),
     path("arte/obra/<int:artwork_id>/fotos/<int:photo_id>/eliminar/", artwork_photo_delete, name="artwork_photo_delete"),
+    path("arte/obra/<int:artwork_id>/logistica/personas/nueva/", logistics_person_edit, name="logistics_person_create"),
+    path("arte/obra/<int:artwork_id>/logistica/personas/<int:person_id>/", logistics_person_edit, name="logistics_person_edit"),
+    path("arte/obra/<int:artwork_id>/logistica/personas/<int:person_id>/eliminar/", logistics_person_delete, name="logistics_person_delete"),
+    path("arte/obra/<int:artwork_id>/logistica/proveedores/nuevo/", artwork_provider_edit, name="artwork_provider_create"),
+    path("arte/obra/<int:artwork_id>/logistica/proveedores/<int:provider_id>/", artwork_provider_edit, name="artwork_provider_edit"),
+    path("arte/obra/<int:artwork_id>/logistica/proveedores/<int:provider_id>/eliminar/", artwork_provider_delete, name="artwork_provider_delete"),
+    path("arte/obra/<int:artwork_id>/logistica/proveedores/<int:provider_id>/vehiculos/nuevo/", artwork_vehicle_edit, name="artwork_vehicle_create"),
+    path("arte/obra/<int:artwork_id>/logistica/proveedores/<int:provider_id>/vehiculos/<int:vehicle_id>/", artwork_vehicle_edit, name="artwork_vehicle_edit"),
+    path("arte/obra/<int:artwork_id>/logistica/proveedores/<int:provider_id>/vehiculos/<int:vehicle_id>/eliminar/", artwork_vehicle_delete, name="artwork_vehicle_delete"),
     path("arte/invitacion/<uuid:token>/aceptar/", art_invitation_accept, name="art_invitation_accept"),
     path("mis-eventos/<slug:event_slug>/arte/", art_admin_dashboard, name="art_admin_dashboard"),
     path("mis-eventos/<slug:event_slug>/arte/exportar/", art_admin_export, name="art_admin_export"),

@@ -134,14 +134,46 @@
 
         <section class="form-section" id="logistica" aria-labelledby="logistics-title">
             <div class="section-heading">
-                <div><span>{% if program.grants_enabled %}05{% else %}04{% endif %}</span><h2 id="logistics-title">Ingreso, proveedores y salida</h2></div>
+                <div><span>{% if program.grants_enabled %}05{% else %}04{% endif %}</span><h2 id="logistics-title">Ingreso anticipado, proveedores y desarme</h2></div>
                 {% if form.arrival_date.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
             </div>
-            <p class="text-muted">Las fechas usan el selector del dispositivo. El listado nominal se gestiona con el grupo operativo de Arte.</p>
+            <p class="text-muted">Separá quién ingresa antes del evento y quién participa del desarme. Proveedores y vehículos se cargan por separado.</p>
             <div class="row"><div class="col-md-6">{% include 'mi_fuego/art/_field.html' with field=form.arrival_date %}</div><div class="col-md-6">{% include 'mi_fuego/art/_field.html' with field=form.departure_date %}</div></div>
-            {% include 'mi_fuego/art/_field.html' with field=form.crew %}
-            {% include 'mi_fuego/art/_field.html' with field=form.providers %}
-            {% if artwork.operations_group and request.user == artwork.owner %}<a class="btn btn-outline-primary" href="{% url 'grupo_manage' artwork.event.slug artwork.operations_group.pk %}"><i class="fas fa-users me-1"></i> Gestionar personas, ingreso y late checkout</a>{% endif %}
+            {% if artwork %}
+            <div class="d-flex justify-content-between align-items-center gap-3 mt-4 mb-2">
+                <h3 class="h5 mb-0">Personas del equipo</h3>
+                {% if can_edit_logistics %}<a class="btn btn-sm btn-outline-primary" href="{% url 'logistics_person_create' artwork.pk %}"><i class="fas fa-plus me-1" aria-hidden="true"></i>Agregar persona</a>{% endif %}
+            </div>
+            {% if logistics_people %}
+            <div class="table-responsive"><table class="table table-sm align-middle">
+                <thead><tr><th>Persona</th><th>Documento</th><th>Ingreso anticipado</th><th>Desarme</th>{% if can_edit_logistics %}<th><span class="visually-hidden">Acciones</span></th>{% endif %}</tr></thead>
+                <tbody>{% for person in logistics_people %}<tr>
+                    <td><strong>{{ person.first_name }} {{ person.last_name }}</strong><br><small class="text-muted">{{ person.email }} · {{ person.phone }}</small></td>
+                    <td>{{ person.get_document_type_display }} {{ person.document_number }}</td>
+                    <td>{% if person.early_entry %}{{ person.early_entry_date|date:'d/m/Y' }}{% else %}<span class="text-muted">No</span>{% endif %}</td>
+                    <td>{% if person.dismantling %}{{ person.dismantling_date|date:'d/m/Y' }}{% else %}<span class="text-muted">No</span>{% endif %}</td>
+                    {% if can_edit_logistics %}<td class="text-end text-nowrap"><a class="btn btn-sm btn-link px-1" href="{% url 'logistics_person_edit' artwork.pk person.pk %}" title="Editar persona" aria-label="Editar {{ person }}"><i class="fas fa-pen" aria-hidden="true"></i></a><button class="btn btn-sm btn-link text-danger px-1" type="submit" formaction="{% url 'logistics_person_delete' artwork.pk person.pk %}" formmethod="post" title="Eliminar persona" aria-label="Eliminar {{ person }}" onclick="return confirm('¿Eliminar esta persona?')"><i class="fas fa-trash" aria-hidden="true"></i></button></td>{% endif %}
+                </tr>{% endfor %}</tbody>
+            </table></div>
+            {% else %}<p class="small text-muted">Todavía no hay personas cargadas.</p>{% endif %}
+
+            <div class="d-flex justify-content-between align-items-center gap-3 mt-4 mb-2">
+                <h3 class="h5 mb-0">Proveedores y vehículos</h3>
+                {% if can_edit_logistics %}<a class="btn btn-sm btn-outline-primary" href="{% url 'artwork_provider_create' artwork.pk %}"><i class="fas fa-plus me-1" aria-hidden="true"></i>Agregar proveedor</a>{% endif %}
+            </div>
+            {% if artwork_providers %}
+                {% for provider in artwork_providers %}
+                <div class="provider-row py-3">
+                    <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
+                        <div><strong>{{ provider.company_name }}</strong><br><small class="text-muted">{{ provider.contact_first_name }} {{ provider.contact_last_name }} · {{ provider.email }} · {{ provider.phone }}</small><br>{{ provider.service_description }}</div>
+                        <div class="text-md-end"><small>Ingreso {{ provider.entry_date|date:'d/m/Y'|default:'sin fecha' }} · salida {{ provider.departure_date|date:'d/m/Y'|default:'sin fecha' }}</small>{% if can_edit_logistics %}<br><a class="btn btn-sm btn-link px-1" href="{% url 'artwork_provider_edit' artwork.pk provider.pk %}" title="Editar proveedor" aria-label="Editar {{ provider }}"><i class="fas fa-pen" aria-hidden="true"></i></a><button class="btn btn-sm btn-link text-danger px-1" type="submit" formaction="{% url 'artwork_provider_delete' artwork.pk provider.pk %}" formmethod="post" title="Eliminar proveedor" aria-label="Eliminar {{ provider }}" onclick="return confirm('Se eliminarán también sus vehículos. ¿Continuar?')"><i class="fas fa-trash" aria-hidden="true"></i></button>{% endif %}</div>
+                    </div>
+                    <div class="mt-2 d-flex justify-content-between align-items-center"><strong class="small">Vehículos</strong>{% if can_edit_logistics %}<a class="small" href="{% url 'artwork_vehicle_create' artwork.pk provider.pk %}">+ Agregar vehículo</a>{% endif %}</div>
+                    {% if provider.vehicles.all %}<div class="table-responsive"><table class="table table-sm mb-0"><tbody>{% for vehicle in provider.vehicles.all %}<tr><td><strong>{{ vehicle.plate }}</strong> · {{ vehicle.get_vehicle_type_display }} · {{ vehicle.make_model }}<br><small class="text-muted">Conduce {{ vehicle.driver_name }} · {{ vehicle.get_driver_document_type_display }} {{ vehicle.driver_document_number }}{% if vehicle.notes %} · {{ vehicle.notes }}{% endif %}</small></td>{% if can_edit_logistics %}<td class="text-end text-nowrap"><a class="btn btn-sm btn-link px-1" href="{% url 'artwork_vehicle_edit' artwork.pk provider.pk vehicle.pk %}" title="Editar vehículo" aria-label="Editar vehículo {{ vehicle.plate }}"><i class="fas fa-pen" aria-hidden="true"></i></a><button class="btn btn-sm btn-link text-danger px-1" type="submit" formaction="{% url 'artwork_vehicle_delete' artwork.pk provider.pk vehicle.pk %}" formmethod="post" title="Eliminar vehículo" aria-label="Eliminar vehículo {{ vehicle.plate }}" onclick="return confirm('¿Eliminar este vehículo?')"><i class="fas fa-trash" aria-hidden="true"></i></button></td>{% endif %}</tr>{% endfor %}</tbody></table></div>{% else %}<p class="small text-muted mb-0">Sin vehículos.</p>{% endif %}
+                </div>
+                {% endfor %}
+            {% else %}<p class="small text-muted mb-0">Todavía no hay proveedores cargados.</p>{% endif %}
+            {% endif %}
         </section>
 
         <section class="form-section" id="checkout" aria-labelledby="checkout-title">
@@ -151,6 +183,7 @@
             </div>
             <p class="text-muted">Solicitá la verificación cuando la obra esté retirada y el espacio limpio.</p>
             {% include 'mi_fuego/art/_field.html' with field=form.checkout_completed %}
+            <div class="row"><div class="col-md-6">{% include 'mi_fuego/art/_field.html' with field=form.checkout_team_responsible %}</div><div class="col-md-6">{% include 'mi_fuego/art/_field.html' with field=form.checkout_art_responsible %}</div></div>
             {% include 'mi_fuego/art/_field.html' with field=form.checkout_notes %}
         </section>
 
@@ -202,6 +235,7 @@
     .grant-panel { padding: 1rem; background: #f8f9fa; border-radius: .5rem; }
     .gallery-card { border: 1px solid #dee2e6; border-radius: .5rem; overflow: hidden; }
     .gallery-card img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; }
+    .provider-row { border-top: 1px solid #dee2e6; }
     .save-bar { position: sticky; bottom: 0; z-index: 2; background: rgba(250, 251, 250, .97); border-top: 1px solid #dee2e6; }
     @media (max-width: 767px) { .checkpoint-list { grid-template-columns: 1fr 1fr; } .art-form-page { padding-inline: 0; } }
 </style>

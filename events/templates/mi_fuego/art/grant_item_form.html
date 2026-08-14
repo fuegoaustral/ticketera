@@ -5,10 +5,23 @@
     <a class="small text-decoration-none" href="{% url 'artwork_edit' artwork.pk %}">← Volver a {{ artwork.title|default:'la obra' }}</a>
     <h2 class="h4 mt-4">{% if item %}Editar{% else %}Agregar{% endif %} {% if phase == 'budget' %}ítem de presupuesto{% else %}gasto realizado{% endif %}</h2>
     <p class="text-muted">La cotización queda guardada con este ítem y no se actualiza en el futuro.</p>
-    <form method="post" novalidate>{% csrf_token %}
+    <form method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}
         {% for field in form.hidden_fields %}{{ field }}{% endfor %}
         {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
         {% for field in form.visible_fields %}{% include 'mi_fuego/art/_field.html' with field=field %}{% endfor %}
+        {% if item and item.photos.all %}
+        <div class="mb-4">
+            <h3 class="h6">Imágenes cargadas</h3>
+            <div class="d-flex flex-wrap gap-2">
+                {% for photo in item.photos.all %}
+                <div class="position-relative">
+                    <a href="{{ photo.image.url }}" target="_blank" rel="noopener"><img src="{{ photo.image.url }}" alt="Imagen de {{ item.concept }}" style="width:96px;height:72px;object-fit:cover;border-radius:.35rem"></a>
+                    <button class="btn btn-sm btn-danger position-absolute top-0 end-0 p-1" type="submit" formaction="{% url 'grant_item_photo_delete' artwork.pk item.pk photo.pk %}" formmethod="post" title="Eliminar imagen" aria-label="Eliminar imagen" onclick="return confirm('¿Eliminar esta imagen?')"><i class="fas fa-trash" aria-hidden="true"></i></button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
         <div class="d-flex justify-content-end gap-2"><a class="btn btn-outline-secondary" href="{% url 'artwork_edit' artwork.pk %}">Cancelar</a><button class="btn btn-primary" type="submit">Guardar ítem</button></div>
     </form>
 </div>

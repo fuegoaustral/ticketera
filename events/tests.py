@@ -11,11 +11,19 @@ from django.utils import timezone
 
 from .forms import ArtworkForm, ArtworkGrantItemForm, ArtworkPhotoUploadForm
 from .art_reminders import send_art_reminders
-from .models import ArtProgram, Artwork, ArtworkGrantItem, ArtworkInvitation, ArtworkPhoto, Event
+from .models import (
+    ArtProgram, Artwork, ArtworkGrantItem, ArtworkInvitation,
+    ArtworkLogisticsPerson, ArtworkPhoto, ArtworkProvider,
+    ArtworkProviderVehicle, Event,
+)
 from user_profile.models import Profile
 
 
 class ArtworkFlowTest(TestCase):
+    @staticmethod
+    def image(name):
+        return SimpleUploadedFile(name, b'GIF87a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;', content_type='image/gif')
+
     def setUp(self):
         now = timezone.now()
         self.owner = User.objects.create_user(username='artista', email='artista@example.com')
@@ -158,7 +166,7 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(self.client.post(reverse('art_invitation_accept', args=[invitation.token])).status_code, 302)
         self.assertTrue(artwork.collaborators.filter(pk=invited.pk).exists())
 
-        image = SimpleUploadedFile('obra.gif', b'GIF87a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;', content_type='image/gif')
+        image = self.image('obra.gif')
         response = self.client.post(reverse('artwork_photo_upload', args=[artwork.pk]), {
             'stage': ArtworkPhoto.Stage.PROCESS,
             'caption': 'En construcción',
@@ -172,6 +180,61 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(self.client.get(reverse('artwork_review', args=[self.event.slug, artwork.pk])).status_code, 200)
 
         self.assertFalse(ArtworkPhotoUploadForm({'stage': ArtworkPhoto.Stage.PROCESS}, {}).is_valid())
+
+    def test_structured_logistics_checkout_and_grant_item_images(self):
+        artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro', proposal='Texto', grant_requested=True)
+        self.client.force_login(self.owner)
+
+        response = self.client.post(reverse('logistics_person_create', args=[artwork.pk]), {
+            'first_name': 'Ada', 'last_name': 'Sur', 'email': 'ada@example.com', 'phone': '+5491112345678',
+            'document_type': 'DNI', 'document_number': '30111222', 'early_entry': 'on',
+            'early_entry_date': timezone.localdate(), 'dismantling': 'on',
+            'dismantling_date': timezone.localdate() + timedelta(days=4),
+        })
+        self.assertEqual(response.status_code, 302)
+        person = ArtworkLogisticsPerson.objects.get(artwork=artwork)
+        response = self.client.post(reverse('logistics_person_edit', args=[artwork.pk, person.pk]), {
+            'first_name': 'Ada', 'last_name': 'Sur', 'email': 'ada@example.com', 'phone': '+5491112345678',
+            'document_type': 'DNI', 'document_number': '30111222',
+            'early_entry_date': timezone.localdate(), 'dismantling': 'on',
+            'dismantling_date': timezone.localdate() + timedelta(days=4),
+        })
+        self.assertEqual(response.status_code, 302)
+        person.refresh_from_db()
+        self.assertIsNone(person.early_entry_date)
+
+        response = self.client.post(reverse('artwork_provider_create', args=[artwork.pk]), {
+            'company_name': 'Grúas Sur', 'contact_first_name': 'Luz', 'contact_last_name': 'Ríos',
+            'email': 'logistica@example.com', 'phone': '+5491199999999',
+            'service_description': 'Traslado de estructura', 'entry_date': timezone.localdate(),
+            'departure_date': timezone.localdate() + timedelta(days=4),
+        })
+        self.assertEqual(response.status_code, 302)
+        provider = ArtworkProvider.objects.get(artwork=artwork)
+        response = self.client.post(reverse('artwork_vehicle_create', args=[artwork.pk, provider.pk]), {
+            'vehicle_type': 'truck', 'plate': 'ab 123 cd', 'make_model': 'Iveco Daily',
+            'driver_name': 'Luz Ríos', 'driver_document_type': 'DNI',
+            'driver_document_number': '28999111', 'notes': 'Caja abierta',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(ArtworkProviderVehicle.objects.get(provider=provider).plate, 'AB123CD')
+
+        response = self.client.post(reverse('grant_item_create', args=[artwork.pk, 'budget']), {
+            'item_type': 'materials', 'concept': 'Madera', 'amount': '5000', 'currency': 'ARS',
+            'exchange_rate': '1', 'rate_date': timezone.localdate(), 'images': [self.image('uno.gif'), self.image('dos.gif')],
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(artwork.grant_items.get().photos.count(), 2)
+
+        artwork.refresh_from_db()
+        form = self.artwork_form({
+            'kind': artwork.kind, 'title': artwork.title, 'proposal': artwork.proposal,
+            'checkout_team_responsible': person.pk, 'expected_version': artwork.version,
+        }, artwork=artwork)
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        artwork.refresh_from_db()
+        self.assertEqual(artwork.checkout_team_responsible, person)
 
     def test_security_boundaries(self):
         artwork = Artwork.objects.create(
