@@ -9,7 +9,7 @@
                 <td class="text-nowrap">{{ item.currency }} {{ item.amount|floatformat:2 }}</td>
                 <td class="text-nowrap">{{ item.exchange_rate|floatformat:-4 }}</td>
                 <td class="text-end text-nowrap">{{ item.amount_ars|floatformat:2 }}</td>
-                {% if can_edit %}<td class="text-end text-nowrap"><form class="d-inline" method="post" action="{% url 'grant_item_delete' artwork.pk item.pk %}">{% csrf_token %}<button class="btn btn-sm btn-link text-danger px-1" type="submit" title="Eliminar ítem" aria-label="Eliminar {{ item.concept }}" onclick="return confirm('¿Eliminar este ítem?')"><i class="fas fa-trash" aria-hidden="true"></i></button></form></td>{% endif %}
+                {% if can_edit %}<td class="text-end text-nowrap"><form class="d-inline" method="post" action="{% url 'grant_item_delete' artwork.pk item.pk %}">{% csrf_token %}{% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}">{% endif %}<button class="btn btn-sm btn-link text-danger px-1" type="submit" title="Eliminar ítem" aria-label="Eliminar {{ item.concept }}" onclick="return confirm('¿Eliminar este ítem?')"><i class="fas fa-trash" aria-hidden="true"></i></button></form></td>{% endif %}
             </tr>
             <tr class="grant-item-detail">
                 <td colspan="{% if can_edit %}5{% else %}4{% endif %}">
@@ -26,6 +26,7 @@
                     <summary><i class="fas fa-pen" aria-hidden="true"></i><span>Editar {{ item.concept }}</span></summary>
                     <form method="post" action="{% url 'grant_item_edit' artwork.pk item.pk %}" enctype="multipart/form-data" novalidate>
                         {% csrf_token %}
+                        {% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}">{% endif %}
                         {% include 'mi_fuego/art/_inline_fields.html' with inline_form=item.inline_form %}
                         {% if item.photos.all %}
                         <div class="inline-images mb-3">

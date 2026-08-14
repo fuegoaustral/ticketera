@@ -103,17 +103,35 @@ def _ensure_operations_group(artwork, program):
     return group
 
 
-def _artwork_context(artwork, program, form, inline_forms=None):
+def _grant_context(artwork, inline_forms=None):
     inline_forms = inline_forms or {}
-    context = _base_context(artwork.event)
     budget = list(artwork.grant_items.filter(phase=ArtworkGrantItem.Phase.BUDGET).prefetch_related('photos'))
     expenses = list(artwork.grant_items.filter(phase=ArtworkGrantItem.Phase.EXPENSE).prefetch_related('photos'))
-    people = list(artwork.logistics_people.all())
-    providers = list(artwork.artwork_providers.prefetch_related('vehicles'))
     for item in budget + expenses:
         item.inline_form = inline_forms.get(('grant', item.pk)) or ArtworkGrantItemForm(
             instance=item, phase=item.phase, auto_id=f'grant-{item.pk}_%s',
         )
+    return {
+        'budget_items': budget,
+        'expense_items': expenses,
+        'budget_total_ars': artwork.grant_total_ars(ArtworkGrantItem.Phase.BUDGET),
+        'expense_total_ars': artwork.grant_total_ars(ArtworkGrantItem.Phase.EXPENSE),
+        'budget_create_form': inline_forms.get(('grant-new', ArtworkGrantItem.Phase.BUDGET)) or ArtworkGrantItemForm(
+            instance=ArtworkGrantItem(artwork=artwork, phase=ArtworkGrantItem.Phase.BUDGET),
+            phase=ArtworkGrantItem.Phase.BUDGET, auto_id='grant-budget-new_%s',
+        ),
+        'expense_create_form': inline_forms.get(('grant-new', ArtworkGrantItem.Phase.EXPENSE)) or ArtworkGrantItemForm(
+            instance=ArtworkGrantItem(artwork=artwork, phase=ArtworkGrantItem.Phase.EXPENSE),
+            phase=ArtworkGrantItem.Phase.EXPENSE, auto_id='grant-expense-new_%s',
+        ),
+    }
+
+
+def _artwork_context(artwork, program, form, inline_forms=None):
+    inline_forms = inline_forms or {}
+    context = _base_context(artwork.event)
+    people = list(artwork.logistics_people.all())
+    providers = list(artwork.artwork_providers.prefetch_related('vehicles'))
     for person in people:
         person.inline_form = inline_forms.get(('person', person.pk)) or ArtworkLogisticsPersonForm(
             instance=person, auto_id=f'person-{person.pk}_%s',
@@ -135,18 +153,6 @@ def _artwork_context(artwork, program, form, inline_forms=None):
         'program': program,
         'artwork': artwork,
         'checkpoints': _checkpoints(program),
-        'budget_items': budget,
-        'expense_items': expenses,
-        'budget_total_ars': artwork.grant_total_ars(ArtworkGrantItem.Phase.BUDGET),
-        'expense_total_ars': artwork.grant_total_ars(ArtworkGrantItem.Phase.EXPENSE),
-        'budget_create_form': inline_forms.get(('grant-new', ArtworkGrantItem.Phase.BUDGET)) or ArtworkGrantItemForm(
-            instance=ArtworkGrantItem(artwork=artwork, phase=ArtworkGrantItem.Phase.BUDGET),
-            phase=ArtworkGrantItem.Phase.BUDGET, auto_id='grant-budget-new_%s',
-        ),
-        'expense_create_form': inline_forms.get(('grant-new', ArtworkGrantItem.Phase.EXPENSE)) or ArtworkGrantItemForm(
-            instance=ArtworkGrantItem(artwork=artwork, phase=ArtworkGrantItem.Phase.EXPENSE),
-            phase=ArtworkGrantItem.Phase.EXPENSE, auto_id='grant-expense-new_%s',
-        ),
         'photo_upload_form': inline_forms.get(('photo-new', None)) or ArtworkPhotoUploadForm(auto_id='photo-new_%s'),
         'logistics_people': people,
         'person_create_form': inline_forms.get(('person-new', None)) or ArtworkLogisticsPersonForm(
@@ -165,10 +171,27 @@ def _artwork_context(artwork, program, form, inline_forms=None):
         'can_submit_grant': artwork.can_edit(form.actor) and program.is_current and program.checkpoint_state('grant') == 'open' and artwork.grant_status in (Artwork.GrantStatus.NOT_REQUESTED, Artwork.GrantStatus.INFO_REQUIRED),
         'can_submit_report': artwork.can_edit(form.actor) and program.is_current and program.checkpoint_state('grant_report') == 'open' and artwork.grant_status in (Artwork.GrantStatus.APPROVED, Artwork.GrantStatus.PAID),
     })
+    context.update(_grant_context(artwork, inline_forms))
     return context
 
 
+def _review_context(artwork, form, user, inline_forms=None):
+    admin_events = Event.objects.order_by('-id') if user.is_superuser else get_admin_events_for_user(user)
+    return {
+        **_base_context(artwork.event), **_grant_context(artwork, inline_forms),
+        'artwork': artwork, 'form': form, 'current_admin_event': artwork.event,
+        'admin_events': admin_events, 'nav_primary': 'events',
+        'nav_secondary': f'art_admin_{artwork.event.slug}',
+    }
+
+
 def _inline_error_response(request, artwork, key, inline_form):
+    if request.POST.get('return_to') == 'review' and artwork.can_manage(request.user):
+        review_form = ArtworkReviewForm(instance=artwork)
+        return render(
+            request, 'mi_fuego/art/review.html',
+            _review_context(artwork, review_form, request.user, {key: inline_form}),
+        )
     program = artwork.event.art_program
     artwork_form = ArtworkForm(
         instance=artwork, program=program, owner=artwork.owner, actor=request.user,
@@ -181,6 +204,13 @@ def _inline_error_response(request, artwork, key, inline_form):
 
 def _artwork_redirect(artwork, anchor):
     return redirect(f"{reverse('artwork_edit', args=[artwork.pk])}#{anchor}")
+
+
+def _grant_redirect(request, artwork, phase):
+    if request.POST.get('return_to') == 'review' and artwork.can_manage(request.user):
+        anchor = 'admin-budget' if phase == ArtworkGrantItem.Phase.BUDGET else 'admin-expenses'
+        return redirect(f"{reverse('artwork_review', args=[artwork.event.slug, artwork.pk])}#{anchor}")
+    return _artwork_redirect(artwork, 'beca' if phase == ArtworkGrantItem.Phase.BUDGET else 'rendicion')
 
 
 @login_required
@@ -315,7 +345,7 @@ def grant_item_create(request, artwork_id, phase):
             item = form.save()
             _save_grant_item_images(item, form.cleaned_data['images'], request.user)
             messages.success(request, 'Ítem agregado y total actualizado.')
-            return _artwork_redirect(artwork, 'beca' if phase == ArtworkGrantItem.Phase.BUDGET else 'rendicion')
+            return _grant_redirect(request, artwork, phase)
     return _inline_error_response(request, artwork, ('grant-new', phase), form)
 
 
@@ -341,7 +371,7 @@ def grant_item_edit(request, artwork_id, item_id):
             item = form.save()
             _save_grant_item_images(item, form.cleaned_data['images'], request.user)
             messages.success(request, 'Ítem actualizado.')
-            return _artwork_redirect(artwork, 'beca' if item.phase == ArtworkGrantItem.Phase.BUDGET else 'rendicion')
+            return _grant_redirect(request, artwork, item.phase)
     return _inline_error_response(request, artwork, ('grant', item.pk), form)
 
 
@@ -356,7 +386,7 @@ def grant_item_delete(request, artwork_id, item_id):
             return HttpResponseForbidden('Este ítem no se puede eliminar.')
         item.delete()
     messages.success(request, 'Ítem eliminado.')
-    return _artwork_redirect(artwork, 'beca' if item.phase == ArtworkGrantItem.Phase.BUDGET else 'rendicion')
+    return _grant_redirect(request, artwork, item.phase)
 
 
 @login_required
@@ -373,7 +403,7 @@ def grant_item_photo_delete(request, artwork_id, item_id, photo_id):
         photo.delete()
         transaction.on_commit(lambda: storage.delete(image_name))
     messages.success(request, 'Imagen eliminada del ítem.')
-    return _artwork_redirect(artwork, 'beca' if item.phase == ArtworkGrantItem.Phase.BUDGET else 'rendicion')
+    return _grant_redirect(request, artwork, item.phase)
 
 
 @login_required
@@ -684,17 +714,7 @@ def artwork_review(request, event_slug, artwork_id):
     else:
         artwork = get_object_or_404(Artwork, pk=artwork_id, event=event)
         form = ArtworkReviewForm(instance=artwork)
-    admin_events = Event.objects.order_by('-id') if request.user.is_superuser else get_admin_events_for_user(request.user)
-    return render(request, 'mi_fuego/art/review.html', {
-        **_base_context(event), 'artwork': artwork, 'form': form,
-        'budget_items': artwork.grant_items.filter(phase=ArtworkGrantItem.Phase.BUDGET).prefetch_related('photos'),
-        'expense_items': artwork.grant_items.filter(phase=ArtworkGrantItem.Phase.EXPENSE).prefetch_related('photos'),
-        'budget_total_ars': artwork.grant_total_ars(ArtworkGrantItem.Phase.BUDGET),
-        'expense_total_ars': artwork.grant_total_ars(ArtworkGrantItem.Phase.EXPENSE),
-        'current_admin_event': event,
-        'admin_events': admin_events,
-        'nav_primary': 'events', 'nav_secondary': f'art_admin_{event.slug}',
-    })
+    return render(request, 'mi_fuego/art/review.html', _review_context(artwork, form, request.user))
 
 
 @login_required

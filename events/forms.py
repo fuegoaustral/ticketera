@@ -377,8 +377,8 @@ class ArtworkProviderForm(forms.ModelForm):
         widgets = {
             'phone': forms.TextInput(attrs={'type': 'tel'}),
             'service_description': forms.Textarea(attrs={'rows': 5}),
-            'entry_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
-            'departure_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+            'entry_date': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
+            'departure_date': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
         }
 
     def __init__(self, *args, **kwargs):

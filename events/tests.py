@@ -189,6 +189,8 @@ class ArtworkFlowTest(TestCase):
     def test_structured_logistics_checkout_and_grant_item_images(self):
         artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro', proposal='Texto', grant_requested=True)
         self.client.force_login(self.owner)
+        entry_at = timezone.localtime().replace(hour=9, minute=30, second=0, microsecond=0)
+        exit_at = entry_at + timedelta(days=4, hours=9)
 
         response = self.client.post(reverse('logistics_person_create', args=[artwork.pk]), {
             'first_name': 'Ada', 'last_name': 'Sur', 'email': 'ada@example.com', 'phone': '+5491112345678',
@@ -221,11 +223,13 @@ class ArtworkFlowTest(TestCase):
             'company_name': 'Grúas Sur', 'contact_first_name': 'Luz', 'contact_last_name': 'Ríos',
             'email': 'logistica@example.com', 'phone': '+5491199999999',
             'service_description': 'Traslado de estructura', 'for_entry': 'on', 'for_exit': 'on',
-            'entry_date': timezone.localdate(),
-            'departure_date': timezone.localdate() + timedelta(days=4),
+            'entry_date': timezone.localtime(entry_at).strftime('%Y-%m-%dT%H:%M'),
+            'departure_date': timezone.localtime(exit_at).strftime('%Y-%m-%dT%H:%M'),
         })
         self.assertEqual(response.status_code, 302)
         provider = ArtworkProvider.objects.get(artwork=artwork)
+        self.assertEqual(timezone.localtime(provider.entry_date).strftime('%H:%M'), '09:30')
+        self.assertEqual(timezone.localtime(provider.departure_date).strftime('%H:%M'), '18:30')
         page = self.client.get(reverse('artwork_edit', args=[artwork.pk]))
         self.assertIn(provider, page.context['entry_providers'])
         self.assertIn(provider, page.context['exit_providers'])
@@ -250,6 +254,20 @@ class ArtworkFlowTest(TestCase):
         })
         self.assertEqual(response.status_code, 302)
         self.assertEqual(artwork.grant_items.get().photos.count(), 2)
+
+        self.client.force_login(self.admin)
+        review = self.client.get(reverse('artwork_review', args=[self.event.slug, artwork.pk]))
+        self.assertContains(review, 'Agregar ítem')
+        self.assertContains(review, 'Agregar gasto')
+        self.assertContains(review, reverse('grant_item_edit', args=[artwork.pk, artwork.grant_items.get().pk]))
+        response = self.client.post(reverse('grant_item_create', args=[artwork.pk, 'expense']), {
+            'item_type': 'service', 'concept': 'Flete', 'amount': '2000', 'currency': 'ARS',
+            'exchange_rate': '1', 'rate_date': timezone.localdate(), 'return_to': 'review',
+        })
+        self.assertEqual(
+            response.url,
+            f"{reverse('artwork_review', args=[self.event.slug, artwork.pk])}#admin-expenses",
+        )
 
         artwork.refresh_from_db()
         form = self.artwork_form({

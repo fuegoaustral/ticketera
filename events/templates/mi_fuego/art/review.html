@@ -2,7 +2,7 @@
 {% block page_title %}Revisar obra{% endblock %}
 {% block submenu %}{% include 'mi_fuego/partials/event_admin_menu.html' %}{% endblock %}
 {% block truecontent %}
-<div class="container-fluid" style="max-width:900px">
+<div class="container-fluid" style="max-width:1200px">
     <a class="small text-decoration-none" href="{% url 'art_admin_dashboard' event.slug %}">← Volver a coordinación</a>
     <div class="d-flex flex-column flex-md-row justify-content-between gap-3 my-4">
         <div><h2 class="h3 mb-1">{{ artwork.title|default:'Obra sin título' }}</h2><p class="text-muted mb-0">{{ artwork.owner.email|default:'Cuenta archivada' }} · {{ artwork.get_kind_display }}</p></div>
@@ -14,13 +14,29 @@
         <div class="col-md-4"><div class="p-3 border rounded"><small class="text-muted">Fotos</small><br><strong>{{ artwork.photos.count }}</strong></div></div>
     </div>
     <div class="row g-4 mb-4">
-        <section class="col-lg-6" aria-labelledby="admin-budget-title">
+        <section id="admin-budget" class="col-12" aria-labelledby="admin-budget-title">
             <h3 id="admin-budget-title" class="h5">Detalle del presupuesto</h3>
-            {% include 'mi_fuego/art/_grant_items.html' with items=budget_items can_edit=False total_ars=budget_total_ars %}
+            <details class="inline-editor inline-create mb-3"{% if budget_create_form.errors %} open{% endif %}>
+                <summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar ítem</span></summary>
+                <form method="post" action="{% url 'grant_item_create' artwork.pk 'budget' %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
+                    <input type="hidden" name="return_to" value="review">
+                    {% include 'mi_fuego/art/_inline_fields.html' with inline_form=budget_create_form %}
+                    <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Agregar al presupuesto</button></div>
+                </form>
+            </details>
+            {% include 'mi_fuego/art/_grant_items.html' with items=budget_items can_edit=True total_ars=budget_total_ars return_to='review' %}
         </section>
-        <section class="col-lg-6" aria-labelledby="admin-expense-title">
+        <section id="admin-expenses" class="col-12" aria-labelledby="admin-expense-title">
             <h3 id="admin-expense-title" class="h5">Detalle de la rendición</h3>
-            {% include 'mi_fuego/art/_grant_items.html' with items=expense_items can_edit=False total_ars=expense_total_ars %}
+            <details class="inline-editor inline-create mb-3"{% if expense_create_form.errors %} open{% endif %}>
+                <summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar gasto</span></summary>
+                <form method="post" action="{% url 'grant_item_create' artwork.pk 'expense' %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
+                    <input type="hidden" name="return_to" value="review">
+                    {% include 'mi_fuego/art/_inline_fields.html' with inline_form=expense_create_form %}
+                    <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Agregar a la rendición</button></div>
+                </form>
+            </details>
+            {% include 'mi_fuego/art/_grant_items.html' with items=expense_items can_edit=True total_ars=expense_total_ars return_to='review' %}
         </section>
     </div>
     <form method="post" novalidate>{% csrf_token %}
@@ -30,4 +46,19 @@
         <div class="d-flex justify-content-end"><button class="btn btn-primary" type="submit">Guardar revisión</button></div>
     </form>
 </div>
+<style>
+    .inline-editor { border: 1px solid #dee2e6; border-radius: .45rem; background: #fafbfa; }
+    .inline-editor > summary { display: flex; align-items: center; gap: .5rem; width: fit-content; padding: .5rem .7rem; color: #176b4a; font-weight: 600; cursor: pointer; list-style: none; }
+    .inline-editor > summary::-webkit-details-marker { display: none; }
+    .inline-editor[open] > summary { margin-bottom: .25rem; }
+    .inline-editor > form { padding: .75rem; border-top: 1px solid #dee2e6; }
+    .inline-create { background: #f4f8f6; }
+    .inline-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1rem; }
+    .inline-form-wide { grid-column: 1 / -1; }
+    .inline-images { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .inline-images > span { position: relative; }
+    .inline-images img { width: 88px; height: 66px; object-fit: cover; border-radius: .3rem; }
+    .inline-images .btn { position: absolute; top: 0; right: 0; padding: .15rem .3rem; }
+    @media (max-width: 767px) { .inline-form-grid { grid-template-columns: 1fr; } .inline-form-wide { grid-column: auto; } }
+</style>
 {% endblock %}
