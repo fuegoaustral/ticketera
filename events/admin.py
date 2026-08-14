@@ -17,7 +17,9 @@ from .models import (
     GrupoMiembro,
     ArtProgram,
     Artwork,
-    ArtworkGrantPhoto,
+    ArtworkGrantItem,
+    ArtworkInvitation,
+    ArtworkPhoto,
 )
 
 
@@ -1038,24 +1040,34 @@ class EventRequestAdmin(admin.ModelAdmin):
 
 @admin.register(ArtProgram)
 class ArtProgramAdmin(admin.ModelAdmin):
-    list_display = ('event', 'registration_opens', 'registration_closes', 'grants_enabled', 'grant_deadline', 'guide_deadline', 'logistics_deadline')
-    list_filter = ('grants_enabled', 'event')
+    list_display = ('event', 'is_current', 'registration_opens', 'registration_closes', 'grants_enabled', 'grant_deadline', 'guide_deadline', 'logistics_deadline')
+    list_filter = ('is_current', 'grants_enabled', 'event')
     date_hierarchy = 'registration_opens'
 
 
-class ArtworkGrantPhotoInline(admin.TabularInline):
-    model = ArtworkGrantPhoto
+class ArtworkGrantItemInline(admin.TabularInline):
+    model = ArtworkGrantItem
+    extra = 0
+
+
+class ArtworkPhotoInline(admin.TabularInline):
+    model = ArtworkPhoto
+    extra = 0
+
+
+class ArtworkInvitationInline(admin.TabularInline):
+    model = ArtworkInvitation
     extra = 0
 
 
 @admin.register(Artwork)
 class ArtworkAdmin(admin.ModelAdmin):
-    list_display = ('title', 'event', 'kind', 'owner', 'grant_status', 'submitted_at', 'checkout_completed', 'updated_at')
-    list_filter = ('event', 'kind', 'grant_status', 'checkout_completed', 'submitted_at')
+    list_display = ('title', 'event', 'kind', 'status', 'owner', 'grant_status', 'assigned_location', 'checkout_verified_at', 'updated_at')
+    list_filter = ('event', 'kind', 'status', 'grant_status', 'checkout_completed', 'submitted_at')
     search_fields = ('title', 'owner__email', 'public_description')
-    autocomplete_fields = ('owner', 'collaborators')
-    readonly_fields = ('submitted_at', 'created_at', 'updated_at')
-    inlines = [ArtworkGrantPhotoInline]
+    autocomplete_fields = ('owner', 'collaborators', 'operations_group', 'checkout_verified_by')
+    readonly_fields = ('submitted_at', 'checkout_requested_at', 'created_at', 'updated_at')
+    inlines = [ArtworkGrantItemInline, ArtworkPhotoInline, ArtworkInvitationInline]
 
 
 admin.site.register(Event, EventAdmin)

@@ -39,7 +39,12 @@ from .views import (
     grupo_manage_view,
     grupo_toggle_ajax,
 )
-from events.art_views import art_dashboard, artwork_create, artwork_edit
+from events.art_views import (
+    art_admin_dashboard, art_admin_export, art_dashboard, art_invitation_accept,
+    artwork_create, artwork_edit, artwork_photo_delete, artwork_photo_upload,
+    artwork_review, grant_item_create, grant_item_delete, grant_item_edit,
+    grant_report_submit, grant_submit,
+)
 
 urlpatterns = [
     # Profile related paths
@@ -62,6 +67,17 @@ urlpatterns = [
     path("arte/", art_dashboard, name="art_dashboard"),
     path("arte/<slug:event_slug>/nueva/", artwork_create, name="artwork_create"),
     path("arte/obra/<int:artwork_id>/", artwork_edit, name="artwork_edit"),
+    path("arte/obra/<int:artwork_id>/beca/<str:phase>/nuevo/", grant_item_create, name="grant_item_create"),
+    path("arte/obra/<int:artwork_id>/beca/item/<int:item_id>/", grant_item_edit, name="grant_item_edit"),
+    path("arte/obra/<int:artwork_id>/beca/item/<int:item_id>/eliminar/", grant_item_delete, name="grant_item_delete"),
+    path("arte/obra/<int:artwork_id>/beca/enviar/", grant_submit, name="grant_submit"),
+    path("arte/obra/<int:artwork_id>/rendicion/enviar/", grant_report_submit, name="grant_report_submit"),
+    path("arte/obra/<int:artwork_id>/fotos/subir/", artwork_photo_upload, name="artwork_photo_upload"),
+    path("arte/obra/<int:artwork_id>/fotos/<int:photo_id>/eliminar/", artwork_photo_delete, name="artwork_photo_delete"),
+    path("arte/invitacion/<uuid:token>/aceptar/", art_invitation_accept, name="art_invitation_accept"),
+    path("mis-eventos/<slug:event_slug>/arte/", art_admin_dashboard, name="art_admin_dashboard"),
+    path("mis-eventos/<slug:event_slug>/arte/exportar/", art_admin_export, name="art_admin_export"),
+    path("mis-eventos/<slug:event_slug>/arte/<int:artwork_id>/", artwork_review, name="artwork_review"),
     path("mis-eventos/", my_events_view, name="my_events"),
     path("mis-eventos/<slug:event_slug>/", event_admin_view, name="event_admin"),
     path("mis-eventos/<slug:event_slug>/configuracion/", event_management_view, name="event_management"),

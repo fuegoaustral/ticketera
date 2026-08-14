@@ -1,0 +1,8 @@
+{% extends "emails/base.html" %}
+{% block subject %}Te invitaron a colaborar en una obra de Fuego Austral{% endblock %}
+{% block title %}Invitación a una obra{% endblock %}
+{% block content %}
+<p>Te invitaron a colaborar en <strong>{{ invitation.artwork.title|default:"una obra" }}</strong> para {{ invitation.artwork.event.name }}.</p>
+<p>Entrá con este mismo email verificado para ver y editar el expediente.</p>
+{% include "emails/partials/btn.html" with href=accept_path label="Aceptar invitación" %}
+{% endblock %}

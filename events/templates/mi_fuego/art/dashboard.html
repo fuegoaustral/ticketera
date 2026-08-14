@@ -6,21 +6,21 @@
 <div class="container-fluid art-home">
     <header class="mb-5">
         <p class="text-uppercase text-muted small fw-semibold mb-2">Fuego Austral</p>
-        <h1 class="mb-2">Tus obras, en un solo lugar</h1>
-        <p class="text-muted mb-0">Propuesta, desplegable, ingreso, salida y checkout. Cada bloque se guarda hasta su fecha límite.</p>
+        <h2 class="h3 mb-2">Tus obras, en un solo lugar</h2>
+        <p class="text-muted mb-0">Propuesta, beca, galería, equipo, ingreso, salida y checkout del evento anual.</p>
     </header>
 
     <section class="mb-5" aria-labelledby="new-artwork-title">
         <div class="d-flex justify-content-between align-items-end gap-3 mb-3">
             <div>
-                <h2 class="h4 mb-1" id="new-artwork-title">Inscripciones</h2>
+                <h3 class="h4 mb-1" id="new-artwork-title">Inscripciones</h3>
                 <p class="text-muted mb-0">Una obra planificada o espontánea comienza con el mismo formulario.</p>
             </div>
         </div>
         {% for program in programs %}
             <div class="program-row d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 py-3">
                 <div>
-                    <h3 class="h5 mb-1">{{ program.event.name }}</h3>
+                    <h4 class="h5 mb-1">{{ program.event.name }}</h4>
                     <p class="small text-muted mb-0">
                         {% if program.registration_is_open %}
                             Inscripción abierta{% if program.registration_closes %} hasta el {{ program.registration_closes|date:'d/m/Y H:i' }}{% endif %}.
@@ -39,18 +39,19 @@
     </section>
 
     <section aria-labelledby="artworks-title">
-        <h2 class="h4 mb-3" id="artworks-title">Mis obras</h2>
+        <h3 class="h4 mb-3" id="artworks-title">Mis obras</h3>
         {% if artworks %}
             <div class="artwork-list">
                 {% for artwork in artworks %}
                     <a class="artwork-row d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 py-3" href="{% url 'artwork_edit' artwork.pk %}">
                         <div>
                             <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
-                                <h3 class="h5 mb-0">{{ artwork.title }}</h3>
+                                <h4 class="h5 mb-0">{{ artwork.title }}</h4>
                                 <span class="badge bg-light text-dark border">{{ artwork.get_kind_display }}</span>
-                                {% if artwork.submitted_at %}<span class="badge bg-success">Enviada</span>{% else %}<span class="badge bg-secondary">Borrador</span>{% endif %}
+                                <span class="badge {% if artwork.status == 'accepted' or artwork.status == 'completed' %}bg-success{% elif artwork.status == 'changes' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ artwork.get_status_display }}</span>
+                                {% if artwork.grant_requested %}<span class="badge bg-light text-dark border">Beca: {{ artwork.get_grant_status_display }}</span>{% endif %}
                             </div>
-                            <p class="small text-muted mb-0">{{ artwork.event.name }} · Responsable: {{ artwork.owner.email }} · Actualizada {{ artwork.updated_at|date:'d/m/Y H:i' }}</p>
+                            <p class="small text-muted mb-0">{{ artwork.event.name }} · Responsable: {{ artwork.owner.email|default:'Cuenta archivada' }} · Actualizada {{ artwork.updated_at|date:'d/m/Y H:i' }}</p>
                         </div>
                         <span class="text-primary fw-semibold text-nowrap">Abrir <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i></span>
                     </a>

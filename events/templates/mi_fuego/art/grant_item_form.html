@@ -1,0 +1,15 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% block page_title %}{% if phase == 'budget' %}Ítem de presupuesto{% else %}Gasto de rendición{% endif %}{% endblock %}
+{% block truecontent %}
+<div class="container-fluid" style="max-width:760px">
+    <a class="small text-decoration-none" href="{% url 'artwork_edit' artwork.pk %}">← Volver a {{ artwork.title|default:'la obra' }}</a>
+    <h2 class="h4 mt-4">{% if item %}Editar{% else %}Agregar{% endif %} {% if phase == 'budget' %}ítem de presupuesto{% else %}gasto realizado{% endif %}</h2>
+    <p class="text-muted">La cotización queda guardada con este ítem y no se actualiza en el futuro.</p>
+    <form method="post" novalidate>{% csrf_token %}
+        {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+        {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+        {% for field in form.visible_fields %}{% include 'mi_fuego/art/_field.html' with field=field %}{% endfor %}
+        <div class="d-flex justify-content-end gap-2"><a class="btn btn-outline-secondary" href="{% url 'artwork_edit' artwork.pk %}">Cancelar</a><button class="btn btn-primary" type="submit">Guardar ítem</button></div>
+    </form>
+</div>
+{% endblock %}

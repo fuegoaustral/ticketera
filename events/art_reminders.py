@@ -9,60 +9,86 @@ from twilio.rest import Client
 from tickets.models import MessageIdempotency
 from utils.email import send_mail
 
-from .models import ArtProgram
+from .models import ArtProgram, ArtworkGrantItem, ArtworkPhoto, Event
 
 
 BLOCKS = {
     'proposal': ('Propuesta', lambda artwork: not artwork.submitted_at),
-    'grant': ('Beca', lambda artwork: artwork.grant_requested and (not artwork.grant_amount or not artwork.grant_budget or not artwork.grant_justification)),
+    'grant': ('Beca', lambda artwork: artwork.grant_requested and (
+        not artwork.grant_justification
+        or not artwork.grant_items.filter(phase=ArtworkGrantItem.Phase.BUDGET).exists()
+        or artwork.grant_status in (artwork.GrantStatus.NOT_REQUESTED, artwork.GrantStatus.INFO_REQUIRED)
+    )),
     'guide': ('Desplegable', lambda artwork: not artwork.public_title or not artwork.public_description),
     'logistics': ('Ingreso y salida', lambda artwork: not artwork.arrival_date or not artwork.departure_date),
     'checkout': ('Checkout', lambda artwork: not artwork.checkout_completed),
-    'grant_report': ('Rendición de beca', lambda artwork: artwork.grant_status == artwork.GrantStatus.APPROVED and (not artwork.grant_report or not artwork.grant_photos.exists())),
+    'grant_report': ('Rendición de beca', lambda artwork: artwork.grant_status in (
+        artwork.GrantStatus.APPROVED, artwork.GrantStatus.PAID,
+    ) and (
+        not artwork.grant_report
+        or not artwork.grant_items.filter(phase=ArtworkGrantItem.Phase.EXPENSE).exists()
+        or not artwork.photos.filter(stage__in=(ArtworkPhoto.Stage.FINAL, ArtworkPhoto.Stage.GRANT_REPORT)).exists()
+    )),
 }
 
 
 def _send_once(user, artwork, block, deadline, channel, send):
     key = f'art:{artwork.pk}:{block}:{deadline.isoformat()}:{timezone.localdate().isoformat()}:{user.pk}:{channel}'
     digest = hashlib.sha256(key.encode()).hexdigest()
-    if MessageIdempotency.objects.filter(hash=digest).exists():
+    reservation, created = MessageIdempotency.objects.get_or_create(
+        hash=digest,
+        defaults={'email': user.email, 'payload': {'key': key}},
+    )
+    if not created:
         return False
-    send()
-    MessageIdempotency.objects.create(email=user.email, hash=digest, payload={'key': key})
+    try:
+        send()
+    except Exception:
+        reservation.delete()
+        raise
     return True
 
 
 def send_art_reminders(event=None, context=None):
-    """Cron diario: avisa 3 y 1 días antes de cada checkpoint incompleto."""
+    """Cron diario: avisa según los días configurados para cada checkpoint incompleto."""
     today = timezone.localdate()
     sent = 0
-    programs = ArtProgram.objects.select_related('event').filter(event__active=True)
+    programs = ArtProgram.objects.select_related('event').filter(is_current=True, event__active=True)
+    if isinstance(event, Event):
+        programs = programs.filter(event=event)
     for program in programs:
         for block, (label, incomplete) in BLOCKS.items():
             if block.startswith('grant') and not program.grants_enabled:
                 continue
             deadline = getattr(program, f'{block}_deadline')
-            if not deadline or (timezone.localdate(deadline) - today).days not in (3, 1):
+            reminder_days = program.reminder_days
+            if not deadline or (timezone.localdate(deadline) - today).days not in reminder_days:
                 continue
             for artwork in program.event.artworks.select_related('owner').prefetch_related('collaborators'):
+                if artwork.status in (artwork.Status.REJECTED, artwork.Status.CANCELLED, artwork.Status.COMPLETED):
+                    continue
                 if not incomplete(artwork):
                     continue
                 path = reverse('artwork_edit', kwargs={'artwork_id': artwork.pk})
-                users = [artwork.owner, *artwork.collaborators.exclude(pk=artwork.owner_id)]
+                users = [
+                    user for user in [artwork.owner, *artwork.collaborators.exclude(pk=artwork.owner_id)]
+                    if user and user.email
+                ]
                 for user in users:
-                    try:
-                        sent += _send_once(
-                            user, artwork, block, deadline, 'email',
-                            lambda user=user: send_mail(
-                                template_name='art_checkpoint_reminder',
-                                recipient_list=[user.email],
-                                context={'user': user, 'artwork': artwork, 'checkpoint': label, 'deadline': deadline, 'artwork_path': path},
-                            ),
-                        )
-                    except Exception:
-                        logging.exception('No se pudo enviar el recordatorio de Arte por email a %s', user.email)
+                    if program.reminder_email_enabled:
+                        try:
+                            sent += _send_once(
+                                user, artwork, block, deadline, 'email',
+                                lambda user=user: send_mail(
+                                    template_name='art_checkpoint_reminder',
+                                    recipient_list=[user.email],
+                                    context={'user': user, 'artwork': artwork, 'checkpoint': label, 'deadline': deadline, 'artwork_path': path},
+                                ),
+                            )
+                        except Exception:
+                            logging.exception('No se pudo enviar el recordatorio de Arte por email a %s', user.email)
 
-                    sender = getattr(settings, 'TWILIO_WHATSAPP_FROM', '')
+                    sender = getattr(settings, 'TWILIO_WHATSAPP_FROM', '') if program.reminder_whatsapp_enabled else ''
                     profile = getattr(user, 'profile', None)
                     if not sender or not profile or not profile.phone:
                         continue

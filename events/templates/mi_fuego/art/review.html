@@ -1,0 +1,33 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% block page_title %}Revisar obra{% endblock %}
+{% block submenu %}{% include 'mi_fuego/partials/event_admin_menu.html' %}{% endblock %}
+{% block truecontent %}
+<div class="container-fluid" style="max-width:900px">
+    <a class="small text-decoration-none" href="{% url 'art_admin_dashboard' event.slug %}">← Volver a coordinación</a>
+    <div class="d-flex flex-column flex-md-row justify-content-between gap-3 my-4">
+        <div><h2 class="h3 mb-1">{{ artwork.title|default:'Obra sin título' }}</h2><p class="text-muted mb-0">{{ artwork.owner.email|default:'Cuenta archivada' }} · {{ artwork.get_kind_display }}</p></div>
+        <div class="d-flex gap-2"><a class="btn btn-outline-primary" href="{% url 'artwork_edit' artwork.pk %}">Ver expediente</a><a class="btn btn-outline-primary" href="{% url 'artwork_photo_upload' artwork.pk %}">Subir fotos</a></div>
+    </div>
+    <div class="row g-3 mb-4">
+        <div class="col-md-4"><div class="p-3 border rounded"><small class="text-muted">Presupuesto</small><br><strong>ARS {{ budget_total_ars|floatformat:2 }}</strong></div></div>
+        <div class="col-md-4"><div class="p-3 border rounded"><small class="text-muted">Rendición</small><br><strong>ARS {{ expense_total_ars|floatformat:2 }}</strong></div></div>
+        <div class="col-md-4"><div class="p-3 border rounded"><small class="text-muted">Fotos</small><br><strong>{{ artwork.photos.count }}</strong></div></div>
+    </div>
+    <div class="row g-4 mb-4">
+        <section class="col-lg-6" aria-labelledby="admin-budget-title">
+            <h3 id="admin-budget-title" class="h5">Detalle del presupuesto</h3>
+            {% include 'mi_fuego/art/_grant_items.html' with items=budget_items can_edit=False %}
+        </section>
+        <section class="col-lg-6" aria-labelledby="admin-expense-title">
+            <h3 id="admin-expense-title" class="h5">Detalle de la rendición</h3>
+            {% include 'mi_fuego/art/_grant_items.html' with items=expense_items can_edit=False %}
+        </section>
+    </div>
+    <form method="post" novalidate>{% csrf_token %}
+        {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+        {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+        {% for field in form.visible_fields %}{% include 'mi_fuego/art/_field.html' with field=field %}{% endfor %}
+        <div class="d-flex justify-content-end"><button class="btn btn-primary" type="submit">Guardar revisión</button></div>
+    </form>
+</div>
+{% endblock %}

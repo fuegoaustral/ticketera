@@ -1,3 +1,8 @@
+import uuid
+from decimal import Decimal, ROUND_HALF_UP
+
+from django.conf import settings
+from django.core.files.storage import default_storage
 from django.db import models
 from django.db.models import Count, Sum, Q
 from django.db.models.signals import post_save
@@ -11,6 +16,17 @@ from django.contrib.auth.models import User
 from auditlog.registry import auditlog
 
 from utils.models import BaseModel
+
+
+def default_art_reminder_days():
+    return [7, 3, 1]
+
+
+def private_art_storage():
+    if getattr(settings, 'DEFAULT_FILE_STORAGE', '') == 'django_s3_storage.storage.S3Storage':
+        from django_s3_storage.storage import S3Storage
+        return S3Storage(aws_s3_bucket_auth=True, aws_s3_key_prefix='private')
+    return default_storage
 
 
 class Event(BaseModel):
@@ -469,6 +485,7 @@ class ArtProgram(BaseModel):
     """Fechas que habilitan y bloquean cada bloque del formulario de Arte."""
 
     event = models.OneToOneField(Event, on_delete=models.CASCADE, related_name='art_program')
+    is_current = models.BooleanField(default=False, verbose_name='Convocatoria anual vigente')
     registration_opens = models.DateTimeField(null=True, blank=True, verbose_name='Apertura de inscripción')
     registration_closes = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de inscripción')
     proposal_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de propuesta')
@@ -479,10 +496,20 @@ class ArtProgram(BaseModel):
     checkout_opens = models.DateTimeField(null=True, blank=True, verbose_name='Apertura de checkout')
     checkout_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de checkout')
     grant_report_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de rendición de becas')
+    reminder_days = models.JSONField(default=default_art_reminder_days, blank=True, verbose_name='Días de anticipación para recordatorios')
+    reminder_email_enabled = models.BooleanField(default=True, verbose_name='Recordatorios por email')
+    reminder_whatsapp_enabled = models.BooleanField(default=False, verbose_name='Recordatorios por WhatsApp')
+    early_entry_slots = models.PositiveIntegerField(default=0, verbose_name='Cupos de ingreso anticipado por obra')
+    early_entry_from = models.DateTimeField(null=True, blank=True, verbose_name='Ingreso anticipado desde')
+    late_checkout_slots = models.PositiveIntegerField(default=0, verbose_name='Cupos de late checkout por obra')
+    late_checkout_until = models.DateTimeField(null=True, blank=True, verbose_name='Late checkout hasta')
 
     class Meta:
         verbose_name = 'Programa de Arte'
         verbose_name_plural = 'Programas de Arte'
+        constraints = [
+            models.UniqueConstraint(fields=['is_current'], condition=Q(is_current=True), name='unique_current_art_program'),
+        ]
 
     def __str__(self):
         return f'Arte · {self.event.name}'
@@ -493,6 +520,8 @@ class ArtProgram(BaseModel):
             errors['registration_closes'] = 'El cierre no puede ser anterior a la apertura.'
         if self.checkout_opens and self.checkout_deadline and self.checkout_deadline < self.checkout_opens:
             errors['checkout_deadline'] = 'El cierre no puede ser anterior a la apertura.'
+        if not isinstance(self.reminder_days, list) or any(not isinstance(day, int) or day < 0 for day in self.reminder_days):
+            errors['reminder_days'] = 'Usá una lista de días enteros no negativos, por ejemplo [7, 3, 1].'
         if errors:
             raise ValidationError(errors)
 
@@ -519,39 +548,77 @@ class Artwork(BaseModel):
     class GrantStatus(models.TextChoices):
         NOT_REQUESTED = 'none', 'No solicitada'
         PENDING = 'pending', 'Pendiente'
+        INFO_REQUIRED = 'info', 'Requiere información'
         APPROVED = 'approved', 'Aprobada'
         REJECTED = 'rejected', 'No aprobada'
+        PAID = 'paid', 'Pagada'
+        REPORTED = 'reported', 'Rendición enviada'
+        CLOSED = 'closed', 'Rendición aprobada'
 
-    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='artworks')
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='owned_artworks', verbose_name='Responsable')
+    class Status(models.TextChoices):
+        DRAFT = 'draft', 'Borrador'
+        SUBMITTED = 'submitted', 'En revisión'
+        CHANGES_REQUESTED = 'changes', 'Requiere cambios'
+        ACCEPTED = 'accepted', 'Aceptada'
+        REJECTED = 'rejected', 'No aceptada'
+        INSTALLED = 'installed', 'Instalada'
+        COMPLETED = 'completed', 'Finalizada'
+        CANCELLED = 'cancelled', 'Cancelada'
+
+    class BenefitStatus(models.TextChoices):
+        NOT_EVALUATED = 'none', 'Sin evaluar'
+        ELIGIBLE = 'eligible', 'Elegible'
+        GRANTED = 'granted', 'Otorgado'
+        NOT_ELIGIBLE = 'ineligible', 'No elegible'
+
+    event = models.ForeignKey(Event, on_delete=models.PROTECT, related_name='artworks')
+    owner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='owned_artworks', verbose_name='Responsable')
     collaborators = models.ManyToManyField(User, blank=True, related_name='collaborative_artworks')
+    operations_group = models.OneToOneField('Grupo', on_delete=models.SET_NULL, null=True, blank=True, related_name='artwork')
     kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.PLANNED, verbose_name='Modalidad')
 
-    title = models.CharField(max_length=120, verbose_name='Nombre de la obra')
-    proposal = models.TextField(verbose_name='Descripción de la propuesta')
+    title = models.CharField(max_length=120, blank=True, verbose_name='Nombre de la obra')
+    proposal = models.TextField(blank=True, verbose_name='Descripción de la propuesta')
     dimensions = models.CharField(max_length=200, blank=True, verbose_name='Dimensiones')
     materials = models.TextField(blank=True, verbose_name='Materiales')
     technical_needs = models.TextField(blank=True, verbose_name='Necesidades técnicas y energía')
     safety_plan = models.TextField(blank=True, verbose_name='Seguridad y uso de fuego')
+    uses_fire = models.BooleanField(default=False, verbose_name='La obra utiliza fuego')
+    fire_details = models.TextField(blank=True, verbose_name='Combustible, cantidad y funcionamiento del fuego')
+    extinguishing_plan = models.TextField(blank=True, verbose_name='Plan y elementos de extinción')
+    power_watts = models.PositiveIntegerField(null=True, blank=True, verbose_name='Potencia eléctrica máxima (W)')
+    safety_contact = models.CharField(max_length=200, blank=True, verbose_name='Responsable de seguridad durante el evento')
 
     grant_requested = models.BooleanField(default=False, verbose_name='Quiero solicitar una beca')
-    grant_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(1)], verbose_name='Monto solicitado')
-    grant_budget = models.TextField(blank=True, verbose_name='Presupuesto y uso de los fondos')
     grant_justification = models.TextField(blank=True, verbose_name='Por qué la beca hace posible la obra')
     grant_status = models.CharField(max_length=10, choices=GrantStatus.choices, default=GrantStatus.NOT_REQUESTED, verbose_name='Estado de la beca')
     grant_report = models.TextField(blank=True, verbose_name='Rendición y resultado de la obra')
+    grant_approved_amount_ars = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(1)], verbose_name='Monto aprobado en ARS')
+    grant_decision_notes = models.TextField(blank=True, verbose_name='Devolución sobre la beca')
+    grant_paid_at = models.DateField(null=True, blank=True, verbose_name='Fecha de pago de la beca')
+    grant_payment_reference = models.CharField(max_length=200, blank=True, verbose_name='Referencia del pago')
 
     public_title = models.CharField(max_length=80, blank=True, verbose_name='Título para el desplegable')
     public_description = models.CharField(max_length=500, blank=True, verbose_name='Descripción para el desplegable')
     preferred_location = models.CharField(max_length=200, blank=True, verbose_name='Ubicación preferida')
+    assigned_location = models.CharField(max_length=200, blank=True, verbose_name='Ubicación asignada')
+    placement_notes = models.TextField(blank=True, verbose_name='Notas de placement')
 
     arrival_date = models.DateField(null=True, blank=True, verbose_name='Fecha de ingreso anticipado')
     departure_date = models.DateField(null=True, blank=True, verbose_name='Fecha de salida')
     crew = models.TextField(blank=True, verbose_name='Equipo que ingresa')
     providers = models.TextField(blank=True, verbose_name='Proveedores y vehículos')
 
-    checkout_completed = models.BooleanField(default=False, verbose_name='Obra retirada y espacio limpio')
+    checkout_completed = models.BooleanField(default=False, verbose_name='Solicito verificar el retiro y limpieza')
     checkout_notes = models.TextField(blank=True, verbose_name='Notas de checkout')
+    checkout_requested_at = models.DateTimeField(null=True, blank=True, verbose_name='Checkout solicitado')
+    checkout_verified_at = models.DateTimeField(null=True, blank=True, verbose_name='Checkout verificado')
+    checkout_verified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_artwork_checkouts')
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.DRAFT, verbose_name='Estado de la obra')
+    review_feedback = models.TextField(blank=True, verbose_name='Devolución al equipo de la obra')
+    benefit_status = models.CharField(max_length=10, choices=BenefitStatus.choices, default=BenefitStatus.NOT_EVALUATED, verbose_name='Beneficio para la próxima edición')
+    benefit_notes = models.TextField(blank=True, verbose_name='Notas del beneficio')
+    version = models.PositiveIntegerField(default=1, editable=False)
     submitted_at = models.DateTimeField(null=True, blank=True, verbose_name='Enviada')
 
     class Meta:
@@ -560,24 +627,117 @@ class Artwork(BaseModel):
         verbose_name_plural = 'Obras de Arte'
 
     def __str__(self):
-        return f'{self.title} · {self.event.name}'
+        return f'{self.title or "Obra sin título"} · {self.event.name}'
 
     def can_edit(self, user):
         return user == self.owner or self.collaborators.filter(pk=user.pk).exists()
 
+    def can_manage(self, user):
+        return user.is_superuser or self.event.admins.filter(pk=user.pk).exists()
 
-class ArtworkGrantPhoto(BaseModel):
-    artwork = models.ForeignKey(Artwork, on_delete=models.CASCADE, related_name='grant_photos')
-    image = models.ImageField(upload_to='art/grant_reports')
+    def grant_total_ars(self, phase):
+        return sum((item.amount_ars for item in self.grant_items.filter(phase=phase)), Decimal('0.00'))
+
+    @property
+    def budget_total_ars(self):
+        return self.grant_total_ars(ArtworkGrantItem.Phase.BUDGET)
+
+    @property
+    def expense_total_ars(self):
+        return self.grant_total_ars(ArtworkGrantItem.Phase.EXPENSE)
+
+
+class ArtworkGrantItem(BaseModel):
+    class Phase(models.TextChoices):
+        BUDGET = 'budget', 'Presupuesto'
+        EXPENSE = 'expense', 'Rendición'
+
+    class Currency(models.TextChoices):
+        ARS = 'ARS', 'Pesos argentinos (ARS)'
+        USD = 'USD', 'Dólares estadounidenses (USD)'
+
+    artwork = models.ForeignKey(Artwork, on_delete=models.CASCADE, related_name='grant_items')
+    phase = models.CharField(max_length=8, choices=Phase.choices)
+    concept = models.CharField(max_length=200, verbose_name='Concepto')
+    details = models.TextField(blank=True, verbose_name='Detalle')
+    amount = models.DecimalField(max_digits=14, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))], verbose_name='Monto original')
+    currency = models.CharField(max_length=3, choices=Currency.choices, default=Currency.ARS, verbose_name='Moneda')
+    exchange_rate = models.DecimalField(max_digits=14, decimal_places=4, default=1, validators=[MinValueValidator(Decimal('0.0001'))], verbose_name='Cotización ARS por USD')
+    rate_date = models.DateField(verbose_name='Fecha de cotización o pago')
+    rate_source = models.CharField(max_length=200, blank=True, verbose_name='Fuente y tipo de cambio')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        ordering = ['phase', 'created_at']
+        verbose_name = 'Ítem de beca'
+        verbose_name_plural = 'Ítems de beca'
+        constraints = [
+            models.CheckConstraint(check=Q(phase__in=('budget', 'expense')), name='art_grant_item_valid_phase'),
+            models.CheckConstraint(check=Q(currency__in=('ARS', 'USD')), name='art_grant_item_valid_currency'),
+            models.CheckConstraint(check=Q(amount__gt=0), name='art_grant_item_positive_amount'),
+            models.CheckConstraint(check=Q(exchange_rate__gt=0), name='art_grant_item_positive_rate'),
+            models.CheckConstraint(check=Q(currency='USD') | Q(exchange_rate=1), name='art_grant_item_ars_rate_one'),
+        ]
+
+    def clean(self):
+        if self.currency == self.Currency.ARS:
+            self.exchange_rate = Decimal('1')
+            self.rate_source = ''
+        elif not self.rate_source:
+            raise ValidationError({'rate_source': 'Indicá la fuente y el tipo de dólar utilizado.'})
+
+    @property
+    def amount_ars(self):
+        return (self.amount * self.exchange_rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+    def __str__(self):
+        return f'{self.get_phase_display()} · {self.concept}'
+
+
+class ArtworkPhoto(BaseModel):
+    class Stage(models.TextChoices):
+        PROPOSAL = 'proposal', 'Propuesta'
+        PROCESS = 'process', 'Proceso'
+        FINAL = 'final', 'Obra terminada'
+        GRANT_REPORT = 'grant', 'Rendición de beca'
+
+    artwork = models.ForeignKey(Artwork, on_delete=models.CASCADE, related_name='photos')
+    image = models.ImageField(upload_to='art/gallery', storage=private_art_storage)
+    stage = models.CharField(max_length=10, choices=Stage.choices, default=Stage.PROCESS, verbose_name='Etapa')
+    caption = models.TextField(blank=True, verbose_name='Descripción o crédito')
+    publication_authorized = models.BooleanField(default=False, verbose_name='Autorizada para publicación')
     uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
 
     class Meta:
         ordering = ['created_at']
-        verbose_name = 'Foto de rendición de beca'
-        verbose_name_plural = 'Fotos de rendición de becas'
+        verbose_name = 'Foto de obra'
+        verbose_name_plural = 'Fotos de obras'
 
     def __str__(self):
-        return f'Foto · {self.artwork.title}'
+        return f'{self.get_stage_display()} · {self.artwork}'
+
+
+class ArtworkInvitation(BaseModel):
+    artwork = models.ForeignKey(Artwork, on_delete=models.CASCADE, related_name='invitations')
+    email = models.EmailField()
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    invited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    expires_at = models.DateTimeField()
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['email']
+        constraints = [
+            models.UniqueConstraint(fields=['artwork', 'email'], name='unique_artwork_invitation_email'),
+        ]
+
+    @property
+    def is_pending(self):
+        return not self.accepted_at and not self.revoked_at and self.expires_at >= timezone.now()
+
+    def __str__(self):
+        return f'{self.email} · {self.artwork}'
 
 
 auditlog.register(Event)
@@ -587,4 +747,6 @@ auditlog.register(GrupoMiembro)
 auditlog.register(EventRequest)
 auditlog.register(ArtProgram)
 auditlog.register(Artwork)
-auditlog.register(ArtworkGrantPhoto)
+auditlog.register(ArtworkGrantItem)
+auditlog.register(ArtworkPhoto)
+auditlog.register(ArtworkInvitation)

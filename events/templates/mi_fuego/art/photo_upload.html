@@ -1,0 +1,13 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% block page_title %}Subir fotos{% endblock %}
+{% block truecontent %}
+<div class="container-fluid" style="max-width:760px">
+    <a class="small text-decoration-none" href="{% url 'artwork_edit' artwork.pk %}">← Volver a {{ artwork.title|default:'la obra' }}</a>
+    <h2 class="h4 mt-4">Agregar fotos a la galería</h2>
+    <p class="text-muted">Elegí hasta 10 imágenes. En el teléfono podés usar la cámara o la fototeca.</p>
+    <form method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}
+        {% for field in form %}{% include 'mi_fuego/art/_field.html' with field=field %}{% endfor %}
+        <div class="d-flex justify-content-end gap-2"><a class="btn btn-outline-secondary" href="{% url 'artwork_edit' artwork.pk %}">Cancelar</a><button class="btn btn-primary" type="submit">Subir fotos</button></div>
+    </form>
+</div>
+{% endblock %}

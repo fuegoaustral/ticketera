@@ -1,0 +1,18 @@
+{% if items %}
+<div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Concepto</th><th>Original</th><th>Cotización</th><th class="text-end">ARS</th>{% if can_edit %}<th><span class="visually-hidden">Acciones</span></th>{% endif %}</tr></thead>
+        <tbody>
+        {% for item in items %}
+            <tr>
+                <td><strong>{{ item.concept }}</strong>{% if item.details %}<br><small class="text-muted">{{ item.details }}</small>{% endif %}</td>
+                <td>{{ item.currency }} {{ item.amount|floatformat:2 }}</td>
+                <td>{{ item.rate_date|date:'d/m/Y' }}{% if item.currency == 'USD' %}<br><small>{{ item.exchange_rate|floatformat:4 }} · {{ item.rate_source }}</small>{% endif %}</td>
+                <td class="text-end">{{ item.amount_ars|floatformat:2 }}</td>
+                {% if can_edit %}<td class="text-end text-nowrap"><a class="btn btn-sm btn-link" href="{% url 'grant_item_edit' artwork.pk item.pk %}">Editar</a><button class="btn btn-sm btn-link text-danger" type="submit" formaction="{% url 'grant_item_delete' artwork.pk item.pk %}" formmethod="post" onclick="return confirm('¿Eliminar este ítem?')">Eliminar</button></td>{% endif %}
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}<p class="small text-muted mb-0">Todavía no hay ítems.</p>{% endif %}
