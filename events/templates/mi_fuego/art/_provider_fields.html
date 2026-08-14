@@ -1,0 +1,30 @@
+{% for field in inline_form.hidden_fields %}{{ field }}{% endfor %}
+{% if inline_form.non_field_errors %}<div class="alert alert-danger py-2">{{ inline_form.non_field_errors }}</div>{% endif %}
+<div class="inline-form-grid">
+    <div>{% include 'mi_fuego/art/_field.html' with field=inline_form.company_name %}</div>
+    <div>{% include 'mi_fuego/art/_field.html' with field=inline_form.phone %}</div>
+    <div>{% include 'mi_fuego/art/_field.html' with field=inline_form.contact_first_name %}</div>
+    <div>{% include 'mi_fuego/art/_field.html' with field=inline_form.contact_last_name %}</div>
+    <div class="inline-form-wide">{% include 'mi_fuego/art/_field.html' with field=inline_form.email %}</div>
+    <div class="inline-form-wide">{% include 'mi_fuego/art/_field.html' with field=inline_form.service_description %}</div>
+</div>
+<div class="provider-operation-grid">
+    <fieldset class="provider-operation" data-provider-operation data-toggle-name="for_entry">
+        <legend>Ingreso anticipado</legend>
+        <p>Ventana completa para entregar materiales o montar antes del evento.</p>
+        {% include 'mi_fuego/art/_field.html' with field=inline_form.for_entry %}
+        <div class="provider-operation-fields">
+            {% include 'mi_fuego/art/_field.html' with field=inline_form.early_entry_at %}
+            {% include 'mi_fuego/art/_field.html' with field=inline_form.early_exit_at %}
+        </div>
+    </fieldset>
+    <fieldset class="provider-operation" data-provider-operation data-toggle-name="for_exit">
+        <legend>Desarme y retiro</legend>
+        <p>Ventana completa para ingresar al desarme y retirar materiales.</p>
+        {% include 'mi_fuego/art/_field.html' with field=inline_form.for_exit %}
+        <div class="provider-operation-fields">
+            {% include 'mi_fuego/art/_field.html' with field=inline_form.dismantling_entry_at %}
+            {% include 'mi_fuego/art/_field.html' with field=inline_form.dismantling_exit_at %}
+        </div>
+    </fieldset>
+</div>

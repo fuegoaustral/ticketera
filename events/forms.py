@@ -245,7 +245,7 @@ class ArtworkGrantItemForm(forms.ModelForm):
         self.phase = phase
         self.fields['images'] = MultipleImageField(required=False, label='Imágenes o comprobantes')
         self.fields['images'].help_text = 'Podés seleccionar varias imágenes. Máximo 10 MB por archivo.'
-        self.fields['images'].widget.attrs['accept'] = 'image/*'
+        self.fields['images'].widget.attrs.update({'accept': 'image/*', 'data-image-preview': 'true'})
         self.fields['rate_date'].label = 'Fecha de entrega del presupuesto' if phase == ArtworkGrantItem.Phase.BUDGET else 'Fecha real de pago'
         self.fields['rate_date'].initial = self.instance.rate_date if self.instance.pk else timezone.localdate()
         self.fields['exchange_rate'].label = 'Cotización'
@@ -323,7 +323,7 @@ class ArtworkPhotoUploadForm(forms.Form):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs.setdefault('class', 'form-check-input' if isinstance(field.widget, forms.CheckboxInput) else ('form-select' if isinstance(field.widget, forms.Select) else 'form-control'))
-        self.fields['images'].widget.attrs['accept'] = 'image/*'
+        self.fields['images'].widget.attrs.update({'accept': 'image/*', 'data-image-preview': 'true'})
 
     def clean_images(self):
         images = self.cleaned_data['images']
@@ -372,13 +372,16 @@ class ArtworkProviderForm(forms.ModelForm):
         model = ArtworkProvider
         fields = (
             'company_name', 'contact_first_name', 'contact_last_name', 'email', 'phone',
-            'service_description', 'for_entry', 'entry_date', 'for_exit', 'departure_date',
+            'service_description', 'for_entry', 'early_entry_at', 'early_exit_at',
+            'for_exit', 'dismantling_entry_at', 'dismantling_exit_at',
         )
         widgets = {
             'phone': forms.TextInput(attrs={'type': 'tel'}),
             'service_description': forms.Textarea(attrs={'rows': 5}),
-            'entry_date': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
-            'departure_date': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
+            'early_entry_at': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
+            'early_exit_at': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
+            'dismantling_entry_at': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
+            'dismantling_exit_at': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
         }
 
     def __init__(self, *args, **kwargs):
@@ -391,15 +394,25 @@ class ArtworkProviderForm(forms.ModelForm):
         if not cleaned.get('for_entry') and not cleaned.get('for_exit'):
             self.add_error(None, 'Elegí si el proveedor participa del ingreso, de la salida o de ambos.')
         if not cleaned.get('for_entry'):
-            cleaned['entry_date'] = None
-        elif not cleaned.get('entry_date'):
-            self.add_error('entry_date', 'Indicá la fecha de ingreso del proveedor.')
+            cleaned['early_entry_at'] = cleaned['early_exit_at'] = None
+        else:
+            if not cleaned.get('early_entry_at'):
+                self.add_error('early_entry_at', 'Indicá cuándo entra al predio.')
+            if not cleaned.get('early_exit_at'):
+                self.add_error('early_exit_at', 'Indicá cuándo sale del predio.')
+            if cleaned.get('early_entry_at') and cleaned.get('early_exit_at') and cleaned['early_exit_at'] < cleaned['early_entry_at']:
+                self.add_error('early_exit_at', 'La salida no puede ser anterior a la entrada.')
         if not cleaned.get('for_exit'):
-            cleaned['departure_date'] = None
-        elif not cleaned.get('departure_date'):
-            self.add_error('departure_date', 'Indicá la fecha de salida del proveedor.')
-        if cleaned.get('entry_date') and cleaned.get('departure_date') and cleaned['departure_date'] < cleaned['entry_date']:
-            self.add_error('departure_date', 'La salida no puede ser anterior al ingreso.')
+            cleaned['dismantling_entry_at'] = cleaned['dismantling_exit_at'] = None
+        else:
+            if not cleaned.get('dismantling_entry_at'):
+                self.add_error('dismantling_entry_at', 'Indicá cuándo entra para el desarme.')
+            if not cleaned.get('dismantling_exit_at'):
+                self.add_error('dismantling_exit_at', 'Indicá cuándo sale definitivamente.')
+            if cleaned.get('dismantling_entry_at') and cleaned.get('dismantling_exit_at') and cleaned['dismantling_exit_at'] < cleaned['dismantling_entry_at']:
+                self.add_error('dismantling_exit_at', 'La salida no puede ser anterior a la entrada.')
+        if cleaned.get('for_entry') and cleaned.get('for_exit') and cleaned.get('early_exit_at') and cleaned.get('dismantling_entry_at') and cleaned['dismantling_entry_at'] < cleaned['early_exit_at']:
+            self.add_error('dismantling_entry_at', 'El desarme no puede comenzar antes de que termine el ingreso anticipado.')
         return cleaned
 
 

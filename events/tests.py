@@ -9,7 +9,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from .forms import ArtworkForm, ArtworkGrantItemForm, ArtworkPhotoUploadForm
+from .forms import ArtworkForm, ArtworkGrantItemForm, ArtworkPhotoUploadForm, ArtworkProviderForm
 from .art_reminders import send_art_reminders
 from .models import (
     ArtProgram, Artwork, ArtworkGrantItem, ArtworkInvitation,
@@ -113,6 +113,10 @@ class ArtworkFlowTest(TestCase):
 
     def test_itemized_grant_uses_frozen_decimal_exchange_rate(self):
         artwork = Artwork.objects.create(event=self.event, owner=self.owner, grant_requested=True)
+        self.assertTrue(ArtworkGrantItemForm(
+            instance=ArtworkGrantItem(artwork=artwork), phase=ArtworkGrantItem.Phase.BUDGET,
+        ).fields['images'].widget.allow_multiple_selected)
+        self.assertTrue(ArtworkPhotoUploadForm().fields['images'].widget.allow_multiple_selected)
         ars_form = ArtworkGrantItemForm({
             'item_type': 'materials', 'concept': 'Hierro', 'amount': '1000.25', 'currency': 'ARS',
             'exchange_rate': '999', 'rate_date': timezone.localdate(), 'rate_source': 'No aplica',
@@ -146,6 +150,16 @@ class ArtworkFlowTest(TestCase):
             'rate_source': usd.rate_source, 'expected_updated_at': previous_update,
         }, instance=usd, phase=ArtworkGrantItem.Phase.BUDGET)
         self.assertFalse(stale.is_valid())
+
+        artwork.owner = self.owner
+        artwork.grant_requested = True
+        artwork.grant_justification = 'Necesitamos apoyo para producir la obra.'
+        artwork.save()
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse('grant_submit', args=[artwork.pk]))
+        self.assertEqual(response.url, f"{reverse('artwork_edit', args=[artwork.pk])}#beca")
+        artwork.refresh_from_db()
+        self.assertEqual(artwork.grant_status, Artwork.GrantStatus.PENDING)
 
     def test_permissions_invitation_and_multiple_photo_upload(self):
         artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro', proposal='Texto')
@@ -190,7 +204,9 @@ class ArtworkFlowTest(TestCase):
         artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro', proposal='Texto', grant_requested=True)
         self.client.force_login(self.owner)
         entry_at = timezone.localtime().replace(hour=9, minute=30, second=0, microsecond=0)
-        exit_at = entry_at + timedelta(days=4, hours=9)
+        early_exit_at = entry_at + timedelta(hours=8, minutes=30)
+        dismantling_entry_at = entry_at + timedelta(days=4)
+        dismantling_exit_at = dismantling_entry_at + timedelta(hours=9)
 
         response = self.client.post(reverse('logistics_person_create', args=[artwork.pk]), {
             'first_name': 'Ada', 'last_name': 'Sur', 'email': 'ada@example.com', 'phone': '+5491112345678',
@@ -219,21 +235,49 @@ class ArtworkFlowTest(TestCase):
         self.assertContains(invalid_provider, 'Elegí si el proveedor participa del ingreso')
         self.assertEqual(ArtworkProvider.objects.filter(artwork=artwork).count(), 0)
 
+        incomplete_window = ArtworkProviderForm({
+            'company_name': 'Ventana incompleta', 'contact_first_name': 'Luz', 'contact_last_name': 'Ríos',
+            'email': 'ventana@example.com', 'phone': '+5491199999999',
+            'service_description': 'Entrega', 'for_entry': 'on',
+            'early_entry_at': entry_at.strftime('%Y-%m-%dT%H:%M'),
+        })
+        self.assertFalse(incomplete_window.is_valid())
+        self.assertIn('early_exit_at', incomplete_window.errors)
+
+        inverted_windows = ArtworkProviderForm({
+            'company_name': 'Ventanas invertidas', 'contact_first_name': 'Luz', 'contact_last_name': 'Ríos',
+            'email': 'invertidas@example.com', 'phone': '+5491199999999',
+            'service_description': 'Entrega y retiro', 'for_entry': 'on', 'for_exit': 'on',
+            'early_entry_at': entry_at.strftime('%Y-%m-%dT%H:%M'),
+            'early_exit_at': (entry_at + timedelta(days=3)).strftime('%Y-%m-%dT%H:%M'),
+            'dismantling_entry_at': (entry_at + timedelta(days=2)).strftime('%Y-%m-%dT%H:%M'),
+            'dismantling_exit_at': (entry_at + timedelta(days=4)).strftime('%Y-%m-%dT%H:%M'),
+        })
+        self.assertFalse(inverted_windows.is_valid())
+        self.assertIn('dismantling_entry_at', inverted_windows.errors)
+
         response = self.client.post(reverse('artwork_provider_create', args=[artwork.pk]), {
             'company_name': 'Grúas Sur', 'contact_first_name': 'Luz', 'contact_last_name': 'Ríos',
             'email': 'logistica@example.com', 'phone': '+5491199999999',
             'service_description': 'Traslado de estructura', 'for_entry': 'on', 'for_exit': 'on',
-            'entry_date': timezone.localtime(entry_at).strftime('%Y-%m-%dT%H:%M'),
-            'departure_date': timezone.localtime(exit_at).strftime('%Y-%m-%dT%H:%M'),
+            'early_entry_at': entry_at.strftime('%Y-%m-%dT%H:%M'),
+            'early_exit_at': early_exit_at.strftime('%Y-%m-%dT%H:%M'),
+            'dismantling_entry_at': dismantling_entry_at.strftime('%Y-%m-%dT%H:%M'),
+            'dismantling_exit_at': dismantling_exit_at.strftime('%Y-%m-%dT%H:%M'),
         })
         self.assertEqual(response.status_code, 302)
         provider = ArtworkProvider.objects.get(artwork=artwork)
-        self.assertEqual(timezone.localtime(provider.entry_date).strftime('%H:%M'), '09:30')
-        self.assertEqual(timezone.localtime(provider.departure_date).strftime('%H:%M'), '18:30')
+        self.assertEqual(timezone.localtime(provider.early_entry_at).strftime('%H:%M'), '09:30')
+        self.assertEqual(timezone.localtime(provider.early_exit_at).strftime('%H:%M'), '18:00')
+        self.assertEqual(timezone.localtime(provider.dismantling_entry_at).strftime('%H:%M'), '09:30')
+        self.assertEqual(timezone.localtime(provider.dismantling_exit_at).strftime('%H:%M'), '18:30')
         page = self.client.get(reverse('artwork_edit', args=[artwork.pk]))
         self.assertIn(provider, page.context['entry_providers'])
         self.assertIn(provider, page.context['exit_providers'])
         self.assertContains(page, reverse('artwork_provider_edit', args=[artwork.pk, provider.pk]))
+        self.assertContains(page, 'Ingreso anticipado')
+        self.assertContains(page, 'Desarme y retiro')
+        self.assertContains(page, f'artwork-position-{artwork.pk}')
         with self.assertRaises(IntegrityError), transaction.atomic():
             ArtworkProvider.objects.create(
                 artwork=artwork, company_name='Inválido', contact_first_name='Sin', contact_last_name='Operación',

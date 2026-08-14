@@ -436,7 +436,7 @@ def grant_submit(request, artwork_id):
             artwork.grant_status = Artwork.GrantStatus.PENDING
             artwork.save(update_fields=['grant_status', 'updated_at'])
             messages.success(request, 'La solicitud de beca fue presentada para revisión.')
-    return redirect('artwork_edit', artwork_id=artwork.pk)
+    return _artwork_redirect(artwork, 'beca')
 
 
 @login_required
@@ -465,7 +465,7 @@ def grant_report_submit(request, artwork_id):
             artwork.grant_status = Artwork.GrantStatus.REPORTED
             artwork.save(update_fields=['grant_status', 'updated_at'])
             messages.success(request, 'La rendición fue enviada para revisión.')
-    return redirect('artwork_edit', artwork_id=artwork.pk)
+    return _artwork_redirect(artwork, 'rendicion')
 
 
 @login_required

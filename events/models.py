@@ -764,8 +764,10 @@ class ArtworkProvider(BaseModel):
     service_description = models.TextField(verbose_name='Servicio o materiales que entrega')
     for_entry = models.BooleanField(default=True, verbose_name='Se usa para el ingreso anticipado')
     for_exit = models.BooleanField(default=True, verbose_name='Se usa para el desarme y salida')
-    entry_date = models.DateTimeField(null=True, blank=True, verbose_name='Fecha y hora de ingreso')
-    departure_date = models.DateTimeField(null=True, blank=True, verbose_name='Fecha y hora de salida')
+    early_entry_at = models.DateTimeField(null=True, blank=True, verbose_name='Entrada al predio')
+    early_exit_at = models.DateTimeField(null=True, blank=True, verbose_name='Salida del predio')
+    dismantling_entry_at = models.DateTimeField(null=True, blank=True, verbose_name='Entrada al predio para desarme')
+    dismantling_exit_at = models.DateTimeField(null=True, blank=True, verbose_name='Salida final del predio')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
 
     class Meta:
