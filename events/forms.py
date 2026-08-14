@@ -215,7 +215,7 @@ class ArtworkGrantItemForm(forms.ModelForm):
 
     class Meta:
         model = ArtworkGrantItem
-        fields = ('concept', 'details', 'amount', 'currency', 'exchange_rate', 'rate_date', 'rate_source')
+        fields = ('item_type', 'concept', 'details', 'amount', 'currency', 'exchange_rate', 'rate_date', 'rate_source')
         widgets = {
             'details': forms.Textarea(attrs={'rows': 5}),
             'rate_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),

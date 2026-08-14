@@ -16,11 +16,11 @@
     <div class="row g-4 mb-4">
         <section class="col-lg-6" aria-labelledby="admin-budget-title">
             <h3 id="admin-budget-title" class="h5">Detalle del presupuesto</h3>
-            {% include 'mi_fuego/art/_grant_items.html' with items=budget_items can_edit=False %}
+            {% include 'mi_fuego/art/_grant_items.html' with items=budget_items can_edit=False total_ars=budget_total_ars %}
         </section>
         <section class="col-lg-6" aria-labelledby="admin-expense-title">
             <h3 id="admin-expense-title" class="h5">Detalle de la rendición</h3>
-            {% include 'mi_fuego/art/_grant_items.html' with items=expense_items can_edit=False %}
+            {% include 'mi_fuego/art/_grant_items.html' with items=expense_items can_edit=False total_ars=expense_total_ars %}
         </section>
     </div>
     <form method="post" novalidate>{% csrf_token %}

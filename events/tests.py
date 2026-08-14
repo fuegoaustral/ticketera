@@ -27,6 +27,7 @@ class ArtworkFlowTest(TestCase):
             user.profile.phone = f'+54911000000{index:02d}'
             user.profile.profile_completion = Profile.COMPLETE
             user.profile.save()
+        Event.objects.filter(is_main=True).update(is_main=False)
         self.event = Event.objects.create(
             name='FA Carnaval', slug='fa-carnaval', active=True, is_main=True,
             start=now + timedelta(days=20), end=now + timedelta(days=24),
@@ -100,7 +101,7 @@ class ArtworkFlowTest(TestCase):
     def test_itemized_grant_uses_frozen_decimal_exchange_rate(self):
         artwork = Artwork.objects.create(event=self.event, owner=self.owner, grant_requested=True)
         ars_form = ArtworkGrantItemForm({
-            'concept': 'Hierro', 'amount': '1000.25', 'currency': 'ARS',
+            'item_type': 'materials', 'concept': 'Hierro', 'amount': '1000.25', 'currency': 'ARS',
             'exchange_rate': '999', 'rate_date': timezone.localdate(), 'rate_source': 'No aplica',
         }, instance=ArtworkGrantItem(artwork=artwork, created_by=self.owner), phase=ArtworkGrantItem.Phase.BUDGET)
         self.assertTrue(ars_form.is_valid(), ars_form.errors)
@@ -109,7 +110,7 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(ars.amount_ars, Decimal('1000.25'))
 
         usd_form = ArtworkGrantItemForm({
-            'concept': 'LEDs', 'amount': '10.50', 'currency': 'USD',
+            'item_type': 'service', 'concept': 'LEDs', 'amount': '10.50', 'currency': 'USD',
             'exchange_rate': '1234.5678', 'rate_date': timezone.localdate(), 'rate_source': 'BNA vendedor',
         }, instance=ArtworkGrantItem(artwork=artwork, created_by=self.owner), phase=ArtworkGrantItem.Phase.BUDGET)
         self.assertTrue(usd_form.is_valid(), usd_form.errors)
@@ -118,7 +119,7 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(artwork.budget_total_ars, Decimal('13963.21'))
 
         missing_source = ArtworkGrantItemForm({
-            'concept': 'Tela', 'amount': '2', 'currency': 'USD',
+            'item_type': 'other', 'concept': 'Tela', 'amount': '2', 'currency': 'USD',
             'exchange_rate': '1000', 'rate_date': timezone.localdate(),
         }, instance=ArtworkGrantItem(artwork=artwork), phase=ArtworkGrantItem.Phase.BUDGET)
         self.assertFalse(missing_source.is_valid())
@@ -127,7 +128,7 @@ class ArtworkFlowTest(TestCase):
         ArtworkGrantItem.objects.filter(pk=usd.pk).update(amount=20, updated_at=timezone.now())
         usd.refresh_from_db()
         stale = ArtworkGrantItemForm({
-            'concept': usd.concept, 'amount': '30', 'currency': 'USD',
+            'item_type': usd.item_type, 'concept': usd.concept, 'amount': '30', 'currency': 'USD',
             'exchange_rate': usd.exchange_rate, 'rate_date': usd.rate_date,
             'rate_source': usd.rate_source, 'expected_updated_at': previous_update,
         }, instance=usd, phase=ArtworkGrantItem.Phase.BUDGET)

@@ -656,8 +656,15 @@ class ArtworkGrantItem(BaseModel):
         ARS = 'ARS', 'Pesos argentinos (ARS)'
         USD = 'USD', 'Dólares estadounidenses (USD)'
 
+    class ItemType(models.TextChoices):
+        MATERIALS = 'materials', 'Materiales'
+        LABOR = 'labor', 'Mano de obra'
+        SERVICE = 'service', 'Servicio'
+        OTHER = 'other', 'Otro'
+
     artwork = models.ForeignKey(Artwork, on_delete=models.CASCADE, related_name='grant_items')
     phase = models.CharField(max_length=8, choices=Phase.choices)
+    item_type = models.CharField(max_length=10, choices=ItemType.choices, default=ItemType.OTHER, verbose_name='Tipo')
     concept = models.CharField(max_length=200, verbose_name='Concepto')
     details = models.TextField(blank=True, verbose_name='Detalle')
     amount = models.DecimalField(max_digits=14, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))], verbose_name='Monto original')

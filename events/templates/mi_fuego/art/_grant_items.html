@@ -1,10 +1,11 @@
 {% if items %}
 <div class="table-responsive">
     <table class="table table-sm align-middle mb-0">
-        <thead><tr><th>Concepto</th><th>Original</th><th>Cotización</th><th class="text-end">ARS</th>{% if can_edit %}<th><span class="visually-hidden">Acciones</span></th>{% endif %}</tr></thead>
+        <thead><tr><th>Tipo</th><th>Concepto</th><th>Original</th><th>Cotización</th><th class="text-end">ARS</th>{% if can_edit %}<th><span class="visually-hidden">Acciones</span></th>{% endif %}</tr></thead>
         <tbody>
         {% for item in items %}
             <tr>
+                <td>{{ item.get_item_type_display }}</td>
                 <td><strong>{{ item.concept }}</strong>{% if item.details %}<br><small class="text-muted">{{ item.details }}</small>{% endif %}</td>
                 <td>{{ item.currency }} {{ item.amount|floatformat:2 }}</td>
                 <td>{{ item.rate_date|date:'d/m/Y' }}{% if item.currency == 'USD' %}<br><small>{{ item.exchange_rate|floatformat:4 }} · {{ item.rate_source }}</small>{% endif %}</td>
@@ -13,6 +14,7 @@
             </tr>
         {% endfor %}
         </tbody>
+        <tfoot><tr><th colspan="4" class="text-end">Total ARS</th><th class="text-end">{{ total_ars|floatformat:2 }}</th>{% if can_edit %}<th></th>{% endif %}</tr></tfoot>
     </table>
 </div>
 {% else %}<p class="small text-muted mb-0">Todavía no hay ítems.</p>{% endif %}
