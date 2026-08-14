@@ -1,0 +1,8 @@
+{% extends 'emails/base.html' %}
+{% block subject %}Arte FA: {{ checkpoint }} de {{ artwork.title }}{% endblock %}
+{% block title %}Se acerca una fecha de Arte{% endblock %}
+{% block content %}
+    <p>Hola{% if user.get_full_name %} {{ user.get_full_name|safe }}{% endif %},</p>
+    <p>Falta completar <strong>{{ checkpoint }}</strong> de <strong>{{ artwork.title }}</strong>. Podés editarlo hasta el {{ deadline|date:'d/m/Y H:i' }}.</p>
+    {% include 'emails/partials/btn.html' with label='Completar la obra' href=artwork_path %}
+{% endblock %}

@@ -446,3 +446,4 @@ CKEDITOR_5_CONFIGS = {
         }
     }
 }
+TWILIO_WHATSAPP_FROM = os.environ.get('TWILIO_WHATSAPP_FROM', '')

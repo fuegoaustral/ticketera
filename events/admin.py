@@ -15,6 +15,9 @@ from .models import (
     GrupoTipo,
     Grupo,
     GrupoMiembro,
+    ArtProgram,
+    Artwork,
+    ArtworkGrantPhoto,
 )
 
 
@@ -1031,6 +1034,28 @@ class EventRequestAdmin(admin.ModelAdmin):
         from events.services.event_request_processing import reject_event_request
         for event_request in queryset.filter(status=EventRequest.Status.PENDING):
             reject_event_request(event_request, reason='Rechazada desde admin')
+
+
+@admin.register(ArtProgram)
+class ArtProgramAdmin(admin.ModelAdmin):
+    list_display = ('event', 'registration_opens', 'registration_closes', 'grants_enabled', 'grant_deadline', 'guide_deadline', 'logistics_deadline')
+    list_filter = ('grants_enabled', 'event')
+    date_hierarchy = 'registration_opens'
+
+
+class ArtworkGrantPhotoInline(admin.TabularInline):
+    model = ArtworkGrantPhoto
+    extra = 0
+
+
+@admin.register(Artwork)
+class ArtworkAdmin(admin.ModelAdmin):
+    list_display = ('title', 'event', 'kind', 'owner', 'grant_status', 'submitted_at', 'checkout_completed', 'updated_at')
+    list_filter = ('event', 'kind', 'grant_status', 'checkout_completed', 'submitted_at')
+    search_fields = ('title', 'owner__email', 'public_description')
+    autocomplete_fields = ('owner', 'collaborators')
+    readonly_fields = ('submitted_at', 'created_at', 'updated_at')
+    inlines = [ArtworkGrantPhotoInline]
 
 
 admin.site.register(Event, EventAdmin)

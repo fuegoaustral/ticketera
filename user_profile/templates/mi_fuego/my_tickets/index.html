@@ -116,6 +116,14 @@
                 {% endif %}
             </ul>
         </div>
+
+        <div class="menu-section">
+            <a class="menu-section-title menu-section-link{% if nav_primary == "art" %} active{% endif %}"
+               href="{% url "art_dashboard" %}">
+                <i class="fas fa-palette me-2"></i>
+                Arte
+            </a>
+        </div>
         
         {% if request.user.profile.miembro_sede %}
         <div class="menu-section">

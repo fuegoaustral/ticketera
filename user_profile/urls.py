@@ -39,6 +39,7 @@ from .views import (
     grupo_manage_view,
     grupo_toggle_ajax,
 )
+from events.art_views import art_dashboard, artwork_create, artwork_edit
 
 urlpatterns = [
     # Profile related paths
@@ -58,6 +59,9 @@ urlpatterns = [
     path("la-sede/", la_sede_view, name="la_sede"),
     path("la-sede/proponer-evento/", propose_event_view, name="propose_event"),
     path("la-sede/mis-propuestas/", my_event_requests_view, name="my_event_requests"),
+    path("arte/", art_dashboard, name="art_dashboard"),
+    path("arte/<slug:event_slug>/nueva/", artwork_create, name="artwork_create"),
+    path("arte/obra/<int:artwork_id>/", artwork_edit, name="artwork_edit"),
     path("mis-eventos/", my_events_view, name="my_events"),
     path("mis-eventos/<slug:event_slug>/", event_admin_view, name="event_admin"),
     path("mis-eventos/<slug:event_slug>/configuracion/", event_management_view, name="event_management"),

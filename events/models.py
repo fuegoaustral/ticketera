@@ -3,6 +3,7 @@ from django.db.models import Count, Sum, Q
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.utils import timezone
 from django.utils.text import slugify
 from django.contrib.auth.models import User
@@ -464,8 +465,126 @@ class EventRequestTicketType(BaseModel):
         return f'{self.name} (${self.price})'
 
 
+class ArtProgram(BaseModel):
+    """Fechas que habilitan y bloquean cada bloque del formulario de Arte."""
+
+    event = models.OneToOneField(Event, on_delete=models.CASCADE, related_name='art_program')
+    registration_opens = models.DateTimeField(null=True, blank=True, verbose_name='Apertura de inscripción')
+    registration_closes = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de inscripción')
+    proposal_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de propuesta')
+    grants_enabled = models.BooleanField(default=False, verbose_name='Becas habilitadas')
+    grant_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de becas')
+    guide_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de desplegable')
+    logistics_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de logística')
+    checkout_opens = models.DateTimeField(null=True, blank=True, verbose_name='Apertura de checkout')
+    checkout_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de checkout')
+    grant_report_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de rendición de becas')
+
+    class Meta:
+        verbose_name = 'Programa de Arte'
+        verbose_name_plural = 'Programas de Arte'
+
+    def __str__(self):
+        return f'Arte · {self.event.name}'
+
+    def clean(self):
+        errors = {}
+        if self.registration_opens and self.registration_closes and self.registration_closes < self.registration_opens:
+            errors['registration_closes'] = 'El cierre no puede ser anterior a la apertura.'
+        if self.checkout_opens and self.checkout_deadline and self.checkout_deadline < self.checkout_opens:
+            errors['checkout_deadline'] = 'El cierre no puede ser anterior a la apertura.'
+        if errors:
+            raise ValidationError(errors)
+
+    def registration_is_open(self, at=None):
+        at = at or timezone.now()
+        return (
+            (not self.registration_opens or self.registration_opens <= at)
+            and (not self.registration_closes or at <= self.registration_closes)
+        )
+
+    def checkpoint_state(self, block, at=None):
+        at = at or timezone.now()
+        if block == 'checkout' and self.checkout_opens and at < self.checkout_opens:
+            return 'upcoming'
+        deadline = getattr(self, f'{block}_deadline')
+        return 'closed' if deadline and at > deadline else 'open'
+
+
+class Artwork(BaseModel):
+    class Kind(models.TextChoices):
+        PLANNED = 'planned', 'Obra inscripta'
+        POPUP = 'popup', 'Obra espontánea (popup)'
+
+    class GrantStatus(models.TextChoices):
+        NOT_REQUESTED = 'none', 'No solicitada'
+        PENDING = 'pending', 'Pendiente'
+        APPROVED = 'approved', 'Aprobada'
+        REJECTED = 'rejected', 'No aprobada'
+
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='artworks')
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='owned_artworks', verbose_name='Responsable')
+    collaborators = models.ManyToManyField(User, blank=True, related_name='collaborative_artworks')
+    kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.PLANNED, verbose_name='Modalidad')
+
+    title = models.CharField(max_length=120, verbose_name='Nombre de la obra')
+    proposal = models.TextField(verbose_name='Descripción de la propuesta')
+    dimensions = models.CharField(max_length=200, blank=True, verbose_name='Dimensiones')
+    materials = models.TextField(blank=True, verbose_name='Materiales')
+    technical_needs = models.TextField(blank=True, verbose_name='Necesidades técnicas y energía')
+    safety_plan = models.TextField(blank=True, verbose_name='Seguridad y uso de fuego')
+
+    grant_requested = models.BooleanField(default=False, verbose_name='Quiero solicitar una beca')
+    grant_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(1)], verbose_name='Monto solicitado')
+    grant_budget = models.TextField(blank=True, verbose_name='Presupuesto y uso de los fondos')
+    grant_justification = models.TextField(blank=True, verbose_name='Por qué la beca hace posible la obra')
+    grant_status = models.CharField(max_length=10, choices=GrantStatus.choices, default=GrantStatus.NOT_REQUESTED, verbose_name='Estado de la beca')
+    grant_report = models.TextField(blank=True, verbose_name='Rendición y resultado de la obra')
+
+    public_title = models.CharField(max_length=80, blank=True, verbose_name='Título para el desplegable')
+    public_description = models.CharField(max_length=500, blank=True, verbose_name='Descripción para el desplegable')
+    preferred_location = models.CharField(max_length=200, blank=True, verbose_name='Ubicación preferida')
+
+    arrival_date = models.DateField(null=True, blank=True, verbose_name='Fecha de ingreso anticipado')
+    departure_date = models.DateField(null=True, blank=True, verbose_name='Fecha de salida')
+    crew = models.TextField(blank=True, verbose_name='Equipo que ingresa')
+    providers = models.TextField(blank=True, verbose_name='Proveedores y vehículos')
+
+    checkout_completed = models.BooleanField(default=False, verbose_name='Obra retirada y espacio limpio')
+    checkout_notes = models.TextField(blank=True, verbose_name='Notas de checkout')
+    submitted_at = models.DateTimeField(null=True, blank=True, verbose_name='Enviada')
+
+    class Meta:
+        ordering = ['-updated_at']
+        verbose_name = 'Obra de Arte'
+        verbose_name_plural = 'Obras de Arte'
+
+    def __str__(self):
+        return f'{self.title} · {self.event.name}'
+
+    def can_edit(self, user):
+        return user == self.owner or self.collaborators.filter(pk=user.pk).exists()
+
+
+class ArtworkGrantPhoto(BaseModel):
+    artwork = models.ForeignKey(Artwork, on_delete=models.CASCADE, related_name='grant_photos')
+    image = models.ImageField(upload_to='art/grant_reports')
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        ordering = ['created_at']
+        verbose_name = 'Foto de rendición de beca'
+        verbose_name_plural = 'Fotos de rendición de becas'
+
+    def __str__(self):
+        return f'Foto · {self.artwork.title}'
+
+
 auditlog.register(Event)
 auditlog.register(GrupoTipo)
 auditlog.register(Grupo)
 auditlog.register(GrupoMiembro)
 auditlog.register(EventRequest)
+auditlog.register(ArtProgram)
+auditlog.register(Artwork)
+auditlog.register(ArtworkGrantPhoto)

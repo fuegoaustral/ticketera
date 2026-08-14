@@ -1,0 +1,143 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+
+{% block page_title %}{% if is_new %}Nueva obra{% else %}{{ artwork.title }}{% endif %}{% endblock page_title %}
+
+{% block truecontent %}
+<div class="container-fluid art-form-page">
+    <a class="small text-decoration-none" href="{% url 'art_dashboard' %}"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i> Volver a Arte</a>
+    <header class="mt-3 mb-4">
+        <p class="text-uppercase text-muted small fw-semibold mb-2">{{ program.event.name }}</p>
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-start gap-3">
+            <div>
+                <h1 class="mb-2">{% if is_new %}Nueva obra{% else %}{{ artwork.title }}{% endif %}</h1>
+                <p class="text-muted mb-0">Guardá avances cuando quieras. Al vencer una fecha, ese bloque queda visible pero ya no se puede editar.</p>
+            </div>
+            {% if artwork.submitted_at %}<span class="badge bg-success mt-1">Enviada el {{ artwork.submitted_at|date:'d/m/Y' }}</span>{% endif %}
+        </div>
+    </header>
+
+    <ol class="checkpoint-list list-unstyled d-grid mb-5" aria-label="Estado de fechas límite">
+        {% for checkpoint in checkpoints %}
+            <li class="checkpoint py-2">
+                <span class="checkpoint-dot checkpoint-{{ checkpoint.state }}" aria-hidden="true"></span>
+                <strong>{{ checkpoint.label }}</strong>
+                <small class="d-block text-muted ms-4">
+                    {% if checkpoint.state == 'closed' %}Cerrado{% elif checkpoint.state == 'upcoming' %}Todavía no habilitado{% else %}Editable{% endif %}
+                    {% if checkpoint.deadline %} · hasta {{ checkpoint.deadline|date:'d/m/Y H:i' }}{% endif %}
+                </small>
+            </li>
+        {% endfor %}
+    </ol>
+
+    <form method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+        <section class="form-section" aria-labelledby="proposal-title">
+            <div class="section-heading">
+                <div><span>01</span><h2 id="proposal-title">Propuesta</h2></div>
+                {% if form.title.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
+            </div>
+            <p class="text-muted">La información técnica para acompañar y ubicar la obra.</p>
+            {% include 'mi_fuego/art/_field.html' with field=form.kind %}
+            {% include 'mi_fuego/art/_field.html' with field=form.title %}
+            {% include 'mi_fuego/art/_field.html' with field=form.proposal %}
+            <div class="row"><div class="col-md-6">{% include 'mi_fuego/art/_field.html' with field=form.dimensions %}</div><div class="col-md-6">{% include 'mi_fuego/art/_field.html' with field=form.materials %}</div></div>
+            {% include 'mi_fuego/art/_field.html' with field=form.technical_needs %}
+            {% include 'mi_fuego/art/_field.html' with field=form.safety_plan %}
+            {% include 'mi_fuego/art/_field.html' with field=form.collaborator_emails %}
+        </section>
+
+        {% if program.grants_enabled %}
+        <section class="form-section" aria-labelledby="grant-title">
+            <div class="section-heading">
+                <div><span>02</span><h2 id="grant-title">Beca</h2></div>
+                <div class="d-flex gap-2">
+                    {% if artwork and artwork.grant_requested %}<span class="badge bg-light text-dark border">{{ artwork.get_grant_status_display }}</span>{% endif %}
+                    {% if form.grant_requested.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
+                </div>
+            </div>
+            <p class="text-muted">Solicitá apoyo económico y detallá cómo se van a usar los fondos.</p>
+            {% include 'mi_fuego/art/_field.html' with field=form.grant_requested %}
+            {% include 'mi_fuego/art/_field.html' with field=form.grant_amount %}
+            {% include 'mi_fuego/art/_field.html' with field=form.grant_budget %}
+            {% include 'mi_fuego/art/_field.html' with field=form.grant_justification %}
+        </section>
+        {% endif %}
+
+        <section class="form-section" aria-labelledby="guide-title">
+            <div class="section-heading">
+                <div><span>{% if program.grants_enabled %}03{% else %}02{% endif %}</span><h2 id="guide-title">Desplegable y placement</h2></div>
+                {% if form.public_title.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
+            </div>
+            <p class="text-muted">El texto público y la preferencia de ubicación.</p>
+            {% include 'mi_fuego/art/_field.html' with field=form.public_title %}
+            {% include 'mi_fuego/art/_field.html' with field=form.public_description %}
+            {% include 'mi_fuego/art/_field.html' with field=form.preferred_location %}
+        </section>
+
+        <section class="form-section" aria-labelledby="logistics-title">
+            <div class="section-heading">
+                <div><span>{% if program.grants_enabled %}04{% else %}03{% endif %}</span><h2 id="logistics-title">Ingreso, proveedores y salida</h2></div>
+                {% if form.arrival_date.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
+            </div>
+            <p class="text-muted">Centraliza ingreso anticipado y late checkout del equipo y sus proveedores.</p>
+            <div class="row"><div class="col-md-6">{% include 'mi_fuego/art/_field.html' with field=form.arrival_date %}</div><div class="col-md-6">{% include 'mi_fuego/art/_field.html' with field=form.departure_date %}</div></div>
+            {% include 'mi_fuego/art/_field.html' with field=form.crew %}
+            {% include 'mi_fuego/art/_field.html' with field=form.providers %}
+        </section>
+
+        <section class="form-section" aria-labelledby="checkout-title">
+            <div class="section-heading">
+                <div><span>{% if program.grants_enabled %}05{% else %}04{% endif %}</span><h2 id="checkout-title">Checkout</h2></div>
+                {% if form.checkout_completed.field.disabled %}<span class="badge bg-secondary">No editable</span>{% endif %}
+            </div>
+            <p class="text-muted">Confirmá que la obra fue retirada y el espacio quedó limpio.</p>
+            {% include 'mi_fuego/art/_field.html' with field=form.checkout_completed %}
+            {% include 'mi_fuego/art/_field.html' with field=form.checkout_notes %}
+        </section>
+
+        {% if program.grants_enabled %}
+        <section class="form-section" aria-labelledby="grant-report-title">
+            <div class="section-heading">
+                <div><span>06</span><h2 id="grant-report-title">Rendición de beca</h2></div>
+                {% if form.grant_report.field.disabled %}<span class="badge bg-secondary">No editable</span>{% endif %}
+            </div>
+            <p class="text-muted">Dejá registro del resultado y subí las fotos finales. Podés agregar una foto en cada guardado.</p>
+            {% include 'mi_fuego/art/_field.html' with field=form.grant_report %}
+            {% include 'mi_fuego/art/_field.html' with field=form.grant_photo %}
+            {% if artwork.grant_photos.all %}
+                <div class="row g-2 mt-2">
+                    {% for photo in artwork.grant_photos.all %}
+                        <div class="col-6 col-md-3"><a href="{{ photo.image.url }}" target="_blank" rel="noopener"><img class="img-fluid rounded" src="{{ photo.image.url }}" alt="Foto de rendición de {{ artwork.title }}"></a></div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </section>
+        {% endif %}
+
+        <div class="save-bar d-flex flex-column flex-sm-row justify-content-end gap-2 py-3">
+            <button class="btn btn-outline-primary" type="submit" name="action" value="save">Guardar borrador</button>
+            <button class="btn btn-primary" type="submit" name="action" value="submit">Guardar y enviar</button>
+        </div>
+    </form>
+</div>
+
+<style>
+    .art-form-page { max-width: 860px; }
+    .art-form-page header p { max-width: 68ch; }
+    .checkpoint-list { grid-template-columns: repeat(auto-fit, minmax(115px, 1fr)); gap: 1rem; }
+    .checkpoint { border-bottom: 1px solid #dee2e6; }
+    .checkpoint-dot { display: inline-block; width: .65rem; height: .65rem; margin-right: .5rem; border-radius: 50%; background: #6c757d; }
+    .checkpoint-open { background: #289e6d; }
+    .checkpoint-upcoming { background: #d39e00; }
+    .form-section { padding: 0 0 2.5rem; margin-bottom: 2.5rem; border-bottom: 1px solid #dee2e6; }
+    .section-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+    .section-heading > div { display: flex; align-items: baseline; gap: .75rem; }
+    .section-heading > div > span { color: #289e6d; font-weight: 700; }
+    .section-heading h2 { margin: 0; font-size: 1.5rem; }
+    .form-control:disabled, .form-select:disabled { opacity: 1; background-color: #f1f3f2; color: #5c636a; }
+    .save-bar { position: sticky; bottom: 0; z-index: 2; background: rgba(250, 251, 250, .96); border-top: 1px solid #dee2e6; }
+    @media (max-width: 767px) { .checkpoint-list { grid-template-columns: 1fr 1fr; } }
+</style>
+{% endblock %}
