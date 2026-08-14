@@ -103,10 +103,33 @@ def _ensure_operations_group(artwork, program):
     return group
 
 
-def _artwork_context(artwork, program, form):
+def _artwork_context(artwork, program, form, inline_forms=None):
+    inline_forms = inline_forms or {}
     context = _base_context(artwork.event)
-    budget = artwork.grant_items.filter(phase=ArtworkGrantItem.Phase.BUDGET).prefetch_related('photos')
-    expenses = artwork.grant_items.filter(phase=ArtworkGrantItem.Phase.EXPENSE).prefetch_related('photos')
+    budget = list(artwork.grant_items.filter(phase=ArtworkGrantItem.Phase.BUDGET).prefetch_related('photos'))
+    expenses = list(artwork.grant_items.filter(phase=ArtworkGrantItem.Phase.EXPENSE).prefetch_related('photos'))
+    people = list(artwork.logistics_people.all())
+    providers = list(artwork.artwork_providers.prefetch_related('vehicles'))
+    for item in budget + expenses:
+        item.inline_form = inline_forms.get(('grant', item.pk)) or ArtworkGrantItemForm(
+            instance=item, phase=item.phase, auto_id=f'grant-{item.pk}_%s',
+        )
+    for person in people:
+        person.inline_form = inline_forms.get(('person', person.pk)) or ArtworkLogisticsPersonForm(
+            instance=person, auto_id=f'person-{person.pk}_%s',
+        )
+    for provider in providers:
+        provider.inline_form = inline_forms.get(('provider', provider.pk)) or ArtworkProviderForm(
+            instance=provider, auto_id=f'provider-{provider.pk}_%s',
+        )
+        provider.inline_vehicles = list(provider.vehicles.all())
+        provider.vehicle_create_form = inline_forms.get(('vehicle-new', provider.pk)) or ArtworkProviderVehicleForm(
+            instance=ArtworkProviderVehicle(provider=provider), auto_id=f'vehicle-{provider.pk}-new_%s',
+        )
+        for vehicle in provider.inline_vehicles:
+            vehicle.inline_form = inline_forms.get(('vehicle', vehicle.pk)) or ArtworkProviderVehicleForm(
+                instance=vehicle, auto_id=f'vehicle-{vehicle.pk}_%s',
+            )
     context.update({
         'form': form,
         'program': program,
@@ -116,8 +139,25 @@ def _artwork_context(artwork, program, form):
         'expense_items': expenses,
         'budget_total_ars': artwork.grant_total_ars(ArtworkGrantItem.Phase.BUDGET),
         'expense_total_ars': artwork.grant_total_ars(ArtworkGrantItem.Phase.EXPENSE),
-        'logistics_people': artwork.logistics_people.all(),
-        'artwork_providers': artwork.artwork_providers.prefetch_related('vehicles'),
+        'budget_create_form': inline_forms.get(('grant-new', ArtworkGrantItem.Phase.BUDGET)) or ArtworkGrantItemForm(
+            instance=ArtworkGrantItem(artwork=artwork, phase=ArtworkGrantItem.Phase.BUDGET),
+            phase=ArtworkGrantItem.Phase.BUDGET, auto_id='grant-budget-new_%s',
+        ),
+        'expense_create_form': inline_forms.get(('grant-new', ArtworkGrantItem.Phase.EXPENSE)) or ArtworkGrantItemForm(
+            instance=ArtworkGrantItem(artwork=artwork, phase=ArtworkGrantItem.Phase.EXPENSE),
+            phase=ArtworkGrantItem.Phase.EXPENSE, auto_id='grant-expense-new_%s',
+        ),
+        'photo_upload_form': inline_forms.get(('photo-new', None)) or ArtworkPhotoUploadForm(auto_id='photo-new_%s'),
+        'logistics_people': people,
+        'person_create_form': inline_forms.get(('person-new', None)) or ArtworkLogisticsPersonForm(
+            instance=ArtworkLogisticsPerson(artwork=artwork), auto_id='person-new_%s',
+        ),
+        'artwork_providers': providers,
+        'entry_providers': [provider for provider in providers if provider.for_entry],
+        'exit_providers': [provider for provider in providers if provider.for_exit],
+        'provider_create_form': inline_forms.get(('provider-new', None)) or ArtworkProviderForm(
+            instance=ArtworkProvider(artwork=artwork), auto_id='provider-new_%s',
+        ),
         'can_manage': artwork.can_manage(form.actor),
         'can_edit_budget': _grant_item_editable(artwork, ArtworkGrantItem.Phase.BUDGET, form.actor),
         'can_edit_expenses': _grant_item_editable(artwork, ArtworkGrantItem.Phase.EXPENSE, form.actor),
@@ -126,6 +166,21 @@ def _artwork_context(artwork, program, form):
         'can_submit_report': artwork.can_edit(form.actor) and program.is_current and program.checkpoint_state('grant_report') == 'open' and artwork.grant_status in (Artwork.GrantStatus.APPROVED, Artwork.GrantStatus.PAID),
     })
     return context
+
+
+def _inline_error_response(request, artwork, key, inline_form):
+    program = artwork.event.art_program
+    artwork_form = ArtworkForm(
+        instance=artwork, program=program, owner=artwork.owner, actor=request.user,
+    )
+    return render(
+        request, 'mi_fuego/art/form.html',
+        _artwork_context(artwork, program, artwork_form, {key: inline_form}),
+    )
+
+
+def _artwork_redirect(artwork, anchor):
+    return redirect(f"{reverse('artwork_edit', args=[artwork.pk])}#{anchor}")
 
 
 @login_required
@@ -242,53 +297,52 @@ def _save_grant_item_images(item, images, user):
 @login_required
 def grant_item_create(request, artwork_id, phase):
     access = _accessible_artworks(request.user)
-    if request.method == 'POST':
-        with transaction.atomic():
-            artwork = get_object_or_404(access.select_for_update(), pk=artwork_id)
-            if phase not in ArtworkGrantItem.Phase.values or not _grant_item_editable(artwork, phase, request.user):
-                return HttpResponseForbidden('Este bloque ya no se puede editar.')
-            item = ArtworkGrantItem(artwork=artwork, phase=phase, created_by=request.user)
-            form = ArtworkGrantItemForm(request.POST, request.FILES, instance=item, phase=phase)
-            if form.is_valid():
-                item = form.save()
-                _save_grant_item_images(item, form.cleaned_data['images'], request.user)
-                messages.success(request, 'Ítem agregado y total actualizado.')
-                return redirect('artwork_edit', artwork_id=artwork.pk)
-    else:
-        artwork = get_object_or_404(access, pk=artwork_id)
-        if phase not in ArtworkGrantItem.Phase.values or not _grant_item_editable(artwork, phase, request.user):
+    artwork = get_object_or_404(access, pk=artwork_id)
+    if phase not in ArtworkGrantItem.Phase.values or not _grant_item_editable(artwork, phase, request.user):
+        return HttpResponseForbidden('Este bloque ya no se puede editar.')
+    if request.method != 'POST':
+        return _artwork_redirect(artwork, 'beca' if phase == ArtworkGrantItem.Phase.BUDGET else 'rendicion')
+    with transaction.atomic():
+        artwork = get_object_or_404(access.select_for_update(), pk=artwork_id)
+        if not _grant_item_editable(artwork, phase, request.user):
             return HttpResponseForbidden('Este bloque ya no se puede editar.')
         item = ArtworkGrantItem(artwork=artwork, phase=phase, created_by=request.user)
-        form = ArtworkGrantItemForm(instance=item, phase=phase)
-    return render(request, 'mi_fuego/art/grant_item_form.html', {
-        **_base_context(artwork.event), 'artwork': artwork, 'form': form, 'phase': phase,
-    })
+        form = ArtworkGrantItemForm(
+            request.POST, request.FILES, instance=item, phase=phase,
+            auto_id=f'grant-{phase}-new_%s',
+        )
+        if form.is_valid():
+            item = form.save()
+            _save_grant_item_images(item, form.cleaned_data['images'], request.user)
+            messages.success(request, 'Ítem agregado y total actualizado.')
+            return _artwork_redirect(artwork, 'beca' if phase == ArtworkGrantItem.Phase.BUDGET else 'rendicion')
+    return _inline_error_response(request, artwork, ('grant-new', phase), form)
 
 
 @login_required
 def grant_item_edit(request, artwork_id, item_id):
     access = _accessible_artworks(request.user)
-    if request.method == 'POST':
-        with transaction.atomic():
-            artwork = get_object_or_404(access.select_for_update(), pk=artwork_id)
-            item = get_object_or_404(ArtworkGrantItem.objects.select_for_update(), pk=item_id, artwork=artwork)
-            if not _grant_item_editable(artwork, item.phase, request.user):
-                return HttpResponseForbidden('Este bloque ya no se puede editar.')
-            form = ArtworkGrantItemForm(request.POST, request.FILES, instance=item, phase=item.phase)
-            if form.is_valid():
-                item = form.save()
-                _save_grant_item_images(item, form.cleaned_data['images'], request.user)
-                messages.success(request, 'Ítem actualizado.')
-                return redirect('artwork_edit', artwork_id=artwork.pk)
-    else:
-        artwork = get_object_or_404(access, pk=artwork_id)
-        item = get_object_or_404(ArtworkGrantItem, pk=item_id, artwork=artwork)
+    artwork = get_object_or_404(access, pk=artwork_id)
+    item = get_object_or_404(ArtworkGrantItem, pk=item_id, artwork=artwork)
+    if not _grant_item_editable(artwork, item.phase, request.user):
+        return HttpResponseForbidden('Este bloque ya no se puede editar.')
+    if request.method != 'POST':
+        return _artwork_redirect(artwork, 'beca' if item.phase == ArtworkGrantItem.Phase.BUDGET else 'rendicion')
+    with transaction.atomic():
+        artwork = get_object_or_404(access.select_for_update(), pk=artwork_id)
+        item = get_object_or_404(ArtworkGrantItem.objects.select_for_update(), pk=item_id, artwork=artwork)
         if not _grant_item_editable(artwork, item.phase, request.user):
             return HttpResponseForbidden('Este bloque ya no se puede editar.')
-        form = ArtworkGrantItemForm(instance=item, phase=item.phase)
-    return render(request, 'mi_fuego/art/grant_item_form.html', {
-        **_base_context(artwork.event), 'artwork': artwork, 'form': form, 'phase': item.phase, 'item': item,
-    })
+        form = ArtworkGrantItemForm(
+            request.POST, request.FILES, instance=item, phase=item.phase,
+            auto_id=f'grant-{item.pk}_%s',
+        )
+        if form.is_valid():
+            item = form.save()
+            _save_grant_item_images(item, form.cleaned_data['images'], request.user)
+            messages.success(request, 'Ítem actualizado.')
+            return _artwork_redirect(artwork, 'beca' if item.phase == ArtworkGrantItem.Phase.BUDGET else 'rendicion')
+    return _inline_error_response(request, artwork, ('grant', item.pk), form)
 
 
 @login_required
@@ -302,7 +356,7 @@ def grant_item_delete(request, artwork_id, item_id):
             return HttpResponseForbidden('Este ítem no se puede eliminar.')
         item.delete()
     messages.success(request, 'Ítem eliminado.')
-    return redirect('artwork_edit', artwork_id=artwork.pk)
+    return _artwork_redirect(artwork, 'beca' if item.phase == ArtworkGrantItem.Phase.BUDGET else 'rendicion')
 
 
 @login_required
@@ -319,7 +373,7 @@ def grant_item_photo_delete(request, artwork_id, item_id, photo_id):
         photo.delete()
         transaction.on_commit(lambda: storage.delete(image_name))
     messages.success(request, 'Imagen eliminada del ítem.')
-    return redirect('grant_item_edit', artwork_id=artwork.pk, item_id=item.pk)
+    return _artwork_redirect(artwork, 'beca' if item.phase == ArtworkGrantItem.Phase.BUDGET else 'rendicion')
 
 
 @login_required
@@ -387,32 +441,29 @@ def grant_report_submit(request, artwork_id):
 @login_required
 def artwork_photo_upload(request, artwork_id):
     access = _accessible_artworks(request.user)
-    if request.method == 'POST':
-        with transaction.atomic():
-            artwork = get_object_or_404(access.select_for_update(), pk=artwork_id)
-            form = ArtworkPhotoUploadForm(request.POST, request.FILES)
-            if form.is_valid():
-                images = form.cleaned_data['images']
-                if artwork.photos.count() + len(images) > 100:
-                    form.add_error('images', 'La galería admite hasta 100 fotos por obra.')
-                else:
-                    for image in images:
-                        ArtworkPhoto.objects.create(
-                            artwork=artwork,
-                            image=image,
-                            stage=form.cleaned_data['stage'],
-                            caption=form.cleaned_data['caption'],
-                            publication_authorized=form.cleaned_data['publication_authorized'],
-                            uploaded_by=request.user,
-                        )
-                    messages.success(request, f"Se subieron {len(images)} foto(s).")
-                    return redirect('artwork_edit', artwork_id=artwork.pk)
-    else:
-        artwork = get_object_or_404(access, pk=artwork_id)
-        form = ArtworkPhotoUploadForm()
-    return render(request, 'mi_fuego/art/photo_upload.html', {
-        **_base_context(artwork.event), 'artwork': artwork, 'form': form,
-    })
+    artwork = get_object_or_404(access, pk=artwork_id)
+    if request.method != 'POST':
+        return _artwork_redirect(artwork, 'galeria')
+    with transaction.atomic():
+        artwork = get_object_or_404(access.select_for_update(), pk=artwork_id)
+        form = ArtworkPhotoUploadForm(request.POST, request.FILES, auto_id='photo-new_%s')
+        if form.is_valid():
+            images = form.cleaned_data['images']
+            if artwork.photos.count() + len(images) > 100:
+                form.add_error('images', 'La galería admite hasta 100 fotos por obra.')
+            else:
+                for image in images:
+                    ArtworkPhoto.objects.create(
+                        artwork=artwork,
+                        image=image,
+                        stage=form.cleaned_data['stage'],
+                        caption=form.cleaned_data['caption'],
+                        publication_authorized=form.cleaned_data['publication_authorized'],
+                        uploaded_by=request.user,
+                    )
+                messages.success(request, f"Se subieron {len(images)} foto(s).")
+                return _artwork_redirect(artwork, 'galeria')
+    return _inline_error_response(request, artwork, ('photo-new', None), form)
 
 
 @login_required
@@ -433,14 +484,7 @@ def artwork_photo_delete(request, artwork_id, photo_id):
         photo.delete()
         transaction.on_commit(lambda: storage.delete(image_name))
     messages.success(request, 'Foto eliminada de la galería.')
-    return redirect('artwork_edit', artwork_id=artwork.pk)
-
-
-def _logistics_form_response(request, artwork, form, heading, description):
-    return render(request, 'mi_fuego/art/logistics_form.html', {
-        **_base_context(artwork.event), 'artwork': artwork, 'form': form,
-        'heading': heading, 'description': description,
-    })
+    return _artwork_redirect(artwork, 'galeria')
 
 
 @login_required
@@ -450,8 +494,13 @@ def logistics_person_edit(request, artwork_id, person_id=None):
     if not _logistics_editable(artwork, request.user):
         return HttpResponseForbidden('La logística de esta obra ya no se puede editar.')
     person = get_object_or_404(ArtworkLogisticsPerson, artwork=artwork, pk=person_id) if person_id else ArtworkLogisticsPerson(artwork=artwork, created_by=request.user)
-    form = ArtworkLogisticsPersonForm(request.POST or None, instance=person)
-    if request.method == 'POST' and form.is_valid():
+    if request.method != 'POST':
+        return _artwork_redirect(artwork, 'logistica')
+    form = ArtworkLogisticsPersonForm(
+        request.POST, instance=person,
+        auto_id=f'person-{person_id}_%s' if person_id else 'person-new_%s',
+    )
+    if form.is_valid():
         with transaction.atomic():
             artwork = get_object_or_404(access.select_for_update(), pk=artwork_id)
             if not _logistics_editable(artwork, request.user):
@@ -460,11 +509,9 @@ def logistics_person_edit(request, artwork_id, person_id=None):
             form.instance.created_by = form.instance.created_by or request.user
             form.save()
         messages.success(request, 'Persona guardada en la logística de la obra.')
-        return redirect('artwork_edit', artwork_id=artwork.pk)
-    return _logistics_form_response(
-        request, artwork, form,
-        'Editar persona' if person_id else 'Agregar persona',
-        'Indicá por separado si participa del ingreso anticipado, del desarme o de ambos.',
+        return _artwork_redirect(artwork, 'logistica')
+    return _inline_error_response(
+        request, artwork, ('person', person.pk) if person_id else ('person-new', None), form,
     )
 
 
@@ -481,7 +528,7 @@ def logistics_person_delete(request, artwork_id, person_id):
             return HttpResponseForbidden('No se puede eliminar al responsable de un checkout solicitado.')
         person.delete()
     messages.success(request, 'Persona eliminada de la logística.')
-    return redirect('artwork_edit', artwork_id=artwork.pk)
+    return _artwork_redirect(artwork, 'logistica')
 
 
 @login_required
@@ -491,8 +538,13 @@ def artwork_provider_edit(request, artwork_id, provider_id=None):
     if not _logistics_editable(artwork, request.user):
         return HttpResponseForbidden('La logística de esta obra ya no se puede editar.')
     provider = get_object_or_404(ArtworkProvider, artwork=artwork, pk=provider_id) if provider_id else ArtworkProvider(artwork=artwork, created_by=request.user)
-    form = ArtworkProviderForm(request.POST or None, instance=provider)
-    if request.method == 'POST' and form.is_valid():
+    if request.method != 'POST':
+        return _artwork_redirect(artwork, 'logistica')
+    form = ArtworkProviderForm(
+        request.POST, instance=provider,
+        auto_id=f'provider-{provider_id}_%s' if provider_id else 'provider-new_%s',
+    )
+    if form.is_valid():
         with transaction.atomic():
             artwork = get_object_or_404(access.select_for_update(), pk=artwork_id)
             if not _logistics_editable(artwork, request.user):
@@ -501,11 +553,9 @@ def artwork_provider_edit(request, artwork_id, provider_id=None):
             form.instance.created_by = form.instance.created_by or request.user
             provider = form.save()
         messages.success(request, 'Proveedor guardado.')
-        return redirect('artwork_edit', artwork_id=artwork.pk)
-    return _logistics_form_response(
-        request, artwork, form,
-        'Editar proveedor' if provider_id else 'Agregar proveedor',
-        'Guardá el contacto y las fechas operativas. Después podés agregar uno o más vehículos.',
+        return _artwork_redirect(artwork, 'logistica')
+    return _inline_error_response(
+        request, artwork, ('provider', provider.pk) if provider_id else ('provider-new', None), form,
     )
 
 
@@ -520,7 +570,7 @@ def artwork_provider_delete(request, artwork_id, provider_id):
             return HttpResponseForbidden('Este proveedor no se puede eliminar.')
         provider.delete()
     messages.success(request, 'Proveedor y sus vehículos fueron eliminados.')
-    return redirect('artwork_edit', artwork_id=artwork.pk)
+    return _artwork_redirect(artwork, 'logistica')
 
 
 @login_required
@@ -531,8 +581,13 @@ def artwork_vehicle_edit(request, artwork_id, provider_id, vehicle_id=None):
     if not _logistics_editable(artwork, request.user):
         return HttpResponseForbidden('La logística de esta obra ya no se puede editar.')
     vehicle = get_object_or_404(ArtworkProviderVehicle, provider=provider, pk=vehicle_id) if vehicle_id else ArtworkProviderVehicle(provider=provider)
-    form = ArtworkProviderVehicleForm(request.POST or None, instance=vehicle)
-    if request.method == 'POST' and form.is_valid():
+    if request.method != 'POST':
+        return _artwork_redirect(artwork, 'logistica')
+    form = ArtworkProviderVehicleForm(
+        request.POST, instance=vehicle,
+        auto_id=f'vehicle-{vehicle_id}_%s' if vehicle_id else f'vehicle-{provider_id}-new_%s',
+    )
+    if form.is_valid():
         with transaction.atomic():
             artwork = get_object_or_404(access.select_for_update(), pk=artwork_id)
             provider = get_object_or_404(ArtworkProvider, artwork=artwork, pk=provider_id)
@@ -541,11 +596,9 @@ def artwork_vehicle_edit(request, artwork_id, provider_id, vehicle_id=None):
             form.instance.provider = provider
             form.save()
         messages.success(request, 'Vehículo guardado.')
-        return redirect('artwork_edit', artwork_id=artwork.pk)
-    return _logistics_form_response(
-        request, artwork, form,
-        'Editar vehículo' if vehicle_id else f'Agregar vehículo a {provider.company_name}',
-        'La patente se guarda sin espacios y en mayúsculas.',
+        return _artwork_redirect(artwork, 'logistica')
+    return _inline_error_response(
+        request, artwork, ('vehicle', vehicle.pk) if vehicle_id else ('vehicle-new', provider.pk), form,
     )
 
 
@@ -561,7 +614,7 @@ def artwork_vehicle_delete(request, artwork_id, provider_id, vehicle_id):
             return HttpResponseForbidden('Este vehículo no se puede eliminar.')
         vehicle.delete()
     messages.success(request, 'Vehículo eliminado.')
-    return redirect('artwork_edit', artwork_id=artwork.pk)
+    return _artwork_redirect(artwork, 'logistica')
 
 
 @login_required

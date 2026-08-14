@@ -61,6 +61,11 @@ class ArtworkFlowTest(TestCase):
             action=action,
         )
 
+    def test_primary_fields_are_associated_with_artwork_form(self):
+        form = self.artwork_form({})
+        for field in form.fields.values():
+            self.assertEqual(field.widget.attrs.get('form'), 'artwork-form')
+
     def test_draft_popup_multiple_artworks_and_submission_group(self):
         draft = self.artwork_form({'kind': Artwork.Kind.POPUP})
         self.assertTrue(draft.is_valid(), draft.errors)
@@ -203,14 +208,34 @@ class ArtworkFlowTest(TestCase):
         person.refresh_from_db()
         self.assertIsNone(person.early_entry_date)
 
+        invalid_provider = self.client.post(reverse('artwork_provider_create', args=[artwork.pk]), {
+            'company_name': 'Sin operación', 'contact_first_name': 'Luz', 'contact_last_name': 'Ríos',
+            'email': 'sin-operacion@example.com', 'phone': '+5491199999999',
+            'service_description': 'Traslado de estructura',
+        })
+        self.assertEqual(invalid_provider.status_code, 200)
+        self.assertContains(invalid_provider, 'Elegí si el proveedor participa del ingreso')
+        self.assertEqual(ArtworkProvider.objects.filter(artwork=artwork).count(), 0)
+
         response = self.client.post(reverse('artwork_provider_create', args=[artwork.pk]), {
             'company_name': 'Grúas Sur', 'contact_first_name': 'Luz', 'contact_last_name': 'Ríos',
             'email': 'logistica@example.com', 'phone': '+5491199999999',
-            'service_description': 'Traslado de estructura', 'entry_date': timezone.localdate(),
+            'service_description': 'Traslado de estructura', 'for_entry': 'on', 'for_exit': 'on',
+            'entry_date': timezone.localdate(),
             'departure_date': timezone.localdate() + timedelta(days=4),
         })
         self.assertEqual(response.status_code, 302)
         provider = ArtworkProvider.objects.get(artwork=artwork)
+        page = self.client.get(reverse('artwork_edit', args=[artwork.pk]))
+        self.assertIn(provider, page.context['entry_providers'])
+        self.assertIn(provider, page.context['exit_providers'])
+        self.assertContains(page, reverse('artwork_provider_edit', args=[artwork.pk, provider.pk]))
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            ArtworkProvider.objects.create(
+                artwork=artwork, company_name='Inválido', contact_first_name='Sin', contact_last_name='Operación',
+                email='invalido@example.com', phone='+5491100000000', service_description='Ninguna',
+                for_entry=False, for_exit=False,
+            )
         response = self.client.post(reverse('artwork_vehicle_create', args=[artwork.pk, provider.pk]), {
             'vehicle_type': 'truck', 'plate': 'ab 123 cd', 'make_model': 'Iveco Daily',
             'driver_name': 'Luz Ríos', 'driver_document_type': 'DNI',

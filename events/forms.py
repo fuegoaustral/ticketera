@@ -72,6 +72,7 @@ class ArtworkForm(forms.ModelForm):
 
         for field in self.fields.values():
             field.widget.attrs.setdefault('class', 'form-check-input' if isinstance(field.widget, forms.CheckboxInput) else 'form-control')
+            field.widget.attrs['form'] = 'artwork-form'
         self.fields['kind'].widget.attrs['class'] = 'form-select'
         self.fields['checkout_team_responsible'].widget.attrs['class'] = 'form-select'
         self.fields['checkout_art_responsible'].widget.attrs['class'] = 'form-select'
@@ -371,7 +372,7 @@ class ArtworkProviderForm(forms.ModelForm):
         model = ArtworkProvider
         fields = (
             'company_name', 'contact_first_name', 'contact_last_name', 'email', 'phone',
-            'service_description', 'entry_date', 'departure_date',
+            'service_description', 'for_entry', 'entry_date', 'for_exit', 'departure_date',
         )
         widgets = {
             'phone': forms.TextInput(attrs={'type': 'tel'}),
@@ -383,10 +384,20 @@ class ArtworkProviderForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
-            field.widget.attrs.setdefault('class', 'form-select' if isinstance(field.widget, forms.Select) else 'form-control')
+            field.widget.attrs.setdefault('class', 'form-check-input' if isinstance(field.widget, forms.CheckboxInput) else ('form-select' if isinstance(field.widget, forms.Select) else 'form-control'))
 
     def clean(self):
         cleaned = super().clean()
+        if not cleaned.get('for_entry') and not cleaned.get('for_exit'):
+            self.add_error(None, 'Elegí si el proveedor participa del ingreso, de la salida o de ambos.')
+        if not cleaned.get('for_entry'):
+            cleaned['entry_date'] = None
+        elif not cleaned.get('entry_date'):
+            self.add_error('entry_date', 'Indicá la fecha de ingreso del proveedor.')
+        if not cleaned.get('for_exit'):
+            cleaned['departure_date'] = None
+        elif not cleaned.get('departure_date'):
+            self.add_error('departure_date', 'Indicá la fecha de salida del proveedor.')
         if cleaned.get('entry_date') and cleaned.get('departure_date') and cleaned['departure_date'] < cleaned['entry_date']:
             self.add_error('departure_date', 'La salida no puede ser anterior al ingreso.')
         return cleaned

@@ -762,6 +762,8 @@ class ArtworkProvider(BaseModel):
     email = models.EmailField()
     phone = models.CharField(max_length=30, verbose_name='Teléfono')
     service_description = models.TextField(verbose_name='Servicio o materiales que entrega')
+    for_entry = models.BooleanField(default=True, verbose_name='Se usa para el ingreso anticipado')
+    for_exit = models.BooleanField(default=True, verbose_name='Se usa para el desarme y salida')
     entry_date = models.DateField(null=True, blank=True, verbose_name='Fecha de ingreso')
     departure_date = models.DateField(null=True, blank=True, verbose_name='Fecha de salida')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
@@ -770,6 +772,9 @@ class ArtworkProvider(BaseModel):
         ordering = ['company_name']
         verbose_name = 'Proveedor de obra'
         verbose_name_plural = 'Proveedores de obra'
+        constraints = [
+            models.CheckConstraint(check=Q(for_entry=True) | Q(for_exit=True), name='art_provider_has_operation'),
+        ]
 
     def __str__(self):
         return self.company_name
