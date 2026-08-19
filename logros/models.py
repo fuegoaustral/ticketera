@@ -10,6 +10,7 @@ class Achievement(BaseModel):
     class ConditionType(models.TextChoices):
         PURCHASED_EVENTS = 'purchased_events', 'Compró en eventos'
         VOLUNTEER_AT_EVENTS = 'volunteer_at_events', 'Voluntario en eventos'
+        ATTENDED_EVENTS = 'attended_events', 'Asistió a eventos'
 
     slug = models.SlugField(unique=True, max_length=64)
     name = models.CharField(max_length=255)
@@ -26,7 +27,9 @@ class Achievement(BaseModel):
             'purchased_events: {"event_ids": [9, 10, 17]} (AND). '
             'volunteer_at_events: {"role": "transmutator", "must_be_used": true} '
             '(cualquier evento; opcional event_ids para limitar; '
-            'role: transmutator | ranger | caos | mad).'
+            'role: transmutator | ranger | caos | mad). '
+            'attended_events: {"event_ids": [14, 7, 4, 1], "min_count": 2} '
+            '(al menos N eventos distintos; must_be_used default true).'
         ),
     )
     is_active = models.BooleanField(default=True)
