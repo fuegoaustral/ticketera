@@ -8,6 +8,7 @@ from django.utils.text import slugify
 
 from events.models import EventRequest
 from events.services.event_request_chatwoot import send_chatwoot_reply
+from events.services.event_request_slack import update_event_request_slack_message
 from utils.email import send_mail
 from tickets.models import TicketType
 
@@ -92,7 +93,7 @@ def create_event_from_request(event_request):
     return event
 
 
-def approve_event_request(event_request):
+def approve_event_request(event_request, *, actor_label=None):
     if event_request.status != EventRequest.Status.PENDING:
         return False, f'La propuesta #{event_request.pk} ya está {event_request.get_status_display().lower()}.'
 
@@ -104,6 +105,11 @@ def approve_event_request(event_request):
             f'Evento creado: {event.name} (`{event.slug}`)\n'
             f'Admin asignado: {event_request.requested_by.email}'
         ),
+    )
+    update_event_request_slack_message(
+        event_request,
+        approved=True,
+        actor_label=actor_label,
     )
     _send_approval_email(event_request, event)
     logger.info('Propuesta #%s aprobada; evento %s creado', event_request.pk, event.slug)
@@ -140,7 +146,7 @@ def _send_approval_email(event_request, event):
         )
 
 
-def reject_event_request(event_request, reason=''):
+def reject_event_request(event_request, reason='', *, actor_label=None):
     if event_request.status != EventRequest.Status.PENDING:
         return False, f'La propuesta #{event_request.pk} ya está {event_request.get_status_display().lower()}.'
 
@@ -153,6 +159,11 @@ def reject_event_request(event_request, reason=''):
     if event_request.rejection_reason:
         reply += f'\nMotivo: {event_request.rejection_reason}'
     send_chatwoot_reply(event_request, reply)
+    update_event_request_slack_message(
+        event_request,
+        approved=False,
+        actor_label=actor_label,
+    )
     logger.info('Propuesta #%s rechazada', event_request.pk)
     return True, f'Propuesta #{event_request.pk} rechazada.'
 

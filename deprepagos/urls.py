@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 
 from tickets.admin import admin_caja_view, email_has_account, admin_caja_order_view, admin_direct_tickets_view, \
     admin_direct_tickets_buyer_view, admin_direct_tickets_congrats_view
@@ -20,6 +20,8 @@ from user_profile.admin_sede_matches import (
 from user_profile.admin_sede_subscriptions import admin_sede_subscriptions_view
 
 from events.views.chatwoot_webhook import chatwoot_event_request_webhook
+from events.views.event_request_review import event_request_review_view
+from events.views.slack_webhook import slack_event_request_webhook
 
 urlpatterns = [
     path('admin/caja/', admin_caja_view, name='admin_caja_view'),
@@ -58,6 +60,12 @@ urlpatterns = [
     path('ckeditor5/', include('django_ckeditor_5.urls')),
     path('espaciozen/', include('espaciozen.urls')),
     path('webhooks/chatwoot/event-requests/', chatwoot_event_request_webhook, name='chatwoot_event_request_webhook'),
+    path('webhooks/slack/event-requests/', slack_event_request_webhook, name='slack_event_request_webhook'),
+    re_path(
+        r'^event-requests/(?P<request_id>\d+)/(?P<action>aprobar|desaprobar)/$',
+        event_request_review_view,
+        name='event_request_review',
+    ),
     path('', include('tickets.urls')),
 
 ]

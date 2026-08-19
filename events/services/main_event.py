@@ -48,10 +48,9 @@ def _transfer_main(*, new_main, previous_main=None):
 
 def reconcile_main_event():
     """
-    Si el main actual ya finalizó y hay otro evento activo vigente, pasa el main a ese.
-    Si no hay reemplazo, el main actual queda aunque haya terminado.
+    Si el main actual no es vigente y hay otro evento activo vigente, pasa el main a ese.
+    Si no hay reemplazo, el main actual queda (get_main_event no lo muestra si ya venció).
     """
-    now = timezone.now()
     current_main = Event.objects.filter(is_main=True).first()
 
     if _valid_main(current_main):
@@ -60,12 +59,8 @@ def reconcile_main_event():
     replacement = _best_active_event(
         exclude_pk=current_main.pk if current_main else None,
     )
-    if current_main and current_main.end < now and replacement:
+    if replacement:
         _transfer_main(new_main=replacement, previous_main=current_main)
-        return replacement
-
-    if not current_main and replacement:
-        _transfer_main(new_main=replacement)
         return replacement
 
     return current_main

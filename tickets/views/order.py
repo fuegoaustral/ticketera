@@ -157,19 +157,9 @@ def check_order_status(request, order_key):
 
     payload = {"status": order.status}
     if order.status == Order.OrderStatus.CONFIRMED:
-        from logros.services import check_and_unlock_for_user, get_pending_celebrations
+        from logros.services import evaluate_and_get_pending_payload
 
-        check_and_unlock_for_user(request.user)
-        pending = get_pending_celebrations(request.user)
-        payload['new_achievements'] = [
-            {
-                'slug': ua.achievement.slug,
-                'name': ua.achievement.name,
-                'description': ua.achievement.description,
-                'image_url': ua.achievement.image_url,
-            }
-            for ua in pending
-        ]
+        payload['new_achievements'] = evaluate_and_get_pending_payload(request.user)
     return JsonResponse(payload)
 
 @login_required

@@ -1,47 +1,175 @@
-<div class="modal fade" id="logroUnlockedModal" tabindex="-1" aria-labelledby="logroUnlockedModalLabel" aria-hidden="true">
+<style>
+    .logro-modal .modal-dialog {
+        max-width: 420px;
+    }
+
+    .logro-modal-content {
+        background: #1d0402;
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 1.25rem;
+        overflow: hidden;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    }
+
+    .logro-modal-content .btn-close {
+        filter: invert(1);
+        opacity: 0.7;
+    }
+
+    .logro-modal-kicker {
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: #f5d76e;
+    }
+
+    .logro-modal-badge {
+        width: min(260px, 70vw);
+        aspect-ratio: 1;
+        margin: 0 auto 1rem;
+        border-radius: 50%;
+        background: radial-gradient(circle at 50% 40%, #3a1a14 0%, #1d0402 70%);
+        box-shadow: 0 0 0 3px rgba(245, 215, 110, 0.25), 0 12px 40px rgba(0, 0, 0, 0.4);
+        overflow: hidden;
+        animation: logroBadgeIn 0.45s ease-out;
+    }
+
+    .logro-modal-badge img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    .logro-modal-name {
+        font-weight: 700;
+        font-size: 1.5rem;
+    }
+
+    .logro-modal-desc {
+        color: rgba(255, 255, 255, 0.72);
+    }
+
+    .logro-modal-progress {
+        font-size: 0.8rem;
+        color: rgba(255, 255, 255, 0.55);
+    }
+
+    .logro-modal-content .btn-primary {
+        min-width: 140px;
+    }
+
+    .logro-modal-content .btn-link {
+        color: rgba(255, 255, 255, 0.7);
+        text-decoration: none;
+    }
+
+    .logro-modal-content .btn-link:hover {
+        color: #fff;
+    }
+
+    @keyframes logroBadgeIn {
+        from {
+            transform: scale(0.86);
+            opacity: 0;
+        }
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+</style>
+
+<div class="modal fade logro-modal" id="logroUnlockedModal" tabindex="-1" aria-labelledby="logroUnlockedModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content text-center">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title w-100" id="logroUnlockedModalLabel">¡Logro desbloqueado!</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-            </div>
-            <div class="modal-body pt-2">
-                <div class="mb-3 rounded overflow-hidden mx-auto" style="max-width: 280px; aspect-ratio: 1; background: #1e1e1e;">
-                    <img id="logroUnlockedImage" src="" alt="" class="w-100 h-100" style="object-fit: cover;">
+        <div class="modal-content logro-modal-content text-center">
+            <div class="modal-header border-0 pb-0 justify-content-center position-relative">
+                {% csrf_token %}
+                <div class="logro-modal-kicker mb-0">
+                    <i class="fas fa-trophy me-1"></i>Logro desbloqueado
                 </div>
-                <h4 id="logroUnlockedName" class="mb-0"></h4>
-                <p id="logroUnlockedDescription" class="text-muted mt-2 mb-0 small"></p>
+                <h5 class="modal-title visually-hidden" id="logroUnlockedModalLabel">¡Logro desbloqueado!</h5>
+                <button type="button" class="btn-close position-absolute end-0 top-0 m-3" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
-            <div class="modal-footer border-0 justify-content-center pt-0">
+            <div class="modal-body pt-2 pb-2">
+                <div class="logro-modal-badge">
+                    <img id="logroUnlockedImage" src="" alt="">
+                </div>
+                <h4 id="logroUnlockedName" class="logro-modal-name mb-2"></h4>
+                <p id="logroUnlockedDescription" class="logro-modal-desc mb-0"></p>
+                <p id="logroUnlockedProgress" class="logro-modal-progress mt-3 mb-0" hidden></p>
+            </div>
+            <div class="modal-footer border-0 flex-column gap-1 pt-0 pb-4">
                 <button type="button" class="btn btn-primary" data-bs-dismiss="modal">¡Genial!</button>
+                <a href="{% url 'mis_logros' %}" class="btn btn-link btn-sm" id="logroUnlockedSeeAll">Ver mis logros</a>
             </div>
         </div>
     </div>
 </div>
 
 <script>
+    window.logroCelebrationQueue = window.logroCelebrationQueue || [];
+    window.logroCelebrationShowing = false;
+    window.logroCelebrationTotal = 0;
+    window.logroCelebrationIndex = 0;
+
     function showLogroUnlockedModal(achievement) {
         const img = document.getElementById('logroUnlockedImage');
         const name = document.getElementById('logroUnlockedName');
         const desc = document.getElementById('logroUnlockedDescription');
+        const progress = document.getElementById('logroUnlockedProgress');
         const modalEl = document.getElementById('logroUnlockedModal');
         if (!img || !name || !modalEl) return;
 
-        img.src = achievement.image_url;
-        img.alt = achievement.name;
-        name.textContent = achievement.name;
+        img.src = achievement.image_url || '';
+        img.alt = achievement.name || '';
+        name.textContent = achievement.name || '';
         if (desc) {
             desc.textContent = achievement.description || '';
-            desc.style.display = achievement.description ? 'block' : 'none';
+            desc.hidden = !achievement.description;
         }
-        modalEl.dataset.currentSlug = achievement.slug;
+        modalEl.dataset.currentSlug = achievement.slug || '';
 
+        if (progress) {
+            const remaining = window.logroCelebrationQueue.length;
+            const total = window.logroCelebrationTotal || (window.logroCelebrationIndex + remaining + 1);
+            if (total > 1) {
+                progress.hidden = false;
+                progress.textContent = (window.logroCelebrationIndex + 1) + ' de ' + total;
+            } else {
+                progress.hidden = true;
+            }
+        }
+
+        window.logroCelebrationShowing = true;
         const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
         modal.show();
     }
 
+    function enqueueLogroCelebrations(achievements) {
+        if (!achievements || !achievements.length) return;
+        window.logroCelebrationQueue.push.apply(window.logroCelebrationQueue, achievements);
+        window.logroCelebrationTotal = (window.logroCelebrationTotal || 0) + achievements.length;
+        if (!window.logroCelebrationShowing) {
+            showNextPendingLogro();
+        }
+    }
+
+    function showNextPendingLogro() {
+        if (!window.logroCelebrationQueue.length) {
+            window.logroCelebrationShowing = false;
+            window.logroCelebrationTotal = 0;
+            window.logroCelebrationIndex = 0;
+            return;
+        }
+        window.logroCelebrationIndex += 1;
+        showLogroUnlockedModal(window.logroCelebrationQueue.shift());
+    }
+
     function markLogroCelebrationShown(slug) {
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value
+        const csrfToken = document.querySelector('#logroUnlockedModal [name=csrfmiddlewaretoken]')?.value
+            || document.querySelector('[name=csrfmiddlewaretoken]')?.value
             || document.cookie.match(/csrftoken=([^;]+)/)?.[1];
         if (!csrfToken || !slug) return;
 
@@ -52,7 +180,7 @@
                 'X-CSRFToken': csrfToken,
             },
             body: JSON.stringify({ slugs: [slug] }),
-        }).catch(() => {});
+        }).catch(function () {});
     }
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -65,6 +193,16 @@
                 markLogroCelebrationShown(slug);
                 delete modalEl.dataset.currentSlug;
             }
+            window.logroCelebrationShowing = false;
+            showNextPendingLogro();
         });
+
+        const seeAll = document.getElementById('logroUnlockedSeeAll');
+        if (seeAll) {
+            seeAll.addEventListener('click', function () {
+                const slug = modalEl.dataset.currentSlug;
+                if (slug) markLogroCelebrationShown(slug);
+            });
+        }
     });
 </script>

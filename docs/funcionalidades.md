@@ -34,7 +34,7 @@ Resumen de apps Django en `INSTALLED_APPS` y responsabilidades. El código vive 
 
 - Definiciones de logros (`Achievement`) y desbloqueos por usuario (`UserAchievement`).
 - Condiciones extensibles (hoy: `purchased_events` por IDs de evento).
-- Evaluación post-pago y en Mi Fuego. Detalle: [logros](logros.md).
+- Evaluación al navegar logueado, post-pago y en Mis logros. Modal de celebración único por logro (`celebration_shown`). Detalle: [logros](logros.md).
 
 ## `espaciozen`
 

@@ -7,7 +7,7 @@ En el código, **evento** casi siempre es una instancia de `Event` en [`events/m
 | Campo | Rol |
 |-------|-----|
 | `active` | Si el evento se considera activo para consultas (`get_active_events`, `get_by_slug`). |
-| `is_main` | Un solo evento principal a la vez (constraint `unique_main_event`); es el que se muestra en `/`. |
+| `is_main` | Un solo evento principal a la vez (constraint `unique_main_event`); es el que se muestra en `/` mientras esté activo y no haya vencido. Si vence y hay otro vigente, rota solo. |
 | `slug` | Identificador en URL; si está vacío se puede derivar del nombre en `clean()`. |
 | `name`, `start`, `end` | Identidad y ventana temporal del evento. |
 | `max_tickets`, `max_tickets_per_order` | Techo global de bonos vendidos (órdenes confirmadas) y límite por orden. |

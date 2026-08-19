@@ -4,32 +4,34 @@
     <style>
         .logros-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             gap: 1.25rem;
         }
 
         .logro-card {
             background: #fff;
             border: 1px solid #d9d9d9;
-            border-radius: 0.75rem;
+            border-radius: 1rem;
             overflow: hidden;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
             transition: transform 0.2s ease, box-shadow 0.2s ease;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
         }
 
         .logro-card.unlocked:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
         }
 
         .logro-card.locked {
-            opacity: 0.55;
-            filter: grayscale(1);
+            background: #f7f7f7;
         }
 
         .logro-image-wrap {
             aspect-ratio: 1;
-            background: #1e1e1e;
+            background: #1d0402;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -39,28 +41,68 @@
         .logro-image-wrap img {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
+        }
+
+        .logro-locked-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            color: rgba(255, 255, 255, 0.45);
+            width: 100%;
+            height: 100%;
+        }
+
+        .logro-locked-placeholder i {
+            font-size: 2.4rem;
+        }
+
+        .logro-locked-placeholder span {
+            font-size: 0.75rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-weight: 600;
         }
 
         .logro-body {
             padding: 1rem;
             text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            flex: 1;
         }
 
         .logro-name {
             font-weight: 600;
-            margin-bottom: 0.25rem;
             color: #1e1e1e;
+        }
+
+        .logro-card.locked .logro-name {
+            color: #6c757d;
+        }
+
+        .logro-description {
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin: 0;
         }
 
         .logro-status {
             font-size: 0.85rem;
             color: #6c757d;
+            margin-top: auto;
         }
 
         .logro-status.unlocked {
             color: #289e6d;
             font-weight: 500;
+        }
+
+        .logros-section + .logros-section {
+            margin-top: 2.5rem;
         }
     </style>
 
@@ -70,61 +112,67 @@
     </div>
 
     {% if logros %}
-        <div class="logros-grid">
-            {% for item in logros %}
-                <div class="logro-card{% if item.unlocked %} unlocked{% else %} locked{% endif %}">
-                    <div class="logro-image-wrap">
-                        {% if item.achievement.image %}
-                            <img src="{{ item.achievement.image.url }}"
-                                 alt="{{ item.achievement.name }}"
-                                 loading="lazy">
-                        {% endif %}
-                    </div>
-                    <div class="logro-body">
-                        <div class="logro-name">{{ item.achievement.name }}</div>
-                        {% if item.unlocked %}
-                            <div class="logro-status unlocked">
-                                <i class="fas fa-check-circle me-1"></i>Desbloqueado
+        <section class="logros-section">
+            <h3 class="h5 mb-3">Desbloqueados</h3>
+            {% if unlocked_logros %}
+                <div class="logros-grid">
+                    {% for item in unlocked_logros %}
+                        <article class="logro-card unlocked">
+                            <div class="logro-image-wrap">
+                                {% if item.achievement.image %}
+                                    <img src="{{ item.achievement.image.url }}"
+                                         alt="{{ item.achievement.name }}"
+                                         loading="lazy">
+                                {% endif %}
                             </div>
-                        {% else %}
-                            <div class="logro-status">
-                                <i class="fas fa-lock me-1"></i>Bloqueado
+                            <div class="logro-body">
+                                <div class="logro-name">{{ item.achievement.name }}</div>
+                                {% if item.achievement.description %}
+                                    <p class="logro-description">{{ item.achievement.description }}</p>
+                                {% endif %}
+                                <div class="logro-status unlocked">
+                                    <i class="fas fa-check-circle me-1"></i>Desbloqueado
+                                    {% if item.unlocked_at %}
+                                        <span class="d-block fw-normal text-muted">{{ item.unlocked_at|date:"d/m/Y" }}</span>
+                                    {% endif %}
+                                </div>
                             </div>
-                        {% endif %}
-                    </div>
+                        </article>
+                    {% endfor %}
                 </div>
-            {% endfor %}
-        </div>
+            {% else %}
+                <p class="text-muted mb-0">Todavía no desbloqueaste ningún logro. ¡Seguí participando!</p>
+            {% endif %}
+        </section>
+
+        <section class="logros-section">
+            <h3 class="h5 mb-3">Por desbloquear</h3>
+            {% if locked_logros %}
+                <div class="logros-grid">
+                    {% for item in locked_logros %}
+                        <article class="logro-card locked">
+                            <div class="logro-image-wrap">
+                                <div class="logro-locked-placeholder" aria-hidden="true">
+                                    <i class="fas fa-lock"></i>
+                                    <span>Bloqueado</span>
+                                </div>
+                            </div>
+                            <div class="logro-body">
+                                <div class="logro-name">{{ item.achievement.name }}</div>
+                                <div class="logro-status">
+                                    Todavía no desbloqueaste este logro
+                                </div>
+                            </div>
+                        </article>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted mb-0">Desbloqueaste todos los logros disponibles. ¡Felicidades!</p>
+            {% endif %}
+        </section>
     {% else %}
         <div class="alert alert-secondary">
             Todavía no hay logros disponibles.
         </div>
-    {% endif %}
-
-    {% include 'mi_fuego/partials/logro_unlocked_modal.html' %}
-
-    {% if pending_celebrations %}
-    {{ pending_celebrations|json_script:"pending-celebrations-data" }}
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const dataEl = document.getElementById('pending-celebrations-data');
-            if (!dataEl) return;
-            const queue = JSON.parse(dataEl.textContent);
-            const modalEl = document.getElementById('logroUnlockedModal');
-            let index = 0;
-
-            function showNext() {
-                if (index >= queue.length) return;
-                showLogroUnlockedModal(queue[index++]);
-            }
-
-            if (modalEl) {
-                modalEl.addEventListener('hidden.bs.modal', function () {
-                    if (index < queue.length) showNext();
-                });
-            }
-            showNext();
-        });
-    </script>
     {% endif %}
 {% endblock %}

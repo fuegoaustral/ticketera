@@ -134,6 +134,9 @@ class Profile(BaseModel):
 
 
 class SedeSubscription(BaseModel):
+    MANUAL_MATCHED_VIA = 'manual_generic'
+    MANUAL_PLAN_ID = 'manual_generic'
+    MANUAL_SUBSCRIPTION_ID_PREFIX = 'manual-generic-profile-'
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='sede_subscriptions')
     subscription_id = models.CharField(max_length=64, unique=True)
     plan_id = models.CharField(max_length=64, blank=True, default='')
@@ -155,6 +158,14 @@ class SedeSubscription(BaseModel):
 
     def __str__(self):
         return f'{self.subscription_id} ({self.status})'
+
+    @classmethod
+    def manual_q(cls):
+        from django.db.models import Q
+        return (
+            Q(matched_via=cls.MANUAL_MATCHED_VIA)
+            | Q(subscription_id__startswith=cls.MANUAL_SUBSCRIPTION_ID_PREFIX)
+        )
 
 
 class SedeUnmatchedSubscription(BaseModel):

@@ -4,17 +4,28 @@ from logros.conditions import is_condition_met
 from logros.models import Achievement, UserAchievement
 
 
+def serialize_achievement(achievement):
+    return {
+        'slug': achievement.slug,
+        'name': achievement.name,
+        'description': achievement.description,
+        'image_url': achievement.image_url,
+    }
+
+
 def get_achievements_for_user(user):
     """Lista de logros con estado desbloqueado para la UI."""
-    unlocked_ids = set(
-        UserAchievement.objects.filter(user=user).values_list('achievement_id', flat=True)
-    )
-    achievements = Achievement.objects.filter(is_active=True)
+    unlocked_by_id = {
+        ua.achievement_id: ua
+        for ua in UserAchievement.objects.filter(user=user)
+    }
     result = []
-    for achievement in achievements:
+    for achievement in Achievement.objects.filter(is_active=True):
+        user_achievement = unlocked_by_id.get(achievement.id)
         result.append({
             'achievement': achievement,
-            'unlocked': achievement.id in unlocked_ids,
+            'unlocked': user_achievement is not None,
+            'unlocked_at': user_achievement.unlocked_at if user_achievement else None,
         })
     return result
 
@@ -52,6 +63,19 @@ def get_pending_celebrations(user):
         .select_related('achievement')
         .order_by('unlocked_at')
     )
+
+
+def pending_celebrations_payload(user):
+    return [
+        serialize_achievement(ua.achievement)
+        for ua in get_pending_celebrations(user)
+    ]
+
+
+def evaluate_and_get_pending_payload(user):
+    """Desbloquea logros nuevos y devuelve los que todavía no se celebraron."""
+    check_and_unlock_for_user(user)
+    return pending_celebrations_payload(user)
 
 
 def mark_celebrations_shown(user, achievement_slugs=None):
