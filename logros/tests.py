@@ -241,6 +241,31 @@ class VolunteerLogroTests(TestCase):
             UserAchievement.objects.filter(user=self.user, achievement=caos).exists()
         )
 
+    def test_without_event_ids_matches_any_event(self):
+        open_ended = _make_achievement(
+            'vol-ranger-open',
+            'Ranger',
+            [],
+            sort_order=3,
+            condition_type=Achievement.ConditionType.VOLUNTEER_AT_EVENTS,
+            condition_config={
+                'role': 'ranger',
+                'must_be_used': True,
+            },
+        )
+        _make_ticket(
+            self.user,
+            self.event_b,
+            self.order_b,
+            volunteer_ranger=True,
+            is_used=True,
+        )
+        unlocked = check_and_unlock_for_user(self.user)
+        self.assertEqual({item.slug for item in unlocked}, {'vol-ranger-open'})
+        self.assertTrue(
+            UserAchievement.objects.filter(user=self.user, achievement=open_ended).exists()
+        )
+
 
 class LogrosUITests(TestCase):
     def setUp(self):

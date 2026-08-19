@@ -43,7 +43,7 @@ Lista de comportamientos codificados que suelen consultar operaciones o QA. Siem
 ## Logros
 
 - Condición `purchased_events`: orden **CONFIRMED** por usuario o email en todos los `event_ids` configurados.
-- Condición `volunteer_at_events`: bono propio con el rol (`transmutator` / `ranger` / `caos` / `mad`) en al menos uno de los `event_ids`; `must_be_used` exige ingreso escaneado.
+- Condición `volunteer_at_events`: bono propio con el rol (`transmutator` / `ranger` / `caos` / `mad`); sin `event_ids` aplica a cualquier evento, con lista a al menos uno de ellos. `must_be_used` exige ingreso escaneado.
 - Un logro desbloqueado no se re-evalúa; `celebration_shown` controla el modal único por logro (home / Mi Fuego logueado, post-pago, Mis logros).
 
 ## Transferencias y voluntarios
