@@ -15,7 +15,7 @@ from logros.services import (
     get_achievements_for_user,
     mark_celebrations_shown,
 )
-from tickets.models import Order
+from tickets.models import NewTicket, Order, TicketType
 from utils.context_processors import pending_logro_celebrations
 
 TINY_GIF = (
@@ -77,17 +77,42 @@ def _make_order(user, event, status=Order.OrderStatus.CONFIRMED):
     )
 
 
-def _make_achievement(slug, name, event_ids, sort_order=1):
-    return Achievement.objects.create(
-        slug=slug,
+def _make_ticket_type(event, name='General'):
+    return TicketType.objects.create(
+        event=event,
         name=name,
-        image=_image(f'{slug}.gif'),
-        description=f'Desc {name}',
-        condition_type=Achievement.ConditionType.PURCHASED_EVENTS,
-        condition_config={'event_ids': event_ids},
-        is_active=True,
-        sort_order=sort_order,
+        price=Decimal('10.00'),
+        ticket_count=10,
     )
+
+
+def _make_ticket(user, event, order, **kwargs):
+    ticket_type = kwargs.pop('ticket_type', None) or _make_ticket_type(event)
+    defaults = {
+        'event': event,
+        'order': order,
+        'ticket_type': ticket_type,
+        'owner': user,
+        'holder': user,
+        'is_used': True,
+    }
+    defaults.update(kwargs)
+    return NewTicket.objects.create(**defaults)
+
+
+def _make_achievement(slug, name, event_ids, sort_order=1, **kwargs):
+    defaults = {
+        'slug': slug,
+        'name': name,
+        'image': _image(f'{slug}.gif'),
+        'description': f'Desc {name}',
+        'condition_type': Achievement.ConditionType.PURCHASED_EVENTS,
+        'condition_config': {'event_ids': event_ids},
+        'is_active': True,
+        'sort_order': sort_order,
+    }
+    defaults.update(kwargs)
+    return Achievement.objects.create(**defaults)
 
 
 class LogrosServiceTests(TestCase):
@@ -136,6 +161,85 @@ class LogrosServiceTests(TestCase):
 
         mark_celebrations_shown(self.user, ['dos-eventos'])
         self.assertEqual(evaluate_and_get_pending_payload(self.user), [])
+
+
+class VolunteerLogroTests(TestCase):
+    def setUp(self):
+        self.user = _make_user()
+        self.event_a = _make_event(is_main=True)
+        self.event_b = _make_event()
+        self.order_a = _make_order(self.user, self.event_a)
+        self.order_b = _make_order(self.user, self.event_b)
+        self.achievement = _make_achievement(
+            'vol-transmutador',
+            'Transmutador',
+            [self.event_a.id, self.event_b.id],
+            condition_type=Achievement.ConditionType.VOLUNTEER_AT_EVENTS,
+            condition_config={
+                'event_ids': [self.event_a.id, self.event_b.id],
+                'role': 'transmutator',
+                'must_be_used': True,
+            },
+        )
+
+    def test_unlocks_if_volunteer_at_any_listed_event(self):
+        _make_ticket(
+            self.user,
+            self.event_b,
+            self.order_b,
+            volunteer_transmutator=True,
+            is_used=True,
+        )
+        unlocked = check_and_unlock_for_user(self.user)
+        self.assertEqual([item.slug for item in unlocked], ['vol-transmutador'])
+
+    def test_does_not_unlock_without_used_ticket_when_required(self):
+        _make_ticket(
+            self.user,
+            self.event_a,
+            self.order_a,
+            volunteer_transmutator=True,
+            is_used=False,
+        )
+        self.assertEqual(check_and_unlock_for_user(self.user), [])
+
+    def test_does_not_unlock_other_volunteer_roles(self):
+        _make_ticket(
+            self.user,
+            self.event_a,
+            self.order_a,
+            volunteer_ranger=True,
+            volunteer_umpalumpa=True,
+            volunteer_mad=True,
+            is_used=True,
+        )
+        self.assertEqual(check_and_unlock_for_user(self.user), [])
+
+    def test_caos_and_ranger_roles_map_to_ticket_fields(self):
+        caos = _make_achievement(
+            'vol-caos',
+            'CAOS',
+            [self.event_a.id],
+            sort_order=2,
+            condition_type=Achievement.ConditionType.VOLUNTEER_AT_EVENTS,
+            condition_config={
+                'event_ids': [self.event_a.id],
+                'role': 'caos',
+                'must_be_used': True,
+            },
+        )
+        _make_ticket(
+            self.user,
+            self.event_a,
+            self.order_a,
+            volunteer_umpalumpa=True,
+            is_used=True,
+        )
+        unlocked = check_and_unlock_for_user(self.user)
+        self.assertEqual({item.slug for item in unlocked}, {'vol-caos'})
+        self.assertTrue(
+            UserAchievement.objects.filter(user=self.user, achievement=caos).exists()
+        )
 
 
 class LogrosUITests(TestCase):

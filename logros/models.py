@@ -9,6 +9,7 @@ class Achievement(BaseModel):
 
     class ConditionType(models.TextChoices):
         PURCHASED_EVENTS = 'purchased_events', 'Compró en eventos'
+        VOLUNTEER_AT_EVENTS = 'volunteer_at_events', 'Voluntario en eventos'
 
     slug = models.SlugField(unique=True, max_length=64)
     name = models.CharField(max_length=255)
@@ -21,7 +22,11 @@ class Achievement(BaseModel):
     condition_config = models.JSONField(
         default=dict,
         blank=True,
-        help_text='Parámetros de la condición, ej: {"event_ids": [9, 10, 17]}',
+        help_text=(
+            'purchased_events: {"event_ids": [9, 10, 17]} (AND). '
+            'volunteer_at_events: {"event_ids": [14, 7, 4, 1], "role": "transmutator", "must_be_used": true} '
+            '(OR; role: transmutator | ranger | caos | mad).'
+        ),
     )
     is_active = models.BooleanField(default=True)
     sort_order = models.PositiveIntegerField(default=0)

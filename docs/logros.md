@@ -16,6 +16,7 @@ Implementadas en [`logros/conditions.py`](../logros/conditions.py):
 | Tipo | Config | Regla |
 |------|--------|-------|
 | `purchased_events` | `{"event_ids": [9, 10, 17]}` | El usuario tiene al menos una orden **CONFIRMED** en **cada** evento listado (match por `Order.user` o `Order.email` case-insensitive). |
+| `volunteer_at_events` | `{"event_ids": [14, 7, 4, 1], "role": "transmutator", "must_be_used": true}` | Dueño de un bono con ese rol de voluntariado en **al menos uno** de los eventos. `role`: `transmutator`, `ranger`, `caos` (`volunteer_umpalumpa`), `mad`. `must_be_used` exige que el bono se haya escaneado. |
 
 Para agregar condiciones nuevas: implementar checker en `CONDITION_CHECKERS` y agregar choice en `Achievement.ConditionType`.
 
