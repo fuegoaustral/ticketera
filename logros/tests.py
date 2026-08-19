@@ -15,7 +15,7 @@ from logros.services import (
     get_achievements_for_user,
     mark_celebrations_shown,
 )
-from tickets.models import NewTicket, Order, TicketType
+from tickets.models import NewTicket, Order, OrderTicket, Ticket, TicketType
 from utils.context_processors import pending_logro_celebrations
 
 TINY_GIF = (
@@ -312,6 +312,61 @@ class AttendedLogroTests(TestCase):
         self._achievement('fa-1', 1)
         _make_ticket(self.user, self.event_a, self.order_a, is_used=False)
         self.assertEqual(check_and_unlock_for_user(self.user), [])
+
+    def test_holder_without_owner_counts_when_used(self):
+        self._achievement('fa-1', 1)
+        _make_ticket(self.user, self.event_a, self.order_a, owner=None, holder=self.user, is_used=True)
+        unlocked = {item.slug for item in check_and_unlock_for_user(self.user)}
+        self.assertEqual(unlocked, {'fa-1'})
+
+    def test_must_be_used_false_counts_confirmed_orders(self):
+        _make_achievement(
+            'fa-3-orders',
+            'fa-3-orders',
+            self.event_ids,
+            condition_type=Achievement.ConditionType.ATTENDED_EVENTS,
+            condition_config={
+                'event_ids': self.event_ids,
+                'min_count': 3,
+                'must_be_used': False,
+            },
+        )
+        unlocked = {item.slug for item in check_and_unlock_for_user(self.user)}
+        self.assertEqual(unlocked, {'fa-3-orders'})
+
+    def test_legacy_ticket_counts_metanoia_style_orders_without_event_fk(self):
+        """Bonos pre-NewTicket: event sale del TicketType, el Order puede no tener event_id."""
+        order = _make_order(self.user, self.event_c)
+        order.event = None
+        order.save(update_fields=['event'])
+        ticket_type = _make_ticket_type(self.event_c, name='Metanoia')
+        OrderTicket.objects.create(order=order, ticket_type=ticket_type, quantity=1)
+        Ticket.objects.create(
+            first_name=self.user.first_name,
+            last_name=self.user.last_name,
+            email=self.user.email,
+            phone='1111111111',
+            dni='30111222',
+            volunteer='no',
+            volunteer_ranger=False,
+            volunteer_transmutator=False,
+            volunteer_umpalumpa=False,
+            order=order,
+            price=10,
+        )
+        _make_achievement(
+            'fa-legacy',
+            'fa-legacy',
+            [self.event_c.id],
+            condition_type=Achievement.ConditionType.ATTENDED_EVENTS,
+            condition_config={
+                'event_ids': [self.event_c.id],
+                'min_count': 1,
+                'must_be_used': True,
+            },
+        )
+        unlocked = {item.slug for item in check_and_unlock_for_user(self.user)}
+        self.assertIn('fa-legacy', unlocked)
 
 
 class LogrosUITests(TestCase):
