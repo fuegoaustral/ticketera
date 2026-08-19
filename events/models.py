@@ -62,21 +62,17 @@ class Event(BaseModel):
         return self.name
 
     def clean(self, *args, **kwargs):
-        # Validate that only one event can be main
-        if self.is_main:
-            qs = Event.objects.exclude(pk=self.pk).filter(is_main=True)
-            if qs.exists():
-                raise ValidationError({
-                    'is_main': ValidationError(
-                        'Only one event can be the main event at a time. Please set the other main event as non-main before saving.',
-                        code='not_unique'),
-                })
-        
-        # Auto-generate slug from name if not provided
         if not self.slug and self.name:
             self.slug = slugify(self.name)
-            
         return super().clean(*args, **kwargs)
+
+    def save(self, *args, **kwargs):
+        if self.is_main:
+            qs = Event.objects.filter(is_main=True)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            qs.update(is_main=False)
+        super().save(*args, **kwargs)
 
     def tickets_remaining(self):
         from tickets.models import Order, OrderTicket
@@ -156,10 +152,14 @@ class Event(BaseModel):
     @classmethod
     def get_main_event(cls):
         """Get the main event (displayed at /)"""
-        try:
-            return cls.objects.get(is_main=True, active=True)
-        except cls.DoesNotExist:
-            return None
+        from events.services.main_event import reconcile_main_event
+
+        reconcile_main_event()
+        return cls.objects.filter(
+            is_main=True,
+            active=True,
+            end__gte=timezone.now(),
+        ).first()
 
     @classmethod
     def get_active_events(cls):
@@ -392,7 +392,7 @@ def create_grupo_lider_miembro(sender, instance, created, **kwargs):
 
 
 class EventRequest(BaseModel):
-    """Propuesta de evento por un miembro de La Sede, revisada por soporte vía Chatwoot."""
+    """Propuesta de evento por un miembro de La Sede, revisada por soporte vía Slack (botones) y Chatwoot."""
 
     class Status(models.TextChoices):
         PENDING = 'pending', 'Pendiente de revisión'
@@ -423,6 +423,8 @@ class EventRequest(BaseModel):
     )
     chatwoot_contact_id = models.PositiveIntegerField(null=True, blank=True)
     chatwoot_conversation_id = models.PositiveIntegerField(null=True, blank=True, unique=True)
+    slack_channel = models.CharField(blank=True, default='', max_length=64)
+    slack_message_ts = models.CharField(blank=True, default='', max_length=32)
     rejection_reason = models.TextField(blank=True)
     created_event = models.ForeignKey(
         Event,

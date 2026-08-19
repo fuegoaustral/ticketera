@@ -39,6 +39,13 @@
 ## Chatwoot / contexto
 
 - Context processors opcionales (`chatwoot_token`, etc.) en settings para soporte en widget; revisar [`utils/context_processors.py`](../utils/context_processors.py) si se documenta UX de soporte.
+- Propuestas de evento desde La Sede abren una conversación en el inbox de soporte (`CHATWOOT_*` de API). El mensaje incluye **Aprobar** y **Desaprobar** (links firmados de un clic, más cards de Chatwoot si el inbox las muestra). No hace falta escribir `APROBAR` / `RECHAZAR`; esos comandos quedan de fallback.
+- Si Chatwoot está conectado a Slack desde el dashboard de Chatwoot (integración nativa de Chatwoot, no de esta app), el mismo mensaje llega al canal. No hace falta `SLACK_BOT_TOKEN` en la ticketera.
+- Inbox: usar un inbox **API** en `CHATWOOT_SOPORTE_INBOX_ID` (incoming notifica agentes). No usar el WebWidget.
+
+## Slack (opcional)
+
+Si algún día hay una Slack app propia, `SLACK_BOT_TOKEN` / `SLACK_SIGNING_SECRET` / `SLACK_EVENT_REQUESTS_CHANNEL` postean el mismo flujo con botones nativos. Sin esas vars, no se envía nada y no se muestra error al proponer.
 
 ## Auditoría
 

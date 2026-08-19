@@ -9,8 +9,8 @@ from django.views.decorators.http import require_http_methods
 from user_profile.models import SedeSubscription
 
 
-MANUAL_GENERIC_MATCHED_VIA = 'manual_generic'
-MANUAL_GENERIC_PLAN_ID = 'manual_generic'
+MANUAL_GENERIC_MATCHED_VIA = SedeSubscription.MANUAL_MATCHED_VIA
+MANUAL_GENERIC_PLAN_ID = SedeSubscription.MANUAL_PLAN_ID
 MANUAL_GENERIC_TIER_NAME = 'Suscripcion generica'
 STATUS_ACTIVE = 'active'
 STATUS_INACTIVE = 'inactive'

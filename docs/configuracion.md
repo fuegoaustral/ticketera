@@ -52,6 +52,27 @@ Valores sensibles **no** deben commitearse: usá `.env` local basado en [`env.ex
 
 Definidas en settings con default vacío: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID`.
 
+## Chatwoot (propuestas de evento)
+
+| Variable | Uso |
+|----------|-----|
+| `CHATWOOT_API_ACCESS_TOKEN` | Access token de API (Profile → Access Token), no el website token del widget. |
+| `CHATWOOT_ACCOUNT_ID` | ID numérico de la cuenta. |
+| `CHATWOOT_SOPORTE_INBOX_ID` | Inbox **API** donde se abren las propuestas (incoming notifica agentes). |
+| `CHATWOOT_SOPORTE_ASSIGNEE_ID` | Opcional: agente al que se asigna la conversación. |
+
+## Slack (opcional)
+
+Solo si hay una Slack app propia. Sin estas vars, las propuestas se aprueban desde Chatwoot.
+
+| Variable | Uso |
+|----------|-----|
+| `SLACK_BOT_TOKEN` | Bot User OAuth Token (`xoxb-…`) para `chat.postMessage` / `chat.update`. |
+| `SLACK_SIGNING_SECRET` | Firma de requests de Interactivity (webhook). |
+| `SLACK_EVENT_REQUESTS_CHANNEL` | ID del canal (`C…`) donde llegan las propuestas con botones Aprobar/Desaprobar. |
+
+Ver [integraciones](integraciones.md).
+
 ## Settings locales
 
 - Copiá [`deprepagos/local_settings.py.example`](../deprepagos/local_settings.py.example) a `deprepagos/local_settings.py` para overrides y `EXTRA_INSTALLED_APPS` (ver `settings.py`).

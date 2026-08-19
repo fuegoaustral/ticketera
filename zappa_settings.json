@@ -36,6 +36,10 @@
       {
         "function": "tickets.email_crons.send_pending_actions_emails",
         "expression": "cron(0 17 * * ? *)"
+      },
+      {
+        "function": "events.main_event_cron.sync_main_event",
+        "expression": "rate(1 hour)"
       }
     ]
   },
@@ -80,6 +84,10 @@
       {
         "function": "user_profile.sede_sync_cron.sync_sede_members",
         "expression": "cron(0 9 * * ? *)"
+      },
+      {
+        "function": "events.main_event_cron.sync_main_event",
+        "expression": "rate(1 hour)"
       }
     ]
   }

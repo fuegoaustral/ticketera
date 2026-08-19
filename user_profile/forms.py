@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import PasswordChangeForm
 from django.conf import settings
+from django_ckeditor_5.widgets import CKEditor5Widget
 from events.models import Event, EventRequest, EventRequestTicketType
 from tickets.models import TicketType, NewTicket, Order
 from .models import Profile
@@ -375,7 +376,7 @@ class EventRequestForm(forms.ModelForm):
         ]
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del evento'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 5}),
+            'description': CKEditor5Widget(config_name='extends'),
             'start': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
             'end': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
             'header_image': forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
@@ -397,6 +398,12 @@ class EventRequestForm(forms.ModelForm):
         help_texts = {
             'header_image': 'Resolución recomendada: 1666 × 500 px.',
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.is_bound:
+            self.fields['location'].initial = 'Paz Soldán 5150, CABA'
+            self.fields['location_url'].initial = 'https://maps.app.goo.gl/BUDpcUhFYLKC64Sx6'
 
     def clean_max_tickets(self):
         value = self.cleaned_data.get('max_tickets')

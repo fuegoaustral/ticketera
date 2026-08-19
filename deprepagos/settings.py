@@ -124,6 +124,7 @@ TEMPLATES = [
                 'utils.context_processors.env',
                 'utils.context_processors.chatwoot_identifier_hash',
                 'utils.context_processors.pending_terms_and_conditions',
+                'utils.context_processors.pending_logro_celebrations',
                 'caja.context_processors.cajas_v2_menu',
             ],
         },
@@ -353,6 +354,10 @@ CHATWOOT_ACCOUNT_ID = os.environ.get('CHATWOOT_ACCOUNT_ID', '')
 CHATWOOT_SOPORTE_INBOX_ID = os.environ.get('CHATWOOT_SOPORTE_INBOX_ID', '')
 # Agente que recibe asignación (opcional; útil si el inbox es WebWidget)
 CHATWOOT_SOPORTE_ASSIGNEE_ID = os.environ.get('CHATWOOT_SOPORTE_ASSIGNEE_ID', '')
+
+SLACK_BOT_TOKEN = os.environ.get('SLACK_BOT_TOKEN', '')
+SLACK_SIGNING_SECRET = os.environ.get('SLACK_SIGNING_SECRET', '')
+SLACK_EVENT_REQUESTS_CHANNEL = os.environ.get('SLACK_EVENT_REQUESTS_CHANNEL', '')
 
 SECRET = os.environ.get('SECRET')
 

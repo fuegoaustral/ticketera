@@ -1,4 +1,10 @@
 {% extends 'mi_fuego/my_tickets/index.html' %}
+{% load static %}
+
+{% block extrahead %}
+    <link rel="stylesheet" href="{% static 'django_ckeditor_5/dist/styles.css' %}">
+    <link rel="stylesheet" href="{% static 'django_ckeditor_5/src/override-django.css' %}">
+{% endblock %}
 
 {% block page_title %}Proponer evento{% endblock page_title %}
 
@@ -13,7 +19,7 @@
                         Proponer un evento
                     </h1>
                     <p class="text-muted mb-0">
-                        Completá los datos y la propuesta llega a soporte por Chatwoot para revisión.
+                        Completá los datos y la propuesta llega a Chatwoot para que soporte la apruebe o desapruebe.
                     </p>
                 </div>
                 <a href="{% url 'my_event_requests' %}" class="btn btn-outline-secondary btn-sm">
@@ -193,4 +199,5 @@
     updateRemoveButtons();
 })();
 </script>
+<script src="{% static 'django_ckeditor_5/dist/bundle.js' %}"></script>
 {% endblock %}

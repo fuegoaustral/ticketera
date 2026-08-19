@@ -1009,12 +1009,13 @@ class EventRequestTicketTypeInline(admin.TabularInline):
 class EventRequestAdmin(admin.ModelAdmin):
     list_display = (
         'name', 'requested_by', 'status', 'max_tickets', 'start',
-        'chatwoot_conversation_id', 'created_at',
+        'slack_message_ts', 'chatwoot_conversation_id', 'created_at',
     )
     list_filter = ('status',)
     search_fields = ('name', 'requested_by__email', 'location')
     readonly_fields = (
         'chatwoot_contact_id', 'chatwoot_conversation_id',
+        'slack_channel', 'slack_message_ts',
         'resolved_at', 'created_at', 'updated_at',
     )
     inlines = [EventRequestTicketTypeInline]

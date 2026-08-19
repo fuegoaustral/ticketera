@@ -173,3 +173,46 @@ def pending_terms_and_conditions(request):
         'pending_terms_by_event': pending_terms_by_event,
         'has_pending_terms': has_pending_terms,
     }
+
+
+LOGRO_CELEBRATION_EXCLUDED_PATHS = (
+    '/admin/',
+    '/term/',
+    '/accounts/',
+    '/api/',
+    '/scan/',
+    '/mi-fuego/complete-profile/',
+)
+
+LOGRO_CELEBRATION_EXCLUDED_URL_NAMES = {
+    'checkout_payment_callback',
+    'check_order_status',
+    'scan_tickets',
+    'scan_tickets_event',
+    'caja',
+    'caja_v2_operator',
+}
+
+
+def pending_logro_celebrations(request):
+    """Evalúa logros nuevos y expone celebraciones pendientes para el modal global."""
+    empty = {'pending_logro_celebrations': []}
+    if not hasattr(request, 'user') or not request.user.is_authenticated:
+        return empty
+    if request.method not in ('GET', 'HEAD'):
+        return empty
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return empty
+    if any(request.path.startswith(path) for path in LOGRO_CELEBRATION_EXCLUDED_PATHS):
+        return empty
+
+    resolver_match = getattr(request, 'resolver_match', None)
+    url_name = getattr(resolver_match, 'url_name', None) if resolver_match else None
+    if url_name in LOGRO_CELEBRATION_EXCLUDED_URL_NAMES:
+        return empty
+
+    from logros.services import evaluate_and_get_pending_payload
+
+    return {
+        'pending_logro_celebrations': evaluate_and_get_pending_payload(request.user),
+    }

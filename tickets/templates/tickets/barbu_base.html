@@ -390,5 +390,19 @@
         });
     </script>
     {% endif %}
+
+    {% if user.is_authenticated %}
+      {% include 'mi_fuego/partials/logro_unlocked_modal.html' %}
+      {% if pending_logro_celebrations and not has_pending_terms %}
+        {{ pending_logro_celebrations|json_script:"pending-logro-celebrations-data" }}
+        <script>
+          document.addEventListener('DOMContentLoaded', function () {
+            const dataEl = document.getElementById('pending-logro-celebrations-data');
+            if (!dataEl || typeof enqueueLogroCelebrations !== 'function') return;
+            enqueueLogroCelebrations(JSON.parse(dataEl.textContent));
+          });
+        </script>
+      {% endif %}
+    {% endif %}
   </body>
 </html>
