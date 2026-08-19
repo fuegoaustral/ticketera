@@ -30,19 +30,18 @@ def check_purchased_events(user, config):
 
 def check_volunteer_at_events(user, config):
     """
-    True si el usuario es dueño de un bono con ese rol de voluntariado
-    en al menos uno de los event_ids (un FA pasado, no todos).
+    True si el usuario es dueño de un bono con ese rol de voluntariado.
+    Sin event_ids: cualquier evento (incluye futuros).
+    Con event_ids: al menos uno de los listados.
     """
-    event_ids = config.get('event_ids') or []
     field = VOLUNTEER_ROLE_FIELDS.get(config.get('role'))
-    if not event_ids or not field:
+    if not field:
         return False
 
-    qs = NewTicket.objects.filter(
-        owner=user,
-        event_id__in=event_ids,
-        **{field: True},
-    )
+    qs = NewTicket.objects.filter(owner=user, **{field: True})
+    event_ids = config.get('event_ids') or []
+    if event_ids:
+        qs = qs.filter(event_id__in=event_ids)
     if config.get('must_be_used', False):
         qs = qs.filter(is_used=True)
     return qs.exists()

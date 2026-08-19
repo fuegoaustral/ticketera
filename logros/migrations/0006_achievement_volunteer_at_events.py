@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='achievement',
             name='condition_config',
-            field=models.JSONField(blank=True, default=dict, help_text='purchased_events: {"event_ids": [9, 10, 17]} (AND). volunteer_at_events: {"event_ids": [14, 7, 4, 1], "role": "transmutator", "must_be_used": true} (OR; role: transmutator | ranger | caos | mad).'),
+            field=models.JSONField(blank=True, default=dict, help_text='purchased_events: {"event_ids": [9, 10, 17]} (AND). volunteer_at_events: {"role": "transmutator", "must_be_used": true} (cualquier evento; opcional event_ids para limitar; role: transmutator | ranger | caos | mad).'),
         ),
         migrations.AlterField(
             model_name='achievement',

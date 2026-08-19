@@ -24,8 +24,9 @@ class Achievement(BaseModel):
         blank=True,
         help_text=(
             'purchased_events: {"event_ids": [9, 10, 17]} (AND). '
-            'volunteer_at_events: {"event_ids": [14, 7, 4, 1], "role": "transmutator", "must_be_used": true} '
-            '(OR; role: transmutator | ranger | caos | mad).'
+            'volunteer_at_events: {"role": "transmutator", "must_be_used": true} '
+            '(cualquier evento; opcional event_ids para limitar; '
+            'role: transmutator | ranger | caos | mad).'
         ),
     )
     is_active = models.BooleanField(default=True)
