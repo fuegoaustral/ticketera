@@ -267,6 +267,53 @@ class VolunteerLogroTests(TestCase):
         )
 
 
+class AttendedLogroTests(TestCase):
+    def setUp(self):
+        self.user = _make_user()
+        self.event_a = _make_event(is_main=True)
+        self.event_b = _make_event()
+        self.event_c = _make_event()
+        self.event_ids = [self.event_a.id, self.event_b.id, self.event_c.id]
+        self.order_a = _make_order(self.user, self.event_a)
+        self.order_b = _make_order(self.user, self.event_b)
+        self.order_c = _make_order(self.user, self.event_c)
+
+    def _achievement(self, slug, min_count, sort_order=1):
+        return _make_achievement(
+            slug,
+            slug,
+            self.event_ids,
+            sort_order=sort_order,
+            condition_type=Achievement.ConditionType.ATTENDED_EVENTS,
+            condition_config={
+                'event_ids': self.event_ids,
+                'min_count': min_count,
+                'must_be_used': True,
+            },
+        )
+
+    def test_one_used_ticket_unlocks_min_count_one_not_two(self):
+        one = self._achievement('fa-1', 1, sort_order=1)
+        two = self._achievement('fa-2', 2, sort_order=2)
+        _make_ticket(self.user, self.event_a, self.order_a, is_used=True)
+        unlocked = {item.slug for item in check_and_unlock_for_user(self.user)}
+        self.assertEqual(unlocked, {'fa-1'})
+        self.assertTrue(UserAchievement.objects.filter(user=self.user, achievement=one).exists())
+        self.assertFalse(UserAchievement.objects.filter(user=self.user, achievement=two).exists())
+
+    def test_two_used_tickets_unlock_min_count_two(self):
+        self._achievement('fa-2', 2)
+        _make_ticket(self.user, self.event_a, self.order_a, is_used=True)
+        _make_ticket(self.user, self.event_c, self.order_c, is_used=True)
+        unlocked = {item.slug for item in check_and_unlock_for_user(self.user)}
+        self.assertEqual(unlocked, {'fa-2'})
+
+    def test_unused_ticket_does_not_count(self):
+        self._achievement('fa-1', 1)
+        _make_ticket(self.user, self.event_a, self.order_a, is_used=False)
+        self.assertEqual(check_and_unlock_for_user(self.user), [])
+
+
 class LogrosUITests(TestCase):
     def setUp(self):
         self.user = _make_user()

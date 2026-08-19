@@ -47,9 +47,30 @@ def check_volunteer_at_events(user, config):
     return qs.exists()
 
 
+def check_attended_events(user, config):
+    """
+    True si el usuario asistió a al menos min_count eventos de event_ids.
+    Por defecto exige bono escaneado (is_used).
+    """
+    event_ids = config.get('event_ids') or []
+    try:
+        min_count = int(config.get('min_count') or 0)
+    except (TypeError, ValueError):
+        return False
+    if not event_ids or min_count < 1:
+        return False
+
+    qs = NewTicket.objects.filter(owner=user, event_id__in=event_ids)
+    if config.get('must_be_used', True):
+        qs = qs.filter(is_used=True)
+    attended = set(qs.values_list('event_id', flat=True))
+    return len(attended) >= min_count
+
+
 CONDITION_CHECKERS = {
     'purchased_events': check_purchased_events,
     'volunteer_at_events': check_volunteer_at_events,
+    'attended_events': check_attended_events,
 }
 
 
