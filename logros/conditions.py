@@ -47,12 +47,32 @@ def check_volunteer_at_events(user, config):
     return qs.exists()
 
 
+def _as_int_ids(values):
+    ids = []
+    for value in values or []:
+        try:
+            ids.append(int(value))
+        except (TypeError, ValueError):
+            continue
+    return ids
+
+
+def _user_ticket_event_ids(user, event_ids=None, must_be_used=False):
+    qs = NewTicket.objects.filter(Q(owner=user) | Q(holder=user))
+    if event_ids:
+        qs = qs.filter(event_id__in=event_ids)
+    if must_be_used:
+        qs = qs.filter(is_used=True)
+    return set(qs.exclude(event_id__isnull=True).values_list('event_id', flat=True))
+
+
 def check_attended_events(user, config):
     """
-    True si el usuario asistió a al menos min_count eventos de event_ids.
-    Por defecto exige bono escaneado (is_used).
+    True si el usuario participó en al menos min_count eventos de event_ids.
+    Cuenta bono como owner o holder. must_be_used (default true) exige escaneo;
+    si es false, también cuenta órdenes CONFIRMED.
     """
-    event_ids = config.get('event_ids') or []
+    event_ids = set(_as_int_ids(config.get('event_ids') or []))
     try:
         min_count = int(config.get('min_count') or 0)
     except (TypeError, ValueError):
@@ -60,10 +80,10 @@ def check_attended_events(user, config):
     if not event_ids or min_count < 1:
         return False
 
-    qs = NewTicket.objects.filter(owner=user, event_id__in=event_ids)
-    if config.get('must_be_used', True):
-        qs = qs.filter(is_used=True)
-    attended = set(qs.values_list('event_id', flat=True))
+    must_be_used = config.get('must_be_used', True)
+    attended = _user_ticket_event_ids(user, event_ids, must_be_used=must_be_used)
+    if not must_be_used:
+        attended |= {eid for eid in _user_purchased_event_ids(user) if eid in event_ids}
     return len(attended) >= min_count
 
 

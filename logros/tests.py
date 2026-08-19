@@ -313,6 +313,27 @@ class AttendedLogroTests(TestCase):
         _make_ticket(self.user, self.event_a, self.order_a, is_used=False)
         self.assertEqual(check_and_unlock_for_user(self.user), [])
 
+    def test_holder_without_owner_counts_when_used(self):
+        self._achievement('fa-1', 1)
+        _make_ticket(self.user, self.event_a, self.order_a, owner=None, holder=self.user, is_used=True)
+        unlocked = {item.slug for item in check_and_unlock_for_user(self.user)}
+        self.assertEqual(unlocked, {'fa-1'})
+
+    def test_must_be_used_false_counts_confirmed_orders(self):
+        _make_achievement(
+            'fa-3-orders',
+            'fa-3-orders',
+            self.event_ids,
+            condition_type=Achievement.ConditionType.ATTENDED_EVENTS,
+            condition_config={
+                'event_ids': self.event_ids,
+                'min_count': 3,
+                'must_be_used': False,
+            },
+        )
+        unlocked = {item.slug for item in check_and_unlock_for_user(self.user)}
+        self.assertEqual(unlocked, {'fa-3-orders'})
+
 
 class LogrosUITests(TestCase):
     def setUp(self):
