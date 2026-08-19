@@ -17,7 +17,7 @@ Implementadas en [`logros/conditions.py`](../logros/conditions.py):
 |------|--------|-------|
 | `purchased_events` | `{"event_ids": [9, 10, 17]}` | El usuario tiene al menos una orden **CONFIRMED** en **cada** evento listado (match por `Order.user` o `Order.email` case-insensitive). |
 | `volunteer_at_events` | `{"role": "transmutator", "must_be_used": true}` | Dueño de un bono con ese rol. Sin `event_ids`: **cualquier** evento (pasados y futuros). Con `event_ids`: al menos uno de la lista. `role`: `transmutator`, `ranger`, `caos` (`volunteer_umpalumpa`), `mad`. `must_be_used` exige que el bono se haya escaneado. |
-| `attended_events` | `{"event_ids": [14, 7, 4, 1], "min_count": 2}` | Participó en **al menos** `min_count` eventos distintos: bono como **owner o holder**. `must_be_used` default `true` (escaneado). Si es `false`, también cuenta órdenes **CONFIRMED**. |
+| `attended_events` | `{"event_ids": [14, 7, 4, 1], "min_count": 2}` | Participó en **al menos** `min_count` eventos distintos. Cuenta `NewTicket` (owner o holder) y bonos del modelo viejo (`Ticket`, p. ej. Metanoia) por email. `must_be_used` default `true` (escaneado en NewTicket; el legado no tiene scan y siempre cuenta). Si es `false`, también cuenta órdenes **CONFIRMED**. |
 
 Para agregar condiciones nuevas: implementar checker en `CONDITION_CHECKERS` y agregar choice en `Achievement.ConditionType`.
 

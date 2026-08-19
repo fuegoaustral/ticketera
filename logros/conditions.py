@@ -1,6 +1,6 @@
 from django.db.models import Q
 
-from tickets.models import NewTicket, Order
+from tickets.models import NewTicket, Order, OrderTicket, Ticket
 
 VOLUNTEER_ROLE_FIELDS = {
     'transmutator': 'volunteer_transmutator',
@@ -11,13 +11,18 @@ VOLUNTEER_ROLE_FIELDS = {
 
 
 def _user_purchased_event_ids(user):
-    return set(
-        Order.objects.filter(status=Order.OrderStatus.CONFIRMED)
-        .filter(Q(user=user) | Q(email__iexact=user.email))
-        .exclude(event_id__isnull=True)
-        .values_list('event_id', flat=True)
-        .distinct()
+    confirmed = Order.objects.filter(status=Order.OrderStatus.CONFIRMED).filter(
+        Q(user=user) | Q(email__iexact=user.email)
     )
+    ids = set(
+        confirmed.exclude(event_id__isnull=True).values_list('event_id', flat=True)
+    )
+    ids.update(
+        OrderTicket.objects.filter(order__in=confirmed)
+        .exclude(ticket_type__event_id__isnull=True)
+        .values_list('ticket_type__event_id', flat=True)
+    )
+    return ids
 
 
 def check_purchased_events(user, config):
@@ -57,20 +62,46 @@ def _as_int_ids(values):
     return ids
 
 
+def _user_legacy_ticket_event_ids(user, event_ids=None):
+    """Bonos del modelo viejo (Ticket): Metanoia y ediciones anteriores."""
+    qs = Ticket.objects.filter(
+        Q(email__iexact=user.email)
+        | Q(order__user=user)
+        | Q(order__email__iexact=user.email),
+        order__status=Order.OrderStatus.CONFIRMED,
+    )
+    found = set(
+        qs.exclude(order__event_id__isnull=True).values_list('order__event_id', flat=True)
+    )
+    found.update(
+        OrderTicket.objects.filter(order_id__in=qs.values('order_id'))
+        .exclude(ticket_type__event_id__isnull=True)
+        .values_list('ticket_type__event_id', flat=True)
+    )
+    if event_ids:
+        found &= set(event_ids)
+    return found
+
+
 def _user_ticket_event_ids(user, event_ids=None, must_be_used=False):
     qs = NewTicket.objects.filter(Q(owner=user) | Q(holder=user))
     if event_ids:
         qs = qs.filter(event_id__in=event_ids)
     if must_be_used:
         qs = qs.filter(is_used=True)
-    return set(qs.exclude(event_id__isnull=True).values_list('event_id', flat=True))
+    found = set(qs.exclude(event_id__isnull=True).values_list('event_id', flat=True))
+    # El modelo viejo no tiene is_used; si pedimos escaneo, igual cuenta (no había scanner).
+    found |= _user_legacy_ticket_event_ids(user, event_ids)
+    return found
 
 
 def check_attended_events(user, config):
     """
     True si el usuario participó en al menos min_count eventos de event_ids.
-    Cuenta bono como owner o holder. must_be_used (default true) exige escaneo;
-    si es false, también cuenta órdenes CONFIRMED.
+    Cuenta NewTicket (owner o holder) y Ticket legado (email en el bono u orden).
+    must_be_used (default true) exige escaneo en NewTicket; los bonos viejos
+    no tienen is_used y siempre cuentan. Si must_be_used es false, también
+    cuenta órdenes CONFIRMED.
     """
     event_ids = set(_as_int_ids(config.get('event_ids') or []))
     try:
