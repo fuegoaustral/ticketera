@@ -71,7 +71,13 @@ def _request(method, path, **kwargs):
     except ValueError:
         data = {'raw': response.text}
     if not response.ok:
+        error_text = str(data)
         logger.error('Chatwoot API %s %s failed: %s', method, path, data)
+        if response.status_code == 403 and 'API access is not enabled' in error_text:
+            logger.error(
+                'Chatwoot Cloud bloqueó la Application API (plan Hacker/free). '
+                'Las propuestas no van a llegar al inbox hasta un plan pago o Slack/email.'
+            )
         return None
     return data
 
@@ -198,6 +204,67 @@ def _get_or_create_contact(event_request):
     return None
 
 
+def _extract_source_id(data, inbox_id=None):
+    if not data or not isinstance(data, dict):
+        return None
+    if data.get('source_id'):
+        inbox = data.get('inbox') or {}
+        if inbox_id is None:
+            return data['source_id']
+        item_inbox_id = data.get('inbox_id') or (inbox.get('id') if isinstance(inbox, dict) else None)
+        if item_inbox_id is None or int(item_inbox_id) == int(inbox_id):
+            return data['source_id']
+
+    payload = data.get('payload')
+    if isinstance(payload, dict):
+        nested = _extract_source_id(payload, inbox_id)
+        if nested:
+            return nested
+        contact = payload.get('contact')
+        if isinstance(contact, dict):
+            nested = _extract_source_id(contact, inbox_id)
+            if nested:
+                return nested
+
+    inboxes = data.get('contact_inboxes') or []
+    if isinstance(payload, dict):
+        inboxes = inboxes or payload.get('contact_inboxes') or []
+        contact = payload.get('contact') if isinstance(payload.get('contact'), dict) else {}
+        inboxes = inboxes or contact.get('contact_inboxes') or []
+    target = int(inbox_id) if inbox_id is not None else None
+    for item in inboxes:
+        if not isinstance(item, dict) or not item.get('source_id'):
+            continue
+        inbox = item.get('inbox') or {}
+        item_inbox_id = item.get('inbox_id') or (inbox.get('id') if isinstance(inbox, dict) else None)
+        if target is None or item_inbox_id is None or int(item_inbox_id) == target:
+            return item['source_id']
+    return None
+
+
+def _ensure_contact_inbox(contact_id):
+    inbox_id = int(settings.CHATWOOT_SOPORTE_INBOX_ID)
+    data = _request('GET', f'/contacts/{contact_id}')
+    source_id = _extract_source_id(data, inbox_id)
+    if source_id:
+        return source_id
+    created = _request(
+        'POST',
+        f'/contacts/{contact_id}/contact_inboxes',
+        json={'inbox_id': inbox_id},
+    )
+    source_id = _extract_source_id(created, inbox_id)
+    if source_id:
+        return source_id
+    logger.error(
+        'Chatwoot no devolvió source_id para contact %s inbox %s: %s',
+        contact_id,
+        inbox_id,
+        created,
+    )
+    return None
+
+
 def _extract_conversation_id(data):
     if not data or not isinstance(data, dict):
         return None
@@ -217,6 +284,12 @@ def _create_conversation(contact_id):
         'contact_id': contact_id,
         'status': 'open',
     }
+    source_id = _ensure_contact_inbox(contact_id)
+    if source_id:
+        payload['source_id'] = str(source_id)
+    assignee_id = getattr(settings, 'CHATWOOT_SOPORTE_ASSIGNEE_ID', '') or ''
+    if assignee_id:
+        payload['assignee_id'] = int(assignee_id)
     data = _request('POST', '/conversations', json=payload)
     conversation_id = _extract_conversation_id(data)
     if conversation_id:
@@ -283,13 +356,8 @@ def _post_proposal_messages(conversation_id, event_request):
     if _inbox_allows_incoming_messages():
         public_type = 'incoming'
     else:
+        # Website/WebWidget rejects incoming via Application API (422).
         public_type = 'outgoing'
-        logger.warning(
-            'Inbox %s es WebWidget: la propuesta #%s no va a alertar a agentes. '
-            'Usá un inbox API (Settings → Inboxes → API) en CHATWOOT_SOPORTE_INBOX_ID.',
-            settings.CHATWOOT_SOPORTE_INBOX_ID,
-            event_request.pk,
-        )
 
     if not _create_message(
         conversation_id,

@@ -1,11 +1,11 @@
 from django.core.management.base import BaseCommand, CommandError
 
 from events.models import EventRequest
-from events.services.event_request_chatwoot import post_event_request_to_chatwoot
+from events.services.event_request_notify import notify_event_request_for_review
 
 
 class Command(BaseCommand):
-    help = 'Reenvía una propuesta de evento pendiente al inbox de soporte en Chatwoot.'
+    help = 'Reenvía la notificación de revisión de una propuesta (Chatwoot/Slack/email).'
 
     def add_arguments(self, parser):
         parser.add_argument('request_id', type=int, nargs='?', default=None)
@@ -42,15 +42,21 @@ class Command(BaseCommand):
                     'chatwoot_contact_id',
                     'updated_at',
                 ])
-            ok = post_event_request_to_chatwoot(event_request)
-            if ok:
+            result = notify_event_request_for_review(event_request)
+            channels = []
+            if result.chatwoot:
+                channels.append(f'Chatwoot {event_request.chatwoot_conversation_id}')
+            if result.slack:
+                channels.append(f'Slack {event_request.slack_channel}')
+            if result.email:
+                channels.append('email staff')
+            if channels:
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f'Propuesta #{event_request.pk} → conversación '
-                        f'{event_request.chatwoot_conversation_id}'
+                        f'Propuesta #{event_request.pk} → ' + ', '.join(channels)
                     )
                 )
             else:
                 self.stderr.write(
-                    self.style.ERROR(f'Propuesta #{event_request.pk} no se pudo enviar a Chatwoot')
+                    self.style.ERROR(f'Propuesta #{event_request.pk} sin ningún canal de notificación')
                 )

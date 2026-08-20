@@ -14,12 +14,12 @@ REJECT_REASON = 'Rechazada desde Slack'
 _SLACK_API = 'https://slack.com/api'
 
 
+def slack_post_configured():
+    return bool(settings.SLACK_BOT_TOKEN and settings.SLACK_EVENT_REQUESTS_CHANNEL)
+
+
 def slack_api_configured():
-    return bool(
-        settings.SLACK_BOT_TOKEN
-        and settings.SLACK_SIGNING_SECRET
-        and settings.SLACK_EVENT_REQUESTS_CHANNEL
-    )
+    return slack_post_configured() and bool(settings.SLACK_SIGNING_SECRET)
 
 
 def slack_missing_config():
@@ -171,8 +171,8 @@ def _fallback_text(event_request):
 
 
 def post_event_request_to_slack(event_request):
-    missing = slack_missing_config()
-    if missing:
+    if not slack_post_configured():
+        missing = [name for name in ('SLACK_BOT_TOKEN', 'SLACK_EVENT_REQUESTS_CHANNEL') if not getattr(settings, name, '')]
         logger.warning(
             'Slack incompleto (%s); propuesta #%s sin mensaje',
             ', '.join(missing),

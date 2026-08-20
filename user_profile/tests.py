@@ -1,13 +1,24 @@
 import logging
+from datetime import timedelta
 
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.utils import timezone
 
+from user_profile.forms import (
+    MAX_EVENT_REQUEST_BANNER_BYTES,
+    EventRequestForm,
+)
 from user_profile.models import SedeSubscription
 from user_profile.services.sede_mercadopago import (
     _deactivate_stale_members,
     _reconcile_local_subscriptions_with_remote_detail_truth,
+)
+
+TINY_GIF = (
+    b'GIF89a\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00!\xf9\x04'
+    b'\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;'
 )
 
 
@@ -75,3 +86,43 @@ class ManualSedeMembershipSyncTests(TestCase):
             for sub_id in summary['active_ids']
         ))
         self.assertTrue(profile.miembro_sede)
+
+
+def _event_request_form_data(**overrides):
+    now = timezone.now()
+    data = {
+        'name': 'Noche en La Sede',
+        'description': '<p>Una noche</p>',
+        'start': (now + timedelta(days=7)).strftime('%Y-%m-%dT%H:%M'),
+        'end': (now + timedelta(days=7, hours=5)).strftime('%Y-%m-%dT%H:%M'),
+        'location': 'Paz Soldán 5150, CABA',
+        'max_tickets': 300,
+    }
+    data.update(overrides)
+    return data
+
+
+class EventRequestFormTests(TestCase):
+    def test_rejects_banner_over_api_gateway_safe_limit(self):
+        banner = SimpleUploadedFile('banner.gif', TINY_GIF, content_type='image/gif')
+        banner.size = MAX_EVENT_REQUEST_BANNER_BYTES + 1
+        form = EventRequestForm(data=_event_request_form_data(), files={'header_image': banner})
+        self.assertFalse(form.is_valid())
+        self.assertIn('header_image', form.errors)
+
+    def test_rejects_base64_images_in_description(self):
+        form = EventRequestForm(
+            data=_event_request_form_data(
+                description='<p>hola</p><img src="data:image/png;base64,iVBORw0KGgo=">',
+            ),
+            files={'header_image': SimpleUploadedFile('banner.gif', TINY_GIF, content_type='image/gif')},
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn('description', form.errors)
+
+    def test_accepts_small_banner_and_html_description(self):
+        form = EventRequestForm(
+            data=_event_request_form_data(),
+            files={'header_image': SimpleUploadedFile('banner.gif', TINY_GIF, content_type='image/gif')},
+        )
+        self.assertTrue(form.is_valid(), form.errors)

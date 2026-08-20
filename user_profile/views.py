@@ -1179,12 +1179,7 @@ def propose_event_view(request):
         raise Http404
 
     from events.models import EventRequest
-    from events.services.event_request_chatwoot import (
-        chatwoot_api_configured,
-        chatwoot_missing_config,
-        post_event_request_to_chatwoot,
-    )
-    from events.services.event_request_slack import post_event_request_to_slack
+    from events.services.event_request_notify import notify_event_request_for_review
     from .forms import EventRequestForm, EventRequestTicketTypeFormSet
 
     if request.method == 'POST':
@@ -1199,23 +1194,17 @@ def propose_event_view(request):
             formset = EventRequestTicketTypeFormSet(request.POST, instance=event_request)
             if formset.is_valid():
                 formset.save()
-                posted_chatwoot = post_event_request_to_chatwoot(event_request)
-                post_event_request_to_slack(event_request)
-                if posted_chatwoot:
+                notified = notify_event_request_for_review(event_request)
+                if notified.notified:
                     messages.success(
                         request,
-                        'Propuesta enviada. Soporte la va a revisar en Chatwoot.',
-                    )
-                elif chatwoot_api_configured():
-                    messages.warning(
-                        request,
-                        'Propuesta guardada, pero no se pudo abrir la conversación en Chatwoot.',
+                        'Propuesta enviada. Soporte la va a revisar para aprobarla o desaprobarla.',
                     )
                 else:
-                    missing = ', '.join(chatwoot_missing_config())
                     messages.warning(
                         request,
-                        f'Propuesta guardada. Falta configurar Chatwoot API en el servidor ({missing}).',
+                        'Propuesta guardada, pero no se pudo avisar a soporte. '
+                        'Escribile a alguien del equipo o reintentá más tarde.',
                     )
                 return redirect('my_event_requests')
             event_request.delete()
