@@ -4,8 +4,10 @@ Lista de comportamientos codificados que suelen consultar operaciones o QA. Siem
 
 ## Evento principal y visibilidad
 
-- Solo un `Event` con `is_main=True` a la vez (constraint + validación en `Event.clean()`).
-- La raíz `/` usa `Event.get_main_event()` (activo y principal).
+- Solo un `Event` con `is_main=True` a la vez (constraint `unique_main_event`). Si se marca uno como principal, `Event.save()` destilda el anterior.
+- La raíz `/` usa `Event.get_main_event()`: activo, principal, y con `end` todavía en el futuro.
+- Rotación automática ([`events/services/main_event.py`](../events/services/main_event.py)): si el main actual venció (`end < now`) o está inactivo, y hay otro evento `active=True` con `end >= now`, ese pasa a ser main. Preferencia: el que está en curso (`start <= now`, más reciente); si no, el próximo futuro.
+- Disparadores: cron horario (`events.main_event_cron.sync_main_event`), `post_save` de `Event`, y cada lectura de `get_main_event()`.
 - Eventos por slug: solo `active=True` en `get_by_slug`.
 
 ## Cupo global del evento
@@ -41,7 +43,9 @@ Lista de comportamientos codificados que suelen consultar operaciones o QA. Siem
 ## Logros
 
 - Condición `purchased_events`: orden **CONFIRMED** por usuario o email en todos los `event_ids` configurados.
-- Un logro desbloqueado no se re-evalúa; `celebration_shown` controla el modal único por logro.
+- Condición `volunteer_at_events`: bono propio con el rol (`transmutator` / `ranger` / `caos` / `mad`); sin `event_ids` aplica a cualquier evento, con lista a al menos uno de ellos. `must_be_used` exige ingreso escaneado.
+- Condición `attended_events`: owner/holder de `NewTicket` o bono legado `Ticket` (email) en al menos `min_count` de los `event_ids`. `must_be_used` default true aplica al modelo nuevo; el viejo no tiene scan. Si es false, también cuenta órdenes CONFIRMED.
+- Un logro desbloqueado no se re-evalúa; `celebration_shown` controla el modal único por logro (home / Mi Fuego logueado, post-pago, Mis logros).
 
 ## Transferencias y voluntarios
 
@@ -65,5 +69,11 @@ Lista de comportamientos codificados que suelen consultar operaciones o QA. Siem
 ## Middleware
 
 - `ProfileCompletionMiddleware` y `DeviceDetectionMiddleware` ([`tickets/middleware.py`](../tickets/middleware.py)) pueden redirigir o enriquecer contexto según perfil incompleto o dispositivo.
+
+## Socios de La Sede (manual vs MercadoPago)
+
+- `Profile.miembro_sede` es verdadero si hay una `SedeSubscription` con `is_active=True` y `is_soft_removed=False`.
+- El cron diario (`user_profile.sede_sync_cron.sync_sede_members`) sincroniza suscripciones **de MercadoPago** y desactiva las que ya no están authorized.
+- Las membresías cargadas a mano en `/admin/sede/manual-members/` (`matched_via=manual_generic`, id `manual-generic-profile-*`) **no** se desactivan ni se pisan con MercadoPago. Solo se apagan desde esa misma pantalla.
 
 Para integraciones que disparan cambios de estado, ver [integraciones](integraciones.md) y [ordenes-y-pagos](ordenes-y-pagos.md).

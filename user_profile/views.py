@@ -1094,29 +1094,18 @@ def _mi_fuego_sidebar_context(request):
 
 @login_required
 def mis_logros_view(request):
-    from logros.services import (
-        check_and_unlock_for_user,
-        get_achievements_for_user,
-        get_pending_celebrations,
-    )
+    from logros.services import check_and_unlock_for_user, get_achievements_for_user
 
     check_and_unlock_for_user(request.user)
     logros = get_achievements_for_user(request.user)
-    pending = get_pending_celebrations(request.user)
-    pending_celebrations = [
-        {
-            'slug': ua.achievement.slug,
-            'name': ua.achievement.name,
-            'description': ua.achievement.description,
-            'image_url': ua.achievement.image_url,
-        }
-        for ua in pending
-    ]
+    unlocked_logros = [item for item in logros if item['unlocked']]
+    locked_logros = [item for item in logros if not item['unlocked']]
 
     context = _mi_fuego_sidebar_context(request)
     context.update({
         'logros': logros,
-        'pending_celebrations': pending_celebrations,
+        'unlocked_logros': unlocked_logros,
+        'locked_logros': locked_logros,
         'nav_primary': 'logros',
         'nav_secondary': 'mis_logros',
     })
@@ -1190,11 +1179,7 @@ def propose_event_view(request):
         raise Http404
 
     from events.models import EventRequest
-    from events.services.event_request_chatwoot import (
-        chatwoot_api_configured,
-        chatwoot_missing_config,
-        post_event_request_to_chatwoot,
-    )
+    from events.services.event_request_notify import notify_event_request_for_review
     from .forms import EventRequestForm, EventRequestTicketTypeFormSet
 
     if request.method == 'POST':
@@ -1209,22 +1194,17 @@ def propose_event_view(request):
             formset = EventRequestTicketTypeFormSet(request.POST, instance=event_request)
             if formset.is_valid():
                 formset.save()
-                posted = post_event_request_to_chatwoot(event_request)
-                if posted:
+                notified = notify_event_request_for_review(event_request)
+                if notified.notified:
                     messages.success(
                         request,
-                        'Propuesta enviada. Soporte la va a revisar en Chatwoot.',
-                    )
-                elif chatwoot_api_configured():
-                    messages.warning(
-                        request,
-                        'Propuesta guardada, pero no se pudo abrir la conversación en Chatwoot.',
+                        'Propuesta enviada. Soporte la va a revisar para aprobarla o desaprobarla.',
                     )
                 else:
-                    missing = ', '.join(chatwoot_missing_config())
                     messages.warning(
                         request,
-                        f'Propuesta guardada. Falta configurar Chatwoot API en el servidor ({missing}).',
+                        'Propuesta guardada, pero no se pudo avisar a soporte. '
+                        'Escribile a alguien del equipo o reintentá más tarde.',
                     )
                 return redirect('my_event_requests')
             event_request.delete()

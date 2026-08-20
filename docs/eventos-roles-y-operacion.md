@@ -10,7 +10,7 @@ Guía operativa alineada con el código. Para el checklist editorial de un event
    - **`transfers_enabled_until`** (obligatorio en modelo): hasta cuándo se permiten transferencias de bonos.
    - **`active`**: marcarlo cuando el evento deba aparecer en listados y URLs públicas.
    - **`slug`**: recomendado para URLs estables (`/<slug>/`); si queda vacío, en el guardado puede generarse desde el nombre.
-   - **`is_main`**: solo un evento puede ser principal; define qué se muestra en `/`.
+   - **`is_main`**: solo un evento puede ser principal (si marcás uno, el anterior se destilda); define qué se muestra en `/`. Si el main venció y hay otro evento activo vigente, la rotación es automática.
 3. Cargá **contenido de home** (`header_image`, `title`, `description`), **ubicación** y límites (`max_tickets`, `max_tickets_per_order`, etc.).
 4. Asigná **roles del evento** (ver siguiente sección): `admins`, `access_scanner`, `access_caja` con el widget de selección múltiple del admin ([`events/admin.py`](../events/admin.py)).
 5. Creá **tipos de bono** (`TicketType`) para ese evento: precios, stock inicial en `ticket_count`, ventanas `date_from` / `date_to`, `show_in_caja`, `is_direct_type` solo donde corresponda (emisión directa / bonos dirigidos).

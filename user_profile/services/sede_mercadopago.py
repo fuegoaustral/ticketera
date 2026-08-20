@@ -1139,7 +1139,11 @@ def _store_unmatched_subscription(subscription_summary, details, result_message)
 
 def _deactivate_stale_members(active_subscription_ids, log):
     active_ids = set(active_subscription_ids)
-    stale_subs = SedeSubscription.objects.filter(is_active=True).exclude(subscription_id__in=active_ids)
+    stale_subs = (
+        SedeSubscription.objects.filter(is_active=True)
+        .exclude(subscription_id__in=active_ids)
+        .exclude(SedeSubscription.manual_q())
+    )
     stale_count = stale_subs.count()
     if stale_count:
         log.info('Deactivating %d stale subscription(s)', stale_count)
@@ -1171,10 +1175,18 @@ def _reconcile_local_subscriptions_with_remote_detail_truth(sdk, log=None):
     canonical_subscriptions = list(
         SedeSubscription.objects.filter(is_soft_removed=False)
         .exclude(subscription_id__contains='__dup_')
+        .exclude(SedeSubscription.manual_q())
         .select_related('profile')
     )
     if not canonical_subscriptions:
-        return {'updated': 0, 'active_ids': [], 'errors': 0}
+        manual_active_ids = list(
+            SedeSubscription.objects.filter(
+                SedeSubscription.manual_q(),
+                is_active=True,
+                is_soft_removed=False,
+            ).values_list('subscription_id', flat=True)
+        )
+        return {'updated': 0, 'active_ids': manual_active_ids, 'errors': 0}
 
     summaries = [{'id': sub.subscription_id} for sub in canonical_subscriptions if sub.subscription_id]
     payloads = _prefetch_subscription_remote_map(summaries, log=log, include_payments=False)
@@ -1207,6 +1219,15 @@ def _reconcile_local_subscriptions_with_remote_detail_truth(sdk, log=None):
         _sync_duplicate_alias_rows(sub_id, defaults, match_method=defaults['matched_via'])
         if existing_subscription.is_active:
             active_ids.append(sub_id)
+
+    manual_active_ids = list(
+        SedeSubscription.objects.filter(
+            SedeSubscription.manual_q(),
+            is_active=True,
+            is_soft_removed=False,
+        ).values_list('subscription_id', flat=True)
+    )
+    active_ids.extend(manual_active_ids)
 
     if updates:
         SedeSubscription.objects.bulk_update(

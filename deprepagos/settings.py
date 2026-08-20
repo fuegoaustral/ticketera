@@ -124,6 +124,7 @@ TEMPLATES = [
                 'utils.context_processors.env',
                 'utils.context_processors.chatwoot_identifier_hash',
                 'utils.context_processors.pending_terms_and_conditions',
+                'utils.context_processors.pending_logro_celebrations',
                 'caja.context_processors.cajas_v2_menu',
             ],
         },
@@ -255,7 +256,7 @@ SOCIALACCOUNT_PROVIDERS = {
         ],
         'APP': {
             'client_id': os.environ.get('GOOGLE_CLIENT_ID', ''),
-            'secret': os.environ.get('GOOGLE_CLIENT_SECRET', '')
+            'secret': os.environ.get('GOOGLE_CLIENT_SECRET', os.environ.get('GOOGLE_SECRET', ''))
         }
     }
 }
@@ -357,6 +358,10 @@ CHATWOOT_SOPORTE_INBOX_ID = os.environ.get('CHATWOOT_SOPORTE_INBOX_ID', '')
 # Agente que recibe asignación (opcional; útil si el inbox es WebWidget)
 CHATWOOT_SOPORTE_ASSIGNEE_ID = os.environ.get('CHATWOOT_SOPORTE_ASSIGNEE_ID', '')
 
+SLACK_BOT_TOKEN = os.environ.get('SLACK_BOT_TOKEN', '')
+SLACK_SIGNING_SECRET = os.environ.get('SLACK_SIGNING_SECRET', '')
+SLACK_EVENT_REQUESTS_CHANNEL = os.environ.get('SLACK_EVENT_REQUESTS_CHANNEL', '')
+
 SECRET = os.environ.get('SECRET')
 
 DISABLE_PHONE_VERIFICATION = 'True'
@@ -439,6 +444,23 @@ CKEDITOR_5_CONFIGS = {
                 { 'model': 'heading3', 'view': 'h3', 'title': 'Heading 3', 'class': 'ck-heading_heading3' }
             ]
         }
+    },
+    # No image upload: pasted/base64 images blow the API Gateway/Lambda 6MB payload
+    # and production returns {"message": "Request Too Long"}.
+    'event_request': {
+        'toolbar': [
+            'heading', '|', 'bold', 'italic', 'underline', 'link', '|',
+            'bulletedList', 'numberedList', 'blockQuote', '|',
+            'undo', 'redo',
+        ],
+        'heading': {
+            'options': [
+                {'model': 'paragraph', 'title': 'Paragraph', 'class': 'ck-heading_paragraph'},
+                {'model': 'heading1', 'view': 'h1', 'title': 'Heading 1', 'class': 'ck-heading_heading1'},
+                {'model': 'heading2', 'view': 'h2', 'title': 'Heading 2', 'class': 'ck-heading_heading2'},
+                {'model': 'heading3', 'view': 'h3', 'title': 'Heading 3', 'class': 'ck-heading_heading3'},
+            ]
+        },
     },
     'list': {
         'properties': {

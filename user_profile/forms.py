@@ -1,12 +1,21 @@
+import re
+
 from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import PasswordChangeForm
 from django.conf import settings
+from django_ckeditor_5.widgets import CKEditor5Widget
 from events.models import Event, EventRequest, EventRequestTicketType
 from tickets.models import TicketType, NewTicket, Order
 from .models import Profile
 from twilio.rest import Client
 from twilio.base.exceptions import TwilioException
+
+# API Gateway + Lambda reject bodies over ~6MB (and base64-encode them, so the
+# real limit is closer to 4.5MB). Phone photos routinely exceed that.
+MAX_EVENT_REQUEST_BANNER_BYTES = 2 * 1024 * 1024
+MAX_EVENT_REQUEST_DESCRIPTION_CHARS = 100_000
+DATA_IMAGE_RE = re.compile(r'data:image/', re.IGNORECASE)
 
 User = get_user_model()
 
@@ -375,10 +384,13 @@ class EventRequestForm(forms.ModelForm):
         ]
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del evento'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 5}),
+            'description': CKEditor5Widget(config_name='event_request'),
             'start': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
             'end': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
-            'header_image': forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
+            'header_image': forms.ClearableFileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/jpeg,image/png,image/webp,image/gif,image/*',
+            }),
             'location': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Dirección del evento'}),
             'location_url': forms.URLInput(attrs={
                 'class': 'form-control',
@@ -395,7 +407,11 @@ class EventRequestForm(forms.ModelForm):
             'location_url': 'Link de Google Maps (opcional)',
         }
         help_texts = {
-            'header_image': 'Resolución recomendada: 1666 × 500 px.',
+            'header_image': (
+                'Resolución recomendada: 1666 × 500 px. '
+                'La imagen se optimiza en el navegador (máx. 2 MB).'
+            ),
+            'description': 'Texto e hipervínculos. No incrustes imágenes acá: usá el campo Banner.',
         }
 
     def __init__(self, *args, **kwargs):
@@ -409,6 +425,26 @@ class EventRequestForm(forms.ModelForm):
         if value in (None, ''):
             return EventRequest._meta.get_field('max_tickets').default
         return value
+
+    def clean_header_image(self):
+        image = self.cleaned_data.get('header_image')
+        if image and getattr(image, 'size', 0) > MAX_EVENT_REQUEST_BANNER_BYTES:
+            raise forms.ValidationError(
+                'El banner pesa demasiado (máximo 2 MB). '
+                'Usá un JPEG o PNG más chico; el formulario lo comprime al subirlo.'
+            )
+        return image
+
+    def clean_description(self):
+        description = self.cleaned_data.get('description') or ''
+        if DATA_IMAGE_RE.search(description):
+            raise forms.ValidationError(
+                'No se pueden incrustar imágenes en la descripción. '
+                'Subí el banner en el campo Banner.'
+            )
+        if len(description) > MAX_EVENT_REQUEST_DESCRIPTION_CHARS:
+            raise forms.ValidationError('La descripción es demasiado larga.')
+        return description
 
     def clean_end(self):
         end = self.cleaned_data.get('end')

@@ -1,432 +1,398 @@
+import hashlib
+import hmac
+import json
+import time
 from datetime import timedelta
-from decimal import Decimal
+from unittest.mock import patch
+from urllib.parse import urlencode
 
-from allauth.account.models import EmailAddress
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.db import IntegrityError, transaction
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from .forms import ArtworkForm, ArtworkGrantItemForm, ArtworkPhotoUploadForm, ArtworkProviderForm
-from .art_reminders import send_art_reminders
-from .models import (
-    ArtProgram, Artwork, ArtworkGrantItem, ArtworkInvitation,
-    ArtworkLogisticsPerson, ArtworkPhoto, ArtworkProvider,
-    ArtworkProviderVehicle, Event,
+from events.models import Event, EventRequest
+from events.services.event_request_slack import (
+    ACTION_APPROVE,
+    ACTION_REJECT,
+    post_event_request_to_slack,
+    slack_api_configured,
+    slack_missing_config,
 )
-from user_profile.models import Profile
+from events.services.main_event import reconcile_main_event
+
+TINY_GIF = (
+    b'GIF89a\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00!\xf9\x04'
+    b'\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;'
+)
+
+SLACK_SETTINGS = {
+    'SLACK_BOT_TOKEN': 'xoxb-test-token',
+    'SLACK_SIGNING_SECRET': 'test-signing-secret',
+    'SLACK_EVENT_REQUESTS_CHANNEL': 'C123456',
+}
 
 
-class ArtworkFlowTest(TestCase):
-    @staticmethod
-    def image(name):
-        return SimpleUploadedFile(name, b'GIF87a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;', content_type='image/gif')
+def _image(name='banner.gif'):
+    return SimpleUploadedFile(name, TINY_GIF, content_type='image/gif')
 
-    def setUp(self):
-        now = timezone.now()
-        self.owner = User.objects.create_user(username='artista', email='artista@example.com')
-        self.collaborator = User.objects.create_user(username='colab', email='colab@example.com')
-        self.admin = User.objects.create_user(username='coord', email='coord@example.com')
-        self.stranger = User.objects.create_user(username='otra', email='otra@example.com')
-        for index, user in enumerate((self.owner, self.collaborator, self.admin, self.stranger), start=1):
-            user.profile.document_number = f'1000000{index}'
-            user.profile.phone = f'+54911000000{index:02d}'
-            user.profile.profile_completion = Profile.COMPLETE
-            user.profile.save()
-        Event.objects.filter(is_main=True).update(is_main=False)
-        self.event = Event.objects.create(
-            name='FA Carnaval', slug='fa-carnaval', active=True, is_main=True,
-            start=now + timedelta(days=20), end=now + timedelta(days=24),
-            transfers_enabled_until=now + timedelta(days=10), header_image='events/heros/no-image.jpg', title='FA', description='Evento',
+
+def _make_event(**kwargs):
+    now = timezone.now()
+    counter = Event.objects.count() + 1
+    defaults = {
+        'name': f'Evento {counter}',
+        'title': f'Evento {counter}',
+        'description': 'desc',
+        'start': now + timedelta(days=1),
+        'end': now + timedelta(days=2),
+        'transfers_enabled_until': now + timedelta(days=1),
+        'header_image': _image(f'banner-{counter}.gif'),
+        'active': True,
+        'is_main': False,
+        'slug': f'evento-{counter}',
+    }
+    defaults.update(kwargs)
+    return Event.objects.create(**defaults)
+
+
+def _make_event_request(**kwargs):
+    now = timezone.now()
+    user = kwargs.pop('requested_by', None) or User.objects.create_user(
+        username=kwargs.pop('username', f'user-{User.objects.count() + 1}'),
+        email=kwargs.pop('email', f'user{User.objects.count() + 1}@example.com'),
+        password='pass',
+    )
+    defaults = {
+        'requested_by': user,
+        'name': 'Fiesta Sede',
+        'description': '<p>Una noche</p>',
+        'start': now + timedelta(days=7),
+        'end': now + timedelta(days=7, hours=6),
+        'header_image': _image(),
+        'location': 'Paz Soldán 5150, CABA',
+        'max_tickets': 300,
+        'status': EventRequest.Status.PENDING,
+    }
+    defaults.update(kwargs)
+    return EventRequest.objects.create(**defaults)
+
+
+def _sign_slack_body(body, secret, timestamp):
+    basestring = f'v0:{timestamp}:{body}'
+    digest = hmac.new(
+        secret.encode('utf-8'),
+        basestring.encode('utf-8'),
+        hashlib.sha256,
+    ).hexdigest()
+    return f'v0={digest}'
+
+
+class SlackEventRequestTests(TestCase):
+    @override_settings(SLACK_BOT_TOKEN='', SLACK_SIGNING_SECRET='', SLACK_EVENT_REQUESTS_CHANNEL='')
+    def test_skips_post_when_config_missing(self):
+        self.assertFalse(slack_api_configured())
+        self.assertIn('SLACK_BOT_TOKEN', slack_missing_config())
+        event_request = _make_event_request()
+        self.assertFalse(post_event_request_to_slack(event_request))
+        event_request.refresh_from_db()
+        self.assertEqual(event_request.slack_message_ts, '')
+
+    @override_settings(**SLACK_SETTINGS)
+    @patch('events.services.event_request_slack.requests.post')
+    def test_posts_message_with_approve_reject_buttons(self, mock_post):
+        mock_post.return_value.ok = True
+        mock_post.return_value.json.return_value = {
+            'ok': True,
+            'channel': 'C123456',
+            'ts': '1710000000.123456',
+        }
+        event_request = _make_event_request()
+        self.assertTrue(post_event_request_to_slack(event_request))
+        event_request.refresh_from_db()
+        self.assertEqual(event_request.slack_channel, 'C123456')
+        self.assertEqual(event_request.slack_message_ts, '1710000000.123456')
+
+        payload = mock_post.call_args.kwargs['json']
+        self.assertEqual(payload['channel'], 'C123456')
+        action_ids = [
+            element['action_id']
+            for block in payload['blocks']
+            if block['type'] == 'actions'
+            for element in block['elements']
+        ]
+    @override_settings(SLACK_BOT_TOKEN='xoxb-test-token', SLACK_SIGNING_SECRET='', SLACK_EVENT_REQUESTS_CHANNEL='C123456')
+    @patch('events.services.event_request_slack.requests.post')
+    def test_posts_without_signing_secret(self, mock_post):
+        mock_post.return_value.ok = True
+        mock_post.return_value.json.return_value = {
+            'ok': True,
+            'channel': 'C123456',
+            'ts': '1710000000.123456',
+        }
+        event_request = _make_event_request()
+        self.assertTrue(post_event_request_to_slack(event_request))
+
+    @override_settings(**SLACK_SETTINGS)
+    def test_webhook_rejects_invalid_signature(self):
+        response = self.client.post(
+            reverse('slack_event_request_webhook'),
+            data=urlencode({'payload': '{}'}),
+            content_type='application/x-www-form-urlencoded',
+            HTTP_X_SLACK_REQUEST_TIMESTAMP=str(int(time.time())),
+            HTTP_X_SLACK_SIGNATURE='v0=deadbeef',
         )
-        self.event.admins.add(self.admin)
-        self.program = ArtProgram.objects.create(
-            event=self.event, is_current=True, grants_enabled=True,
-            registration_closes=now - timedelta(days=1),
-            grant_deadline=now + timedelta(days=2),
-            proposal_deadline=now + timedelta(days=2),
-            grant_report_deadline=now + timedelta(days=30),
+        self.assertEqual(response.status_code, 403)
+
+    @override_settings(**SLACK_SETTINGS)
+    @patch('events.services.event_request_processing.send_mail')
+    @patch('events.services.event_request_slack.requests.post')
+    def test_webhook_approve_button_creates_event(self, mock_post, mock_mail):
+        mock_post.return_value.ok = True
+        mock_post.return_value.json.return_value = {'ok': True}
+        event_request = _make_event_request()
+        event_request.slack_channel = 'C123456'
+        event_request.slack_message_ts = '1710000000.1'
+        event_request.save(update_fields=['slack_channel', 'slack_message_ts'])
+
+        payload = {
+            'type': 'block_actions',
+            'user': {'username': 'soporte'},
+            'actions': [{
+                'action_id': ACTION_APPROVE,
+                'value': str(event_request.pk),
+            }],
+        }
+        body = urlencode({'payload': json.dumps(payload)})
+        timestamp = str(int(time.time()))
+        signature = _sign_slack_body(body, SLACK_SETTINGS['SLACK_SIGNING_SECRET'], timestamp)
+
+        response = self.client.post(
+            reverse('slack_event_request_webhook'),
+            data=body,
+            content_type='application/x-www-form-urlencoded',
+            HTTP_X_SLACK_REQUEST_TIMESTAMP=timestamp,
+            HTTP_X_SLACK_SIGNATURE=signature,
         )
-
-    def artwork_form(self, data, artwork=None, action='save', actor=None):
-        artwork = artwork or Artwork(event=self.event, owner=self.owner)
-        return ArtworkForm(
-            data,
-            instance=artwork,
-            program=self.program,
-            owner=artwork.owner,
-            actor=actor or self.owner,
-            action=action,
-        )
-
-    def test_primary_fields_are_associated_with_artwork_form(self):
-        form = self.artwork_form({})
-        for field in form.fields.values():
-            self.assertEqual(field.widget.attrs.get('form'), 'artwork-form')
-
-    def test_draft_popup_multiple_artworks_and_submission_group(self):
-        draft = self.artwork_form({'kind': Artwork.Kind.POPUP})
-        self.assertTrue(draft.is_valid(), draft.errors)
-        first = draft.save()
-        self.assertEqual(first.status, Artwork.Status.DRAFT)
-
-        incomplete_submit = self.artwork_form(
-            {'kind': Artwork.Kind.POPUP, 'expected_version': first.version},
-            artwork=first,
-            action='submit',
-        )
-        self.assertFalse(incomplete_submit.is_valid())
-
-        self.client.force_login(self.owner)
-        response = self.client.post(reverse('artwork_create', args=[self.event.slug]), {
-            'kind': Artwork.Kind.POPUP,
-            'title': 'Faro',
-            'proposal': 'Una propuesta completa',
-            'action': 'submit',
-        })
-        self.assertEqual(response.status_code, 302)
-        second = Artwork.objects.exclude(pk=first.pk).get()
-        self.assertEqual(second.status, Artwork.Status.SUBMITTED)
-        self.assertEqual(second.operations_group.event, self.event)
-        self.assertEqual(Artwork.objects.filter(owner=self.owner).count(), 2)
-
-    def test_planned_registration_is_closed(self):
-        form = self.artwork_form({'kind': Artwork.Kind.PLANNED, 'title': 'Faro', 'proposal': 'Propuesta'}, action='submit')
-        self.assertFalse(form.is_valid())
-
-    def test_stale_collaborator_update_is_rejected(self):
-        artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Original', proposal='Texto')
-        artwork.collaborators.add(self.collaborator)
-        owner_form = self.artwork_form({
-            'kind': Artwork.Kind.POPUP, 'title': 'Primero', 'proposal': 'Texto', 'expected_version': 1,
-        }, artwork=artwork)
-        self.assertTrue(owner_form.is_valid(), owner_form.errors)
-        owner_form.save()
-
-        stale = self.artwork_form({
-            'kind': Artwork.Kind.POPUP, 'title': 'Pisa cambios', 'proposal': 'Texto', 'expected_version': 1,
-        }, artwork=artwork, actor=self.collaborator)
-        self.assertFalse(stale.is_valid())
-        self.assertIn('Otra persona guardó', str(stale.non_field_errors()))
-
-    def test_itemized_grant_uses_frozen_decimal_exchange_rate(self):
-        artwork = Artwork.objects.create(event=self.event, owner=self.owner, grant_requested=True)
-        self.assertTrue(ArtworkGrantItemForm(
-            instance=ArtworkGrantItem(artwork=artwork), phase=ArtworkGrantItem.Phase.BUDGET,
-        ).fields['images'].widget.allow_multiple_selected)
-        self.assertTrue(ArtworkPhotoUploadForm().fields['images'].widget.allow_multiple_selected)
-        ars_form = ArtworkGrantItemForm({
-            'item_type': 'materials', 'concept': 'Hierro', 'amount': '1000.25', 'currency': 'ARS',
-            'exchange_rate': '999', 'rate_date': timezone.localdate(), 'rate_source': 'No aplica',
-        }, instance=ArtworkGrantItem(artwork=artwork, created_by=self.owner), phase=ArtworkGrantItem.Phase.BUDGET)
-        self.assertTrue(ars_form.is_valid(), ars_form.errors)
-        ars = ars_form.save()
-        self.assertEqual(ars.exchange_rate, Decimal('1'))
-        self.assertEqual(ars.amount_ars, Decimal('1000.25'))
-
-        usd_form = ArtworkGrantItemForm({
-            'item_type': 'service', 'concept': 'LEDs', 'amount': '10.50', 'currency': 'USD',
-            'exchange_rate': '1234.5678', 'rate_date': timezone.localdate(), 'rate_source': 'BNA vendedor',
-        }, instance=ArtworkGrantItem(artwork=artwork, created_by=self.owner), phase=ArtworkGrantItem.Phase.BUDGET)
-        self.assertTrue(usd_form.is_valid(), usd_form.errors)
-        usd = usd_form.save()
-        self.assertEqual(usd.amount_ars, Decimal('12962.96'))
-        self.assertEqual(artwork.budget_total_ars, Decimal('13963.21'))
-
-        missing_source = ArtworkGrantItemForm({
-            'item_type': 'other', 'concept': 'Tela', 'amount': '2', 'currency': 'USD',
-            'exchange_rate': '1000', 'rate_date': timezone.localdate(),
-        }, instance=ArtworkGrantItem(artwork=artwork), phase=ArtworkGrantItem.Phase.BUDGET)
-        self.assertFalse(missing_source.is_valid())
-
-        previous_update = usd.updated_at.isoformat()
-        ArtworkGrantItem.objects.filter(pk=usd.pk).update(amount=20, updated_at=timezone.now())
-        usd.refresh_from_db()
-        stale = ArtworkGrantItemForm({
-            'item_type': usd.item_type, 'concept': usd.concept, 'amount': '30', 'currency': 'USD',
-            'exchange_rate': usd.exchange_rate, 'rate_date': usd.rate_date,
-            'rate_source': usd.rate_source, 'expected_updated_at': previous_update,
-        }, instance=usd, phase=ArtworkGrantItem.Phase.BUDGET)
-        self.assertFalse(stale.is_valid())
-
-        artwork.owner = self.owner
-        artwork.grant_requested = True
-        artwork.grant_justification = 'Necesitamos apoyo para producir la obra.'
-        artwork.save()
-        self.client.force_login(self.owner)
-        response = self.client.post(reverse('grant_submit', args=[artwork.pk]))
-        self.assertEqual(response.url, f"{reverse('artwork_edit', args=[artwork.pk])}#beca")
-        artwork.refresh_from_db()
-        self.assertEqual(artwork.grant_status, Artwork.GrantStatus.PENDING)
-
-    def test_permissions_invitation_and_multiple_photo_upload(self):
-        artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro', proposal='Texto')
-        self.client.force_login(self.stranger)
-        self.assertEqual(self.client.get(reverse('artwork_edit', args=[artwork.pk])).status_code, 404)
-
-        form = self.artwork_form({
-            'kind': Artwork.Kind.POPUP, 'title': artwork.title, 'proposal': artwork.proposal,
-            'collaborator_emails': 'invitada@example.com', 'expected_version': artwork.version,
-        }, artwork=artwork)
-        self.assertTrue(form.is_valid(), form.errors)
-        form.save()
-        invitation = ArtworkInvitation.objects.get(artwork=artwork, email='invitada@example.com')
-        invited = User.objects.create_user(username='invitada', email='invitada@example.com')
-        invited.profile.document_number = '20000001'
-        invited.profile.phone = '+5491100000099'
-        invited.profile.profile_completion = Profile.COMPLETE
-        invited.profile.save()
-        EmailAddress.objects.create(user=invited, email=invited.email, verified=True, primary=True)
-        self.client.force_login(invited)
-        self.assertEqual(self.client.get(reverse('art_invitation_accept', args=[invitation.token])).status_code, 200)
-        self.assertFalse(artwork.collaborators.filter(pk=invited.pk).exists())
-        self.assertEqual(self.client.post(reverse('art_invitation_accept', args=[invitation.token])).status_code, 302)
-        self.assertTrue(artwork.collaborators.filter(pk=invited.pk).exists())
-
-        image = self.image('obra.gif')
-        response = self.client.post(reverse('artwork_photo_upload', args=[artwork.pk]), {
-            'stage': ArtworkPhoto.Stage.PROCESS,
-            'caption': 'En construcción',
-            'images': image,
-        })
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(artwork.photos.count(), 1)
-
-        self.client.force_login(self.admin)
-        self.assertEqual(self.client.get(reverse('art_admin_dashboard', args=[self.event.slug])).status_code, 200)
-        self.assertEqual(self.client.get(reverse('artwork_review', args=[self.event.slug, artwork.pk])).status_code, 200)
-
-        self.assertFalse(ArtworkPhotoUploadForm({'stage': ArtworkPhoto.Stage.PROCESS}, {}).is_valid())
-
-    def test_structured_logistics_checkout_and_grant_item_images(self):
-        artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro', proposal='Texto', grant_requested=True)
-        self.client.force_login(self.owner)
-        entry_at = timezone.localtime().replace(hour=9, minute=30, second=0, microsecond=0)
-        early_exit_at = entry_at + timedelta(hours=8, minutes=30)
-        dismantling_entry_at = entry_at + timedelta(days=4)
-        dismantling_exit_at = dismantling_entry_at + timedelta(hours=9)
-
-        response = self.client.post(reverse('logistics_person_create', args=[artwork.pk]), {
-            'first_name': 'Ada', 'last_name': 'Sur', 'email': 'ada@example.com', 'phone': '+5491112345678',
-            'document_type': 'DNI', 'document_number': '30111222', 'early_entry': 'on',
-            'early_entry_date': timezone.localdate(), 'dismantling': 'on',
-            'dismantling_date': timezone.localdate() + timedelta(days=4),
-        })
-        self.assertEqual(response.status_code, 302)
-        person = ArtworkLogisticsPerson.objects.get(artwork=artwork)
-        response = self.client.post(reverse('logistics_person_edit', args=[artwork.pk, person.pk]), {
-            'first_name': 'Ada', 'last_name': 'Sur', 'email': 'ada@example.com', 'phone': '+5491112345678',
-            'document_type': 'DNI', 'document_number': '30111222',
-            'early_entry_date': timezone.localdate(), 'dismantling': 'on',
-            'dismantling_date': timezone.localdate() + timedelta(days=4),
-        })
-        self.assertEqual(response.status_code, 302)
-        person.refresh_from_db()
-        self.assertIsNone(person.early_entry_date)
-
-        invalid_provider = self.client.post(reverse('artwork_provider_create', args=[artwork.pk]), {
-            'company_name': 'Sin operación', 'contact_first_name': 'Luz', 'contact_last_name': 'Ríos',
-            'email': 'sin-operacion@example.com', 'phone': '+5491199999999',
-            'service_description': 'Traslado de estructura',
-        })
-        self.assertEqual(invalid_provider.status_code, 200)
-        self.assertContains(invalid_provider, 'Elegí si el proveedor participa del ingreso')
-        self.assertEqual(ArtworkProvider.objects.filter(artwork=artwork).count(), 0)
-
-        incomplete_window = ArtworkProviderForm({
-            'company_name': 'Ventana incompleta', 'contact_first_name': 'Luz', 'contact_last_name': 'Ríos',
-            'email': 'ventana@example.com', 'phone': '+5491199999999',
-            'service_description': 'Entrega', 'for_entry': 'on',
-            'early_entry_at': entry_at.strftime('%Y-%m-%dT%H:%M'),
-        })
-        self.assertFalse(incomplete_window.is_valid())
-        self.assertIn('early_exit_at', incomplete_window.errors)
-
-        inverted_windows = ArtworkProviderForm({
-            'company_name': 'Ventanas invertidas', 'contact_first_name': 'Luz', 'contact_last_name': 'Ríos',
-            'email': 'invertidas@example.com', 'phone': '+5491199999999',
-            'service_description': 'Entrega y retiro', 'for_entry': 'on', 'for_exit': 'on',
-            'early_entry_at': entry_at.strftime('%Y-%m-%dT%H:%M'),
-            'early_exit_at': (entry_at + timedelta(days=3)).strftime('%Y-%m-%dT%H:%M'),
-            'dismantling_entry_at': (entry_at + timedelta(days=2)).strftime('%Y-%m-%dT%H:%M'),
-            'dismantling_exit_at': (entry_at + timedelta(days=4)).strftime('%Y-%m-%dT%H:%M'),
-        })
-        self.assertFalse(inverted_windows.is_valid())
-        self.assertIn('dismantling_entry_at', inverted_windows.errors)
-
-        response = self.client.post(reverse('artwork_provider_create', args=[artwork.pk]), {
-            'company_name': 'Grúas Sur', 'contact_first_name': 'Luz', 'contact_last_name': 'Ríos',
-            'email': 'logistica@example.com', 'phone': '+5491199999999',
-            'service_description': 'Traslado de estructura', 'for_entry': 'on', 'for_exit': 'on',
-            'early_entry_at': entry_at.strftime('%Y-%m-%dT%H:%M'),
-            'early_exit_at': early_exit_at.strftime('%Y-%m-%dT%H:%M'),
-            'dismantling_entry_at': dismantling_entry_at.strftime('%Y-%m-%dT%H:%M'),
-            'dismantling_exit_at': dismantling_exit_at.strftime('%Y-%m-%dT%H:%M'),
-        })
-        self.assertEqual(response.status_code, 302)
-        provider = ArtworkProvider.objects.get(artwork=artwork)
-        self.assertEqual(timezone.localtime(provider.early_entry_at).strftime('%H:%M'), '09:30')
-        self.assertEqual(timezone.localtime(provider.early_exit_at).strftime('%H:%M'), '18:00')
-        self.assertEqual(timezone.localtime(provider.dismantling_entry_at).strftime('%H:%M'), '09:30')
-        self.assertEqual(timezone.localtime(provider.dismantling_exit_at).strftime('%H:%M'), '18:30')
-        page = self.client.get(reverse('artwork_edit', args=[artwork.pk]))
-        self.assertIn(provider, page.context['entry_providers'])
-        self.assertIn(provider, page.context['exit_providers'])
-        self.assertContains(page, reverse('artwork_provider_edit', args=[artwork.pk, provider.pk]))
-        self.assertContains(page, 'Ingreso anticipado')
-        self.assertContains(page, 'Desarme y retiro')
-        self.assertContains(page, f'artwork-position-{artwork.pk}')
-        with self.assertRaises(IntegrityError), transaction.atomic():
-            ArtworkProvider.objects.create(
-                artwork=artwork, company_name='Inválido', contact_first_name='Sin', contact_last_name='Operación',
-                email='invalido@example.com', phone='+5491100000000', service_description='Ninguna',
-                for_entry=False, for_exit=False,
-            )
-        response = self.client.post(reverse('artwork_vehicle_create', args=[artwork.pk, provider.pk]), {
-            'vehicle_type': 'truck', 'plate': 'ab 123 cd', 'make_model': 'Iveco Daily',
-            'driver_name': 'Luz Ríos', 'driver_document_type': 'DNI',
-            'driver_document_number': '28999111', 'notes': 'Caja abierta',
-        })
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(ArtworkProviderVehicle.objects.get(provider=provider).plate, 'AB123CD')
-
-        response = self.client.post(reverse('grant_item_create', args=[artwork.pk, 'budget']), {
-            'item_type': 'materials', 'concept': 'Madera', 'amount': '5000', 'currency': 'ARS',
-            'exchange_rate': '1', 'rate_date': timezone.localdate(), 'images': [self.image('uno.gif'), self.image('dos.gif')],
-        })
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(artwork.grant_items.get().photos.count(), 2)
-
-        self.client.force_login(self.admin)
-        review = self.client.get(reverse('artwork_review', args=[self.event.slug, artwork.pk]))
-        self.assertContains(review, 'Agregar ítem')
-        self.assertContains(review, 'Agregar gasto')
-        self.assertContains(review, reverse('grant_item_edit', args=[artwork.pk, artwork.grant_items.get().pk]))
-        response = self.client.post(reverse('grant_item_create', args=[artwork.pk, 'expense']), {
-            'item_type': 'service', 'concept': 'Flete', 'amount': '2000', 'currency': 'ARS',
-            'exchange_rate': '1', 'rate_date': timezone.localdate(), 'return_to': 'review',
-        })
-        self.assertEqual(
-            response.url,
-            f"{reverse('artwork_review', args=[self.event.slug, artwork.pk])}#admin-expenses",
-        )
-
-        artwork.refresh_from_db()
-        form = self.artwork_form({
-            'kind': artwork.kind, 'title': artwork.title, 'proposal': artwork.proposal,
-            'checkout_team_responsible': person.pk, 'expected_version': artwork.version,
-        }, artwork=artwork)
-        self.assertTrue(form.is_valid(), form.errors)
-        form.save()
-        artwork.refresh_from_db()
-        self.assertEqual(artwork.checkout_team_responsible, person)
-
-    def test_security_boundaries(self):
-        artwork = Artwork.objects.create(
-            event=self.event, owner=self.owner, title='=IMPORTXML("evil")',
-            proposal='Texto', status=Artwork.Status.ACCEPTED,
-        )
-        self.client.force_login(self.owner)
-        response = self.client.post(reverse('artwork_edit', args=[artwork.pk]), {
-            'kind': Artwork.Kind.POPUP, 'title': 'Reabrir', 'proposal': 'Texto',
-            'expected_version': artwork.version, 'action': 'submit',
-        })
         self.assertEqual(response.status_code, 200)
-        artwork.refresh_from_db()
-        self.assertEqual(artwork.status, Artwork.Status.ACCEPTED)
+        event_request.refresh_from_db()
+        self.assertEqual(event_request.status, EventRequest.Status.APPROVED)
+        self.assertIsNotNone(event_request.created_event_id)
 
-        artwork.grant_requested = True
-        artwork.grant_status = Artwork.GrantStatus.APPROVED
-        artwork.checkout_completed = True
-        artwork.checkout_verified_at = timezone.now()
-        artwork.save()
-        self.assertEqual(self.client.post(reverse('grant_submit', args=[artwork.pk])).status_code, 403)
-        artwork.refresh_from_db()
-        self.assertEqual(artwork.grant_status, Artwork.GrantStatus.APPROVED)
+    @override_settings(**SLACK_SETTINGS)
+    @patch('events.services.event_request_slack.requests.post')
+    def test_webhook_reject_button_rejects_request(self, mock_post):
+        mock_post.return_value.ok = True
+        mock_post.return_value.json.return_value = {'ok': True}
+        event_request = _make_event_request()
+        event_request.slack_channel = 'C123456'
+        event_request.slack_message_ts = '1710000000.1'
+        event_request.save(update_fields=['slack_channel', 'slack_message_ts'])
 
-        verified_checkout = self.artwork_form(
-            {
-                'kind': artwork.kind, 'title': artwork.title, 'proposal': artwork.proposal,
-                'expected_version': artwork.version, 'checkout_completed': '',
-            }, artwork=artwork,
+        payload = {
+            'type': 'block_actions',
+            'user': {'username': 'soporte'},
+            'actions': [{
+                'action_id': ACTION_REJECT,
+                'value': str(event_request.pk),
+            }],
+        }
+        body = urlencode({'payload': json.dumps(payload)})
+        timestamp = str(int(time.time()))
+        signature = _sign_slack_body(body, SLACK_SETTINGS['SLACK_SIGNING_SECRET'], timestamp)
+
+        response = self.client.post(
+            reverse('slack_event_request_webhook'),
+            data=body,
+            content_type='application/x-www-form-urlencoded',
+            HTTP_X_SLACK_REQUEST_TIMESTAMP=timestamp,
+            HTTP_X_SLACK_SIGNATURE=signature,
         )
-        self.assertTrue(verified_checkout.is_valid(), verified_checkout.errors)
-        verified_checkout.save()
-        artwork.refresh_from_db()
-        self.assertTrue(artwork.checkout_completed)
+        self.assertEqual(response.status_code, 200)
+        event_request.refresh_from_db()
+        self.assertEqual(event_request.status, EventRequest.Status.REJECTED)
+        self.assertEqual(event_request.rejection_reason, 'Rechazada desde Slack')
 
-        form = self.artwork_form({
-            'kind': Artwork.Kind.POPUP, 'title': artwork.title, 'proposal': artwork.proposal,
-            'collaborator_emails': self.collaborator.email, 'expected_version': artwork.version,
-        }, artwork=artwork)
-        self.assertTrue(form.is_valid(), form.errors)
-        form.save()
-        self.assertFalse(artwork.collaborators.filter(pk=self.collaborator.pk).exists())
-        self.assertTrue(ArtworkInvitation.objects.filter(artwork=artwork, email=self.collaborator.email).exists())
 
-        too_many = ','.join(f'persona{index}@example.com' for index in range(21))
-        limited = self.artwork_form({
-            'kind': Artwork.Kind.POPUP, 'title': artwork.title, 'proposal': artwork.proposal,
-            'collaborator_emails': too_many, 'expected_version': artwork.version,
-        }, artwork=artwork)
-        self.assertFalse(limited.is_valid())
+class ChatwootOneClickReviewTests(TestCase):
+    def test_proposal_message_includes_approve_and_reject_links(self):
+        from events.services.event_request_chatwoot import build_proposal_message
 
-        artwork.collaborators.add(self.collaborator)
-        artwork.refresh_from_db()
-        self.program.is_current = False
-        self.program.save(update_fields=['is_current', 'updated_at'])
-        historical = self.artwork_form(
-            {'expected_version': artwork.version}, artwork=artwork,
+        event_request = _make_event_request()
+        message = build_proposal_message(event_request)
+        approve = reverse('event_request_review', kwargs={
+            'request_id': event_request.pk,
+            'action': 'aprobar',
+        })
+        reject = reverse('event_request_review', kwargs={
+            'request_id': event_request.pk,
+            'action': 'desaprobar',
+        })
+        self.assertIn(approve, message)
+        self.assertIn(reject, message)
+        self.assertIn('[✅ Aprobar]', message)
+        self.assertIn('[❌ Desaprobar]', message)
+
+    @patch('events.services.event_request_processing.send_mail')
+    def test_approve_link_creates_event(self, mock_mail):
+        event_request = _make_event_request()
+        from events.services.event_request_actions import make_action_token
+        token = make_action_token(event_request.pk, 'approve')
+        url = reverse('event_request_review', kwargs={
+            'request_id': event_request.pk,
+            'action': 'aprobar',
+        })
+        response = self.client.get(url, {'t': token})
+        self.assertEqual(response.status_code, 200)
+        event_request.refresh_from_db()
+        self.assertEqual(event_request.status, EventRequest.Status.APPROVED)
+        self.assertIsNotNone(event_request.created_event_id)
+
+    def test_reject_link_rejects_request(self):
+        event_request = _make_event_request()
+        from events.services.event_request_actions import make_action_token
+        token = make_action_token(event_request.pk, 'reject')
+        url = reverse('event_request_review', kwargs={
+            'request_id': event_request.pk,
+            'action': 'desaprobar',
+        })
+        response = self.client.get(url, {'t': token})
+        self.assertEqual(response.status_code, 200)
+        event_request.refresh_from_db()
+        self.assertEqual(event_request.status, EventRequest.Status.REJECTED)
+        self.assertEqual(event_request.rejection_reason, 'Rechazada desde Chatwoot')
+
+    def test_invalid_token_is_rejected(self):
+        event_request = _make_event_request()
+        url = reverse('event_request_review', kwargs={
+            'request_id': event_request.pk,
+            'action': 'aprobar',
+        })
+        response = self.client.get(url, {'t': 'token-falso'})
+        self.assertEqual(response.status_code, 400)
+        event_request.refresh_from_db()
+        self.assertEqual(event_request.status, EventRequest.Status.PENDING)
+
+
+class ChatwootWebsiteInboxTests(TestCase):
+    def test_extract_source_id_prefers_fuego_austral_inbox(self):
+        from events.services.event_request_chatwoot import _extract_source_id
+
+        data = {
+            'contact_inboxes': [
+                {'source_id': 'api-inbox', 'inbox': {'id': 115671}},
+                {'source_id': 'web-inbox', 'inbox': {'id': 46478}},
+            ]
+        }
+        self.assertEqual(_extract_source_id(data, 46478), 'web-inbox')
+
+    @override_settings(
+        CHATWOOT_SOPORTE_INBOX_ID='46478',
+        CHATWOOT_SOPORTE_ASSIGNEE_ID='107003',
+    )
+    @patch('events.services.event_request_chatwoot._request')
+    def test_create_conversation_uses_website_source_id(self, mock_request):
+        from events.services.event_request_chatwoot import _create_conversation
+
+        mock_request.side_effect = [
+            {'payload': {'contact_inboxes': [
+                {'source_id': 'sess-fa', 'inbox': {'id': 46478}},
+            ]}},
+            {'id': 99},
+        ]
+        self.assertEqual(_create_conversation(12), 99)
+        _method, path = mock_request.call_args_list[1].args[:2]
+        self.assertEqual(path, '/conversations')
+        payload = mock_request.call_args_list[1].kwargs['json']
+        self.assertEqual(payload['inbox_id'], 46478)
+        self.assertEqual(payload['source_id'], 'sess-fa')
+        self.assertEqual(payload['contact_id'], 12)
+        self.assertEqual(payload['assignee_id'], 107003)
+
+
+class EventRequestNotifyTests(TestCase):
+    @patch('events.services.event_request_notify.post_event_request_to_slack', return_value=False)
+    @patch('events.services.event_request_notify.post_event_request_to_chatwoot', return_value=False)
+    @patch('events.services.event_request_notify.send_staff_mail', return_value=True)
+    def test_emails_staff_when_chatwoot_and_slack_fail(self, mock_mail, _cw, _slack):
+        from events.services.event_request_notify import notify_event_request_for_review
+
+        event_request = _make_event_request()
+        result = notify_event_request_for_review(event_request)
+        self.assertTrue(result.email)
+        self.assertTrue(result.notified)
+        mock_mail.assert_called_once()
+        self.assertEqual(mock_mail.call_args.kwargs['template_name'], 'event_request_pending')
+        context = mock_mail.call_args.kwargs['context']
+        self.assertIn('/aprobar/', context['approve_path'])
+        self.assertIn('/desaprobar/', context['reject_path'])
+
+    @patch('events.services.event_request_notify.send_staff_mail')
+    @patch('events.services.event_request_notify.post_event_request_to_slack', return_value=True)
+    @patch('events.services.event_request_notify.post_event_request_to_chatwoot', return_value=False)
+    def test_skips_email_when_slack_succeeds(self, _cw, _slack, mock_mail):
+        from events.services.event_request_notify import notify_event_request_for_review
+
+        result = notify_event_request_for_review(_make_event_request())
+        self.assertTrue(result.slack)
+        self.assertFalse(result.email)
+        mock_mail.assert_not_called()
+
+
+class MainEventRotationTests(TestCase):
+    def test_expired_main_rotates_to_other_active_event(self):
+        now = timezone.now()
+        old_main = _make_event(is_main=True, slug='old-main')
+        replacement = _make_event(
+            slug='nuevo',
+            start=now + timedelta(days=3),
+            end=now + timedelta(days=4),
         )
-        self.assertTrue(historical.is_valid(), historical.errors)
-        historical.save()
-        self.assertTrue(artwork.collaborators.filter(pk=self.collaborator.pk).exists())
-
-        self.stranger.is_staff = True
-        self.stranger.save(update_fields=['is_staff'])
-        self.client.force_login(self.stranger)
-        self.assertEqual(self.client.get(reverse('artwork_edit', args=[artwork.pk])).status_code, 404)
-
-        self.client.force_login(self.admin)
-        exported = self.client.get(reverse('art_admin_export', args=[self.event.slug])).content.decode('utf-8-sig')
-        self.assertIn("'=IMPORTXML", exported)
-        self.assertEqual(send_art_reminders({'source': 'aws.events'}), 0)
-
-    def test_grant_report_requires_expense_and_final_photo(self):
-        artwork = Artwork.objects.create(
-            event=self.event, owner=self.owner, title='Faro', proposal='Texto',
-            grant_requested=True, grant_status=Artwork.GrantStatus.APPROVED,
-            grant_report='Fondos utilizados según el plan.',
+        Event.objects.filter(pk=old_main.pk).update(
+            start=now - timedelta(days=3),
+            end=now - timedelta(hours=1),
         )
-        self.client.force_login(self.owner)
-        self.client.post(reverse('grant_report_submit', args=[artwork.pk]))
-        artwork.refresh_from_db()
-        self.assertEqual(artwork.grant_status, Artwork.GrantStatus.APPROVED)
 
-        ArtworkGrantItem.objects.create(
-            artwork=artwork, phase=ArtworkGrantItem.Phase.EXPENSE, concept='Materiales',
-            amount=100, currency='ARS', exchange_rate=1, rate_date=timezone.localdate(),
-        )
-        ArtworkPhoto.objects.create(
-            artwork=artwork, image='art/gallery/final.gif', stage=ArtworkPhoto.Stage.FINAL,
-            uploaded_by=self.owner,
-        )
-        self.client.post(reverse('grant_report_submit', args=[artwork.pk]))
-        artwork.refresh_from_db()
-        self.assertEqual(artwork.grant_status, Artwork.GrantStatus.REPORTED)
-        photo = artwork.photos.get(stage=ArtworkPhoto.Stage.FINAL)
-        self.assertEqual(
-            self.client.post(reverse('artwork_photo_delete', args=[artwork.pk, photo.pk])).status_code,
-            403,
-        )
-        self.assertTrue(artwork.photos.filter(pk=photo.pk).exists())
+        result = reconcile_main_event()
+        self.assertEqual(result.pk, replacement.pk)
+        old_main.refresh_from_db()
+        replacement.refresh_from_db()
+        self.assertFalse(old_main.is_main)
+        self.assertTrue(replacement.is_main)
 
-    def test_only_one_current_art_program(self):
-        other_event = Event.objects.create(
-            name='Otro', slug='otro', start=timezone.now() + timedelta(days=50), end=timezone.now() + timedelta(days=51),
-            transfers_enabled_until=timezone.now() + timedelta(days=40), header_image='events/heros/no-image.jpg', title='Otro', description='Otro',
+    def test_expired_main_without_replacement_is_not_shown_on_home(self):
+        now = timezone.now()
+        old_main = _make_event(is_main=True, slug='expired-only')
+        Event.objects.filter(pk=old_main.pk).update(
+            start=now - timedelta(days=3),
+            end=now - timedelta(hours=1),
         )
-        with self.assertRaises(IntegrityError), transaction.atomic():
-            ArtProgram.objects.create(event=other_event, is_current=True)
+
+        self.assertIsNone(Event.get_main_event())
+
+    def test_inactive_main_rotates_to_other_active_event(self):
+        now = timezone.now()
+        old_main = _make_event(is_main=True, slug='inactive-main')
+        replacement = _make_event(
+            slug='activo',
+            start=now - timedelta(hours=1),
+            end=now + timedelta(days=1),
+        )
+        Event.objects.filter(pk=old_main.pk).update(active=False)
+
+        result = reconcile_main_event()
+        self.assertEqual(result.pk, replacement.pk)
+        old_main.refresh_from_db()
+        replacement.refresh_from_db()
+        self.assertFalse(old_main.is_main)
+        self.assertTrue(replacement.is_main)
+
+    def test_saving_new_main_unsets_previous(self):
+        first = _make_event(is_main=True, slug='primero')
+        second = _make_event(is_main=True, slug='segundo')
+        first.refresh_from_db()
+        second.refresh_from_db()
+        self.assertFalse(first.is_main)
+        self.assertTrue(second.is_main)
+        self.assertEqual(Event.objects.filter(is_main=True).count(), 1)
