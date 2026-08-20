@@ -52,6 +52,15 @@
                                 Reporte de bonos
                             </a>
                         </li>
+                        {% if admin_event.art_program %}
+                        <li class="menu-subitem">
+                            <a class="menu-sublink{% if nav_secondary == 'art_admin_'|add:admin_event.slug %} active{% endif %}"
+                               href="{% url 'art_admin_dashboard' admin_event.slug %}">
+                                <i class="fas fa-palette me-2"></i>
+                                Coordinación de Arte
+                            </a>
+                        </li>
+                        {% endif %}
                         <li class="menu-subitem">
                             <a class="menu-sublink{% if nav_secondary == 'event_management_'|add:admin_event.slug %} active{% endif %}"
                                href="{% url 'event_management' admin_event.slug %}">

@@ -1,0 +1,9 @@
+{% for field in inline_form.hidden_fields %}{{ field }}{% endfor %}
+{% if inline_form.non_field_errors %}<div class="alert alert-danger py-2">{{ inline_form.non_field_errors }}</div>{% endif %}
+<div class="inline-form-grid">
+    {% for field in inline_form.visible_fields %}
+    <div class="inline-form-field{% if field.field.widget.input_type == 'textarea' or field.field.widget.input_type == 'file' %} inline-form-wide{% endif %}">
+        {% include 'mi_fuego/art/_field.html' with field=field %}
+    </div>
+    {% endfor %}
+</div>

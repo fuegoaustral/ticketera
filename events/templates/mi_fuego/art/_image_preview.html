@@ -1,0 +1,29 @@
+<style>
+    .image-selection-preview { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .6rem; }
+    .image-selection-preview figure { width: 96px; margin: 0; }
+    .image-selection-preview img { display: block; width: 96px; height: 72px; object-fit: cover; border-radius: .3rem; background: #edf1ef; }
+    .image-selection-preview figcaption { margin-top: .2rem; overflow: hidden; color: #6c757d; font-size: .7rem; text-overflow: ellipsis; white-space: nowrap; }
+</style>
+<script>
+    document.querySelectorAll('input[type="file"][multiple][data-image-preview]').forEach(function (input) {
+        const preview = input.closest('.mb-3').querySelector('[data-image-selection-preview]');
+        input.addEventListener('change', function () {
+            (input.previewUrls || []).forEach(URL.revokeObjectURL);
+            input.previewUrls = [];
+            preview.replaceChildren();
+            Array.from(input.files).forEach(function (file) {
+                if (!file.type.startsWith('image/')) return;
+                const url = URL.createObjectURL(file);
+                input.previewUrls.push(url);
+                const figure = document.createElement('figure');
+                const image = document.createElement('img');
+                const caption = document.createElement('figcaption');
+                image.src = url;
+                image.alt = '';
+                caption.textContent = file.name;
+                figure.append(image, caption);
+                preview.append(figure);
+            });
+        });
+    });
+</script>

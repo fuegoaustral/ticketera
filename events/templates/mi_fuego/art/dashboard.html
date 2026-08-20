@@ -1,0 +1,79 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+
+{% block page_title %}Arte{% endblock page_title %}
+
+{% block truecontent %}
+<div class="container-fluid art-home">
+    <header class="mb-5">
+        <p class="text-uppercase text-muted small fw-semibold mb-2">Fuego Austral</p>
+        <h2 class="h3 mb-2">Tus obras, en un solo lugar</h2>
+        <p class="text-muted mb-0">Propuesta, beca, galería, equipo, ingreso, salida y checkout del evento anual.</p>
+    </header>
+
+    <section class="mb-5" aria-labelledby="new-artwork-title">
+        <div class="d-flex justify-content-between align-items-end gap-3 mb-3">
+            <div>
+                <h3 class="h4 mb-1" id="new-artwork-title">Inscripciones</h3>
+                <p class="text-muted mb-0">Una obra planificada o espontánea comienza con el mismo formulario.</p>
+            </div>
+        </div>
+        {% for program in programs %}
+            <div class="program-row d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 py-3">
+                <div>
+                    <h4 class="h5 mb-1">{{ program.event.name }}</h4>
+                    <p class="small text-muted mb-0">
+                        {% if program.registration_is_open %}
+                            Inscripción abierta{% if program.registration_closes %} hasta el {{ program.registration_closes|date:'d/m/Y H:i' }}{% endif %}.
+                        {% else %}
+                            La inscripción planificada está cerrada. Las obras popup siguen disponibles.
+                        {% endif %}
+                    </p>
+                </div>
+                <a class="btn btn-primary text-nowrap" href="{% url 'artwork_create' program.event.slug %}">
+                    <i class="fas fa-plus me-2" aria-hidden="true"></i>Nueva obra
+                </a>
+            </div>
+        {% empty %}
+            <div class="alert alert-info mb-0">Todavía no hay una convocatoria de Arte activa.</div>
+        {% endfor %}
+    </section>
+
+    <section aria-labelledby="artworks-title">
+        <h3 class="h4 mb-3" id="artworks-title">Mis obras</h3>
+        {% if artworks %}
+            <div class="artwork-list">
+                {% for artwork in artworks %}
+                    <a class="artwork-row d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 py-3" href="{% url 'artwork_edit' artwork.pk %}">
+                        <div>
+                            <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                                <h4 class="h5 mb-0">{{ artwork.title }}</h4>
+                                <span class="badge bg-light text-dark border">{{ artwork.get_kind_display }}</span>
+                                <span class="badge {% if artwork.status == 'accepted' or artwork.status == 'completed' %}bg-success{% elif artwork.status == 'changes' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ artwork.get_status_display }}</span>
+                                {% if artwork.grant_requested %}<span class="badge bg-light text-dark border">Beca: {{ artwork.get_grant_status_display }}</span>{% endif %}
+                            </div>
+                            <p class="small text-muted mb-0">{{ artwork.event.name }} · Responsable: {{ artwork.owner.email|default:'Cuenta archivada' }} · Actualizada {{ artwork.updated_at|date:'d/m/Y H:i' }}</p>
+                        </div>
+                        <span class="text-primary fw-semibold text-nowrap">Abrir <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i></span>
+                    </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-art py-5 text-center">
+                <i class="fas fa-palette fa-2x text-muted mb-3" aria-hidden="true"></i>
+                <p class="mb-0">Cuando crees o te sumen a una obra, va a aparecer acá.</p>
+            </div>
+        {% endif %}
+    </section>
+</div>
+
+<style>
+    .art-home { max-width: 960px; }
+    .art-home header p { max-width: 68ch; }
+    .program-row, .artwork-row { border-bottom: 1px solid #dee2e6; }
+    .program-row:first-of-type, .artwork-row:first-child { border-top: 1px solid #dee2e6; }
+    .artwork-row { color: inherit; text-decoration: none; transition: background-color 180ms ease-out; }
+    .artwork-row:hover, .artwork-row:focus-visible { color: inherit; background: #f6faf8; text-decoration: none; }
+    .artwork-row:focus-visible { outline: 3px solid rgba(40, 158, 109, .3); outline-offset: 2px; }
+    .empty-art { border: 1px dashed #adb5bd; border-radius: .75rem; }
+</style>
+{% endblock %}

@@ -40,6 +40,10 @@
       {
         "function": "events.main_event_cron.sync_main_event",
         "expression": "rate(1 hour)"
+      },
+      {
+        "function": "events.art_reminders.send_art_reminders",
+        "expression": "cron(0 15 * * ? *)"
       }
     ]
   },
@@ -88,6 +92,10 @@
       {
         "function": "events.main_event_cron.sync_main_event",
         "expression": "rate(1 hour)"
+      },
+      {
+        "function": "events.art_reminders.send_art_reminders",
+        "expression": "cron(0 15 * * ? *)"
       }
     ]
   }

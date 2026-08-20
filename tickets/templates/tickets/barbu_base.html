@@ -166,6 +166,12 @@
         animation: ticketFlip 1s ease;
         display: inline-block;
       }
+      @media (max-width: 399px) {
+        body > header.container-xxl { padding-inline: .5rem; }
+        body > header.container-xxl > div { gap: .5rem !important; }
+        body > header.container-xxl .nav-item { padding-inline: .25rem; }
+        body > header.container-xxl .nav-link { padding-inline: .25rem; }
+      }
       @keyframes ticketFlip {
         0% {
           transform: rotateY(0deg);

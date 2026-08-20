@@ -1,0 +1,31 @@
+{% if artwork.pk %}
+<script>
+    (function () {
+        const key = 'artwork-position-{{ artwork.pk }}';
+        document.querySelectorAll('form').forEach(function (form) {
+            form.addEventListener('submit', function () {
+                const sections = Array.from(document.querySelectorAll('section[id]'));
+                const section = form.closest('section[id]') || sections.filter(function (candidate) {
+                    return candidate.offsetTop <= window.scrollY + 120;
+                }).pop();
+                sessionStorage.setItem(key, JSON.stringify({
+                    section: section ? section.id : '',
+                    offset: section ? window.scrollY - section.offsetTop : window.scrollY,
+                }));
+            });
+        });
+        const saved = sessionStorage.getItem(key);
+        if (!saved) return;
+        sessionStorage.removeItem(key);
+        window.addEventListener('load', function () {
+            requestAnimationFrame(function () {
+                requestAnimationFrame(function () {
+                    const position = JSON.parse(saved);
+                    const section = position.section && document.getElementById(position.section);
+                    window.scrollTo(0, (section ? section.offsetTop : 0) + position.offset);
+                });
+            });
+        });
+    }());
+</script>
+{% endif %}

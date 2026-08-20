@@ -1,0 +1,338 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+
+{% block page_title %}{% if is_new %}Nueva obra{% else %}{{ artwork.title|default:'Obra sin título' }}{% endif %}{% endblock page_title %}
+
+{% block truecontent %}
+<div class="container-fluid art-form-page">
+    <a class="small text-decoration-none" href="{% url 'art_dashboard' %}"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i> Volver a Arte</a>
+    <header class="mt-3 mb-4">
+        <p class="text-uppercase text-muted small fw-semibold mb-2">{{ program.event.name }}</p>
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-start gap-3">
+            <div>
+                <h2 class="h3 mb-2">Expediente de la obra</h2>
+                <p class="text-muted mb-0">Guardá avances por sección. Las fechas cerradas quedan visibles para consulta.</p>
+            </div>
+            {% if artwork %}<span class="badge bg-light text-dark border mt-1">{{ artwork.get_status_display }}</span>{% endif %}
+        </div>
+    </header>
+
+    {% if not program.is_current %}<div class="alert alert-info">Esta edición es histórica. La información se conserva en modo consulta.</div>{% endif %}
+    {% if artwork.review_feedback %}<div class="alert alert-warning"><strong>Devolución de coordinación:</strong><br>{{ artwork.review_feedback|linebreaksbr }}</div>{% endif %}
+
+    <ol class="checkpoint-list list-unstyled d-grid mb-4" aria-label="Estado de fechas límite">
+        {% for checkpoint in checkpoints %}
+            <li class="checkpoint py-2">
+                <span class="checkpoint-dot checkpoint-{{ checkpoint.state }}" aria-hidden="true"></span>
+                <strong>{{ checkpoint.label }}</strong>
+                <small class="d-block text-muted ms-4">
+                    {% if checkpoint.state == 'closed' %}Cerrado{% elif checkpoint.state == 'upcoming' %}Todavía no habilitado{% else %}Editable{% endif %}
+                    {% if checkpoint.deadline %} · hasta {{ checkpoint.deadline|date:'d/m/Y H:i' }}{% endif %}
+                </small>
+            </li>
+        {% endfor %}
+    </ol>
+
+    <nav class="section-nav d-flex gap-2 flex-wrap mb-5" aria-label="Secciones de la obra">
+        <a href="#propuesta">Propuesta</a>
+        {% if program.grants_enabled %}<a href="#beca">Beca</a>{% endif %}
+        <a href="#galeria">Galería</a>
+        <a href="#placement">Desplegable</a>
+        <a href="#logistica">Logística</a>
+        <a href="#checkout">Checkout</a>
+    </nav>
+
+    <form id="artwork-form" method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+        {{ form.expected_version }}
+    </form>
+    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+        <section class="form-section" id="propuesta" aria-labelledby="proposal-title">
+            <div class="section-heading">
+                <div><span>01</span><h2 id="proposal-title">Propuesta y seguridad</h2></div>
+                {% if form.title.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
+            </div>
+            <p class="text-muted">Podés guardar un borrador incompleto. Al enviar, el título y la propuesta son obligatorios.</p>
+            {% include 'mi_fuego/art/_field.html' with field=form.kind %}
+            {% include 'mi_fuego/art/_field.html' with field=form.title %}
+            {% include 'mi_fuego/art/_field.html' with field=form.proposal %}
+            {% include 'mi_fuego/art/_field.html' with field=form.dimensions %}
+            {% include 'mi_fuego/art/_field.html' with field=form.materials %}
+            {% include 'mi_fuego/art/_field.html' with field=form.technical_needs %}
+            <div class="row"><div class="col-md-6">{% include 'mi_fuego/art/_field.html' with field=form.power_watts %}</div><div class="col-md-6">{% include 'mi_fuego/art/_field.html' with field=form.safety_contact %}</div></div>
+            {% include 'mi_fuego/art/_field.html' with field=form.uses_fire %}
+            <div class="fire-fields">
+                {% include 'mi_fuego/art/_field.html' with field=form.fire_details %}
+                {% include 'mi_fuego/art/_field.html' with field=form.extinguishing_plan %}
+            </div>
+            {% include 'mi_fuego/art/_field.html' with field=form.safety_plan %}
+            {% include 'mi_fuego/art/_field.html' with field=form.collaborator_emails %}
+            {% if artwork.invitations.all %}
+                <p class="small text-muted mb-0">Invitaciones pendientes:
+                {% for invitation in artwork.invitations.all %}{% if invitation.is_pending %}<span class="badge bg-light text-dark border">{{ invitation.email }}</span>{% endif %}{% endfor %}</p>
+            {% endif %}
+        </section>
+
+        {% if program.grants_enabled %}
+        <section class="form-section" id="beca" aria-labelledby="grant-title">
+            <div class="section-heading">
+                <div><span>02</span><h2 id="grant-title">Beca</h2></div>
+                {% if artwork %}<span class="badge bg-light text-dark border">{{ artwork.get_grant_status_display }}</span>{% endif %}
+            </div>
+            <p class="text-muted">Cada monto conserva moneda, fecha, fuente y cotización. Los totales históricos no cambian.</p>
+            {% include 'mi_fuego/art/_field.html' with field=form.grant_requested %}
+            {% include 'mi_fuego/art/_field.html' with field=form.grant_justification %}
+
+            {% if artwork %}
+            <div class="grant-panel mt-4">
+                <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+                    <div><h3 class="h5 mb-1">Presupuesto</h3><p class="small text-muted mb-0">Total convertido: <strong>ARS {{ budget_total_ars|floatformat:2 }}</strong></p></div>
+                </div>
+                {% if can_edit_budget %}
+                <details class="inline-editor inline-create mb-3"{% if budget_create_form.errors %} open{% endif %}>
+                    <summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar ítem</span></summary>
+                    <form method="post" action="{% url 'grant_item_create' artwork.pk 'budget' %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
+                        {% include 'mi_fuego/art/_inline_fields.html' with inline_form=budget_create_form %}
+                        <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Agregar al presupuesto</button></div>
+                    </form>
+                </details>
+                {% endif %}
+                {% include 'mi_fuego/art/_grant_items.html' with items=budget_items can_edit=can_edit_budget total_ars=budget_total_ars %}
+            </div>
+            {% if can_submit_grant %}
+                {% if artwork.grant_requested and artwork.grant_justification and budget_items %}
+                <form method="post" action="{% url 'grant_submit' artwork.pk %}">{% csrf_token %}<button class="btn btn-primary mt-3" type="submit">Presentar solicitud de beca</button></form>
+                {% else %}
+                <div class="alert alert-info mt-3 mb-0"><strong>Antes de presentar:</strong> marcá “Solicito una beca”, completá la justificación, agregá al menos un ítem y guardá el borrador.</div>
+                {% endif %}
+            {% endif %}
+            {% if artwork.grant_decision_notes %}<div class="alert alert-info mt-3"><strong>Devolución de becas:</strong><br>{{ artwork.grant_decision_notes|linebreaksbr }}</div>{% endif %}
+            {% if artwork.grant_approved_amount_ars %}<p class="mt-3 mb-0"><strong>Monto aprobado:</strong> ARS {{ artwork.grant_approved_amount_ars|floatformat:2 }}{% if artwork.grant_paid_at %} · pagado el {{ artwork.grant_paid_at|date:'d/m/Y' }}{% endif %}</p>{% endif %}
+            {% endif %}
+        </section>
+        {% endif %}
+
+        <section class="form-section" id="galeria" aria-labelledby="gallery-title">
+            <div class="section-heading">
+                <div><span>{% if program.grants_enabled %}03{% else %}02{% endif %}</span><h2 id="gallery-title">Galería</h2></div>
+            </div>
+            <p class="text-muted">Fotos de propuesta, proceso y obra terminada. Podés elegir varias desde el teléfono.</p>
+            {% if artwork %}
+            <details class="inline-editor inline-create mb-3"{% if photo_upload_form.errors %} open{% endif %}>
+                <summary><i class="fas fa-camera" aria-hidden="true"></i><span>Subir fotos</span></summary>
+                <form method="post" action="{% url 'artwork_photo_upload' artwork.pk %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
+                    {% include 'mi_fuego/art/_inline_fields.html' with inline_form=photo_upload_form %}
+                    <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Subir fotos</button></div>
+                </form>
+            </details>
+            {% endif %}
+            {% if artwork.photos.all %}
+                <div class="row g-3">
+                    {% for photo in artwork.photos.all %}
+                    <div class="col-6 col-lg-4">
+                        <figure class="gallery-card mb-0">
+                            <a href="{{ photo.image.url }}" target="_blank" rel="noopener"><img src="{{ photo.image.url }}" alt="{{ photo.caption|default:photo.get_stage_display }}"></a>
+                            <figcaption class="p-2 small"><strong>{{ photo.get_stage_display }}</strong>{% if photo.caption %}<br>{{ photo.caption }}{% endif %}{% if photo.publication_authorized %}<br><span class="text-success">Publicación autorizada</span>{% endif %}</figcaption>
+                            <form method="post" action="{% url 'artwork_photo_delete' artwork.pk photo.pk %}">{% csrf_token %}<button class="btn btn-sm btn-link text-danger p-2" type="submit" onclick="return confirm('¿Eliminar esta foto?')">Eliminar</button></form>
+                        </figure>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}<p class="small text-muted mb-0">Todavía no hay fotos.</p>{% endif %}
+        </section>
+
+        <section class="form-section" id="placement" aria-labelledby="guide-title">
+            <div class="section-heading">
+                <div><span>{% if program.grants_enabled %}04{% else %}03{% endif %}</span><h2 id="guide-title">Desplegable y placement</h2></div>
+                {% if form.public_title.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
+            </div>
+            <p class="text-muted">El texto público tiene el límite exacto del desplegable. La asignación la completa coordinación.</p>
+            {% include 'mi_fuego/art/_field.html' with field=form.public_title %}
+            {% include 'mi_fuego/art/_field.html' with field=form.public_description %}
+            {% include 'mi_fuego/art/_field.html' with field=form.preferred_location %}
+            {% if artwork.assigned_location %}<div class="alert alert-success mb-0"><strong>Ubicación asignada:</strong> {{ artwork.assigned_location }}{% if artwork.placement_notes %}<br>{{ artwork.placement_notes|linebreaksbr }}{% endif %}</div>{% endif %}
+        </section>
+
+        <section class="form-section" id="logistica" aria-labelledby="logistics-title">
+            <div class="section-heading">
+                <div><span>{% if program.grants_enabled %}05{% else %}04{% endif %}</span><h2 id="logistics-title">Ingreso anticipado, proveedores y desarme</h2></div>
+                {% if form.arrival_date.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
+            </div>
+            <p class="text-muted">Separá quién ingresa antes del evento y quién participa del desarme. Proveedores y vehículos se cargan por separado.</p>
+            <div class="row"><div class="col-md-6">{% include 'mi_fuego/art/_field.html' with field=form.arrival_date %}</div><div class="col-md-6">{% include 'mi_fuego/art/_field.html' with field=form.departure_date %}</div></div>
+            {% if artwork %}
+            <div class="d-flex justify-content-between align-items-center gap-3 mt-4 mb-2">
+                <h3 class="h5 mb-0">Personas del equipo</h3>
+            </div>
+            {% if can_edit_logistics %}
+            <details class="inline-editor inline-create mb-3"{% if person_create_form.errors %} open{% endif %}>
+                <summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar persona</span></summary>
+                <form method="post" action="{% url 'logistics_person_create' artwork.pk %}" novalidate>{% csrf_token %}
+                    {% include 'mi_fuego/art/_inline_fields.html' with inline_form=person_create_form %}
+                    <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Agregar persona</button></div>
+                </form>
+            </details>
+            {% endif %}
+            {% if logistics_people %}
+            <div class="table-responsive"><table class="table table-sm align-middle logistics-people-table">
+                <thead><tr><th>Persona</th><th>Documento</th><th>Ingreso anticipado</th><th>Desarme</th>{% if can_edit_logistics %}<th><span class="visually-hidden">Acciones</span></th>{% endif %}</tr></thead>
+                <tbody>{% for person in logistics_people %}<tr>
+                    <td><strong>{{ person.first_name }} {{ person.last_name }}</strong><small class="text-muted d-block">{{ person.email }}</small><small class="text-muted d-block">{{ person.phone }}</small></td>
+                    <td>{{ person.get_document_type_display }}<br>{{ person.document_number }}</td>
+                    <td>{% if person.early_entry %}{{ person.early_entry_date|date:'d/m/Y' }}{% else %}<span class="text-muted">No</span>{% endif %}</td>
+                    <td>{% if person.dismantling %}{{ person.dismantling_date|date:'d/m/Y' }}{% else %}<span class="text-muted">No</span>{% endif %}</td>
+                    {% if can_edit_logistics %}<td class="text-end text-nowrap"><form class="d-inline" method="post" action="{% url 'logistics_person_delete' artwork.pk person.pk %}">{% csrf_token %}<button class="btn btn-sm btn-link text-danger px-1" type="submit" title="Eliminar persona" aria-label="Eliminar {{ person }}" onclick="return confirm('¿Eliminar esta persona?')"><i class="fas fa-trash" aria-hidden="true"></i></button></form></td>{% endif %}
+                </tr>
+                {% if can_edit_logistics %}<tr class="inline-table-editor"><td colspan="5"><details class="inline-editor"{% if person.inline_form.errors %} open{% endif %}><summary><i class="fas fa-pen" aria-hidden="true"></i><span>Editar {{ person }}</span></summary><form method="post" action="{% url 'logistics_person_edit' artwork.pk person.pk %}" novalidate>{% csrf_token %}{% include 'mi_fuego/art/_inline_fields.html' with inline_form=person.inline_form %}<div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Guardar persona</button></div></form></details></td></tr>{% endif %}
+                {% endfor %}</tbody>
+            </table></div>
+            {% else %}<p class="small text-muted">Todavía no hay personas cargadas.</p>{% endif %}
+
+            <div class="mt-5 mb-3"><h3 class="h5 mb-1">Proveedores por operación</h3><p class="small text-muted mb-0">Un proveedor marcado para ambas operaciones aparece en las dos listas.</p></div>
+            <div class="row g-3 operation-lists">
+                <div class="col-md-6"><section aria-labelledby="entry-providers-title"><h4 id="entry-providers-title" class="h6">Ingreso anticipado</h4>{% if entry_providers %}<ul class="list-unstyled mb-0">{% for provider in entry_providers %}<li><strong>{{ provider.company_name }}</strong><span>Entrada {{ provider.early_entry_at|date:'d/m/Y H:i' }}<br>Salida {{ provider.early_exit_at|date:'d/m/Y H:i' }}</span><small>{{ provider.service_description }}</small></li>{% endfor %}</ul>{% else %}<p class="small text-muted mb-0">Sin proveedores de ingreso.</p>{% endif %}</section></div>
+                <div class="col-md-6"><section aria-labelledby="exit-providers-title"><h4 id="exit-providers-title" class="h6">Desarme y retiro</h4>{% if exit_providers %}<ul class="list-unstyled mb-0">{% for provider in exit_providers %}<li><strong>{{ provider.company_name }}</strong><span>Entrada {{ provider.dismantling_entry_at|date:'d/m/Y H:i' }}<br>Salida {{ provider.dismantling_exit_at|date:'d/m/Y H:i' }}</span><small>{{ provider.service_description }}</small></li>{% endfor %}</ul>{% else %}<p class="small text-muted mb-0">Sin proveedores de desarme.</p>{% endif %}</section></div>
+            </div>
+
+            <div class="mt-4 mb-2"><h3 class="h5 mb-0">Datos de proveedores y vehículos</h3></div>
+            {% if can_edit_logistics %}
+            <details class="inline-editor inline-create mb-3"{% if provider_create_form.errors %} open{% endif %}>
+                <summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar proveedor</span></summary>
+                <form class="provider-inline-form" method="post" action="{% url 'artwork_provider_create' artwork.pk %}" novalidate>{% csrf_token %}
+                    {% include 'mi_fuego/art/_provider_fields.html' with inline_form=provider_create_form %}
+                    <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Agregar proveedor</button></div>
+                </form>
+            </details>
+            {% endif %}
+            {% if artwork_providers %}
+                {% for provider in artwork_providers %}
+                <div class="provider-row py-3">
+                    <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
+                        <div><strong>{{ provider.company_name }}</strong> {% if provider.for_entry %}<span class="badge bg-light text-dark border">Ingreso</span>{% endif %} {% if provider.for_exit %}<span class="badge bg-light text-dark border">Salida</span>{% endif %}<br><small class="text-muted">{{ provider.contact_first_name }} {{ provider.contact_last_name }} · {{ provider.email }} · {{ provider.phone }}</small><br>{{ provider.service_description }}</div>
+                        {% if can_edit_logistics %}<div class="text-md-end"><form class="d-inline" method="post" action="{% url 'artwork_provider_delete' artwork.pk provider.pk %}">{% csrf_token %}<button class="btn btn-sm btn-link text-danger px-1" type="submit" title="Eliminar proveedor" aria-label="Eliminar {{ provider }}" onclick="return confirm('Se eliminarán también sus vehículos. ¿Continuar?')"><i class="fas fa-trash" aria-hidden="true"></i></button></form></div>{% endif %}
+                    </div>
+                    {% if provider.for_entry %}<small class="d-block text-muted mt-1"><strong>Ingreso anticipado:</strong> {{ provider.early_entry_at|date:'d/m/Y H:i' }} a {{ provider.early_exit_at|date:'d/m/Y H:i' }}</small>{% endif %}
+                    {% if provider.for_exit %}<small class="d-block text-muted"><strong>Desarme y retiro:</strong> {{ provider.dismantling_entry_at|date:'d/m/Y H:i' }} a {{ provider.dismantling_exit_at|date:'d/m/Y H:i' }}</small>{% endif %}
+                    {% if can_edit_logistics %}<details class="inline-editor mt-2"{% if provider.inline_form.errors %} open{% endif %}><summary><i class="fas fa-pen" aria-hidden="true"></i><span>Editar proveedor</span></summary><form class="provider-inline-form" method="post" action="{% url 'artwork_provider_edit' artwork.pk provider.pk %}" novalidate>{% csrf_token %}{% include 'mi_fuego/art/_provider_fields.html' with inline_form=provider.inline_form %}<div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Guardar proveedor</button></div></form></details>{% endif %}
+                    <div class="mt-3"><strong class="small">Vehículos</strong></div>
+                    {% if provider.inline_vehicles %}<div class="table-responsive"><table class="table table-sm mb-0"><tbody>{% for vehicle in provider.inline_vehicles %}<tr><td><strong>{{ vehicle.plate }}</strong> · {{ vehicle.get_vehicle_type_display }} · {{ vehicle.make_model }}<br><small class="text-muted">Conduce {{ vehicle.driver_name }} · {{ vehicle.get_driver_document_type_display }} {{ vehicle.driver_document_number }}{% if vehicle.notes %} · {{ vehicle.notes }}{% endif %}</small></td>{% if can_edit_logistics %}<td class="text-end"><form method="post" action="{% url 'artwork_vehicle_delete' artwork.pk provider.pk vehicle.pk %}">{% csrf_token %}<button class="btn btn-sm btn-link text-danger px-1" type="submit" title="Eliminar vehículo" aria-label="Eliminar vehículo {{ vehicle.plate }}" onclick="return confirm('¿Eliminar este vehículo?')"><i class="fas fa-trash" aria-hidden="true"></i></button></form></td>{% endif %}</tr>{% if can_edit_logistics %}<tr class="inline-table-editor"><td colspan="2"><details class="inline-editor"{% if vehicle.inline_form.errors %} open{% endif %}><summary><i class="fas fa-pen" aria-hidden="true"></i><span>Editar vehículo {{ vehicle.plate }}</span></summary><form method="post" action="{% url 'artwork_vehicle_edit' artwork.pk provider.pk vehicle.pk %}" novalidate>{% csrf_token %}{% include 'mi_fuego/art/_inline_fields.html' with inline_form=vehicle.inline_form %}<div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Guardar vehículo</button></div></form></details></td></tr>{% endif %}{% endfor %}</tbody></table></div>{% else %}<p class="small text-muted mb-0">Sin vehículos.</p>{% endif %}
+                    {% if can_edit_logistics %}<details class="inline-editor inline-create mt-2"{% if provider.vehicle_create_form.errors %} open{% endif %}><summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar vehículo</span></summary><form method="post" action="{% url 'artwork_vehicle_create' artwork.pk provider.pk %}" novalidate>{% csrf_token %}{% include 'mi_fuego/art/_inline_fields.html' with inline_form=provider.vehicle_create_form %}<div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Agregar vehículo</button></div></form></details>{% endif %}
+                </div>
+                {% endfor %}
+            {% else %}<p class="small text-muted mb-0">Todavía no hay proveedores cargados.</p>{% endif %}
+            {% endif %}
+        </section>
+
+        <section class="form-section" id="checkout" aria-labelledby="checkout-title">
+            <div class="section-heading">
+                <div><span>{% if program.grants_enabled %}06{% else %}05{% endif %}</span><h2 id="checkout-title">Checkout</h2></div>
+                {% if artwork.checkout_verified_at %}<span class="badge bg-success">Verificado</span>{% elif form.checkout_completed.field.disabled %}<span class="badge bg-secondary">No editable</span>{% endif %}
+            </div>
+            <p class="text-muted">Solicitá la verificación cuando la obra esté retirada y el espacio limpio.</p>
+            {% include 'mi_fuego/art/_field.html' with field=form.checkout_completed %}
+            <div class="row"><div class="col-md-6">{% include 'mi_fuego/art/_field.html' with field=form.checkout_team_responsible %}</div><div class="col-md-6">{% include 'mi_fuego/art/_field.html' with field=form.checkout_art_responsible %}</div></div>
+            {% include 'mi_fuego/art/_field.html' with field=form.checkout_notes %}
+        </section>
+
+        {% if program.grants_enabled and form.grant_report %}
+        <section class="form-section" id="rendicion" aria-labelledby="grant-report-title">
+            <div class="section-heading"><div><span>07</span><h2 id="grant-report-title">Rendición de beca</h2></div></div>
+            {% include 'mi_fuego/art/_field.html' with field=form.grant_report %}
+            {% if artwork %}
+            <div class="d-flex justify-content-between align-items-center gap-3 my-3">
+                <div><h3 class="h5 mb-1">Gastos realizados</h3><p class="small text-muted mb-0">Total convertido: <strong>ARS {{ expense_total_ars|floatformat:2 }}</strong></p></div>
+            </div>
+            {% if can_edit_expenses %}
+            <details class="inline-editor inline-create mb-3"{% if expense_create_form.errors %} open{% endif %}>
+                <summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar gasto</span></summary>
+                <form method="post" action="{% url 'grant_item_create' artwork.pk 'expense' %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
+                    {% include 'mi_fuego/art/_inline_fields.html' with inline_form=expense_create_form %}
+                    <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Agregar a la rendición</button></div>
+                </form>
+            </details>
+            {% endif %}
+            {% include 'mi_fuego/art/_grant_items.html' with items=expense_items can_edit=can_edit_expenses total_ars=expense_total_ars %}
+            {% if can_submit_report %}<form method="post" action="{% url 'grant_report_submit' artwork.pk %}">{% csrf_token %}<button class="btn btn-primary mt-3" type="submit">Enviar rendición</button></form>{% endif %}
+            {% endif %}
+        </section>
+        {% endif %}
+
+        {% if program.is_current or can_manage %}
+        <div class="save-bar d-flex flex-column flex-sm-row justify-content-between gap-2 py-3">
+            {% if can_manage and artwork %}<a class="btn btn-outline-secondary" href="{% url 'artwork_review' artwork.event.slug artwork.pk %}">Abrir revisión administrativa</a>{% else %}<span></span>{% endif %}
+            <div class="d-flex flex-column flex-sm-row gap-2">
+                <button class="btn btn-outline-primary" type="submit" form="artwork-form" name="action" value="save">Guardar borrador</button>
+                <button class="btn btn-primary" type="submit" form="artwork-form" name="action" value="submit">Guardar y enviar propuesta</button>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-secondary">Esta convocatoria es histórica y quedó disponible en modo lectura.</div>
+        {% endif %}
+</div>
+
+<style>
+    .art-form-page { max-width: 920px; overflow-wrap: anywhere; }
+    .art-form-page header p { max-width: 68ch; }
+    .checkpoint-list { grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 1rem; }
+    .checkpoint { border-bottom: 1px solid #dee2e6; }
+    .checkpoint-dot { display: inline-block; width: .65rem; height: .65rem; margin-right: .5rem; border-radius: 50%; background: #6c757d; }
+    .checkpoint-open { background: #289e6d; }
+    .checkpoint-upcoming { background: #d39e00; }
+    .section-nav a { padding: .45rem .7rem; border: 1px solid #dee2e6; border-radius: .4rem; text-decoration: none; }
+    .form-section { padding: 0 0 2.5rem; margin-bottom: 2.5rem; border-bottom: 1px solid #dee2e6; scroll-margin-top: 1rem; }
+    .section-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+    .section-heading > div { display: flex; align-items: baseline; gap: .75rem; }
+    .section-heading > div > span { color: #289e6d; font-weight: 700; }
+    .section-heading h2 { margin: 0; font-size: 1.5rem; }
+    .art-form-page textarea.form-control { height: auto; min-height: 8rem; resize: vertical; }
+    .form-control:disabled, .form-select:disabled { opacity: 1; background-color: #f1f3f2; color: #5c636a; }
+    .grant-panel { padding: 1rem; background: #f8f9fa; border-radius: .5rem; }
+    .gallery-card { border: 1px solid #dee2e6; border-radius: .5rem; overflow: hidden; }
+    .gallery-card img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; }
+    .provider-row { border-top: 1px solid #dee2e6; }
+    .inline-editor { border: 1px solid #dee2e6; border-radius: .45rem; background: #fafbfa; }
+    .inline-editor > summary { display: flex; align-items: center; gap: .5rem; width: fit-content; padding: .5rem .7rem; color: #176b4a; font-weight: 600; cursor: pointer; list-style: none; }
+    .inline-editor > summary::-webkit-details-marker { display: none; }
+    .inline-editor[open] > summary { margin-bottom: .25rem; }
+    .inline-editor > form { padding: .75rem; border-top: 1px solid #dee2e6; }
+    .inline-create { background: #f4f8f6; }
+    .inline-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1rem; }
+    .inline-form-wide { grid-column: 1 / -1; }
+    .inline-table-editor td { padding: 0 0 .75rem; border-top: 0; }
+    .logistics-people-table { min-width: 720px; }
+    .logistics-people-table th { white-space: nowrap; }
+    .logistics-people-table th:nth-child(3), .logistics-people-table th:nth-child(4), .logistics-people-table td:nth-child(3), .logistics-people-table td:nth-child(4) { width: 135px; white-space: nowrap; }
+    .inline-images { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .inline-images > span { position: relative; }
+    .inline-images img { width: 88px; height: 66px; object-fit: cover; border-radius: .3rem; }
+    .inline-images .btn { position: absolute; top: 0; right: 0; padding: .15rem .3rem; }
+    .operation-lists section { height: 100%; padding: .85rem; border: 1px solid #dee2e6; border-radius: .45rem; }
+    .operation-lists li { display: grid; grid-template-columns: 1fr auto; gap: .1rem 1rem; padding: .55rem 0; border-top: 1px solid #dee2e6; }
+    .operation-lists li:first-child { border-top: 0; }
+    .operation-lists li small { grid-column: 1 / -1; color: #6c757d; }
+    .provider-operation-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+    .provider-operation { min-width: 0; padding: 1rem; border: 1px solid #ccd8d2; border-radius: .45rem; background: #f7faf8; transition: opacity .18s ease-out; }
+    .provider-operation legend { float: none; width: auto; margin: 0 0 .25rem; padding: 0; color: #176b4a; font-size: 1rem; font-weight: 700; }
+    .provider-operation > p { min-height: 2.5rem; margin-bottom: .75rem; color: #6c757d; font-size: .875rem; }
+    .provider-operation-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 .75rem; }
+    .provider-operation.is-disabled { opacity: .58; }
+    .save-bar { position: sticky; bottom: 0; z-index: 2; background: rgba(250, 251, 250, .97); border-top: 1px solid #dee2e6; }
+    @media (max-width: 767px) { .checkpoint-list, .inline-form-grid, .provider-operation-grid, .provider-operation-fields { grid-template-columns: 1fr; } .inline-form-wide { grid-column: auto; } .provider-operation > p { min-height: 0; } .art-form-page { padding-inline: 0; } }
+</style>
+<script>
+    document.querySelectorAll('.provider-inline-form').forEach(function (form) {
+        form.querySelectorAll('[data-provider-operation]').forEach(function (block) {
+            const checkbox = form.querySelector('[name="' + block.dataset.toggleName + '"]');
+            const fields = block.querySelectorAll('input[type="datetime-local"]');
+            const sync = function () {
+                fields.forEach(function (field) { field.disabled = !checkbox.checked; });
+                block.classList.toggle('is-disabled', !checkbox.checked);
+            };
+            checkbox.addEventListener('change', sync);
+            sync();
+        });
+    });
+</script>
+{% include 'mi_fuego/art/_image_preview.html' %}
+{% include 'mi_fuego/art/_restore_position.html' %}
+{% endblock %}
