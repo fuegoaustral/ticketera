@@ -57,6 +57,10 @@
                                 {% if field.help_text %}
                                     <div class="form-text">{{ field.help_text }}</div>
                                 {% endif %}
+                                {% if field.name == 'header_image' %}
+                                    <div id="banner-preview" class="mt-2"></div>
+                                    <div id="banner-compress-status" class="form-text"></div>
+                                {% endif %}
                                 {% for error in field.errors %}
                                     <div class="text-danger small">{{ error }}</div>
                                 {% endfor %}
@@ -197,6 +201,142 @@
 
     rewireRemoveButtons();
     updateRemoveButtons();
+})();
+
+(function () {
+    const MAX_BANNER_BYTES = 2 * 1024 * 1024;
+    const TARGET_BANNER_BYTES = 900 * 1024;
+    const MAX_WIDTH = 1666;
+    const MAX_HEIGHT = 800;
+    const input = document.getElementById('{{ form.header_image.id_for_label }}');
+    const preview = document.getElementById('banner-preview');
+    const status = document.getElementById('banner-compress-status');
+    const form = input ? input.closest('form') : null;
+    if (!input || !form) return;
+
+    function setStatus(text, isError) {
+        if (!status) return;
+        status.textContent = text || '';
+        status.classList.toggle('text-danger', Boolean(isError));
+    }
+
+    function loadImage(file) {
+        return new Promise(function (resolve, reject) {
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = function () {
+                URL.revokeObjectURL(url);
+                resolve(img);
+            };
+            img.onerror = function () {
+                URL.revokeObjectURL(url);
+                reject(new Error('decode'));
+            };
+            img.src = url;
+        });
+    }
+
+    function canvasToBlob(canvas, type, quality) {
+        return new Promise(function (resolve) {
+            canvas.toBlob(resolve, type, quality);
+        });
+    }
+
+    function replaceInputFile(file) {
+        if (typeof DataTransfer === 'undefined') return false;
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        input.files = dt.files;
+        return true;
+    }
+
+    async function compressBanner(file) {
+        if (file.size <= TARGET_BANNER_BYTES && file.type === 'image/jpeg') {
+            return file;
+        }
+        const img = await loadImage(file);
+        let width = img.naturalWidth || img.width;
+        let height = img.naturalHeight || img.height;
+        const scale = Math.min(1, MAX_WIDTH / width, MAX_HEIGHT / height);
+        width = Math.max(1, Math.round(width * scale));
+        height = Math.max(1, Math.round(height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        let quality = 0.82;
+        let blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+        while (blob && blob.size > TARGET_BANNER_BYTES && quality > 0.5) {
+            quality -= 0.08;
+            blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+        }
+        if (!blob) throw new Error('compress');
+        const baseName = (file.name || 'banner').replace(/\.[^.]+$/, '');
+        return new File([blob], baseName + '.jpg', { type: 'image/jpeg', lastModified: Date.now() });
+    }
+
+    function showPreview(file) {
+        if (!preview) return;
+        const url = URL.createObjectURL(file);
+        preview.innerHTML = '<img src="' + url + '" alt="Preview" class="img-fluid rounded" style="max-height: 200px;">';
+    }
+
+    input.addEventListener('change', async function () {
+        const file = input.files && input.files[0];
+        if (!file) {
+            if (preview) preview.innerHTML = '';
+            setStatus('');
+            return;
+        }
+        setStatus('Optimizando imagen…');
+        try {
+            const compressed = await compressBanner(file);
+            if (compressed.size > MAX_BANNER_BYTES) {
+                input.value = '';
+                if (preview) preview.innerHTML = '';
+                setStatus('El banner sigue pesando demasiado (máximo 2 MB). Probá con otro archivo.', true);
+                return;
+            }
+            if (compressed !== file && !replaceInputFile(compressed)) {
+                if (file.size > MAX_BANNER_BYTES) {
+                    input.value = '';
+                    if (preview) preview.innerHTML = '';
+                    setStatus('No se pudo optimizar el banner. Subí un JPEG o PNG de hasta 2 MB.', true);
+                    return;
+                }
+            }
+            showPreview(compressed);
+            setStatus('Banner listo (' + Math.round(compressed.size / 1024) + ' KB).');
+        } catch (err) {
+            if (file.size > MAX_BANNER_BYTES) {
+                input.value = '';
+                if (preview) preview.innerHTML = '';
+                setStatus('No pudimos leer esa imagen. Subí un JPEG o PNG de hasta 2 MB.', true);
+                return;
+            }
+            showPreview(file);
+            setStatus('');
+        }
+    });
+
+    form.addEventListener('submit', function (event) {
+        const file = input.files && input.files[0];
+        if (file && file.size > MAX_BANNER_BYTES) {
+            event.preventDefault();
+            setStatus('El banner pesa demasiado (máximo 2 MB). Elegí una imagen más liviana.', true);
+            return;
+        }
+        const description = form.querySelector('textarea[name="description"]');
+        const editable = form.querySelector('.ck-editor__editable');
+        const html = ((description && description.value) || '') + ((editable && editable.innerHTML) || '');
+        if (/data:image/i.test(html)) {
+            event.preventDefault();
+            alert('No se pueden incrustar imágenes en la descripción. Usá el campo Banner.');
+        }
+    });
 })();
 </script>
 <script src="{% static 'django_ckeditor_5/dist/bundle.js' %}"></script>

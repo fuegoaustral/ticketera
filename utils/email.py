@@ -26,7 +26,18 @@ def send_mail(*args, **kwargs):
 
 def send_staff_mail(*args, **kwargs):
     """
-    Send email to is_staff=True users
+    Send email to is_staff=True users.
+    Returns True if there was at least one recipient.
     """
-    kwargs['recipient_list'] = User.objects.filter(is_staff=True).values_list('email', flat=True)
+    emails = list(
+        User.objects.filter(is_staff=True, is_active=True)
+        .exclude(email='')
+        .exclude(email__isnull=True)
+        .values_list('email', flat=True)
+    )
+    if not emails:
+        logging.warning('send_staff_mail: no hay usuarios staff con email')
+        return False
+    kwargs['recipient_list'] = emails
     send_mail(*args, **kwargs)
+    return True

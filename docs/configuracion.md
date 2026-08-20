@@ -58,7 +58,7 @@ Definidas en settings con default vacío: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOK
 |----------|-----|
 | `CHATWOOT_API_ACCESS_TOKEN` | Access token de API (Profile → Access Token), no el website token del widget. |
 | `CHATWOOT_ACCOUNT_ID` | ID numérico de la cuenta. |
-| `CHATWOOT_SOPORTE_INBOX_ID` | Inbox **API** donde se abren las propuestas (incoming notifica agentes). |
+| `CHATWOOT_SOPORTE_INBOX_ID` | Inbox Website **Fuego Austral** (`46478`), el que mira soporte. No usar `Ticketera Propuestas` (`115671`). |
 | `CHATWOOT_SOPORTE_ASSIGNEE_ID` | Opcional: agente al que se asigna la conversación. |
 
 ## Slack (opcional)

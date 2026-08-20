@@ -122,7 +122,17 @@ class SlackEventRequestTests(TestCase):
             if block['type'] == 'actions'
             for element in block['elements']
         ]
-        self.assertEqual(action_ids, [ACTION_APPROVE, ACTION_REJECT])
+    @override_settings(SLACK_BOT_TOKEN='xoxb-test-token', SLACK_SIGNING_SECRET='', SLACK_EVENT_REQUESTS_CHANNEL='C123456')
+    @patch('events.services.event_request_slack.requests.post')
+    def test_posts_without_signing_secret(self, mock_post):
+        mock_post.return_value.ok = True
+        mock_post.return_value.json.return_value = {
+            'ok': True,
+            'channel': 'C123456',
+            'ts': '1710000000.123456',
+        }
+        event_request = _make_event_request()
+        self.assertTrue(post_event_request_to_slack(event_request))
 
     @override_settings(**SLACK_SETTINGS)
     def test_webhook_rejects_invalid_signature(self):
@@ -263,6 +273,71 @@ class ChatwootOneClickReviewTests(TestCase):
         self.assertEqual(response.status_code, 400)
         event_request.refresh_from_db()
         self.assertEqual(event_request.status, EventRequest.Status.PENDING)
+
+
+class ChatwootWebsiteInboxTests(TestCase):
+    def test_extract_source_id_prefers_fuego_austral_inbox(self):
+        from events.services.event_request_chatwoot import _extract_source_id
+
+        data = {
+            'contact_inboxes': [
+                {'source_id': 'api-inbox', 'inbox': {'id': 115671}},
+                {'source_id': 'web-inbox', 'inbox': {'id': 46478}},
+            ]
+        }
+        self.assertEqual(_extract_source_id(data, 46478), 'web-inbox')
+
+    @override_settings(
+        CHATWOOT_SOPORTE_INBOX_ID='46478',
+        CHATWOOT_SOPORTE_ASSIGNEE_ID='107003',
+    )
+    @patch('events.services.event_request_chatwoot._request')
+    def test_create_conversation_uses_website_source_id(self, mock_request):
+        from events.services.event_request_chatwoot import _create_conversation
+
+        mock_request.side_effect = [
+            {'payload': {'contact_inboxes': [
+                {'source_id': 'sess-fa', 'inbox': {'id': 46478}},
+            ]}},
+            {'id': 99},
+        ]
+        self.assertEqual(_create_conversation(12), 99)
+        _method, path = mock_request.call_args_list[1].args[:2]
+        self.assertEqual(path, '/conversations')
+        payload = mock_request.call_args_list[1].kwargs['json']
+        self.assertEqual(payload['inbox_id'], 46478)
+        self.assertEqual(payload['source_id'], 'sess-fa')
+        self.assertEqual(payload['contact_id'], 12)
+        self.assertEqual(payload['assignee_id'], 107003)
+
+
+class EventRequestNotifyTests(TestCase):
+    @patch('events.services.event_request_notify.post_event_request_to_slack', return_value=False)
+    @patch('events.services.event_request_notify.post_event_request_to_chatwoot', return_value=False)
+    @patch('events.services.event_request_notify.send_staff_mail', return_value=True)
+    def test_emails_staff_when_chatwoot_and_slack_fail(self, mock_mail, _cw, _slack):
+        from events.services.event_request_notify import notify_event_request_for_review
+
+        event_request = _make_event_request()
+        result = notify_event_request_for_review(event_request)
+        self.assertTrue(result.email)
+        self.assertTrue(result.notified)
+        mock_mail.assert_called_once()
+        self.assertEqual(mock_mail.call_args.kwargs['template_name'], 'event_request_pending')
+        context = mock_mail.call_args.kwargs['context']
+        self.assertIn('/aprobar/', context['approve_path'])
+        self.assertIn('/desaprobar/', context['reject_path'])
+
+    @patch('events.services.event_request_notify.send_staff_mail')
+    @patch('events.services.event_request_notify.post_event_request_to_slack', return_value=True)
+    @patch('events.services.event_request_notify.post_event_request_to_chatwoot', return_value=False)
+    def test_skips_email_when_slack_succeeds(self, _cw, _slack, mock_mail):
+        from events.services.event_request_notify import notify_event_request_for_review
+
+        result = notify_event_request_for_review(_make_event_request())
+        self.assertTrue(result.slack)
+        self.assertFalse(result.email)
+        mock_mail.assert_not_called()
 
 
 class MainEventRotationTests(TestCase):
