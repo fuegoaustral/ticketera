@@ -1,4 +1,4 @@
-<div class="mb-3{% if field.errors %} has-error{% endif %}">
+<div class="mb-3{% if field.errors %} has-error{% endif %}{% if field.name == 'confirm_large_grant_amount' %} money-confirmation{% endif %}">
     {% if field.field.widget.input_type == 'checkbox' %}
         <div class="form-check">
             {{ field }}

@@ -1,4 +1,5 @@
 from datetime import timedelta
+from decimal import Decimal
 
 from django import forms
 from django.contrib.auth.models import User
@@ -7,8 +8,19 @@ from django.utils import timezone
 
 from .models import (
     Artwork, ArtworkGrantItem, ArtworkInvitation, ArtworkLogisticsPerson,
-    ArtworkPhoto, ArtworkProvider, ArtworkProviderVehicle,
+    ArtworkPhoto, ArtworkCheckoutPhoto, ArtworkProvider, ArtworkProviderVehicle,
 )
+
+
+class LocalizedDecimalField(forms.DecimalField):
+    """Accept both Argentine (150.000,00) and canonical (150000.00) input."""
+
+    def to_python(self, value):
+        if isinstance(value, str):
+            value = value.strip().replace(' ', '')
+            if ',' in value:
+                value = value.replace('.', '').replace(',', '.')
+        return super().to_python(value)
 
 
 ARTWORK_BLOCK_FIELDS = {
@@ -20,7 +32,10 @@ ARTWORK_BLOCK_FIELDS = {
     'grant': ('grant_requested', 'grant_justification'),
     'guide': ('public_title', 'public_description', 'preferred_location'),
     'logistics': ('arrival_date', 'departure_date'),
-    'checkout': ('checkout_completed', 'checkout_team_responsible', 'checkout_art_responsible', 'checkout_notes'),
+    'checkout': (
+        'checkout_completed', 'checkout_team_responsible', 'checkout_art_responsible', 'checkout_notes',
+    ),
+    'understanding_letter_digital': ('understanding_letter',),
     'grant_report': ('grant_report',),
 }
 
@@ -68,6 +83,7 @@ class ArtworkForm(forms.ModelForm):
         self.actor = actor or owner
         self.action = action
         self.is_manager = self.instance.pk and self.instance.can_manage(self.actor)
+        self.is_contributor = self.instance.pk and self.instance.can_edit(self.actor)
         self.new_invitations = []
 
         for field in self.fields.values():
@@ -81,7 +97,11 @@ class ArtworkForm(forms.ModelForm):
         self.fields['checkout_team_responsible'].queryset = self.instance.logistics_people.all() if self.instance.pk else ArtworkLogisticsPerson.objects.none()
         self.fields['checkout_art_responsible'].queryset = _art_responsibles(self.instance)
         self.fields['checkout_art_responsible'].help_text = 'La coordinación de Arte asigna este responsable.'
-        if not self.is_manager:
+        if self.instance.pk and not self.is_manager and not self.is_contributor:
+            for name, field in self.fields.items():
+                if name != 'expected_version':
+                    field.disabled = True
+        elif not self.is_manager:
             self.fields['checkout_art_responsible'].disabled = True
 
         # Un borrador puede empezar incompleto; la presentación valida lo indispensable.
@@ -104,6 +124,9 @@ class ArtworkForm(forms.ModelForm):
             for name in self.BLOCK_FIELDS['grant']:
                 if name in self.fields:
                     self.fields[name].disabled = True
+
+        if self.instance.grant_status == Artwork.GrantStatus.CLOSED:
+            self.fields['grant_report'].disabled = True
 
         if self.instance.checkout_verified_at:
             for name in self.BLOCK_FIELDS['checkout']:
@@ -231,6 +254,25 @@ class ArtworkForm(forms.ModelForm):
 
 class ArtworkGrantItemForm(forms.ModelForm):
     expected_updated_at = forms.CharField(widget=forms.HiddenInput, required=False)
+    amount = LocalizedDecimalField(
+        max_digits=14, decimal_places=2, min_value=Decimal('0.01'),
+        widget=forms.TextInput(attrs={
+            'inputmode': 'decimal', 'autocomplete': 'off', 'data-money-input': 'true',
+            'placeholder': '150.000,00',
+        }),
+    )
+    exchange_rate = LocalizedDecimalField(
+        max_digits=14, decimal_places=4, min_value=Decimal('0.0001'),
+        widget=forms.TextInput(attrs={
+            'inputmode': 'decimal', 'autocomplete': 'off', 'data-money-input': 'true',
+            'placeholder': '1.234,56', 'data-exchange-rate': 'true',
+        }),
+    )
+    confirm_large_amount = forms.BooleanField(
+        required=False,
+        label='Confirmo el monto si supera ARS 1.000.000',
+        help_text='Se pide una confirmación extra para evitar errores de ceros o separadores.',
+    )
 
     class Meta:
         model = ArtworkGrantItem
@@ -254,6 +296,7 @@ class ArtworkGrantItemForm(forms.ModelForm):
         self.fields['expected_updated_at'].initial = self.instance.updated_at.isoformat() if self.instance.pk else ''
         for field in self.fields.values():
             field.widget.attrs.setdefault('class', 'form-select' if isinstance(field.widget, forms.Select) else 'form-control')
+        self.fields['currency'].widget.attrs['data-currency-select'] = 'true'
 
     def clean_images(self):
         images = self.cleaned_data['images']
@@ -280,6 +323,11 @@ class ArtworkGrantItemForm(forms.ModelForm):
                 self.add_error('exchange_rate', 'Ingresá una cotización mayor a cero.')
             if not cleaned.get('rate_source'):
                 self.add_error('rate_source', 'Indicá la fuente y el tipo de dólar utilizado.')
+        amount_ars = cleaned.get('amount')
+        if currency == ArtworkGrantItem.Currency.USD and amount_ars and cleaned.get('exchange_rate'):
+            amount_ars *= cleaned['exchange_rate']
+        if amount_ars and amount_ars >= Decimal('1000000') and not cleaned.get('confirm_large_amount'):
+            self.add_error('confirm_large_amount', 'Confirmá el monto convertido antes de guardar.')
         return cleaned
 
     def save(self, commit=True):
@@ -291,6 +339,24 @@ class ArtworkGrantItemForm(forms.ModelForm):
         if commit:
             item.save()
         return item
+
+
+class ArtworkGrantItemReviewForm(forms.ModelForm):
+    class Meta:
+        model = ArtworkGrantItem
+        fields = ('review_status', 'review_notes')
+        widgets = {'review_notes': forms.Textarea(attrs={'rows': 3})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault('class', 'form-select' if isinstance(field.widget, forms.Select) else 'form-control')
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get('review_status') == ArtworkGrantItem.ReviewStatus.REJECTED and not cleaned.get('review_notes'):
+            self.add_error('review_notes', 'Explicá qué necesita corregirse para rechazar el ítem.')
+        return cleaned
 
 
 class MultipleImageInput(forms.ClearableFileInput):
@@ -323,6 +389,26 @@ class ArtworkPhotoUploadForm(forms.Form):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs.setdefault('class', 'form-check-input' if isinstance(field.widget, forms.CheckboxInput) else ('form-select' if isinstance(field.widget, forms.Select) else 'form-control'))
+        self.fields['images'].widget.attrs.update({'accept': 'image/*', 'data-image-preview': 'true'})
+
+    def clean_images(self):
+        images = self.cleaned_data['images']
+        if len(images) > 10:
+            raise forms.ValidationError('Podés subir hasta 10 fotos por vez.')
+        if any(image.size > 10 * 1024 * 1024 for image in images):
+            raise forms.ValidationError('Cada foto puede pesar hasta 10 MB.')
+        return images
+
+
+class ArtworkCheckoutPhotoUploadForm(forms.Form):
+    images = MultipleImageField(label='Fotos de checkout')
+    category = forms.ChoiceField(choices=ArtworkCheckoutPhoto.Category.choices, label='Categoría')
+    caption = forms.CharField(required=False, widget=forms.Textarea(attrs={'rows': 4}), label='Detalle')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault('class', 'form-select' if isinstance(field.widget, forms.Select) else 'form-control')
         self.fields['images'].widget.attrs.update({'accept': 'image/*', 'data-image-preview': 'true'})
 
     def clean_images(self):
@@ -436,10 +522,28 @@ class ArtworkProviderVehicleForm(forms.ModelForm):
 
 class ArtworkReviewForm(forms.ModelForm):
     expected_updated_at = forms.CharField(widget=forms.HiddenInput, required=False)
+    grant_approved_amount_ars = LocalizedDecimalField(
+        required=False, max_digits=14, decimal_places=2, min_value=Decimal('0.01'),
+        label='Monto de beca aprobado',
+        widget=forms.TextInput(attrs={
+            'inputmode': 'decimal', 'autocomplete': 'off', 'data-money-input': 'true',
+            'placeholder': '450.000,00',
+        }),
+    )
+    confirm_large_grant_amount = forms.BooleanField(
+        required=False,
+        label='Confirmo el monto aprobado si supera ARS 1.000.000',
+        help_text='Verificá los separadores y la cantidad de ceros antes de guardar.',
+    )
 
     class Meta:
         model = Artwork
         fields = (
+            'checkin_arrived_at', 'checkin_art_at', 'checkin_placed',
+            'checkin_placement_changed', 'checkin_placement_change_notes',
+            'understanding_letter', 'understanding_letter_physical_received',
+            'understanding_letter_physical_custodian', 'understanding_letter_physical_notes',
+            'understanding_letter_physical_waiver', 'understanding_letter_physical_waiver_reason',
             'status', 'review_feedback', 'grant_status', 'grant_approved_amount_ars',
             'grant_decision_notes', 'grant_paid_at', 'grant_payment_reference',
             'assigned_location', 'placement_notes', 'checkout_team_responsible',
@@ -447,20 +551,38 @@ class ArtworkReviewForm(forms.ModelForm):
             'benefit_status', 'benefit_notes',
         )
         widgets = {
+            'checkin_arrived_at': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
+            'checkin_art_at': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
+            'checkin_placement_change_notes': forms.Textarea(attrs={'rows': 4}),
             'review_feedback': forms.Textarea(attrs={'rows': 5}),
             'grant_decision_notes': forms.Textarea(attrs={'rows': 5}),
             'grant_paid_at': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
             'placement_notes': forms.Textarea(attrs={'rows': 5}),
             'checkout_verified_at': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
             'benefit_notes': forms.Textarea(attrs={'rows': 4}),
+            'understanding_letter_physical_notes': forms.Textarea(attrs={'rows': 4}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, can_manage=True, **kwargs):
         super().__init__(*args, **kwargs)
+        if not can_manage:
+            allowed = {
+                'checkin_arrived_at', 'checkin_art_at', 'checkin_placed',
+                'checkin_placement_changed', 'checkin_placement_change_notes',
+                'checkout_verified_at', 'understanding_letter',
+                'understanding_letter_physical_received', 'understanding_letter_physical_custodian',
+                'understanding_letter_physical_notes', 'understanding_letter_physical_waiver',
+                'understanding_letter_physical_waiver_reason',
+            }
+            for name in tuple(self.fields):
+                if name not in allowed and name != 'expected_updated_at':
+                    self.fields.pop(name)
         self.fields['expected_updated_at'].initial = self.instance.updated_at.isoformat() if self.instance.pk else ''
         if self.instance.pk:
-            self.fields['checkout_team_responsible'].queryset = self.instance.logistics_people.all()
-            self.fields['checkout_art_responsible'].queryset = _art_responsibles(self.instance)
+            if 'checkout_team_responsible' in self.fields:
+                self.fields['checkout_team_responsible'].queryset = self.instance.logistics_people.all()
+            if 'checkout_art_responsible' in self.fields:
+                self.fields['checkout_art_responsible'].queryset = _art_responsibles(self.instance)
         for field in self.fields.values():
             field.widget.attrs.setdefault('class', 'form-select' if isinstance(field.widget, forms.Select) else 'form-control')
 
@@ -472,6 +594,17 @@ class ArtworkReviewForm(forms.ModelForm):
                 self.add_error(None, 'Otra coordinación modificó esta obra. Recargá la página antes de guardar.')
         if cleaned.get('grant_status') in (Artwork.GrantStatus.APPROVED, Artwork.GrantStatus.PAID) and not cleaned.get('grant_approved_amount_ars'):
             self.add_error('grant_approved_amount_ars', 'Indicá el monto aprobado.')
+        if cleaned.get('grant_approved_amount_ars') and cleaned['grant_approved_amount_ars'] >= Decimal('1000000') and not cleaned.get('confirm_large_grant_amount'):
+            self.add_error('confirm_large_grant_amount', 'Confirmá el monto aprobado antes de guardar.')
         if cleaned.get('grant_status') == Artwork.GrantStatus.PAID and not cleaned.get('grant_paid_at'):
             self.add_error('grant_paid_at', 'Indicá cuándo se pagó la beca.')
+        if cleaned.get('checkout_verified_at') and not self.instance.checkout_completed:
+            self.add_error('checkout_verified_at', 'Esperá la solicitud de checkout del equipo de la obra.')
+        if cleaned.get('understanding_letter_physical_received') and not (
+            cleaned.get('understanding_letter_physical_custodian')
+            or cleaned.get('understanding_letter_physical_notes')
+        ):
+            self.add_error('understanding_letter_physical_notes', 'Indicá quién tiene la carta física o dónde está guardada.')
+        if cleaned.get('understanding_letter_physical_waiver') and not cleaned.get('understanding_letter_physical_waiver_reason'):
+            self.add_error('understanding_letter_physical_waiver_reason', 'Indicá por qué corresponde la excepción por distancia a CABA.')
         return cleaned

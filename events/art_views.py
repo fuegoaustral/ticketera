@@ -15,12 +15,12 @@ from utils.email import send_mail
 
 from .forms import (
     ArtworkForm, ArtworkGrantItemForm, ArtworkLogisticsPersonForm,
-    ArtworkPhotoUploadForm, ArtworkProviderForm, ArtworkProviderVehicleForm,
-    ArtworkReviewForm,
+    ArtworkCheckoutPhotoUploadForm, ArtworkPhotoUploadForm, ArtworkProviderForm, ArtworkProviderVehicleForm,
+    ArtworkGrantItemReviewForm, ArtworkReviewForm,
 )
 from .models import (
     ArtProgram, Artwork, ArtworkGrantItem, ArtworkGrantItemPhoto,
-    ArtworkInvitation, ArtworkLogisticsPerson, ArtworkPhoto, ArtworkProvider,
+    ArtworkInvitation, ArtworkLogisticsPerson, ArtworkPhoto, ArtworkCheckoutPhoto, ArtworkProvider,
     ArtworkProviderVehicle, Event, Grupo, GrupoMiembro, GrupoTipo,
 )
 
@@ -45,6 +45,8 @@ def _checkpoints(program):
         {'key': 'guide', 'label': 'Desplegable', 'deadline': program.guide_deadline, 'state': program.checkpoint_state('guide')},
         {'key': 'logistics', 'label': 'Ingreso y desarme', 'deadline': program.logistics_deadline, 'state': program.checkpoint_state('logistics')},
         {'key': 'checkout', 'label': 'Checkout', 'deadline': program.checkout_deadline, 'state': program.checkpoint_state('checkout')},
+        {'key': 'understanding_letter_digital', 'label': 'Carta de entendimiento digital', 'deadline': program.understanding_letter_digital_deadline, 'state': program.checkpoint_state('understanding_letter_digital')},
+        {'key': 'understanding_letter_physical', 'label': 'Carta de entendimiento física', 'deadline': program.understanding_letter_physical_deadline, 'state': program.checkpoint_state('understanding_letter_physical')},
     ]
     if program.grants_enabled:
         checkpoints.append({'key': 'grant_report', 'label': 'Rendición', 'deadline': program.grant_report_deadline, 'state': program.checkpoint_state('grant_report')})
@@ -57,7 +59,8 @@ def _accessible_artworks(user):
     collaborator_ids = Artwork.objects.filter(collaborators=user).values('pk')
     managed_events = Event.objects.filter(admins=user).values('pk')
     return Artwork.objects.filter(
-        Q(owner=user) | Q(pk__in=collaborator_ids) | Q(event_id__in=managed_events),
+        Q(owner=user) | Q(pk__in=collaborator_ids) | Q(event_id__in=managed_events)
+        | Q(checkout_art_responsible=user),
     )
 
 
@@ -116,6 +119,10 @@ def _grant_context(artwork, inline_forms=None):
         'expense_items': expenses,
         'budget_total_ars': artwork.grant_total_ars(ArtworkGrantItem.Phase.BUDGET),
         'expense_total_ars': artwork.grant_total_ars(ArtworkGrantItem.Phase.EXPENSE),
+        'grant_over_budget': bool(
+            artwork.grant_approved_amount_ars
+            and artwork.grant_total_ars(ArtworkGrantItem.Phase.EXPENSE) > artwork.grant_approved_amount_ars
+        ),
         'budget_create_form': inline_forms.get(('grant-new', ArtworkGrantItem.Phase.BUDGET)) or ArtworkGrantItemForm(
             instance=ArtworkGrantItem(artwork=artwork, phase=ArtworkGrantItem.Phase.BUDGET),
             phase=ArtworkGrantItem.Phase.BUDGET, auto_id='grant-budget-new_%s',
@@ -154,6 +161,10 @@ def _artwork_context(artwork, program, form, inline_forms=None):
         'artwork': artwork,
         'checkpoints': _checkpoints(program),
         'photo_upload_form': inline_forms.get(('photo-new', None)) or ArtworkPhotoUploadForm(auto_id='photo-new_%s'),
+        'checkout_photo_upload_form': inline_forms.get(('checkout-photo-new', None)) or ArtworkCheckoutPhotoUploadForm(
+            auto_id='checkout-photo-new_%s',
+        ),
+        'checkout_photos': artwork.checkout_photos.all(),
         'logistics_people': people,
         'person_create_form': inline_forms.get(('person-new', None)) or ArtworkLogisticsPersonForm(
             instance=ArtworkLogisticsPerson(artwork=artwork), auto_id='person-new_%s',
@@ -168,6 +179,7 @@ def _artwork_context(artwork, program, form, inline_forms=None):
         'can_edit_budget': _grant_item_editable(artwork, ArtworkGrantItem.Phase.BUDGET, form.actor),
         'can_edit_expenses': _grant_item_editable(artwork, ArtworkGrantItem.Phase.EXPENSE, form.actor),
         'can_edit_logistics': _logistics_editable(artwork, form.actor),
+        'can_edit_checkout': _checkout_editable(artwork, form.actor),
         'can_submit_grant': artwork.can_edit(form.actor) and program.is_current and program.checkpoint_state('grant') == 'open' and artwork.grant_status in (Artwork.GrantStatus.NOT_REQUESTED, Artwork.GrantStatus.INFO_REQUIRED),
         'can_submit_report': artwork.can_edit(form.actor) and program.is_current and program.checkpoint_state('grant_report') == 'open' and artwork.grant_status in (Artwork.GrantStatus.APPROVED, Artwork.GrantStatus.PAID),
     })
@@ -176,18 +188,27 @@ def _artwork_context(artwork, program, form, inline_forms=None):
 
 
 def _review_context(artwork, form, user, inline_forms=None):
+    inline_forms = inline_forms or {}
     admin_events = Event.objects.order_by('-id') if user.is_superuser else get_admin_events_for_user(user)
+    grant_context = _grant_context(artwork, inline_forms)
+    for item in grant_context['budget_items'] + grant_context['expense_items']:
+        item.review_form = ArtworkGrantItemReviewForm(instance=item, auto_id=f'grant-review-{item.pk}_%s')
     return {
-        **_base_context(artwork.event), **_grant_context(artwork, inline_forms),
+        **_base_context(artwork.event), **grant_context,
         'artwork': artwork, 'form': form, 'current_admin_event': artwork.event,
         'admin_events': admin_events, 'nav_primary': 'events',
         'nav_secondary': f'art_admin_{artwork.event.slug}',
+        'can_manage': artwork.can_manage(user),
+        'checkout_photo_upload_form': inline_forms.get(('checkout-photo-new', None)) or ArtworkCheckoutPhotoUploadForm(
+            auto_id='checkout-photo-new_%s',
+        ),
+        'checkout_photos': artwork.checkout_photos.all(),
     }
 
 
 def _inline_error_response(request, artwork, key, inline_form):
-    if request.POST.get('return_to') == 'review' and artwork.can_manage(request.user):
-        review_form = ArtworkReviewForm(instance=artwork)
+    if request.POST.get('return_to') == 'review' and artwork.can_administer(request.user):
+        review_form = ArtworkReviewForm(instance=artwork, can_manage=artwork.can_manage(request.user))
         return render(
             request, 'mi_fuego/art/review.html',
             _review_context(artwork, review_form, request.user, {key: inline_form}),
@@ -204,6 +225,12 @@ def _inline_error_response(request, artwork, key, inline_form):
 
 def _artwork_redirect(artwork, anchor):
     return redirect(f"{reverse('artwork_edit', args=[artwork.pk])}#{anchor}")
+
+
+def _checkout_redirect(request, artwork):
+    if request.POST.get('return_to') == 'review' and artwork.can_administer(request.user):
+        return redirect(f"{reverse('artwork_review', args=[artwork.event.slug, artwork.pk])}#checkout-report")
+    return _artwork_redirect(artwork, 'checkout')
 
 
 def _grant_redirect(request, artwork, phase):
@@ -223,7 +250,14 @@ def art_dashboard(request):
         .distinct()
     )
     context = _base_context()
-    context.update({'programs': programs, 'artworks': artworks})
+    admin_assignments = Artwork.objects.all() if request.user.is_superuser else Artwork.objects.filter(
+        Q(checkout_art_responsible=request.user) | Q(event__admins=request.user),
+    )
+    context.update({
+        'programs': programs,
+        'artworks': artworks,
+        'admin_assignments': admin_assignments.select_related('event', 'owner').distinct(),
+    })
     return render(request, 'mi_fuego/art/dashboard.html', context)
 
 
@@ -260,12 +294,16 @@ def artwork_create(request, event_slug):
 
 @login_required
 def artwork_edit(request, artwork_id):
-    access = _accessible_artworks(request.user)
     if request.method == 'POST':
         with transaction.atomic():
-            artwork = get_object_or_404(access.select_for_update(), pk=artwork_id)
+            artwork = get_object_or_404(Artwork.objects.select_for_update(), pk=artwork_id)
+            if not artwork.can_edit(request.user) and not artwork.can_manage(request.user):
+                raise Http404
             response = _handle_artwork_edit(request, artwork)
         return response
+    access = _accessible_artworks(request.user).filter(
+        Q(owner=request.user) | Q(collaborators=request.user) | Q(event__admins=request.user),
+    ).distinct()
     artwork = get_object_or_404(access, pk=artwork_id)
     return _handle_artwork_edit(request, artwork)
 
@@ -298,6 +336,8 @@ def _handle_artwork_edit(request, artwork):
 
 
 def _grant_item_editable(artwork, phase, user):
+    if phase == ArtworkGrantItem.Phase.EXPENSE and artwork.grant_status == Artwork.GrantStatus.CLOSED:
+        return False
     if artwork.can_manage(user):
         return True
     program = artwork.event.art_program
@@ -317,6 +357,13 @@ def _logistics_editable(artwork, user):
         return True
     program = artwork.event.art_program
     return program.is_current and program.checkpoint_state('logistics') == 'open' and artwork.can_edit(user)
+
+
+def _checkout_editable(artwork, user):
+    if artwork.can_administer(user):
+        return True
+    program = artwork.event.art_program
+    return program.is_current and program.checkpoint_state('checkout') == 'open' and artwork.can_edit(user)
 
 
 def _save_grant_item_images(item, images, user):
@@ -373,6 +420,28 @@ def grant_item_edit(request, artwork_id, item_id):
             messages.success(request, 'Ítem actualizado.')
             return _grant_redirect(request, artwork, item.phase)
     return _inline_error_response(request, artwork, ('grant', item.pk), form)
+
+
+@login_required
+def grant_item_review(request, event_slug, artwork_id, item_id):
+    if request.method != 'POST':
+        return HttpResponseForbidden('La revisión del ítem requiere una confirmación.')
+    with transaction.atomic():
+        artwork = get_object_or_404(
+            Artwork.objects.select_for_update(), pk=artwork_id, event__slug=event_slug,
+        )
+        if not artwork.can_manage(request.user):
+            return HttpResponseForbidden('No tenés permisos para revisar becas en este evento.')
+        item = get_object_or_404(ArtworkGrantItem.objects.select_for_update(), pk=item_id, artwork=artwork)
+        form = ArtworkGrantItemReviewForm(request.POST, instance=item)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Revisión de “{item.concept}” guardada.')
+        else:
+            for errors in form.errors.values():
+                for error in errors:
+                    messages.error(request, error)
+    return redirect(f"{reverse('artwork_review', args=[event_slug, artwork_id])}#{'admin-budget' if item.phase == ArtworkGrantItem.Phase.BUDGET else 'admin-expenses'}")
 
 
 @login_required
@@ -461,6 +530,8 @@ def grant_report_submit(request, artwork_id):
             messages.error(request, 'Agregá al menos un gasto a la rendición.')
         elif not artwork.photos.filter(stage__in=(ArtworkPhoto.Stage.FINAL, ArtworkPhoto.Stage.GRANT_REPORT)).exists():
             messages.error(request, 'Subí al menos una foto final o de rendición.')
+        elif artwork.grant_approved_amount_ars and artwork.expense_total_ars > artwork.grant_approved_amount_ars:
+            messages.error(request, 'La rendición supera el monto aprobado. Revisá los montos antes de enviarla.')
         else:
             artwork.grant_status = Artwork.GrantStatus.REPORTED
             artwork.save(update_fields=['grant_status', 'updated_at'])
@@ -472,10 +543,14 @@ def grant_report_submit(request, artwork_id):
 def artwork_photo_upload(request, artwork_id):
     access = _accessible_artworks(request.user)
     artwork = get_object_or_404(access, pk=artwork_id)
+    if not artwork.can_edit(request.user) and not artwork.can_manage(request.user):
+        return HttpResponseForbidden('La galería de esta obra no se puede editar.')
     if request.method != 'POST':
         return _artwork_redirect(artwork, 'galeria')
     with transaction.atomic():
         artwork = get_object_or_404(access.select_for_update(), pk=artwork_id)
+        if not artwork.can_edit(request.user) and not artwork.can_manage(request.user):
+            return HttpResponseForbidden('La galería de esta obra no se puede editar.')
         form = ArtworkPhotoUploadForm(request.POST, request.FILES, auto_id='photo-new_%s')
         if form.is_valid():
             images = form.cleaned_data['images']
@@ -502,6 +577,8 @@ def artwork_photo_delete(request, artwork_id, photo_id):
         return HttpResponseForbidden('Método no permitido.')
     with transaction.atomic():
         artwork = get_object_or_404(_accessible_artworks(request.user).select_for_update(), pk=artwork_id)
+        if not artwork.can_edit(request.user) and not artwork.can_manage(request.user):
+            return HttpResponseForbidden('La galería de esta obra no se puede editar.')
         photo = get_object_or_404(ArtworkPhoto.objects.select_for_update(), pk=photo_id, artwork=artwork)
         protected_evidence = (
             artwork.grant_status in (Artwork.GrantStatus.REPORTED, Artwork.GrantStatus.CLOSED)
@@ -515,6 +592,52 @@ def artwork_photo_delete(request, artwork_id, photo_id):
         transaction.on_commit(lambda: storage.delete(image_name))
     messages.success(request, 'Foto eliminada de la galería.')
     return _artwork_redirect(artwork, 'galeria')
+
+
+@login_required
+def artwork_checkout_photo_upload(request, artwork_id):
+    access = _accessible_artworks(request.user)
+    artwork = get_object_or_404(access, pk=artwork_id)
+    if request.method != 'POST':
+        return _checkout_redirect(request, artwork)
+    with transaction.atomic():
+        artwork = get_object_or_404(access.select_for_update(), pk=artwork_id)
+        if not _checkout_editable(artwork, request.user):
+            return HttpResponseForbidden('El checkout de esta obra ya no se puede editar.')
+        if artwork.checkout_verified_at and not artwork.can_administer(request.user):
+            return HttpResponseForbidden('La evidencia de un checkout verificado no se puede modificar.')
+        form = ArtworkCheckoutPhotoUploadForm(request.POST, request.FILES, auto_id='checkout-photo-new_%s')
+        if form.is_valid():
+            images = form.cleaned_data['images']
+            if artwork.checkout_photos.count() + len(images) > 100:
+                form.add_error('images', 'El reporte de checkout admite hasta 100 fotos por obra.')
+            else:
+                for image in images:
+                    ArtworkCheckoutPhoto.objects.create(
+                        artwork=artwork, image=image, category=form.cleaned_data['category'],
+                        caption=form.cleaned_data['caption'], uploaded_by=request.user,
+                    )
+                messages.success(request, f"Se subieron {len(images)} foto(s) al reporte de checkout.")
+                return _checkout_redirect(request, artwork)
+    return _inline_error_response(request, artwork, ('checkout-photo-new', None), form)
+
+
+@login_required
+def artwork_checkout_photo_delete(request, artwork_id, photo_id):
+    if request.method != 'POST':
+        return HttpResponseForbidden('Método no permitido.')
+    with transaction.atomic():
+        artwork = get_object_or_404(_accessible_artworks(request.user).select_for_update(), pk=artwork_id)
+        photo = get_object_or_404(ArtworkCheckoutPhoto.objects.select_for_update(), pk=photo_id, artwork=artwork)
+        if not _checkout_editable(artwork, request.user):
+            return HttpResponseForbidden('Esta foto no se puede eliminar.')
+        if artwork.checkout_verified_at and not artwork.can_administer(request.user):
+            return HttpResponseForbidden('La evidencia de un checkout verificado no se puede eliminar.')
+        storage, image_name = photo.image.storage, photo.image.name
+        photo.delete()
+        transaction.on_commit(lambda: storage.delete(image_name))
+    messages.success(request, 'Foto eliminada del reporte de checkout.')
+    return _checkout_redirect(request, artwork)
 
 
 @login_required
@@ -680,7 +803,7 @@ def art_admin_dashboard(request, event_slug):
     event = _managed_event(request, event_slug)
     if not event:
         return HttpResponseForbidden('No tenés permisos para coordinar Arte en este evento.')
-    artworks = event.artworks.select_related('owner').prefetch_related('grant_items', 'photos').order_by('status', 'title')
+    artworks = event.artworks.select_related('owner').prefetch_related('grant_items', 'photos', 'checkout_photos').order_by('status', 'title')
     admin_events = Event.objects.order_by('-id') if request.user.is_superuser else get_admin_events_for_user(request.user)
     return render(request, 'mi_fuego/art/admin_dashboard.html', {
         **_base_context(event), 'artworks': artworks, 'current_admin_event': event,
@@ -691,16 +814,24 @@ def art_admin_dashboard(request, event_slug):
 
 @login_required
 def artwork_review(request, event_slug, artwork_id):
-    event = _managed_event(request, event_slug)
-    if not event:
+    event = get_object_or_404(Event, slug=event_slug)
+    artwork = get_object_or_404(Artwork, pk=artwork_id, event=event)
+    if not artwork.can_administer(request.user):
         return HttpResponseForbidden('No tenés permisos para coordinar Arte en este evento.')
+    can_manage = artwork.can_manage(request.user)
     if request.method == 'POST':
         with transaction.atomic():
             artwork = get_object_or_404(Artwork.objects.select_for_update(), pk=artwork_id, event=event)
             was_verified = bool(artwork.checkout_verified_at)
-            form = ArtworkReviewForm(request.POST, instance=artwork)
+            had_art_checkin = bool(artwork.checkin_art_at)
+            if not artwork.can_administer(request.user):
+                return HttpResponseForbidden('No tenés permisos para coordinar Arte en este evento.')
+            can_manage = artwork.can_manage(request.user)
+            form = ArtworkReviewForm(request.POST, request.FILES, instance=artwork, can_manage=can_manage)
             if form.is_valid():
                 artwork = form.save(commit=False)
+                if artwork.checkin_art_at and not had_art_checkin:
+                    artwork.checkin_art_by = request.user
                 if artwork.checkout_verified_at:
                     artwork.checkout_verified_by = request.user
                     artwork.status = Artwork.Status.COMPLETED
@@ -712,8 +843,7 @@ def artwork_review(request, event_slug, artwork_id):
                 messages.success(request, 'La revisión quedó guardada.')
                 return redirect('artwork_review', event_slug=event.slug, artwork_id=artwork.pk)
     else:
-        artwork = get_object_or_404(Artwork, pk=artwork_id, event=event)
-        form = ArtworkReviewForm(instance=artwork)
+        form = ArtworkReviewForm(instance=artwork, can_manage=can_manage)
     return render(request, 'mi_fuego/art/review.html', _review_context(artwork, form, request.user))
 
 
@@ -726,8 +856,8 @@ def art_admin_export(request, event_slug):
     response['Content-Disposition'] = f'attachment; filename="arte_{event.slug}.csv"'
     response.write('\ufeff')
     writer = csv.writer(response)
-    writer.writerow(['Obra', 'Responsable', 'Estado', 'Beca', 'Presupuesto ARS', 'Rendición ARS', 'Título público', 'Descripción pública', 'Ubicación asignada', 'Checkout verificado'])
-    for artwork in event.artworks.select_related('owner').prefetch_related('grant_items'):
+    writer.writerow(['Obra', 'Responsable', 'Estado', 'Beca', 'Presupuesto ARS', 'Rendición ARS', 'Título público', 'Descripción pública', 'Ubicación asignada', 'Carta digital', 'Carta física recibida', 'Responsable carta física', 'Fotos checkout', 'Checkout verificado'])
+    for artwork in event.artworks.select_related('owner').prefetch_related('grant_items', 'checkout_photos'):
         writer.writerow([_csv_cell(value) for value in [
             artwork.title,
             artwork.owner.email if artwork.owner else '',
@@ -738,6 +868,10 @@ def art_admin_export(request, event_slug):
             artwork.public_title,
             artwork.public_description,
             artwork.assigned_location,
+            artwork.understanding_letter.name if artwork.understanding_letter else '',
+            artwork.understanding_letter_physical_received,
+            artwork.understanding_letter_physical_custodian,
+            artwork.checkout_photos.count(),
             artwork.checkout_verified_at.isoformat() if artwork.checkout_verified_at else '',
         ]])
     return response
