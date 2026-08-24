@@ -49,7 +49,7 @@ def _transfer_main(*, new_main, previous_main=None):
 def reconcile_main_event():
     """
     Si el main actual no es vigente y hay otro evento activo vigente, pasa el main a ese.
-    Si no hay reemplazo, el main actual queda (get_main_event no lo muestra si ya venció).
+    Si no hay reemplazo, el main actual queda y get_main_event lo sigue mostrando.
     """
     current_main = Event.objects.filter(is_main=True).first()
 
