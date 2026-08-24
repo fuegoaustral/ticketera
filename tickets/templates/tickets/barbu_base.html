@@ -127,6 +127,10 @@
               {% if user.caja_events.exists or user.admin_events.exists %}
               <a class="dropdown-item text-success" href="{% url "caja_events" %}"><i class="fa-solid fa-cash-register text-success"></i> Cajas</a>
               {% endif %}
+              {% if perms.logros.manage_achievements %}
+              <a class="dropdown-item text-success" href="{% url "admin_logros" %}"><i class="fa-solid fa-trophy text-success"></i> Administrar logros</a>
+              <a class="dropdown-item text-success" href="{% url "admin_logros_assign" %}"><i class="fa-solid fa-user-plus text-success"></i> Asignar logros</a>
+              {% endif %}
               <a class="dropdown-item" href="https://fuegoaustral.org/el-evento/10-principios/" target="_blank">10 principios</a>
               <a class="dropdown-item" href="https://fuegoaustral.org/faq/" target="_blank">Preguntas frecuentes</a>
               <a class="dropdown-item" href="https://fuegoaustral.org/prepararse/" target="_blank">Guía de supervivencia</a>

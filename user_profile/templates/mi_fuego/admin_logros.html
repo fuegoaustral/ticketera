@@ -1,0 +1,232 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% load static %}
+
+{% block page_title %}Administrar logros{% endblock %}
+
+{% block submenu %}
+<div class="mobile-menu-toggle d-lg-none mb-3">
+    <button class="btn btn-outline-secondary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-expanded="false" aria-controls="sidebarMenu">
+        <i class="fas fa-bars me-2"></i>
+        Menú de Logros
+    </button>
+</div>
+<div class="sidebar-menu collapse d-lg-block" id="sidebarMenu">
+    <div class="menu-section">
+        <h6 class="menu-section-title">
+            <i class="fas fa-trophy me-2"></i>
+            Administración de Logros
+        </h6>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a class="menu-link active" href="{% url 'admin_logros' %}">
+                    <i class="fas fa-list me-2"></i>
+                    Crear / listar logros
+                </a>
+            </li>
+            <li class="menu-item">
+                <a class="menu-link" href="{% url 'admin_logros_assign' %}">
+                    <i class="fas fa-user-plus me-2"></i>
+                    Asignar logros
+                </a>
+            </li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
+
+{% block truecontent %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1">
+                        <i class="fas fa-trophy me-2"></i>
+                        Administrar logros
+                    </h1>
+                    <p class="text-muted mb-0">Creá logros con imagen, nombre, descripción y condición opcional</p>
+                </div>
+            </div>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-plus me-2"></i>
+                        Crear logro
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="name" class="form-label">Nombre</label>
+                                <input type="text" class="form-control" id="name" name="name" required maxlength="255">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="image" class="form-label">Imagen</label>
+                                <input type="file" class="form-control" id="image" name="image" accept="image/*" required>
+                            </div>
+                            <div class="col-12">
+                                <label for="description" class="form-label">Descripción</label>
+                                <textarea class="form-control" id="description" name="description" rows="2"></textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="condition_type" class="form-label">Condición (opcional)</label>
+                                <select class="form-select" id="condition_type" name="condition_type">
+                                    <option value="">Sin condición (solo asignación manual)</option>
+                                    {% for value, label in condition_types %}
+                                        <option value="{{ value }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div id="condition-fields" class="mt-3 d-none">
+                            <div class="row g-3">
+                                <div class="col-md-6 condition-field" data-for="purchased_events volunteer_at_events attended_events">
+                                    <label for="event_ids" class="form-label">Eventos</label>
+                                    <select class="form-select" id="event_ids" name="event_ids" multiple size="6">
+                                        {% for event in events %}
+                                            <option value="{{ event.id }}">{{ event.name }} (id={{ event.id }})</option>
+                                        {% endfor %}
+                                    </select>
+                                    <small class="text-muted">Ctrl/Cmd para seleccionar varios. En voluntario es opcional.</small>
+                                </div>
+                                <div class="col-md-3 condition-field d-none" data-for="volunteer_at_events">
+                                    <label for="volunteer_role" class="form-label">Rol de voluntario</label>
+                                    <select class="form-select" id="volunteer_role" name="volunteer_role">
+                                        <option value="transmutator">Transmutador</option>
+                                        <option value="ranger">Ranger</option>
+                                        <option value="caos">CAOS</option>
+                                        <option value="mad">MAD</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3 condition-field d-none" data-for="attended_events">
+                                    <label for="min_count" class="form-label">Mínimo de eventos</label>
+                                    <input type="number" class="form-control" id="min_count" name="min_count" value="1" min="1">
+                                </div>
+                                <div class="col-md-3 condition-field d-none" data-for="volunteer_at_events attended_events">
+                                    <label for="must_be_used" class="form-label">Debe estar escaneado</label>
+                                    <select class="form-select" id="must_be_used" name="must_be_used">
+                                        <option value="on" selected>Sí</option>
+                                        <option value="">No</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>
+                                Crear logro
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list me-2"></i>
+                        Logros existentes
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if achievements %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Imagen</th>
+                                        <th>Nombre</th>
+                                        <th>Condición</th>
+                                        <th>Activo</th>
+                                        <th>Orden</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for achievement in achievements %}
+                                        <tr>
+                                            <td style="width: 72px;">
+                                                {% if achievement.image %}
+                                                    <img src="{{ achievement.image.url }}" alt="" style="width: 48px; height: 48px; object-fit: cover; border-radius: 8px;">
+                                                {% else %}
+                                                    —
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <strong>{{ achievement.name }}</strong>
+                                                <div class="text-muted small">{{ achievement.slug }}</div>
+                                                {% if achievement.description %}
+                                                    <div class="small">{{ achievement.description|truncatechars:80 }}</div>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if achievement.condition_type %}
+                                                    <span class="badge bg-secondary">{{ achievement.get_condition_type_display }}</span>
+                                                    <div class="small text-muted mt-1">{{ achievement.condition_config }}</div>
+                                                {% else %}
+                                                    <span class="badge bg-light text-dark">Solo manual</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if achievement.is_active %}
+                                                    <span class="badge bg-success">Sí</span>
+                                                {% else %}
+                                                    <span class="badge bg-danger">No</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ achievement.sort_order }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="p-4 text-muted">Todavía no hay logros creados.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const typeSelect = document.getElementById('condition_type');
+    const fieldsWrap = document.getElementById('condition-fields');
+    const fields = document.querySelectorAll('.condition-field');
+
+    function syncConditionFields() {
+        const type = typeSelect.value;
+        if (!type) {
+            fieldsWrap.classList.add('d-none');
+            return;
+        }
+        fieldsWrap.classList.remove('d-none');
+        fields.forEach(function (el) {
+            const allowed = (el.getAttribute('data-for') || '').split(/\s+/);
+            if (allowed.indexOf(type) !== -1) {
+                el.classList.remove('d-none');
+            } else {
+                el.classList.add('d-none');
+            }
+        });
+    }
+
+    typeSelect.addEventListener('change', syncConditionFields);
+    syncConditionFields();
+})();
+</script>
+{% endblock %}

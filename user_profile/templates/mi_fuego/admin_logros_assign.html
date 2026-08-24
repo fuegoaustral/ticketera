@@ -1,0 +1,177 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% load static %}
+
+{% block page_title %}Asignar logros{% endblock %}
+
+{% block submenu %}
+<div class="mobile-menu-toggle d-lg-none mb-3">
+    <button class="btn btn-outline-secondary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-expanded="false" aria-controls="sidebarMenu">
+        <i class="fas fa-bars me-2"></i>
+        Menú de Logros
+    </button>
+</div>
+<div class="sidebar-menu collapse d-lg-block" id="sidebarMenu">
+    <div class="menu-section">
+        <h6 class="menu-section-title">
+            <i class="fas fa-trophy me-2"></i>
+            Administración de Logros
+        </h6>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a class="menu-link" href="{% url 'admin_logros' %}">
+                    <i class="fas fa-list me-2"></i>
+                    Crear / listar logros
+                </a>
+            </li>
+            <li class="menu-item">
+                <a class="menu-link active" href="{% url 'admin_logros_assign' %}">
+                    <i class="fas fa-user-plus me-2"></i>
+                    Asignar logros
+                </a>
+            </li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
+
+{% block truecontent %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1">
+                        <i class="fas fa-user-plus me-2"></i>
+                        Asignar logros
+                    </h1>
+                    <p class="text-muted mb-0">Asociá o quitá logros por email o DNI (override de condición)</p>
+                </div>
+            </div>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            {% if achievements %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-plus me-2"></i>
+                            Asignar a usuario
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="get" class="mb-3">
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-8">
+                                    <label for="achievement_filter" class="form-label">Logro</label>
+                                    <select class="form-select" id="achievement_filter" name="achievement" onchange="this.form.submit()">
+                                        {% for achievement in achievements %}
+                                            <option value="{{ achievement.id }}" {% if selected_achievement and selected_achievement.id == achievement.id %}selected{% endif %}>
+                                                {{ achievement.name }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </form>
+
+                        {% if selected_achievement %}
+                            <form method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="grant">
+                                <input type="hidden" name="achievement_id" value="{{ selected_achievement.id }}">
+                                <div class="row g-3 align-items-end">
+                                    <div class="col-md-8">
+                                        <label for="identifier" class="form-label">Email o DNI</label>
+                                        <input type="text"
+                                               class="form-control"
+                                               id="identifier"
+                                               name="identifier"
+                                               placeholder="usuario@ejemplo.com o 30111222"
+                                               required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <button type="submit" class="btn btn-primary w-100">
+                                            <i class="fas fa-plus me-2"></i>
+                                            Asignar logro
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if selected_achievement %}
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-users me-2"></i>
+                                Usuarios con "{{ selected_achievement.name }}"
+                            </h5>
+                        </div>
+                        <div class="card-body p-0">
+                            {% if holders %}
+                                <div class="table-responsive">
+                                    <table class="table table-hover mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Email</th>
+                                                <th>Nombre</th>
+                                                <th>Desbloqueado</th>
+                                                <th>Origen</th>
+                                                <th></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for holder in holders %}
+                                                <tr>
+                                                    <td>{{ holder.user.email }}</td>
+                                                    <td>{{ holder.user.get_full_name|default:"—" }}</td>
+                                                    <td>{{ holder.unlocked_at|date:"d/m/Y H:i" }}</td>
+                                                    <td>
+                                                        {% if holder.granted_manually %}
+                                                            <span class="badge bg-info">Manual</span>
+                                                        {% else %}
+                                                            <span class="badge bg-secondary">Auto</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td class="text-end">
+                                                        <form method="post" class="d-inline" onsubmit="return confirm('¿Quitar este logro? No se re-otorgará automáticamente.');">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="action" value="revoke">
+                                                            <input type="hidden" name="achievement_id" value="{{ selected_achievement.id }}">
+                                                            <input type="hidden" name="user_id" value="{{ holder.user.id }}">
+                                                            <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                                <i class="fas fa-trash"></i>
+                                                                Quitar
+                                                            </button>
+                                                        </form>
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="p-4 text-muted">Nadie tiene este logro asignado todavía.</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
+            {% else %}
+                <div class="alert alert-info">
+                    No hay logros activos. Creá uno desde
+                    <a href="{% url 'admin_logros' %}">Administrar logros</a>.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
