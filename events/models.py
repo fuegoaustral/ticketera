@@ -168,15 +168,29 @@ class Event(BaseModel):
 
     @classmethod
     def get_main_event(cls):
-        """Get the main event (displayed at /)"""
+        """Get the main event (displayed at /).
+
+        Prefer a current/upcoming main. If every event has ended, keep showing
+        the last finished active event instead of returning None.
+        """
         from events.services.main_event import reconcile_main_event
 
         reconcile_main_event()
-        return cls.objects.filter(
+        now = timezone.now()
+        current = cls.objects.filter(
             is_main=True,
             active=True,
-            end__gte=timezone.now(),
+            end__gte=now,
         ).first()
+        if current:
+            return current
+
+        # Reconcile keeps an expired main when there is no replacement.
+        expired_main = cls.objects.filter(is_main=True, active=True).first()
+        if expired_main:
+            return expired_main
+
+        return cls.objects.filter(active=True).order_by('-end', '-id').first()
 
     @classmethod
     def get_active_events(cls):
