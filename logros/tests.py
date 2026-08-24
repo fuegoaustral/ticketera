@@ -13,7 +13,9 @@ from logros.services import (
     check_and_unlock_for_user,
     evaluate_and_get_pending_payload,
     get_achievements_for_user,
+    grant_achievement,
     mark_celebrations_shown,
+    revoke_achievement,
 )
 from tickets.models import NewTicket, Order, OrderTicket, Ticket, TicketType
 from utils.context_processors import pending_logro_celebrations
@@ -28,7 +30,7 @@ def _image(name='logro.gif'):
     return SimpleUploadedFile(name, TINY_GIF, content_type='image/gif')
 
 
-def _make_user(username='logros-user'):
+def _make_user(username='logros-user', document_number=None):
     user = User.objects.create_user(
         username=username,
         email=f'{username}@example.com',
@@ -37,7 +39,7 @@ def _make_user(username='logros-user'):
         last_name='Lovelace',
     )
     profile = user.profile
-    profile.document_number = '30111222'
+    profile.document_number = document_number or f'30{User.objects.count():06d}'
     profile.phone = '+5491112345678'
     profile.profile_completion = 'COMPLETE'
     profile.save()
@@ -441,3 +443,155 @@ class LogrosContextProcessorTests(TestCase):
         request.user = AnonymousUser()
         context = pending_logro_celebrations(request)
         self.assertEqual(context['pending_logro_celebrations'], [])
+
+
+class ManualGrantAndRevokeTests(TestCase):
+    def setUp(self):
+        self.user = _make_user()
+        self.event = _make_event(is_main=True)
+        self.manual_only = Achievement.objects.create(
+            slug='solo-manual',
+            name='Solo manual',
+            image=_image('solo-manual.gif'),
+            description='Sin condición',
+            condition_type=None,
+            condition_config={},
+            is_active=True,
+            sort_order=1,
+        )
+        self.auto = _make_achievement(
+            'auto-compra',
+            'Auto compra',
+            [self.event.id],
+            sort_order=2,
+        )
+
+    def test_manual_only_achievement_does_not_auto_unlock(self):
+        self.assertEqual(check_and_unlock_for_user(self.user), [])
+        self.assertFalse(
+            UserAchievement.objects.filter(user=self.user, achievement=self.manual_only).exists()
+        )
+
+    def test_grant_and_revoke_manual_achievement(self):
+        grant_achievement(self.user, self.manual_only, manual=True)
+        items = {item['achievement'].slug: item for item in get_achievements_for_user(self.user)}
+        self.assertTrue(items['solo-manual']['unlocked'])
+
+        revoke_achievement(self.user, self.manual_only)
+        ua = UserAchievement.objects.get(user=self.user, achievement=self.manual_only)
+        self.assertTrue(ua.revoked)
+        items = {item['achievement'].slug: item for item in get_achievements_for_user(self.user)}
+        self.assertFalse(items['solo-manual']['unlocked'])
+
+    def test_revoke_blocks_auto_regrant_when_condition_met(self):
+        _make_order(self.user, self.event)
+        unlocked = check_and_unlock_for_user(self.user)
+        self.assertEqual([a.slug for a in unlocked], ['auto-compra'])
+
+        revoke_achievement(self.user, self.auto)
+        self.assertEqual(check_and_unlock_for_user(self.user), [])
+        items = {item['achievement'].slug: item for item in get_achievements_for_user(self.user)}
+        self.assertFalse(items['auto-compra']['unlocked'])
+
+    def test_regrant_clears_revoked_and_shows_again(self):
+        _make_order(self.user, self.event)
+        check_and_unlock_for_user(self.user)
+        revoke_achievement(self.user, self.auto)
+
+        ua = grant_achievement(self.user, self.auto, manual=True)
+        self.assertFalse(ua.revoked)
+        self.assertTrue(ua.granted_manually)
+        self.assertFalse(ua.celebration_shown)
+        items = {item['achievement'].slug: item for item in get_achievements_for_user(self.user)}
+        self.assertTrue(items['auto-compra']['unlocked'])
+
+
+class AdminLogrosViewsTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth.models import Group, Permission
+
+        self.user = _make_user('admin-logros')
+        self.other = _make_user('sin-permiso')
+        self.event = _make_event(is_main=True)
+        self.achievement = _make_achievement('admin-visible', 'Admin visible', [self.event.id])
+
+        permission = Permission.objects.get(
+            codename='manage_achievements',
+            content_type__app_label='logros',
+        )
+        group, _ = Group.objects.get_or_create(name='Administrador de Logros')
+        group.permissions.set([permission])
+        self.user.groups.add(group)
+        self.client.force_login(self.user)
+
+    def test_admin_pages_forbidden_without_permission(self):
+        self.client.force_login(self.other)
+        for name in ('admin_logros', 'admin_logros_assign'):
+            response = self.client.get(reverse(name))
+            self.assertEqual(response.status_code, 403)
+
+    def test_admin_pages_ok_with_permission(self):
+        for name in ('admin_logros', 'admin_logros_assign'):
+            response = self.client.get(reverse(name))
+            self.assertEqual(response.status_code, 200)
+
+    def test_create_achievement_without_condition(self):
+        response = self.client.post(
+            reverse('admin_logros'),
+            data={
+                'name': 'Nuevo logro',
+                'description': 'Desc',
+                'condition_type': '',
+                'image': _image('nuevo.gif'),
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        achievement = Achievement.objects.get(name='Nuevo logro')
+        self.assertIsNone(achievement.condition_type)
+        self.assertEqual(achievement.condition_config, {})
+
+    def test_grant_and_revoke_by_email(self):
+        target = _make_user('target-user')
+        response = self.client.post(
+            reverse('admin_logros_assign'),
+            data={
+                'action': 'grant',
+                'achievement_id': self.achievement.id,
+                'identifier': target.email,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        ua = UserAchievement.objects.get(user=target, achievement=self.achievement)
+        self.assertFalse(ua.revoked)
+        self.assertTrue(ua.granted_manually)
+
+        response = self.client.post(
+            reverse('admin_logros_assign'),
+            data={
+                'action': 'revoke',
+                'achievement_id': self.achievement.id,
+                'user_id': target.id,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        ua.refresh_from_db()
+        self.assertTrue(ua.revoked)
+
+    def test_grant_by_dni(self):
+        target = _make_user('dni-user')
+        response = self.client.post(
+            reverse('admin_logros_assign'),
+            data={
+                'action': 'grant',
+                'achievement_id': self.achievement.id,
+                'identifier': target.profile.document_number,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            UserAchievement.objects.filter(
+                user=target,
+                achievement=self.achievement,
+                revoked=False,
+            ).exists()
+        )

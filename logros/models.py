@@ -19,7 +19,13 @@ class Achievement(BaseModel):
         help_text='Imagen del logro (se sube a S3)',
     )
     description = models.TextField(blank=True)
-    condition_type = models.CharField(max_length=32, choices=ConditionType.choices)
+    condition_type = models.CharField(
+        max_length=32,
+        choices=ConditionType.choices,
+        blank=True,
+        null=True,
+        help_text='Vacío = solo asignación manual (sin auto-unlock).',
+    )
     condition_config = models.JSONField(
         default=dict,
         blank=True,
@@ -39,6 +45,9 @@ class Achievement(BaseModel):
         ordering = ['sort_order', 'name']
         verbose_name = 'Logro'
         verbose_name_plural = 'Logros'
+        permissions = [
+            ('manage_achievements', 'Can manage achievements'),
+        ]
 
     def __str__(self):
         return self.name
@@ -63,6 +72,14 @@ class UserAchievement(BaseModel):
     celebration_shown = models.BooleanField(
         default=False,
         help_text='True cuando el usuario ya vio el modal de desbloqueo',
+    )
+    revoked = models.BooleanField(
+        default=False,
+        help_text='Si True, el logro no cuenta como desbloqueado y el auto-unlock no lo re-otorga.',
+    )
+    granted_manually = models.BooleanField(
+        default=False,
+        help_text='True cuando un admin lo asignó (o re-asignó) a mano.',
     )
 
     class Meta:
