@@ -38,6 +38,26 @@
         {% endfor %}
     </section>
 
+    {% if admin_assignments %}
+    <section class="mb-5 review-queue" aria-labelledby="assignments-title">
+        <div class="d-flex justify-content-between align-items-baseline gap-3 mb-3">
+            <div>
+                <p class="text-uppercase text-success small fw-semibold mb-1">Backoffice de Arte</p>
+                <h3 class="h4 mb-0" id="assignments-title">Obras para revisar</h3>
+            </div>
+            <span class="badge bg-success-subtle text-success-emphasis border">{{ admin_assignments|length }} obra{{ admin_assignments|length|pluralize:"s" }}</span>
+        </div>
+        <div class="artwork-list">
+            {% for artwork in admin_assignments %}
+            <a class="artwork-row d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 py-3" href="{% url 'artwork_review' artwork.event.slug artwork.pk %}">
+                <div><h4 class="h5 mb-1">{{ artwork.title|default:'Obra sin título' }}</h4><p class="small text-muted mb-0">{{ artwork.event.name }} · Responsable: {{ artwork.owner.email|default:'Cuenta archivada' }}</p></div>
+                <span class="text-primary fw-semibold text-nowrap">Revisar obra <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i></span>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
     <section aria-labelledby="artworks-title">
         <h3 class="h4 mb-3" id="artworks-title">Mis obras</h3>
         {% if artworks %}
@@ -64,6 +84,7 @@
             </div>
         {% endif %}
     </section>
+
 </div>
 
 <style>
