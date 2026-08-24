@@ -314,30 +314,22 @@ class ChatwootWebsiteInboxTests(TestCase):
 class EventRequestNotifyTests(TestCase):
     @patch('events.services.event_request_notify.post_event_request_to_slack', return_value=False)
     @patch('events.services.event_request_notify.post_event_request_to_chatwoot', return_value=False)
-    @patch('events.services.event_request_notify.send_staff_mail', return_value=True)
-    def test_emails_staff_when_chatwoot_and_slack_fail(self, mock_mail, _cw, _slack):
+    def test_does_not_email_staff_when_chatwoot_and_slack_fail(self, _cw, _slack):
         from events.services.event_request_notify import notify_event_request_for_review
 
-        event_request = _make_event_request()
-        result = notify_event_request_for_review(event_request)
-        self.assertTrue(result.email)
-        self.assertTrue(result.notified)
-        mock_mail.assert_called_once()
-        self.assertEqual(mock_mail.call_args.kwargs['template_name'], 'event_request_pending')
-        context = mock_mail.call_args.kwargs['context']
-        self.assertIn('/aprobar/', context['approve_path'])
-        self.assertIn('/desaprobar/', context['reject_path'])
+        result = notify_event_request_for_review(_make_event_request())
+        self.assertFalse(result.chatwoot)
+        self.assertFalse(result.slack)
+        self.assertFalse(result.notified)
 
-    @patch('events.services.event_request_notify.send_staff_mail')
     @patch('events.services.event_request_notify.post_event_request_to_slack', return_value=True)
     @patch('events.services.event_request_notify.post_event_request_to_chatwoot', return_value=False)
-    def test_skips_email_when_slack_succeeds(self, _cw, _slack, mock_mail):
+    def test_notified_when_slack_succeeds(self, _cw, _slack):
         from events.services.event_request_notify import notify_event_request_for_review
 
         result = notify_event_request_for_review(_make_event_request())
         self.assertTrue(result.slack)
-        self.assertFalse(result.email)
-        mock_mail.assert_not_called()
+        self.assertTrue(result.notified)
 
 
 class MainEventRotationTests(TestCase):
