@@ -24,7 +24,7 @@
         {% for checkpoint in checkpoints %}
             <li class="checkpoint py-2">
                 <span class="checkpoint-dot checkpoint-{{ checkpoint.state }}" aria-hidden="true"></span>
-                <strong>{{ checkpoint.label }}</strong>
+                <a href="#{{ checkpoint.anchor }}"><strong>{{ checkpoint.label }}</strong></a>
                 <small class="d-block text-muted ms-4">
                     {% if checkpoint.state == 'closed' %}Cerrado{% elif checkpoint.state == 'upcoming' %}Todavía no habilitado{% else %}Editable{% endif %}
                     {% if checkpoint.deadline %} · hasta {{ checkpoint.deadline|date:'d/m/Y H:i' }}{% endif %}
@@ -32,16 +32,6 @@
             </li>
         {% endfor %}
     </ol>
-
-    <nav class="section-nav d-flex gap-2 flex-wrap mb-5" aria-label="Secciones de la obra">
-        <a href="#carta-entendimiento">Check-in</a>
-        <a href="#propuesta">Propuesta</a>
-        {% if program.grants_enabled %}<a href="#beca">Beca</a>{% endif %}
-        <a href="#galeria">Galería</a>
-        <a href="#placement">Desplegable</a>
-        <a href="#logistica">Logística</a>
-        <a href="#checkout">Checkout</a>
-    </nav>
 
     <section class="form-section mb-4" id="carta-entendimiento" aria-labelledby="understanding-letter-title">
         <div class="section-heading">
@@ -64,20 +54,20 @@
                 <div><span>02</span><h2 id="proposal-title">Propuesta y seguridad</h2></div>
                 {% if form.title.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
             </div>
-            <p class="text-muted">Podés guardar un borrador incompleto. Al enviar, el título y la propuesta son obligatorios.</p>
-            {% include 'mi_fuego/art/_field.html' with field=form.kind %}
+            <p class="text-muted">El nombre es obligatorio y lo podés cambiar después. La descripción es opcional.</p>
             {% include 'mi_fuego/art/_field.html' with field=form.title %}
             {% include 'mi_fuego/art/_field.html' with field=form.proposal %}
             {% include 'mi_fuego/art/_field.html' with field=form.dimensions %}
             {% include 'mi_fuego/art/_field.html' with field=form.materials %}
             {% include 'mi_fuego/art/_field.html' with field=form.technical_needs %}
-            <div class="row"><div class="col-md-6">{% include 'mi_fuego/art/_field.html' with field=form.power_watts %}</div><div class="col-md-6">{% include 'mi_fuego/art/_field.html' with field=form.safety_contact %}</div></div>
+            {% include 'mi_fuego/art/_field.html' with field=form.power_watts %}
             {% include 'mi_fuego/art/_field.html' with field=form.uses_fire %}
             <div class="fire-fields">
                 {% include 'mi_fuego/art/_field.html' with field=form.fire_details %}
                 {% include 'mi_fuego/art/_field.html' with field=form.extinguishing_plan %}
             </div>
             {% include 'mi_fuego/art/_field.html' with field=form.safety_plan %}
+            {% include 'mi_fuego/art/_field.html' with field=form.safety_responsible_email %}
             {% include 'mi_fuego/art/_field.html' with field=form.collaborator_emails %}
             {% if artwork.invitations.all %}
                 <p class="small text-muted mb-0">Invitaciones pendientes:
@@ -110,6 +100,12 @@
                 </details>
                 {% endif %}
                 {% include 'mi_fuego/art/_grant_items.html' with items=budget_items can_edit=can_edit_budget total_ars=budget_total_ars %}
+            {% else %}
+            <div class="grant-panel mt-4">
+                <details class="inline-editor inline-create mb-3"{% if initial_budget_form.errors %} open{% endif %}>
+                    <summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar primer ítem</span></summary>
+                    <div class="p-3">{% include 'mi_fuego/art/_inline_fields.html' with inline_form=initial_budget_form %}</div>
+                </details>
             </div>
             {% if can_submit_grant %}
                 {% if artwork.grant_requested and artwork.grant_justification and budget_items %}
@@ -136,6 +132,11 @@
                     {% include 'mi_fuego/art/_inline_fields.html' with inline_form=photo_upload_form %}
                     <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Subir fotos</button></div>
                 </form>
+            </details>
+            {% else %}
+            <details class="inline-editor inline-create mb-3"{% if initial_photo_form.errors %} open{% endif %}>
+                <summary><i class="fas fa-camera" aria-hidden="true"></i><span>Subir fotos iniciales</span></summary>
+                <div class="p-3">{% include 'mi_fuego/art/_inline_fields.html' with inline_form=initial_photo_form %}</div>
             </details>
             {% endif %}
             {% if artwork.photos.all %}
@@ -232,6 +233,11 @@
                 </div>
                 {% endfor %}
             {% else %}<p class="small text-muted mb-0">Todavía no hay proveedores cargados.</p>{% endif %}
+            {% else %}
+            <details class="inline-editor inline-create mb-3"{% if initial_person_form.errors %} open{% endif %}>
+                <summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar persona para ingreso o desarme</span></summary>
+                <div class="p-3">{% include 'mi_fuego/art/_inline_fields.html' with inline_form=initial_person_form %}</div>
+            </details>
             {% endif %}
         </section>
 
@@ -307,13 +313,19 @@
     .checkpoint-dot { display: inline-block; width: .65rem; height: .65rem; margin-right: .5rem; border-radius: 50%; background: #6c757d; }
     .checkpoint-open { background: #289e6d; }
     .checkpoint-upcoming { background: #d39e00; }
-    .section-nav a { padding: .45rem .7rem; border: 1px solid #dee2e6; border-radius: .4rem; text-decoration: none; }
+    .checkpoint a { color: inherit; text-decoration: none; }
+    .checkpoint a:hover, .checkpoint a:focus-visible { color: #176b4a; text-decoration: underline; }
     .form-section { padding: 0 0 2.5rem; margin-bottom: 2.5rem; border-bottom: 1px solid #dee2e6; scroll-margin-top: 1rem; }
     .section-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
     .section-heading > div { display: flex; align-items: baseline; gap: .75rem; }
     .section-heading > div > span { color: #289e6d; font-weight: 700; }
     .section-heading h2 { margin: 0; font-size: 1.5rem; }
     .art-form-page textarea.form-control { height: auto; min-height: 8rem; resize: vertical; }
+    .fire-switch { display: flex; align-items: center; gap: .7rem; min-height: 3rem; padding: .55rem .75rem  .55rem 3.5rem; border: 1px solid #ccd8d2; border-radius: .5rem; background: #f7faf8; }
+    .fire-switch .form-check-input { width: 2.5rem; height: 1.35rem; margin: 0 0 0 -2.75rem; cursor: pointer; }
+    .fire-switch .form-check-input:checked { background-color: #176b4a; border-color: #176b4a; }
+    .fire-switch .form-check-input:focus-visible { box-shadow: 0 0 0 .25rem rgba(23, 107, 74, .25); }
+    .fire-switch .form-check-label { cursor: pointer; font-weight: 600; }
     .form-control:disabled, .form-select:disabled { opacity: 1; background-color: #f1f3f2; color: #5c636a; }
     .grant-panel { padding: 1rem; background: #f8f9fa; border-radius: .5rem; }
     .gallery-card { border: 1px solid #dee2e6; border-radius: .5rem; overflow: hidden; }

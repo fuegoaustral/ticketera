@@ -37,19 +37,19 @@ def _base_context(event=None):
 
 def _checkpoints(program):
     checkpoints = [
-        {'key': 'proposal', 'label': 'Propuesta', 'deadline': program.proposal_deadline, 'state': program.checkpoint_state('proposal')},
+        {'key': 'proposal', 'anchor': 'propuesta', 'label': 'Propuesta', 'deadline': program.proposal_deadline, 'state': program.checkpoint_state('proposal')},
     ]
     if program.grants_enabled:
-        checkpoints.append({'key': 'grant', 'label': 'Beca', 'deadline': program.grant_deadline, 'state': program.checkpoint_state('grant')})
+        checkpoints.append({'key': 'grant', 'anchor': 'beca', 'label': 'Beca', 'deadline': program.grant_deadline, 'state': program.checkpoint_state('grant')})
     checkpoints += [
-        {'key': 'guide', 'label': 'Desplegable', 'deadline': program.guide_deadline, 'state': program.checkpoint_state('guide')},
-        {'key': 'logistics', 'label': 'Ingreso y desarme', 'deadline': program.logistics_deadline, 'state': program.checkpoint_state('logistics')},
-        {'key': 'checkout', 'label': 'Checkout', 'deadline': program.checkout_deadline, 'state': program.checkpoint_state('checkout')},
-        {'key': 'understanding_letter_digital', 'label': 'Carta de entendimiento digital', 'deadline': program.understanding_letter_digital_deadline, 'state': program.checkpoint_state('understanding_letter_digital')},
-        {'key': 'understanding_letter_physical', 'label': 'Carta de entendimiento física', 'deadline': program.understanding_letter_physical_deadline, 'state': program.checkpoint_state('understanding_letter_physical')},
+        {'key': 'guide', 'anchor': 'placement', 'label': 'Desplegable', 'deadline': program.guide_deadline, 'state': program.checkpoint_state('guide')},
+        {'key': 'logistics', 'anchor': 'logistica', 'label': 'Ingreso y desarme', 'deadline': program.logistics_deadline, 'state': program.checkpoint_state('logistics')},
+        {'key': 'checkout', 'anchor': 'checkout', 'label': 'Checkout', 'deadline': program.checkout_deadline, 'state': program.checkpoint_state('checkout')},
+        {'key': 'understanding_letter_digital', 'anchor': 'carta-entendimiento', 'label': 'Carta de entendimiento digital', 'deadline': program.understanding_letter_digital_deadline, 'state': program.checkpoint_state('understanding_letter_digital')},
+        {'key': 'understanding_letter_physical', 'anchor': 'carta-entendimiento', 'label': 'Carta de entendimiento física', 'deadline': program.understanding_letter_physical_deadline, 'state': program.checkpoint_state('understanding_letter_physical')},
     ]
     if program.grants_enabled:
-        checkpoints.append({'key': 'grant_report', 'label': 'Rendición', 'deadline': program.grant_report_deadline, 'state': program.checkpoint_state('grant_report')})
+        checkpoints.append({'key': 'grant_report', 'anchor': 'rendicion', 'label': 'Rendición', 'deadline': program.grant_report_deadline, 'state': program.checkpoint_state('grant_report')})
     return checkpoints
 
 
@@ -275,12 +275,49 @@ def artwork_create(request, event_slug):
         request.POST or None, request.FILES or None,
         instance=artwork, program=program, owner=request.user, actor=request.user, action=action,
     )
-    if request.method == 'POST' and form.is_valid():
+    initial_budget_form = ArtworkGrantItemForm(
+        request.POST or None, request.FILES or None,
+        instance=ArtworkGrantItem(phase=ArtworkGrantItem.Phase.BUDGET, created_by=request.user),
+        phase=ArtworkGrantItem.Phase.BUDGET, prefix='initial-budget', auto_id='initial-budget_%s',
+    )
+    initial_photo_form = ArtworkPhotoUploadForm(
+        request.POST or None, request.FILES or None, prefix='initial-photo', auto_id='initial-photo_%s',
+    )
+    initial_person_form = ArtworkLogisticsPersonForm(
+        request.POST or None, prefix='initial-person', auto_id='initial-person_%s',
+    )
+    for inline_form in (initial_budget_form, initial_photo_form, initial_person_form):
+        for field in inline_form.fields.values():
+            field.widget.attrs['form'] = 'artwork-form'
+
+    has_initial_budget = bool(request.POST.get('initial-budget-concept'))
+    has_initial_photos = bool(request.FILES.getlist('initial-photo-images'))
+    has_initial_person = bool(request.POST.get('initial-person-first_name'))
+    initial_forms_valid = (
+        (not has_initial_budget or initial_budget_form.is_valid())
+        and (not has_initial_photos or initial_photo_form.is_valid())
+        and (not has_initial_person or initial_person_form.is_valid())
+    )
+    if request.method == 'POST' and form.is_valid() and initial_forms_valid:
         with transaction.atomic():
             if action == 'submit':
                 form.instance.status = Artwork.Status.SUBMITTED
                 form.instance.submitted_at = timezone.now()
             artwork = form.save()
+            if has_initial_budget:
+                initial_budget_form.instance.artwork = artwork
+                item = initial_budget_form.save()
+                _save_grant_item_images(item, initial_budget_form.cleaned_data['images'], request.user)
+            if has_initial_photos:
+                for image in initial_photo_form.cleaned_data['images']:
+                    ArtworkPhoto.objects.create(
+                        artwork=artwork, image=image, stage=initial_photo_form.cleaned_data['stage'],
+                        caption=initial_photo_form.cleaned_data['caption'],
+                        publication_authorized=initial_photo_form.cleaned_data['publication_authorized'], uploaded_by=request.user,
+                    )
+            if has_initial_person:
+                initial_person_form.instance.artwork = artwork
+                initial_person_form.save()
             if action == 'submit':
                 _ensure_operations_group(artwork, program)
             transaction.on_commit(lambda invitations=list(form.new_invitations): _send_invitations(invitations))
@@ -288,7 +325,11 @@ def artwork_create(request, event_slug):
         return redirect('artwork_edit', artwork_id=artwork.pk)
 
     context = _base_context(program.event)
-    context.update({'form': form, 'program': program, 'checkpoints': _checkpoints(program), 'is_new': True})
+    context.update({
+        'form': form, 'program': program, 'checkpoints': _checkpoints(program), 'is_new': True,
+        'initial_budget_form': initial_budget_form, 'initial_photo_form': initial_photo_form,
+        'initial_person_form': initial_person_form,
+    })
     return render(request, 'mi_fuego/art/form.html', context)
 
 
@@ -329,7 +370,7 @@ def _handle_artwork_edit(request, artwork):
         if action == 'submit' or artwork.operations_group_id:
             _ensure_operations_group(artwork, program)
         transaction.on_commit(lambda invitations=list(form.new_invitations): _send_invitations(invitations))
-        messages.success(request, 'La propuesta fue enviada.' if action == 'submit' else 'Los cambios quedaron guardados.')
+        messages.success(request, 'La propuesta fue enviada.' if action == 'submit' else 'El borrador quedó guardado.')
         return redirect('artwork_edit', artwork_id=artwork.pk)
 
     return render(request, 'mi_fuego/art/form.html', _artwork_context(artwork, program, form))
