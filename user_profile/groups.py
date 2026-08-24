@@ -12,4 +12,7 @@ GROUPS_PERMISSIONS = {
     'Event Organizer': [
         {'app_label': 'events', 'codename': 'view_tickets_sold_report'},
     ],
+    'Administrador de Logros': [
+        {'app_label': 'logros', 'codename': 'manage_achievements'},
+    ],
 }
