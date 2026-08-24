@@ -31,6 +31,16 @@ def create_user_groups(sender, **kwargs):
     """
     Creates user groups and assigns permissions after migrations.
     """
+    from django.apps import apps
+    from django.contrib.auth.management import create_permissions
+
+    # Ensure custom Meta.permissions exist before we look them up.
+    app_labels = {perm['app_label'] for perms in GROUPS_PERMISSIONS.values() for perm in perms}
+    for app_label in app_labels:
+        try:
+            create_permissions(apps.get_app_config(app_label), verbosity=0)
+        except LookupError:
+            pass
 
     for group_name, perms in GROUPS_PERMISSIONS.items():
         group, created = Group.objects.get_or_create(name=group_name)

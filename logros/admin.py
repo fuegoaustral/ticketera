@@ -25,7 +25,7 @@ class AchievementAdmin(admin.ModelAdmin):
 
 @admin.register(UserAchievement)
 class UserAchievementAdmin(admin.ModelAdmin):
-    list_display = ('user', 'achievement', 'unlocked_at', 'celebration_shown')
-    list_filter = ('achievement', 'celebration_shown')
+    list_display = ('user', 'achievement', 'unlocked_at', 'celebration_shown', 'revoked', 'granted_manually')
+    list_filter = ('achievement', 'celebration_shown', 'revoked', 'granted_manually')
     search_fields = ('user__email', 'user__username', 'achievement__name')
     raw_id_fields = ('user',)

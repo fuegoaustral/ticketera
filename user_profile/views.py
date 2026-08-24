@@ -1112,6 +1112,209 @@ def mis_logros_view(request):
     return render(request, 'mi_fuego/my_tickets/mis_logros.html', context)
 
 
+def _user_has_logros_admin(user):
+    return user.is_authenticated and user.has_perm('logros.manage_achievements')
+
+
+def _resolve_user_by_identifier(identifier):
+    """Resuelve usuario por email (User / EmailAddress) o DNI (Profile.document_number)."""
+    from allauth.account.models import EmailAddress
+    from user_profile.models import Profile
+
+    identifier = (identifier or '').strip()
+    if not identifier:
+        return None
+
+    identifier_lower = identifier.lower()
+    user = User.objects.filter(email__iexact=identifier_lower).first()
+    if user:
+        return user
+
+    email_address = EmailAddress.objects.filter(email__iexact=identifier_lower).first()
+    if email_address:
+        return email_address.user
+
+    profile = Profile.objects.filter(document_number=identifier).first()
+    if profile:
+        return profile.user
+    return None
+
+
+def _unique_achievement_slug(name):
+    from django.utils.text import slugify
+    from logros.models import Achievement
+
+    base = slugify(name)[:60] or 'logro'
+    slug = base
+    counter = 2
+    while Achievement.objects.filter(slug=slug).exists():
+        suffix = f'-{counter}'
+        slug = f'{base[:64 - len(suffix)]}{suffix}'
+        counter += 1
+    return slug
+
+
+def _parse_event_ids(raw_ids):
+    event_ids = []
+    for value in raw_ids or []:
+        try:
+            event_ids.append(int(value))
+        except (TypeError, ValueError):
+            continue
+    return event_ids
+
+
+def _build_condition_config(condition_type, post_data):
+    if not condition_type:
+        return {}
+
+    event_ids = _parse_event_ids(post_data.getlist('event_ids'))
+    must_be_used = post_data.get('must_be_used') == 'on'
+
+    if condition_type == 'purchased_events':
+        return {'event_ids': event_ids}
+
+    if condition_type == 'volunteer_at_events':
+        config = {
+            'role': (post_data.get('volunteer_role') or 'transmutator').strip(),
+            'must_be_used': must_be_used,
+        }
+        if event_ids:
+            config['event_ids'] = event_ids
+        return config
+
+    if condition_type == 'attended_events':
+        try:
+            min_count = int(post_data.get('min_count') or 1)
+        except (TypeError, ValueError):
+            min_count = 1
+        return {
+            'event_ids': event_ids,
+            'min_count': max(1, min_count),
+            'must_be_used': must_be_used,
+        }
+
+    return {}
+
+
+@login_required
+def admin_logros_view(request):
+    from logros.models import Achievement
+
+    if not _user_has_logros_admin(request.user):
+        return HttpResponseForbidden('No tienes permiso para administrar logros')
+
+    if request.method == 'POST':
+        name = (request.POST.get('name') or '').strip()
+        description = (request.POST.get('description') or '').strip()
+        image = request.FILES.get('image')
+        condition_type = (request.POST.get('condition_type') or '').strip() or None
+
+        if condition_type and condition_type not in Achievement.ConditionType.values:
+            messages.error(request, 'Tipo de condición inválido')
+            return redirect('admin_logros')
+
+        if not name:
+            messages.error(request, 'El nombre es obligatorio')
+            return redirect('admin_logros')
+        if not image:
+            messages.error(request, 'La imagen es obligatoria')
+            return redirect('admin_logros')
+
+        max_sort = Achievement.objects.order_by('-sort_order').values_list('sort_order', flat=True).first()
+        sort_order = (max_sort or 0) + 1
+
+        Achievement.objects.create(
+            slug=_unique_achievement_slug(name),
+            name=name,
+            description=description,
+            image=image,
+            condition_type=condition_type,
+            condition_config=_build_condition_config(condition_type, request.POST),
+            is_active=True,
+            sort_order=sort_order,
+        )
+        messages.success(request, f'Logro "{name}" creado correctamente')
+        return redirect('admin_logros')
+
+    achievements = Achievement.objects.all().order_by('sort_order', 'name')
+    events = Event.objects.order_by('-is_main', '-start', 'name')
+    context = _mi_fuego_sidebar_context(request)
+    context.update({
+        'achievements': achievements,
+        'events': events,
+        'condition_types': Achievement.ConditionType.choices,
+        'nav_primary': 'admin_logros',
+        'nav_secondary': 'admin_logros_list',
+    })
+    return render(request, 'mi_fuego/admin_logros.html', context)
+
+
+@login_required
+def admin_logros_assign_view(request):
+    from logros.models import Achievement, UserAchievement
+    from logros.services import grant_achievement, revoke_achievement
+
+    if not _user_has_logros_admin(request.user):
+        return HttpResponseForbidden('No tienes permiso para administrar logros')
+
+    achievements = list(Achievement.objects.filter(is_active=True).order_by('sort_order', 'name'))
+    selected_id = request.GET.get('achievement') or request.POST.get('achievement_id')
+    selected = None
+    if selected_id:
+        selected = next((a for a in achievements if str(a.id) == str(selected_id)), None)
+    if selected is None and achievements:
+        selected = achievements[0]
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        achievement_id = request.POST.get('achievement_id')
+        achievement = get_object_or_404(Achievement, id=achievement_id)
+
+        if action == 'grant':
+            identifier = request.POST.get('identifier', '').strip()
+            user = _resolve_user_by_identifier(identifier)
+            if not identifier:
+                messages.error(request, 'Debes proporcionar un email o número de documento')
+            elif not user:
+                messages.error(
+                    request,
+                    f'No se encontró un usuario con el email o número de documento: {identifier}',
+                )
+            else:
+                grant_achievement(user, achievement, manual=True)
+                messages.success(request, f'Logro "{achievement.name}" asignado a {user.email}')
+            return redirect(f"{reverse('admin_logros_assign')}?achievement={achievement.id}")
+
+        if action == 'revoke':
+            user_id = request.POST.get('user_id')
+            user = get_object_or_404(User, id=user_id)
+            revoke_achievement(user, achievement)
+            messages.success(request, f'Logro "{achievement.name}" removido de {user.email}')
+            return redirect(f"{reverse('admin_logros_assign')}?achievement={achievement.id}")
+
+        messages.error(request, 'Acción inválida')
+        return redirect('admin_logros_assign')
+
+    holders = []
+    if selected:
+        holders = list(
+            UserAchievement.objects.filter(achievement=selected, revoked=False)
+            .select_related('user')
+            .order_by('user__email')
+        )
+
+    context = _mi_fuego_sidebar_context(request)
+    context.update({
+        'achievements': achievements,
+        'selected_achievement': selected,
+        'holders': holders,
+        'nav_primary': 'admin_logros',
+        'nav_secondary': 'admin_logros_assign',
+    })
+    return render(request, 'mi_fuego/admin_logros_assign.html', context)
+
+
 SUBSCRIPTION_STATUS_LABELS = {
     'authorized': 'Activa',
     'paused': 'Pausada',
