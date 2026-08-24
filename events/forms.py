@@ -25,9 +25,9 @@ class LocalizedDecimalField(forms.DecimalField):
 
 ARTWORK_BLOCK_FIELDS = {
     'proposal': (
-        'kind', 'title', 'proposal', 'dimensions', 'materials', 'technical_needs',
+        'title', 'proposal', 'dimensions', 'materials', 'technical_needs',
         'uses_fire', 'fire_details', 'extinguishing_plan', 'power_watts',
-        'safety_contact', 'safety_plan',
+        'safety_plan', 'safety_responsible_email',
     ),
     'grant': ('grant_requested', 'grant_justification'),
     'guide': ('public_title', 'public_description', 'preferred_location'),
@@ -55,6 +55,11 @@ class ArtworkForm(forms.ModelForm):
         required=False,
         label='Colaboradores',
         help_text='Emails separados por coma. Si todavía no tienen cuenta, recibirán una invitación.',
+    )
+    safety_responsible_email = forms.EmailField(
+        required=False,
+        label='Responsable de seguridad',
+        help_text='Debe ser el email de un perfil ya registrado en la aplicación.',
     )
     expected_version = forms.IntegerField(widget=forms.HiddenInput, required=False)
 
@@ -89,10 +94,12 @@ class ArtworkForm(forms.ModelForm):
         for field in self.fields.values():
             field.widget.attrs.setdefault('class', 'form-check-input' if isinstance(field.widget, forms.CheckboxInput) else 'form-control')
             field.widget.attrs['form'] = 'artwork-form'
-        self.fields['kind'].widget.attrs['class'] = 'form-select'
         self.fields['checkout_team_responsible'].widget.attrs['class'] = 'form-select'
         self.fields['checkout_art_responsible'].widget.attrs['class'] = 'form-select'
         self.fields['collaborator_emails'].widget.attrs.update({'class': 'form-control', 'placeholder': 'persona@ejemplo.com, otra@ejemplo.com'})
+        self.fields['safety_responsible_email'].widget.attrs.update({'class': 'form-control', 'placeholder': 'persona@ejemplo.com'})
+        if self.instance.safety_responsible_id:
+            self.fields['safety_responsible_email'].initial = self.instance.safety_responsible.email
         self.fields['expected_version'].initial = self.instance.version if self.instance.pk else None
         self.fields['checkout_team_responsible'].queryset = self.instance.logistics_people.all() if self.instance.pk else ArtworkLogisticsPerson.objects.none()
         self.fields['checkout_art_responsible'].queryset = _art_responsibles(self.instance)
@@ -104,13 +111,9 @@ class ArtworkForm(forms.ModelForm):
         elif not self.is_manager:
             self.fields['checkout_art_responsible'].disabled = True
 
-        # Un borrador puede empezar incompleto; la presentación valida lo indispensable.
-        self.fields['title'].required = False
+        # El título identifica la obra; la descripción se puede completar después.
+        self.fields['title'].required = True
         self.fields['proposal'].required = False
-
-        if not self.instance.pk and not program.registration_is_open():
-            self.fields['kind'].choices = [(Artwork.Kind.POPUP, Artwork.Kind.POPUP.label)]
-            self.fields['kind'].initial = Artwork.Kind.POPUP
 
         if not program.grants_enabled:
             for name in (*self.BLOCK_FIELDS['grant'], *self.BLOCK_FIELDS['grant_report']):
@@ -168,13 +171,20 @@ class ArtworkForm(forms.ModelForm):
             raise forms.ValidationError('Podés sumar hasta 20 colaboradores por obra.')
         return emails
 
+    def clean_safety_responsible_email(self):
+        email = self.cleaned_data['safety_responsible_email'].lower()
+        if not email:
+            return None
+        user = User.objects.filter(email__iexact=email, profile__isnull=False).first()
+        if not user:
+            raise forms.ValidationError('Ese email no corresponde a un perfil registrado.')
+        return user
+
     def clean(self):
         cleaned = super().clean()
         now = timezone.now()
-        if not self.instance.pk and cleaned.get('kind') == Artwork.Kind.PLANNED and not self.program.registration_is_open(now):
-            self.add_error('kind', 'La inscripción cerró. Podés registrar esta obra como espontánea (popup).')
-        if not self.instance.pk and cleaned.get('kind') == Artwork.Kind.POPUP and now > self.program.event.end:
-            self.add_error('kind', 'El evento ya terminó y no admite nuevas obras espontáneas.')
+        if not self.instance.pk and not self.program.registration_is_open(now):
+            self.add_error(None, 'La inscripción de obras está cerrada.')
 
         arrival = cleaned.get('arrival_date')
         departure = cleaned.get('departure_date')
@@ -202,17 +212,15 @@ class ArtworkForm(forms.ModelForm):
                 Artwork.Status.DRAFT, Artwork.Status.CHANGES_REQUESTED,
             ):
                 self.add_error(None, 'Esta obra ya fue presentada. La coordinación gestiona su estado desde la revisión.')
-            for field in ('title', 'proposal'):
-                if not cleaned.get(field):
-                    self.add_error(field, 'Completá este campo antes de enviar la propuesta.')
             if cleaned.get('uses_fire'):
-                for field in ('fire_details', 'extinguishing_plan', 'safety_contact'):
+                for field in ('fire_details', 'extinguishing_plan', 'safety_responsible_email'):
                     if not cleaned.get(field):
                         self.add_error(field, 'Completá este campo para una obra que utiliza fuego.')
         return cleaned
 
     def save(self, commit=True):
         artwork = super().save(commit=False)
+        artwork.safety_responsible = self.cleaned_data.get('safety_responsible_email')
         if artwork.pk:
             artwork.version += 1
         if commit:

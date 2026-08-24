@@ -1224,12 +1224,12 @@ class ArtworkAdmin(admin.ModelAdmin):
     list_display = ('title', 'event', 'kind', 'status', 'owner', 'grant_status', 'assigned_location', 'checkout_verified_at', 'updated_at')
     list_filter = ('event', 'kind', 'status', 'grant_status', 'checkout_completed', 'understanding_letter_physical_received', 'submitted_at')
     search_fields = ('title', 'owner__email', 'public_description')
-    autocomplete_fields = ('owner', 'collaborators', 'operations_group', 'checkin_art_by', 'checkout_art_responsible', 'checkout_verified_by')
+    autocomplete_fields = ('owner', 'collaborators', 'operations_group', 'checkin_art_by', 'checkout_art_responsible', 'checkout_verified_by', 'safety_responsible')
     readonly_fields = ('submitted_at', 'checkin_art_by', 'checkout_requested_at', 'checkout_verified_by', 'created_at', 'updated_at', 'version')
     fieldsets = (
         ('Obra', {'fields': ('event', 'owner', 'collaborators', 'operations_group', 'kind', 'title')}),
         ('Check-in de obra', {'fields': ('checkin_arrived_at', 'checkin_art_at', 'checkin_art_by', 'checkin_placed', 'checkin_placement_changed', 'checkin_placement_change_notes', 'understanding_letter', 'understanding_letter_physical_received', 'understanding_letter_physical_custodian', 'understanding_letter_physical_notes', 'understanding_letter_physical_waiver', 'understanding_letter_physical_waiver_reason')}),
-        ('Propuesta y seguridad', {'fields': ('proposal', 'dimensions', 'materials', 'technical_needs', 'safety_plan', 'uses_fire', 'fire_details', 'extinguishing_plan', 'power_watts', 'safety_contact')}),
+        ('Propuesta y seguridad', {'fields': ('proposal', 'dimensions', 'materials', 'technical_needs', 'safety_plan', 'uses_fire', 'fire_details', 'extinguishing_plan', 'power_watts', 'safety_contact', 'safety_responsible')}),
         ('Beca', {'fields': ('grant_requested', 'grant_justification', 'grant_status', 'grant_approved_amount_ars', 'confirm_large_grant_amount', 'grant_decision_notes', 'grant_paid_at', 'grant_payment_reference', 'grant_report')}),
         ('Desplegable y placement', {'fields': ('public_title', 'public_description', 'preferred_location', 'assigned_location', 'placement_notes')}),
         ('Logística', {'fields': ('arrival_date', 'departure_date', 'crew', 'providers')}),

@@ -600,6 +600,10 @@ class Artwork(BaseModel):
     extinguishing_plan = models.TextField(blank=True, verbose_name='Plan y elementos de extinción')
     power_watts = models.PositiveIntegerField(null=True, blank=True, verbose_name='Potencia eléctrica máxima (W)')
     safety_contact = models.CharField(max_length=200, blank=True, verbose_name='Responsable de seguridad durante el evento')
+    safety_responsible = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='safety_responsible_artworks', verbose_name='Responsable de seguridad',
+    )
 
     grant_requested = models.BooleanField(default=False, verbose_name='Quiero solicitar una beca')
     grant_justification = models.TextField(blank=True, verbose_name='Por qué la beca hace posible la obra')

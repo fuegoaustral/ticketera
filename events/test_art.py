@@ -9,9 +9,11 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
+from django.contrib.messages import get_messages
 
 from .forms import ArtworkForm, ArtworkGrantItemForm, ArtworkPhotoUploadForm, ArtworkProviderForm, ArtworkReviewForm
 from .art_reminders import send_art_reminders
+from .art_views import _checkpoints
 from .models import (
     ArtProgram, Artwork, ArtworkGrantItem, ArtworkInvitation,
     ArtworkCheckoutPhoto, ArtworkLogisticsPerson, ArtworkPhoto, ArtworkProvider,
@@ -64,37 +66,67 @@ class ArtworkFlowTest(TestCase):
 
     def test_primary_fields_are_associated_with_artwork_form(self):
         form = self.artwork_form({})
+        self.assertNotIn('kind', form.fields)
         for field in form.fields.values():
             self.assertEqual(field.widget.attrs.get('form'), 'artwork-form')
+        self.assertTrue(all(checkpoint['anchor'] for checkpoint in _checkpoints(self.program)))
 
-    def test_draft_popup_multiple_artworks_and_submission_group(self):
-        draft = self.artwork_form({'kind': Artwork.Kind.POPUP})
-        self.assertTrue(draft.is_valid(), draft.errors)
-        first = draft.save()
-        self.assertEqual(first.status, Artwork.Status.DRAFT)
-
-        incomplete_submit = self.artwork_form(
-            {'kind': Artwork.Kind.POPUP, 'expected_version': first.version},
-            artwork=first,
-            action='submit',
-        )
-        self.assertFalse(incomplete_submit.is_valid())
-
+    def test_public_submission_requires_only_title_and_is_planned(self):
+        self.program.registration_closes = timezone.now() + timedelta(days=1)
+        self.program.save(update_fields=['registration_closes'])
+        incomplete = self.artwork_form({})
+        self.assertFalse(incomplete.is_valid())
         self.client.force_login(self.owner)
         response = self.client.post(reverse('artwork_create', args=[self.event.slug]), {
             'kind': Artwork.Kind.POPUP,
             'title': 'Faro',
-            'proposal': 'Una propuesta completa',
             'action': 'submit',
         })
         self.assertEqual(response.status_code, 302)
-        second = Artwork.objects.exclude(pk=first.pk).get()
-        self.assertEqual(second.status, Artwork.Status.SUBMITTED)
-        self.assertEqual(second.operations_group.event, self.event)
-        self.assertEqual(Artwork.objects.filter(owner=self.owner).count(), 2)
+        artwork = Artwork.objects.get(owner=self.owner)
+        self.assertEqual(artwork.kind, Artwork.Kind.PLANNED)
+        self.assertEqual(artwork.status, Artwork.Status.SUBMITTED)
+        self.assertEqual(artwork.proposal, '')
+        self.assertEqual(artwork.operations_group.event, self.event)
+
+    def test_draft_save_does_not_claim_the_proposal_was_sent(self):
+        self.program.registration_closes = timezone.now() + timedelta(days=1)
+        self.program.save(update_fields=['registration_closes'])
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse('artwork_create', args=[self.event.slug]), {
+            'title': 'Borrador', 'action': 'save',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        artwork = Artwork.objects.get(owner=self.owner, title='Borrador')
+        self.assertEqual(artwork.status, Artwork.Status.DRAFT)
+        self.assertEqual([str(message) for message in get_messages(response.wsgi_request)], ['El borrador quedó guardado.'])
+
+    def test_creation_can_include_safety_budget_gallery_and_early_entry(self):
+        self.program.registration_closes = timezone.now() + timedelta(days=1)
+        self.program.save(update_fields=['registration_closes'])
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse('artwork_create', args=[self.event.slug]), {
+            'title': 'Faro', 'uses_fire': 'on', 'fire_details': 'Leña controlada',
+            'extinguishing_plan': 'Matafuegos ABC', 'safety_responsible_email': self.collaborator.email,
+            'initial-budget-item_type': 'materials', 'initial-budget-concept': 'Hierro',
+            'initial-budget-amount': '1500', 'initial-budget-currency': 'ARS',
+            'initial-budget-exchange_rate': '1', 'initial-budget-rate_date': timezone.localdate(),
+            'initial-photo-images': self.image('inicio.gif'), 'initial-photo-stage': ArtworkPhoto.Stage.PROPOSAL,
+            'initial-person-first_name': 'Ada', 'initial-person-last_name': 'Sur',
+            'initial-person-email': 'ada@example.com', 'initial-person-phone': '+5491112345678',
+            'initial-person-document_type': 'DNI', 'initial-person-document_number': '30111222',
+            'initial-person-early_entry': 'on', 'initial-person-early_entry_date': timezone.localdate(),
+        })
+        self.assertEqual(response.status_code, 302)
+        artwork = Artwork.objects.get(owner=self.owner, title='Faro')
+        self.assertEqual(artwork.safety_responsible, self.collaborator)
+        self.assertEqual(artwork.grant_items.count(), 1)
+        self.assertEqual(artwork.photos.count(), 1)
+        self.assertEqual(artwork.logistics_people.count(), 1)
 
     def test_planned_registration_is_closed(self):
-        form = self.artwork_form({'kind': Artwork.Kind.PLANNED, 'title': 'Faro', 'proposal': 'Propuesta'}, action='submit')
+        form = self.artwork_form({'title': 'Faro'}, action='submit')
         self.assertFalse(form.is_valid())
 
     def test_stale_collaborator_update_is_rejected(self):
