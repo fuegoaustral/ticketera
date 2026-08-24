@@ -508,6 +508,10 @@ class ArtProgram(BaseModel):
     logistics_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de logística')
     checkout_opens = models.DateTimeField(null=True, blank=True, verbose_name='Apertura de checkout')
     checkout_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de checkout')
+    understanding_letter_digital_opens = models.DateTimeField(null=True, blank=True, verbose_name='Apertura de carta digital')
+    understanding_letter_digital_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de carta digital')
+    understanding_letter_physical_opens = models.DateTimeField(null=True, blank=True, verbose_name='Apertura de carta física')
+    understanding_letter_physical_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de carta física')
     grant_report_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de rendición de becas')
     reminder_days = models.JSONField(default=default_art_reminder_days, blank=True, verbose_name='Días de anticipación para recordatorios')
     reminder_email_enabled = models.BooleanField(default=True, verbose_name='Recordatorios por email')
@@ -533,6 +537,14 @@ class ArtProgram(BaseModel):
             errors['registration_closes'] = 'El cierre no puede ser anterior a la apertura.'
         if self.checkout_opens and self.checkout_deadline and self.checkout_deadline < self.checkout_opens:
             errors['checkout_deadline'] = 'El cierre no puede ser anterior a la apertura.'
+        for label, opens, deadline in (
+            ('digital', self.understanding_letter_digital_opens, self.understanding_letter_digital_deadline),
+            ('física', self.understanding_letter_physical_opens, self.understanding_letter_physical_deadline),
+        ):
+            if opens and deadline and deadline < opens:
+                errors[f'understanding_letter_{"digital" if label == "digital" else "physical"}_deadline'] = (
+                    f'El cierre de la carta {label} no puede ser anterior a la apertura.'
+                )
         if not isinstance(self.reminder_days, list) or any(not isinstance(day, int) or day < 0 for day in self.reminder_days):
             errors['reminder_days'] = 'Usá una lista de días enteros no negativos, por ejemplo [7, 3, 1].'
         if errors:
@@ -547,7 +559,8 @@ class ArtProgram(BaseModel):
 
     def checkpoint_state(self, block, at=None):
         at = at or timezone.now()
-        if block == 'checkout' and self.checkout_opens and at < self.checkout_opens:
+        opens = getattr(self, f'{block}_opens', None)
+        if opens and at < opens:
             return 'upcoming'
         deadline = getattr(self, f'{block}_deadline')
         return 'closed' if deadline and at > deadline else 'open'
@@ -601,6 +614,10 @@ class Artwork(BaseModel):
     extinguishing_plan = models.TextField(blank=True, verbose_name='Plan y elementos de extinción')
     power_watts = models.PositiveIntegerField(null=True, blank=True, verbose_name='Potencia eléctrica máxima (W)')
     safety_contact = models.CharField(max_length=200, blank=True, verbose_name='Responsable de seguridad durante el evento')
+    safety_responsible = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='safety_responsible_artworks', verbose_name='Responsable de seguridad',
+    )
 
     grant_requested = models.BooleanField(default=False, verbose_name='Quiero solicitar una beca')
     grant_justification = models.TextField(blank=True, verbose_name='Por qué la beca hace posible la obra')
@@ -622,6 +639,16 @@ class Artwork(BaseModel):
     crew = models.TextField(blank=True, verbose_name='Equipo que ingresa')
     providers = models.TextField(blank=True, verbose_name='Proveedores y vehículos')
 
+    checkin_arrived_at = models.DateTimeField(null=True, blank=True, verbose_name='Hora de llegada de la obra al evento')
+    checkin_art_at = models.DateTimeField(null=True, blank=True, verbose_name='Check-in realizado con Arte')
+    checkin_art_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='artwork_checkins', verbose_name='Check-in registrado por',
+    )
+    checkin_placed = models.BooleanField(default=False, verbose_name='La obra quedó ubicada')
+    checkin_placement_changed = models.BooleanField(default=False, verbose_name='El placement original cambió')
+    checkin_placement_change_notes = models.TextField(blank=True, verbose_name='Cambio de placement y motivo')
+
     checkout_completed = models.BooleanField(default=False, verbose_name='Solicito verificar el retiro y limpieza')
     checkout_team_responsible = models.ForeignKey(
         'ArtworkLogisticsPerson', on_delete=models.SET_NULL, null=True, blank=True,
@@ -635,6 +662,26 @@ class Artwork(BaseModel):
     checkout_requested_at = models.DateTimeField(null=True, blank=True, verbose_name='Checkout solicitado')
     checkout_verified_at = models.DateTimeField(null=True, blank=True, verbose_name='Checkout verificado')
     checkout_verified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_artwork_checkouts')
+    understanding_letter = models.FileField(
+        upload_to='art/understanding_letters', storage=private_art_storage,
+        blank=True, verbose_name='Carta de entendimiento digital',
+    )
+    understanding_letter_physical_received = models.BooleanField(
+        default=False, verbose_name='Carta física recibida',
+    )
+    understanding_letter_physical_custodian = models.CharField(
+        max_length=200, blank=True, verbose_name='Responsable de la carta física',
+    )
+    understanding_letter_physical_notes = models.TextField(
+        blank=True, verbose_name='Ubicación o comentarios sobre la carta física',
+    )
+    understanding_letter_physical_waiver = models.BooleanField(
+        default=False, verbose_name='Excepción de entrega previa por distancia a CABA',
+        help_text='Autoriza no entregarla previamente en CABA; igualmente debe entregarse en el evento antes de empezar a construir.',
+    )
+    understanding_letter_physical_waiver_reason = models.TextField(
+        blank=True, verbose_name='Motivo de la excepción de carta física',
+    )
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.DRAFT, verbose_name='Estado de la obra')
     review_feedback = models.TextField(blank=True, verbose_name='Devolución al equipo de la obra')
     benefit_status = models.CharField(max_length=10, choices=BenefitStatus.choices, default=BenefitStatus.NOT_EVALUATED, verbose_name='Beneficio para la próxima edición')
@@ -655,6 +702,29 @@ class Artwork(BaseModel):
 
     def can_manage(self, user):
         return user.is_superuser or self.event.admins.filter(pk=user.pk).exists()
+
+    def can_administer(self, user):
+        return self.can_manage(user) or self.checkout_art_responsible_id == user.pk
+
+    def clean(self):
+        errors = {}
+        if self.checkout_verified_at and not self.checkout_completed:
+            errors['checkout_verified_at'] = 'El equipo de la obra debe solicitar el checkout antes de verificarlo.'
+        if self.understanding_letter_physical_waiver and not self.understanding_letter_physical_waiver_reason:
+            errors['understanding_letter_physical_waiver_reason'] = 'Indicá por qué corresponde la excepción por distancia a CABA.'
+        if self.checkin_art_at and not self.checkin_arrived_at:
+            errors['checkin_arrived_at'] = 'Indicá primero la hora de llegada de la obra.'
+        if self.checkin_placement_changed and not self.checkin_placed:
+            errors['checkin_placed'] = 'Marcá que la obra quedó ubicada antes de registrar un cambio de placement.'
+        if self.checkin_placement_changed and not self.checkin_placement_change_notes:
+            errors['checkin_placement_change_notes'] = 'Explicá el cambio respecto del placement original.'
+        if self.understanding_letter_physical_received and not (
+            (self.understanding_letter_physical_custodian or '').strip()
+            or (self.understanding_letter_physical_notes or '').strip()
+        ):
+            errors['understanding_letter_physical_notes'] = 'Indicá quién tiene la carta física o dónde está guardada.'
+        if errors:
+            raise ValidationError(errors)
 
     def grant_total_ars(self, phase):
         return sum((item.amount_ars for item in self.grant_items.filter(phase=phase)), Decimal('0.00'))
@@ -683,6 +753,11 @@ class ArtworkGrantItem(BaseModel):
         SERVICE = 'service', 'Servicio'
         OTHER = 'other', 'Otro'
 
+    class ReviewStatus(models.TextChoices):
+        PENDING = 'pending', 'Pendiente de revisión'
+        APPROVED = 'approved', 'Aceptado'
+        REJECTED = 'rejected', 'Rechazado'
+
     artwork = models.ForeignKey(Artwork, on_delete=models.CASCADE, related_name='grant_items')
     phase = models.CharField(max_length=8, choices=Phase.choices)
     item_type = models.CharField(max_length=10, choices=ItemType.choices, default=ItemType.OTHER, verbose_name='Tipo')
@@ -693,6 +768,11 @@ class ArtworkGrantItem(BaseModel):
     exchange_rate = models.DecimalField(max_digits=14, decimal_places=4, default=1, validators=[MinValueValidator(Decimal('0.0001'))], verbose_name='Cotización ARS por USD')
     rate_date = models.DateField(verbose_name='Fecha de cotización o pago')
     rate_source = models.CharField(max_length=200, blank=True, verbose_name='Fuente y tipo de cambio')
+    review_status = models.CharField(
+        max_length=10, choices=ReviewStatus.choices, default=ReviewStatus.PENDING,
+        verbose_name='Revisión del ítem',
+    )
+    review_notes = models.TextField(blank=True, verbose_name='Comentarios de la revisión')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
 
     class Meta:
@@ -847,6 +927,30 @@ class ArtworkPhoto(BaseModel):
         return f'{self.get_stage_display()} · {self.artwork}'
 
 
+class ArtworkCheckoutPhoto(BaseModel):
+    class Category(models.TextChoices):
+        DIRT = 'dirt', 'M.U.G.R.E.'
+        ENVIRONMENTAL_DAMAGE = 'environmental_damage', 'Daño ambiental'
+        ARTWORK_PARTS = 'artwork_parts', 'Partes de la obra'
+        BURN_REMAINS = 'burn_remains', 'Restos de quema'
+        CLEANUP = 'cleanup', 'Limpieza y estado final'
+        OTHER = 'other', 'Otro'
+
+    artwork = models.ForeignKey(Artwork, on_delete=models.CASCADE, related_name='checkout_photos')
+    image = models.ImageField(upload_to='art/checkout', storage=private_art_storage)
+    category = models.CharField(max_length=20, choices=Category.choices, default=Category.OTHER, verbose_name='Categoría')
+    caption = models.TextField(blank=True, verbose_name='Detalle')
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        ordering = ['created_at']
+        verbose_name = 'Foto de checkout de obra'
+        verbose_name_plural = 'Fotos de checkout de obras'
+
+    def __str__(self):
+        return f'{self.get_category_display()} · {self.artwork}'
+
+
 class ArtworkInvitation(BaseModel):
     artwork = models.ForeignKey(Artwork, on_delete=models.CASCADE, related_name='invitations')
     email = models.EmailField()
@@ -883,4 +987,5 @@ auditlog.register(ArtworkLogisticsPerson)
 auditlog.register(ArtworkProvider)
 auditlog.register(ArtworkProviderVehicle)
 auditlog.register(ArtworkPhoto)
+auditlog.register(ArtworkCheckoutPhoto)
 auditlog.register(ArtworkInvitation)

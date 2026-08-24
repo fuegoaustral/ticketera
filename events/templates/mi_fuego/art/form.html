@@ -1,4 +1,5 @@
 {% extends 'mi_fuego/my_tickets/index.html' %}
+{% load art_format %}
 
 {% block page_title %}{% if is_new %}Nueva obra{% else %}{{ artwork.title|default:'Obra sin título' }}{% endif %}{% endblock page_title %}
 
@@ -23,7 +24,7 @@
         {% for checkpoint in checkpoints %}
             <li class="checkpoint py-2">
                 <span class="checkpoint-dot checkpoint-{{ checkpoint.state }}" aria-hidden="true"></span>
-                <strong>{{ checkpoint.label }}</strong>
+                <a href="#{{ checkpoint.anchor }}"><strong>{{ checkpoint.label }}</strong></a>
                 <small class="d-block text-muted ms-4">
                     {% if checkpoint.state == 'closed' %}Cerrado{% elif checkpoint.state == 'upcoming' %}Todavía no habilitado{% else %}Editable{% endif %}
                     {% if checkpoint.deadline %} · hasta {{ checkpoint.deadline|date:'d/m/Y H:i' }}{% endif %}
@@ -32,14 +33,15 @@
         {% endfor %}
     </ol>
 
-    <nav class="section-nav d-flex gap-2 flex-wrap mb-5" aria-label="Secciones de la obra">
-        <a href="#propuesta">Propuesta</a>
-        {% if program.grants_enabled %}<a href="#beca">Beca</a>{% endif %}
-        <a href="#galeria">Galería</a>
-        <a href="#placement">Desplegable</a>
-        <a href="#logistica">Logística</a>
-        <a href="#checkout">Checkout</a>
-    </nav>
+    <section class="form-section mb-4" id="carta-entendimiento" aria-labelledby="understanding-letter-title">
+        <div class="section-heading">
+            <div><span>01</span><h2 id="understanding-letter-title">Check-in · carta de entendimiento</h2></div>
+            {% if form.understanding_letter.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
+        </div>
+        <p class="text-muted">Subí la versión digital firmada{% if program.understanding_letter_digital_opens %} desde {{ program.understanding_letter_digital_opens|date:'d/m/Y H:i' }}{% endif %}{% if program.understanding_letter_digital_deadline %} hasta {{ program.understanding_letter_digital_deadline|date:'d/m/Y H:i' }}{% endif %}. La versión física se entrega{% if program.understanding_letter_physical_opens %} desde {{ program.understanding_letter_physical_opens|date:'d/m/Y H:i' }}{% endif %}{% if program.understanding_letter_physical_deadline %} hasta {{ program.understanding_letter_physical_deadline|date:'d/m/Y H:i' }}{% endif %}; si tenés una excepción por distancia a CABA, la coordinación puede autorizar entregarla en el evento antes de empezar a construir. En el evento, Arte registra la llegada y ubicación final de la obra.</p>
+        {% include 'mi_fuego/art/_field.html' with field=form.understanding_letter %}
+        {% if artwork.understanding_letter_physical_received %}<div class="alert alert-success py-2 mb-0"><strong>Carta física recibida.</strong>{% if artwork.understanding_letter_physical_custodian %} Responsable: {{ artwork.understanding_letter_physical_custodian }}.{% endif %}{% if artwork.understanding_letter_physical_notes %}<br>{{ artwork.understanding_letter_physical_notes|linebreaksbr }}{% endif %}</div>{% endif %}
+    </section>
 
     <form id="artwork-form" method="post" enctype="multipart/form-data" novalidate>
         {% csrf_token %}
@@ -49,23 +51,23 @@
 
         <section class="form-section" id="propuesta" aria-labelledby="proposal-title">
             <div class="section-heading">
-                <div><span>01</span><h2 id="proposal-title">Propuesta y seguridad</h2></div>
+                <div><span>02</span><h2 id="proposal-title">Propuesta y seguridad</h2></div>
                 {% if form.title.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
             </div>
-            <p class="text-muted">Podés guardar un borrador incompleto. Al enviar, el título y la propuesta son obligatorios.</p>
-            {% include 'mi_fuego/art/_field.html' with field=form.kind %}
+            <p class="text-muted">El nombre es obligatorio y lo podés cambiar después. La descripción es opcional.</p>
             {% include 'mi_fuego/art/_field.html' with field=form.title %}
             {% include 'mi_fuego/art/_field.html' with field=form.proposal %}
             {% include 'mi_fuego/art/_field.html' with field=form.dimensions %}
             {% include 'mi_fuego/art/_field.html' with field=form.materials %}
             {% include 'mi_fuego/art/_field.html' with field=form.technical_needs %}
-            <div class="row"><div class="col-md-6">{% include 'mi_fuego/art/_field.html' with field=form.power_watts %}</div><div class="col-md-6">{% include 'mi_fuego/art/_field.html' with field=form.safety_contact %}</div></div>
+            {% include 'mi_fuego/art/_field.html' with field=form.power_watts %}
             {% include 'mi_fuego/art/_field.html' with field=form.uses_fire %}
             <div class="fire-fields">
                 {% include 'mi_fuego/art/_field.html' with field=form.fire_details %}
                 {% include 'mi_fuego/art/_field.html' with field=form.extinguishing_plan %}
             </div>
             {% include 'mi_fuego/art/_field.html' with field=form.safety_plan %}
+            {% include 'mi_fuego/art/_field.html' with field=form.safety_responsible_email %}
             {% include 'mi_fuego/art/_field.html' with field=form.collaborator_emails %}
             {% if artwork.invitations.all %}
                 <p class="small text-muted mb-0">Invitaciones pendientes:
@@ -76,7 +78,7 @@
         {% if program.grants_enabled %}
         <section class="form-section" id="beca" aria-labelledby="grant-title">
             <div class="section-heading">
-                <div><span>02</span><h2 id="grant-title">Beca</h2></div>
+                <div><span>03</span><h2 id="grant-title">Beca</h2></div>
                 {% if artwork %}<span class="badge bg-light text-dark border">{{ artwork.get_grant_status_display }}</span>{% endif %}
             </div>
             <p class="text-muted">Cada monto conserva moneda, fecha, fuente y cotización. Los totales históricos no cambian.</p>
@@ -86,7 +88,7 @@
             {% if artwork %}
             <div class="grant-panel mt-4">
                 <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
-                    <div><h3 class="h5 mb-1">Presupuesto</h3><p class="small text-muted mb-0">Total convertido: <strong>ARS {{ budget_total_ars|floatformat:2 }}</strong></p></div>
+                    <div><h3 class="h5 mb-1">Presupuesto</h3><p class="small text-muted mb-0">Total convertido: <strong>ARS {{ budget_total_ars|art_money }}</strong></p></div>
                 </div>
                 {% if can_edit_budget %}
                 <details class="inline-editor inline-create mb-3"{% if budget_create_form.errors %} open{% endif %}>
@@ -98,6 +100,12 @@
                 </details>
                 {% endif %}
                 {% include 'mi_fuego/art/_grant_items.html' with items=budget_items can_edit=can_edit_budget total_ars=budget_total_ars %}
+            {% else %}
+            <div class="grant-panel mt-4">
+                <details class="inline-editor inline-create mb-3"{% if initial_budget_form.errors %} open{% endif %}>
+                    <summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar primer ítem</span></summary>
+                    <div class="p-3">{% include 'mi_fuego/art/_inline_fields.html' with inline_form=initial_budget_form %}</div>
+                </details>
             </div>
             {% if can_submit_grant %}
                 {% if artwork.grant_requested and artwork.grant_justification and budget_items %}
@@ -107,14 +115,14 @@
                 {% endif %}
             {% endif %}
             {% if artwork.grant_decision_notes %}<div class="alert alert-info mt-3"><strong>Devolución de becas:</strong><br>{{ artwork.grant_decision_notes|linebreaksbr }}</div>{% endif %}
-            {% if artwork.grant_approved_amount_ars %}<p class="mt-3 mb-0"><strong>Monto aprobado:</strong> ARS {{ artwork.grant_approved_amount_ars|floatformat:2 }}{% if artwork.grant_paid_at %} · pagado el {{ artwork.grant_paid_at|date:'d/m/Y' }}{% endif %}</p>{% endif %}
+            {% if artwork.grant_approved_amount_ars %}<p class="mt-3 mb-0"><strong>Monto aprobado:</strong> ARS {{ artwork.grant_approved_amount_ars|art_money }}{% if artwork.grant_paid_at %} · pagado el {{ artwork.grant_paid_at|date:'d/m/Y' }}{% endif %}</p>{% endif %}
             {% endif %}
         </section>
         {% endif %}
 
         <section class="form-section" id="galeria" aria-labelledby="gallery-title">
             <div class="section-heading">
-                <div><span>{% if program.grants_enabled %}03{% else %}02{% endif %}</span><h2 id="gallery-title">Galería</h2></div>
+                <div><span>{% if program.grants_enabled %}04{% else %}03{% endif %}</span><h2 id="gallery-title">Galería</h2></div>
             </div>
             <p class="text-muted">Fotos de propuesta, proceso y obra terminada. Podés elegir varias desde el teléfono.</p>
             {% if artwork %}
@@ -124,6 +132,11 @@
                     {% include 'mi_fuego/art/_inline_fields.html' with inline_form=photo_upload_form %}
                     <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Subir fotos</button></div>
                 </form>
+            </details>
+            {% else %}
+            <details class="inline-editor inline-create mb-3"{% if initial_photo_form.errors %} open{% endif %}>
+                <summary><i class="fas fa-camera" aria-hidden="true"></i><span>Subir fotos iniciales</span></summary>
+                <div class="p-3">{% include 'mi_fuego/art/_inline_fields.html' with inline_form=initial_photo_form %}</div>
             </details>
             {% endif %}
             {% if artwork.photos.all %}
@@ -143,7 +156,7 @@
 
         <section class="form-section" id="placement" aria-labelledby="guide-title">
             <div class="section-heading">
-                <div><span>{% if program.grants_enabled %}04{% else %}03{% endif %}</span><h2 id="guide-title">Desplegable y placement</h2></div>
+                <div><span>{% if program.grants_enabled %}05{% else %}04{% endif %}</span><h2 id="guide-title">Desplegable y placement</h2></div>
                 {% if form.public_title.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
             </div>
             <p class="text-muted">El texto público tiene el límite exacto del desplegable. La asignación la completa coordinación.</p>
@@ -155,7 +168,7 @@
 
         <section class="form-section" id="logistica" aria-labelledby="logistics-title">
             <div class="section-heading">
-                <div><span>{% if program.grants_enabled %}05{% else %}04{% endif %}</span><h2 id="logistics-title">Ingreso anticipado, proveedores y desarme</h2></div>
+                <div><span>{% if program.grants_enabled %}06{% else %}05{% endif %}</span><h2 id="logistics-title">Ingreso anticipado, proveedores y desarme</h2></div>
                 {% if form.arrival_date.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
             </div>
             <p class="text-muted">Separá quién ingresa antes del evento y quién participa del desarme. Proveedores y vehículos se cargan por separado.</p>
@@ -220,27 +233,48 @@
                 </div>
                 {% endfor %}
             {% else %}<p class="small text-muted mb-0">Todavía no hay proveedores cargados.</p>{% endif %}
+            {% else %}
+            <details class="inline-editor inline-create mb-3"{% if initial_person_form.errors %} open{% endif %}>
+                <summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar persona para ingreso o desarme</span></summary>
+                <div class="p-3">{% include 'mi_fuego/art/_inline_fields.html' with inline_form=initial_person_form %}</div>
+            </details>
             {% endif %}
         </section>
 
         <section class="form-section" id="checkout" aria-labelledby="checkout-title">
             <div class="section-heading">
-                <div><span>{% if program.grants_enabled %}06{% else %}05{% endif %}</span><h2 id="checkout-title">Checkout</h2></div>
+                <div><span>{% if program.grants_enabled %}07{% else %}06{% endif %}</span><h2 id="checkout-title">Checkout</h2></div>
                 {% if artwork.checkout_verified_at %}<span class="badge bg-success">Verificado</span>{% elif form.checkout_completed.field.disabled %}<span class="badge bg-secondary">No editable</span>{% endif %}
             </div>
-            <p class="text-muted">Solicitá la verificación cuando la obra esté retirada y el espacio limpio.</p>
+            <p class="text-muted"><strong>Paso 1, equipo de la obra:</strong> solicitá la verificación cuando la obra esté retirada y el espacio limpio. El nexo de Arte completa el paso 2 desde el backoffice.</p>
             {% include 'mi_fuego/art/_field.html' with field=form.checkout_completed %}
             <div class="row"><div class="col-md-6">{% include 'mi_fuego/art/_field.html' with field=form.checkout_team_responsible %}</div><div class="col-md-6">{% include 'mi_fuego/art/_field.html' with field=form.checkout_art_responsible %}</div></div>
             {% include 'mi_fuego/art/_field.html' with field=form.checkout_notes %}
+            {% if artwork %}
+            <div class="mt-4" id="checkout-report">
+                <h3 class="h5 mb-1">Reporte fotográfico del checkout</h3>
+                <p class="small text-muted">Documentá el estado del espacio por categoría para dejar registro del retiro y la limpieza.</p>
+                {% if can_edit_checkout %}
+                <details class="inline-editor inline-create mb-3"{% if checkout_photo_upload_form.errors %} open{% endif %}>
+                    <summary><i class="fas fa-camera" aria-hidden="true"></i><span>Agregar fotos al reporte</span></summary>
+                    <form method="post" action="{% url 'artwork_checkout_photo_upload' artwork.pk %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
+                        {% include 'mi_fuego/art/_inline_fields.html' with inline_form=checkout_photo_upload_form %}
+                        <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Subir fotos</button></div>
+                    </form>
+                </details>
+                {% endif %}
+                {% if checkout_photos %}<div class="row g-3">{% for photo in checkout_photos %}<div class="col-6 col-lg-4"><figure class="gallery-card mb-0"><a href="{{ photo.image.url }}" target="_blank" rel="noopener"><img src="{{ photo.image.url }}" alt="{{ photo.caption|default:photo.get_category_display }}"></a><figcaption class="p-2 small"><strong>{{ photo.get_category_display }}</strong>{% if photo.caption %}<br>{{ photo.caption }}{% endif %}</figcaption>{% if can_edit_checkout %}<form method="post" action="{% url 'artwork_checkout_photo_delete' artwork.pk photo.pk %}">{% csrf_token %}<button class="btn btn-sm btn-link text-danger p-2" type="submit" onclick="return confirm('¿Eliminar esta foto?')">Eliminar</button></form>{% endif %}</figure></div>{% endfor %}</div>{% else %}<p class="small text-muted mb-0">Todavía no hay fotos de checkout.</p>{% endif %}
+            </div>
+            {% endif %}
         </section>
 
         {% if program.grants_enabled and form.grant_report %}
         <section class="form-section" id="rendicion" aria-labelledby="grant-report-title">
-            <div class="section-heading"><div><span>07</span><h2 id="grant-report-title">Rendición de beca</h2></div></div>
+            <div class="section-heading"><div><span>08</span><h2 id="grant-report-title">Rendición de beca</h2></div></div>
             {% include 'mi_fuego/art/_field.html' with field=form.grant_report %}
             {% if artwork %}
             <div class="d-flex justify-content-between align-items-center gap-3 my-3">
-                <div><h3 class="h5 mb-1">Gastos realizados</h3><p class="small text-muted mb-0">Total convertido: <strong>ARS {{ expense_total_ars|floatformat:2 }}</strong></p></div>
+                <div><h3 class="h5 mb-1">Gastos realizados</h3><p class="small text-muted mb-0">Total convertido: <strong>ARS {{ expense_total_ars|art_money }}</strong></p></div>
             </div>
             {% if can_edit_expenses %}
             <details class="inline-editor inline-create mb-3"{% if expense_create_form.errors %} open{% endif %}>
@@ -252,6 +286,7 @@
             </details>
             {% endif %}
             {% include 'mi_fuego/art/_grant_items.html' with items=expense_items can_edit=can_edit_expenses total_ars=expense_total_ars %}
+            {% if grant_over_budget %}<div class="alert alert-warning mt-3 mb-0"><strong>Revisá los montos:</strong> la rendición supera el monto aprobado de ARS {{ artwork.grant_approved_amount_ars|art_money }}.</div>{% endif %}
             {% if can_submit_report %}<form method="post" action="{% url 'grant_report_submit' artwork.pk %}">{% csrf_token %}<button class="btn btn-primary mt-3" type="submit">Enviar rendición</button></form>{% endif %}
             {% endif %}
         </section>
@@ -278,13 +313,19 @@
     .checkpoint-dot { display: inline-block; width: .65rem; height: .65rem; margin-right: .5rem; border-radius: 50%; background: #6c757d; }
     .checkpoint-open { background: #289e6d; }
     .checkpoint-upcoming { background: #d39e00; }
-    .section-nav a { padding: .45rem .7rem; border: 1px solid #dee2e6; border-radius: .4rem; text-decoration: none; }
+    .checkpoint a { color: inherit; text-decoration: none; }
+    .checkpoint a:hover, .checkpoint a:focus-visible { color: #176b4a; text-decoration: underline; }
     .form-section { padding: 0 0 2.5rem; margin-bottom: 2.5rem; border-bottom: 1px solid #dee2e6; scroll-margin-top: 1rem; }
     .section-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
     .section-heading > div { display: flex; align-items: baseline; gap: .75rem; }
     .section-heading > div > span { color: #289e6d; font-weight: 700; }
     .section-heading h2 { margin: 0; font-size: 1.5rem; }
     .art-form-page textarea.form-control { height: auto; min-height: 8rem; resize: vertical; }
+    .fire-switch { display: flex; align-items: center; gap: .7rem; min-height: 3rem; padding: .55rem .75rem  .55rem 3.5rem; border: 1px solid #ccd8d2; border-radius: .5rem; background: #f7faf8; }
+    .fire-switch .form-check-input { width: 2.5rem; height: 1.35rem; margin: 0 0 0 -2.75rem; cursor: pointer; }
+    .fire-switch .form-check-input:checked { background-color: #176b4a; border-color: #176b4a; }
+    .fire-switch .form-check-input:focus-visible { box-shadow: 0 0 0 .25rem rgba(23, 107, 74, .25); }
+    .fire-switch .form-check-label { cursor: pointer; font-weight: 600; }
     .form-control:disabled, .form-select:disabled { opacity: 1; background-color: #f1f3f2; color: #5c636a; }
     .grant-panel { padding: 1rem; background: #f8f9fa; border-radius: .5rem; }
     .gallery-card { border: 1px solid #dee2e6; border-radius: .5rem; overflow: hidden; }
@@ -296,6 +337,7 @@
     .inline-editor[open] > summary { margin-bottom: .25rem; }
     .inline-editor > form { padding: .75rem; border-top: 1px solid #dee2e6; }
     .inline-create { background: #f4f8f6; }
+    .money-summary { display: flex; justify-content: space-between; gap: 1rem; align-items: center; margin: .25rem 0 1rem; padding: .7rem .85rem; border: 1px solid #c8d9d0; border-radius: .4rem; background: #edf6f1; color: #176b4a; }
     .inline-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1rem; }
     .inline-form-wide { grid-column: 1 / -1; }
     .inline-table-editor td { padding: 0 0 .75rem; border-top: 0; }
@@ -334,5 +376,6 @@
     });
 </script>
 {% include 'mi_fuego/art/_image_preview.html' %}
+{% include 'mi_fuego/art/_money_inputs.html' %}
 {% include 'mi_fuego/art/_restore_position.html' %}
 {% endblock %}
