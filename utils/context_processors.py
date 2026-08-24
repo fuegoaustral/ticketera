@@ -33,8 +33,7 @@ def current_event(request):
         "event": event,
         "has_multiple_events": has_multiple_events,
     }
-    if request.user.is_authenticated:
-
+    if request.user.is_authenticated and event:
         tickets = NewTicket.objects.filter(
             holder=request.user, event=event
         ).all()
@@ -65,7 +64,6 @@ def current_event(request):
             ).count()
         else:
             holding_tickets = len(tickets)
-
 
         # Count total tickets across all active events
         total_tickets = NewTicket.objects.filter(

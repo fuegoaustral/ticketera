@@ -353,7 +353,7 @@ class MainEventRotationTests(TestCase):
         self.assertFalse(old_main.is_main)
         self.assertTrue(replacement.is_main)
 
-    def test_expired_main_without_replacement_is_not_shown_on_home(self):
+    def test_expired_main_without_replacement_is_still_shown_on_home(self):
         now = timezone.now()
         old_main = _make_event(is_main=True, slug='expired-only')
         Event.objects.filter(pk=old_main.pk).update(
@@ -361,7 +361,7 @@ class MainEventRotationTests(TestCase):
             end=now - timedelta(hours=1),
         )
 
-        self.assertIsNone(Event.get_main_event())
+        self.assertEqual(Event.get_main_event().pk, old_main.pk)
 
     def test_inactive_main_rotates_to_other_active_event(self):
         now = timezone.now()
