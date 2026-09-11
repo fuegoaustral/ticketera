@@ -9,7 +9,7 @@ Esta carpeta complementa el [README principal](../README.md) del repositorio: al
 | [Casos de uso](casos-de-uso.md) | Actores, flujos y URLs principales |
 | [Eventos, roles y operación](eventos-roles-y-operacion.md) | Alta de evento, admins/scanner/caja, tres flujos de caja, bonos dirigidos, grupos e ingreso anticipado |
 | [Caja v2](caja-v2.md) | Productos, stock, múltiples cajas, MP Instore (QR/Postnet), reportes |
-| [Logros](logros.md) | Achievements desbloqueables por condiciones de compra |
+| [Logros](logros.md) | Achievements desbloqueables por condiciones de compra o canje de código |
 | [Arte](arte.md) | Convocatoria anual, obras, becas, galería, checkpoints y recordatorios |
 | [Funcionalidades](funcionalidades.md) | Módulos Django y responsabilidades |
 | [Configuración](configuracion.md) | Variables de entorno y settings |

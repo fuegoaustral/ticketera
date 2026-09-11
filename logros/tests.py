@@ -10,11 +10,13 @@ from django.utils import timezone
 from events.models import Event
 from logros.models import Achievement, UserAchievement
 from logros.services import (
+    RedeemCodeError,
     check_and_unlock_for_user,
     evaluate_and_get_pending_payload,
     get_achievements_for_user,
     grant_achievement,
     mark_celebrations_shown,
+    redeem_achievement_code,
     revoke_achievement,
 )
 from tickets.models import NewTicket, Order, OrderTicket, Ticket, TicketType
@@ -391,6 +393,8 @@ class LogrosUITests(TestCase):
         self.assertIn('Por desbloquear', content)
         self.assertIn('Desbloqueados', content)
         self.assertIn('logro-locked-placeholder', content)
+        self.assertIn('¿Tenés un código?', content)
+        self.assertIn('name="redeem_code"', content)
 
     def test_home_shows_unseen_logro_payload_when_logged_in(self):
         response = self.client.get(reverse('home'))
@@ -595,3 +599,132 @@ class AdminLogrosViewsTests(TestCase):
                 revoked=False,
             ).exists()
         )
+
+
+class RedeemCodeLogroTests(TestCase):
+    def setUp(self):
+        self.user = _make_user()
+        self.other = _make_user('otro-user')
+        self.achievement = _make_achievement(
+            'codigo-secreto',
+            'Logro secreto',
+            [],
+            condition_type=None,
+            condition_config={},
+            redeem_code='  fuego2026  ',
+        )
+
+    def test_redeem_code_is_normalized_on_save(self):
+        self.achievement.refresh_from_db()
+        self.assertEqual(self.achievement.redeem_code, 'FUEGO2026')
+
+    def test_redeems_shared_code_case_insensitive(self):
+        unlocked = redeem_achievement_code(self.user, 'fuego2026')
+        self.assertEqual(unlocked.slug, 'codigo-secreto')
+        ua = UserAchievement.objects.get(user=self.user, achievement=self.achievement)
+        self.assertFalse(ua.revoked)
+        self.assertFalse(ua.granted_manually)
+        self.assertFalse(ua.celebration_shown)
+
+    def test_same_code_can_be_used_by_multiple_users(self):
+        redeem_achievement_code(self.user, 'FUEGO2026')
+        redeem_achievement_code(self.other, 'FUEGO2026')
+        self.assertEqual(
+            UserAchievement.objects.filter(achievement=self.achievement, revoked=False).count(),
+            2,
+        )
+
+    def test_already_unlocked_raises(self):
+        redeem_achievement_code(self.user, 'FUEGO2026')
+        with self.assertRaises(RedeemCodeError) as ctx:
+            redeem_achievement_code(self.user, 'FUEGO2026')
+        self.assertEqual(ctx.exception.code, 'already_unlocked')
+
+    def test_invalid_code_raises(self):
+        with self.assertRaises(RedeemCodeError) as ctx:
+            redeem_achievement_code(self.user, 'NOEXISTE')
+        self.assertEqual(ctx.exception.code, 'invalid')
+
+    def test_empty_code_raises(self):
+        with self.assertRaises(RedeemCodeError) as ctx:
+            redeem_achievement_code(self.user, '   ')
+        self.assertEqual(ctx.exception.code, 'empty')
+
+    def test_inactive_achievement_cannot_be_redeemed(self):
+        self.achievement.is_active = False
+        self.achievement.save()
+        with self.assertRaises(RedeemCodeError) as ctx:
+            redeem_achievement_code(self.user, 'FUEGO2026')
+        self.assertEqual(ctx.exception.code, 'inactive')
+
+    def test_code_only_achievement_is_not_auto_unlocked(self):
+        self.assertEqual(check_and_unlock_for_user(self.user), [])
+        self.assertFalse(UserAchievement.objects.filter(user=self.user).exists())
+
+    def test_revoked_user_can_redeem_again(self):
+        redeem_achievement_code(self.user, 'FUEGO2026')
+        revoke_achievement(self.user, self.achievement)
+        unlocked = redeem_achievement_code(self.user, 'FUEGO2026')
+        self.assertEqual(unlocked.slug, 'codigo-secreto')
+        ua = UserAchievement.objects.get(user=self.user, achievement=self.achievement)
+        self.assertFalse(ua.revoked)
+
+    def test_mixed_condition_and_code_can_unlock_either_way(self):
+        event = _make_event(is_main=True)
+        mixed = _make_achievement(
+            'mixto',
+            'Mixto',
+            [event.id],
+            sort_order=2,
+            redeem_code='MIXTO123',
+        )
+        unlocked = redeem_achievement_code(self.user, 'mixto123')
+        self.assertEqual(unlocked.slug, 'mixto')
+
+        other_user = _make_user('mixto-buyer')
+        _make_order(other_user, event)
+        auto = check_and_unlock_for_user(other_user)
+        self.assertEqual([item.slug for item in auto], ['mixto'])
+        self.assertTrue(
+            UserAchievement.objects.filter(user=other_user, achievement=mixed).exists()
+        )
+
+
+class RedeemCodeUITests(TestCase):
+    def setUp(self):
+        self.user = _make_user()
+        self.event = _make_event(is_main=True)
+        self.unlocked = _make_achievement('visible', 'Logro visible', [self.event.id], sort_order=1)
+        _make_order(self.user, self.event)
+        self.client.force_login(self.user)
+
+    def test_redeem_code_via_mis_logros_post(self):
+        redeemable = _make_achievement(
+            'canjeable',
+            'Canjeable',
+            [],
+            sort_order=3,
+            condition_type=None,
+            condition_config={},
+            redeem_code='CANJE123',
+        )
+        response = self.client.post(
+            reverse('mis_logros'),
+            {'redeem_code': 'canje123'},
+        )
+        self.assertRedirects(response, reverse('mis_logros'))
+        self.assertTrue(
+            UserAchievement.objects.filter(user=self.user, achievement=redeemable, revoked=False).exists()
+        )
+
+        follow = self.client.get(reverse('mis_logros'))
+        self.assertContains(follow, 'Canjeable')
+        self.assertContains(follow, 'pending-logro-celebrations-data')
+
+    def test_redeem_invalid_code_shows_error(self):
+        response = self.client.post(
+            reverse('mis_logros'),
+            {'redeem_code': 'INVALIDO'},
+            follow=True,
+        )
+        self.assertContains(response, 'Ese código no es válido.')

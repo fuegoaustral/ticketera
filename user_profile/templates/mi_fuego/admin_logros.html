@@ -83,11 +83,23 @@
                             <div class="col-md-6">
                                 <label for="condition_type" class="form-label">Condición (opcional)</label>
                                 <select class="form-select" id="condition_type" name="condition_type">
-                                    <option value="">Sin condición (solo asignación manual)</option>
+                                    <option value="">Sin condición (código o asignación manual)</option>
                                     {% for value, label in condition_types %}
                                         <option value="{{ value }}">{{ label }}</option>
                                     {% endfor %}
                                 </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="redeem_code" class="form-label">Código de canje (opcional)</label>
+                                <input type="text"
+                                       class="form-control text-uppercase"
+                                       id="redeem_code"
+                                       name="redeem_code"
+                                       maxlength="64"
+                                       autocomplete="off"
+                                       spellcheck="false"
+                                       placeholder="EJ: FUEGO2026">
+                                <small class="text-muted">Código compartido que los usuarios pueden canjear en Mis logros.</small>
                             </div>
                         </div>
 
@@ -151,6 +163,7 @@
                                         <th>Imagen</th>
                                         <th>Nombre</th>
                                         <th>Condición</th>
+                                        <th>Código</th>
                                         <th>Activo</th>
                                         <th>Orden</th>
                                     </tr>
@@ -177,7 +190,14 @@
                                                     <span class="badge bg-secondary">{{ achievement.get_condition_type_display }}</span>
                                                     <div class="small text-muted mt-1">{{ achievement.condition_config }}</div>
                                                 {% else %}
-                                                    <span class="badge bg-light text-dark">Solo manual</span>
+                                                    <span class="badge bg-light text-dark">Sin auto-unlock</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if achievement.redeem_code %}
+                                                    <code>{{ achievement.redeem_code }}</code>
+                                                {% else %}
+                                                    —
                                                 {% endif %}
                                             </td>
                                             <td>

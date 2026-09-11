@@ -14,7 +14,7 @@ Actores principales y superficies de la aplicación. Las rutas siguen [`deprepag
 
 - Gestiona bonos desde **Mi Fuego** (`/mi-fuego/…`, perfiles y URLs definidas en [`user_profile/urls.py`](../user_profile/urls.py)).
 - Asigna o desasigna titular, transfiere bonos (mientras el evento permita periodo de transferencia), ve QR en vista pública del bono (`/bono/<ticket_key>/` o con prefijo de evento). Tipos de transferencia (a usuario registrado vs otros flujos): [transferencias-de-bonos](transferencias-de-bonos.md).
-- Ve y desbloquea **logros** en `/mi-fuego/mis-bonos/logros/` (desbloqueados con imagen, bloqueados sin imagen). Si hay un logro nuevo sin ver, el modal de celebración aparece al entrar a la ticketera logueado (home, Mi Fuego) y también tras compras online confirmadas. Ver [logros](logros.md).
+- Ve y desbloquea **logros** en `/mi-fuego/mis-bonos/logros/` (desbloqueados con imagen, bloqueados sin imagen). Puede canjear un logro especial ingresando un código secreto. Si hay un logro nuevo sin ver, el modal de celebración aparece al entrar a la ticketera logueado (home, Mi Fuego) y también tras compras online confirmadas. Ver [logros](logros.md).
 
 ## Staff de caja
 
