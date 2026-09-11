@@ -1093,8 +1093,23 @@ def _mi_fuego_sidebar_context(request):
 
 
 @login_required
+@require_http_methods(['GET', 'POST'])
 def mis_logros_view(request):
-    from logros.services import check_and_unlock_for_user, get_achievements_for_user
+    from logros.services import (
+        RedeemCodeError,
+        check_and_unlock_for_user,
+        get_achievements_for_user,
+        redeem_achievement_code,
+    )
+
+    if request.method == 'POST':
+        code = request.POST.get('redeem_code', '')
+        try:
+            achievement = redeem_achievement_code(request.user, code)
+            messages.success(request, f'¡Canjeaste el logro “{achievement.name}”!')
+        except RedeemCodeError as exc:
+            messages.error(request, str(exc))
+        return redirect('mis_logros')
 
     check_and_unlock_for_user(request.user)
     logros = get_achievements_for_user(request.user)
@@ -1205,10 +1220,13 @@ def admin_logros_view(request):
         return HttpResponseForbidden('No tienes permiso para administrar logros')
 
     if request.method == 'POST':
+        from logros.models import normalize_redeem_code
+
         name = (request.POST.get('name') or '').strip()
         description = (request.POST.get('description') or '').strip()
         image = request.FILES.get('image')
         condition_type = (request.POST.get('condition_type') or '').strip() or None
+        redeem_code = normalize_redeem_code(request.POST.get('redeem_code'))
 
         if condition_type and condition_type not in Achievement.ConditionType.values:
             messages.error(request, 'Tipo de condición inválido')
@@ -1219,6 +1237,9 @@ def admin_logros_view(request):
             return redirect('admin_logros')
         if not image:
             messages.error(request, 'La imagen es obligatoria')
+            return redirect('admin_logros')
+        if redeem_code and Achievement.objects.filter(redeem_code=redeem_code).exists():
+            messages.error(request, f'Ya existe un logro con el código “{redeem_code}”')
             return redirect('admin_logros')
 
         max_sort = Achievement.objects.order_by('-sort_order').values_list('sort_order', flat=True).first()
@@ -1231,6 +1252,7 @@ def admin_logros_view(request):
             image=image,
             condition_type=condition_type,
             condition_config=_build_condition_config(condition_type, request.POST),
+            redeem_code=redeem_code,
             is_active=True,
             sort_order=sort_order,
         )
