@@ -52,7 +52,7 @@ class Achievement(BaseModel):
         null=True,
         unique=True,
         help_text=(
-            'Código secreto compartido para canjear este logro en Mis logros. '
+            'Código secreto compartido para canjear esta figurita en Figuritas. '
             'Se normaliza a mayúsculas. Vacío = no canjeable por código.'
         ),
     )

@@ -134,11 +134,11 @@ def redeem_achievement_code(user, code):
         raise RedeemCodeError('invalid', 'Ese código no es válido.')
 
     if not achievement.is_active:
-        raise RedeemCodeError('inactive', 'Ese logro no está disponible.')
+        raise RedeemCodeError('inactive', 'Esa figurita no está disponible.')
 
     existing = UserAchievement.objects.filter(user=user, achievement=achievement).first()
     if existing and not existing.revoked:
-        raise RedeemCodeError('already_unlocked', 'Ya tenés este logro desbloqueado.')
+        raise RedeemCodeError('already_unlocked', 'Ya tenés esta figurita desbloqueada.')
 
     grant_achievement(user, achievement, manual=False)
     return achievement

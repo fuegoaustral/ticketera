@@ -1106,7 +1106,7 @@ def mis_logros_view(request):
         code = request.POST.get('redeem_code', '')
         try:
             achievement = redeem_achievement_code(request.user, code)
-            messages.success(request, f'¡Canjeaste el logro “{achievement.name}”!')
+            messages.success(request, f'¡Canjeaste la figurita “{achievement.name}”!')
         except RedeemCodeError as exc:
             messages.error(request, str(exc))
         return redirect('mis_logros')
@@ -1217,7 +1217,7 @@ def admin_logros_view(request):
     from logros.models import Achievement
 
     if not _user_has_logros_admin(request.user):
-        return HttpResponseForbidden('No tienes permiso para administrar logros')
+        return HttpResponseForbidden('No tienes permiso para administrar figuritas')
 
     if request.method == 'POST':
         from logros.models import normalize_redeem_code
@@ -1239,7 +1239,7 @@ def admin_logros_view(request):
             messages.error(request, 'La imagen es obligatoria')
             return redirect('admin_logros')
         if redeem_code and Achievement.objects.filter(redeem_code=redeem_code).exists():
-            messages.error(request, f'Ya existe un logro con el código “{redeem_code}”')
+            messages.error(request, f'Ya existe una figurita con el código “{redeem_code}”')
             return redirect('admin_logros')
 
         max_sort = Achievement.objects.order_by('-sort_order').values_list('sort_order', flat=True).first()
@@ -1256,7 +1256,7 @@ def admin_logros_view(request):
             is_active=True,
             sort_order=sort_order,
         )
-        messages.success(request, f'Logro "{name}" creado correctamente')
+        messages.success(request, f'Figurita "{name}" creada correctamente')
         return redirect('admin_logros')
 
     achievements = Achievement.objects.all().order_by('sort_order', 'name')
@@ -1278,7 +1278,7 @@ def admin_logros_assign_view(request):
     from logros.services import grant_achievement, revoke_achievement
 
     if not _user_has_logros_admin(request.user):
-        return HttpResponseForbidden('No tienes permiso para administrar logros')
+        return HttpResponseForbidden('No tienes permiso para administrar figuritas')
 
     achievements = list(Achievement.objects.filter(is_active=True).order_by('sort_order', 'name'))
     selected_id = request.GET.get('achievement') or request.POST.get('achievement_id')
@@ -1305,14 +1305,14 @@ def admin_logros_assign_view(request):
                 )
             else:
                 grant_achievement(user, achievement, manual=True)
-                messages.success(request, f'Logro "{achievement.name}" asignado a {user.email}')
+                messages.success(request, f'Figurita "{achievement.name}" asignada a {user.email}')
             return redirect(f"{reverse('admin_logros_assign')}?achievement={achievement.id}")
 
         if action == 'revoke':
             user_id = request.POST.get('user_id')
             user = get_object_or_404(User, id=user_id)
             revoke_achievement(user, achievement)
-            messages.success(request, f'Logro "{achievement.name}" removido de {user.email}')
+            messages.success(request, f'Figurita "{achievement.name}" removida de {user.email}')
             return redirect(f"{reverse('admin_logros_assign')}?achievement={achievement.id}")
 
         messages.error(request, 'Acción inválida')

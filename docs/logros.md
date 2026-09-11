@@ -27,7 +27,7 @@ Para agregar condiciones nuevas: implementar checker en `CONDITION_CHECKERS` y a
 - Campo opcional y **único** en `Achievement`. Se normaliza a mayúsculas al guardar.
 - Es un **código compartido**: muchas personas pueden canjear el mismo código (una vez por usuario).
 - Un logro puede tener solo código, solo condición automática, o ambos (se desbloquea por cualquiera de los dos caminos).
-- El usuario canjea desde **Mis logros** con el formulario “¿Tenés un código?”.
+- El usuario canjea desde **Figuritas** con el formulario “¿Tenés un código?”.
 - Tras un canje exitoso se usa `grant_achievement` y el modal de celebración aparece en la página (igual que los desbloqueos automáticos).
 - Si el logro estaba `revoked`, el canje lo reactiva.
 
@@ -37,7 +37,7 @@ Errores posibles del canje: código vacío, inválido, logro inactivo, o ya desb
 
 1. **Navegación logueada**: el context processor [`pending_logro_celebrations`](../utils/context_processors.py) llama `evaluate_and_get_pending_payload` en GET (home, Mi Fuego, etc.) y arma el modal si hay logros sin celebrar. Así, al cargar logros nuevos en admin, el usuario los desbloquea y ve el modal al entrar a la ticketera.
 2. **Post-pago online**: en [`check_order_status`](../tickets/views/order.py) y plantilla [`payment_callback.html`](../tickets/templates/checkout/payment_callback.html) — el callback de pago maneja su propia cola para no duplicar el modal.
-3. **Pantalla Mis logros**: `/mi-fuego/mis-bonos/logros/` — re-evalúa al cargar ([`mis_logros_view`](../user_profile/views.py)); también acepta `POST` con `redeem_code` para canjear.
+3. **Pantalla Figuritas**: `/mi-fuego/mis-bonos/logros/` — re-evalúa al cargar ([`mis_logros_view`](../user_profile/views.py)); también acepta `POST` con `redeem_code` para canjear.
 4. Admin Django: [`logros/admin.py`](../logros/admin.py) para ABM de definiciones (incluye `redeem_code`). También hay UI de administración en Mi Fuego para quienes tienen `logros.manage_achievements`.
 
 El modal no se dispara en admin, login, scanner, caja en vivo ni mientras hay términos pendientes.

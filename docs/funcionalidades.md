@@ -21,7 +21,7 @@ Resumen de apps Django en `INSTALLED_APPS` y responsabilidades. El código vive 
 
 - Perfiles de usuario, Mi Fuego, flujos post-login y completitud de perfil (middleware en [`tickets/middleware.py`](../tickets/middleware.py) referencia perfiles).
 - **Caja legacy** por evento: listado en `/mi-fuego/cajas/` y emisión en `/mi-fuego/mis-eventos/<slug>/caja/` ([`user_profile/views.py`](../user_profile/views.py)); redirige a caja v2 si hay una sola caja activa.
-- Pantalla **Mis logros** en `/mi-fuego/mis-bonos/logros/`.
+- Pantalla **Figuritas** en `/mi-fuego/mis-bonos/logros/`.
 - Integración con `django-allauth` para cuenta y Google.
 
 ## `caja`
@@ -34,7 +34,7 @@ Resumen de apps Django en `INSTALLED_APPS` y responsabilidades. El código vive 
 
 - Definiciones de logros (`Achievement`) y desbloqueos por usuario (`UserAchievement`).
 - Condiciones extensibles: `purchased_events`, `volunteer_at_events` y `attended_events` (al menos N eventos); también canje por `redeem_code` compartido.
-- Evaluación al navegar logueado, post-pago y en Mis logros. Modal de celebración único por logro (`celebration_shown`). Detalle: [logros](logros.md).
+- Evaluación al navegar logueado, post-pago y en Figuritas. Modal de celebración único por logro (`celebration_shown`). Detalle: [logros](logros.md).
 
 ## `espaciozen`
 

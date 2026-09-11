@@ -14,7 +14,7 @@ Actores principales y superficies de la aplicación. Las rutas siguen [`deprepag
 
 - Gestiona bonos desde **Mi Fuego** (`/mi-fuego/…`, perfiles y URLs definidas en [`user_profile/urls.py`](../user_profile/urls.py)).
 - Asigna o desasigna titular, transfiere bonos (mientras el evento permita periodo de transferencia), ve QR en vista pública del bono (`/bono/<ticket_key>/` o con prefijo de evento). Tipos de transferencia (a usuario registrado vs otros flujos): [transferencias-de-bonos](transferencias-de-bonos.md).
-- Ve y desbloquea **logros** en `/mi-fuego/mis-bonos/logros/` (desbloqueados con imagen, bloqueados sin imagen). Puede canjear un logro especial ingresando un código secreto. Si hay un logro nuevo sin ver, el modal de celebración aparece al entrar a la ticketera logueado (home, Mi Fuego) y también tras compras online confirmadas. Ver [logros](logros.md).
+- Ve y desbloquea **figuritas** en `/mi-fuego/mis-bonos/logros/` (desbloqueadas con imagen, bloqueadas sin imagen). Puede canjear una figurita especial ingresando un código secreto. Si hay una figurita nueva sin ver, el modal de celebración aparece al entrar a la ticketera logueado (home, Mi Fuego) y también tras compras online confirmadas. Ver [logros](logros.md).
 
 ## Staff de caja
 
@@ -60,6 +60,6 @@ Hay **tres** superficies (detalle en [eventos-roles-y-operacion](eventos-roles-y
 | Scanner | `/scan/`, `/scan/<slug>/` |
 | Caja v2 (Mi Fuego) | `/mi-fuego/mis-eventos/<slug>/cajas-v2/<id>/vender/` |
 | Reportes evento (admin) | `/mi-fuego/mis-eventos/<slug>/reporte-evento/` |
-| Logros | `/mi-fuego/mis-bonos/logros/` |
+| Logros / Figuritas | `/mi-fuego/mis-bonos/logros/` |
 
 Para detalle de reglas (cupos, cupones, estados), ver [reglas-de-negocio](reglas-de-negocio.md) y [ordenes-y-pagos](ordenes-y-pagos.md).
