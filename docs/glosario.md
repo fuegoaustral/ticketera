@@ -13,7 +13,7 @@
 | **Caja (Mi Fuego legacy)** | `/mi-fuego/mis-eventos/<slug>/caja/`: `admins` o `access_caja`; tipos con `show_in_caja`. |
 | **Caja v2** | Módulo `caja`: productos, stock, múltiples puntos de venta, MP QR/Postnet. Ver [caja-v2](caja-v2.md). |
 | **Producto de caja** | `EventProduct`: bono (`TicketType`) o ítem genérico vendible en caja v2. |
-| **Logro** | `Achievement`: insignia desbloqueable por condición (ej. compras en N eventos) o por canje de código secreto. Ver [logros](logros.md). |
+| **Logro / Figurita** | `Achievement`: insignia desbloqueable por condición (ej. compras en N eventos) o por canje de código secreto. En la UI se muestra como **Figuritas**. Ver [logros](logros.md). |
 | **Bono dirigido** | Plantilla `DirectTicketTemplate` (camp, arte, etc.) con cupos para emisión directa. |
 | **Responsable de grupo** | Usuario `lider` de un `Grupo` (camp/tipo); entra automático como miembro. |
 | **Scanner** | Interfaz y APIs bajo `/scan/` para validar y marcar uso de bonos. |

@@ -113,7 +113,7 @@
             </a>
             <div class="dropdown-menu" aria-labelledby="dropdownProfileButton">
               <a class="dropdown-item" href="{% url "my_ticket" %}"><i class="fa-solid fa-ticket"></i> Mis Bonos | Eventos</a>
-              <a class="dropdown-item" href="{% url "mis_logros" %}"><i class="fa-solid fa-trophy"></i> Mis logros</a>
+              <a class="dropdown-item" href="{% url "mis_logros" %}"><i class="fa-solid fa-trophy"></i> Figuritas</a>
               {% if user.profile.miembro_sede %}
               <a class="dropdown-item" href="{% url "la_sede" %}"><i class="fa-solid fa-house-chimney"></i> La Sede</a>
               {% endif %}
@@ -128,8 +128,8 @@
               <a class="dropdown-item text-success" href="{% url "caja_events" %}"><i class="fa-solid fa-cash-register text-success"></i> Cajas</a>
               {% endif %}
               {% if perms.logros.manage_achievements %}
-              <a class="dropdown-item text-success" href="{% url "admin_logros" %}"><i class="fa-solid fa-trophy text-success"></i> Administrar logros</a>
-              <a class="dropdown-item text-success" href="{% url "admin_logros_assign" %}"><i class="fa-solid fa-user-plus text-success"></i> Asignar logros</a>
+              <a class="dropdown-item text-success" href="{% url "admin_logros" %}"><i class="fa-solid fa-trophy text-success"></i> Administrar figuritas</a>
+              <a class="dropdown-item text-success" href="{% url "admin_logros_assign" %}"><i class="fa-solid fa-user-plus text-success"></i> Asignar figuritas</a>
               {% endif %}
               <a class="dropdown-item" href="https://fuegoaustral.org/el-evento/10-principios/" target="_blank">10 principios</a>
               <a class="dropdown-item" href="https://fuegoaustral.org/faq/" target="_blank">Preguntas frecuentes</a>
