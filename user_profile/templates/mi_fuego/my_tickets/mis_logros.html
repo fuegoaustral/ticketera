@@ -104,12 +104,65 @@
         .logros-section + .logros-section {
             margin-top: 2.5rem;
         }
+
+        .logro-redeem {
+            background: #fff;
+            border: 1px solid #d9d9d9;
+            border-radius: 1rem;
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+        }
+
+        .logro-redeem h3 {
+            font-size: 1.05rem;
+            margin-bottom: 0.35rem;
+        }
+
+        .logro-redeem .form-control {
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            font-weight: 600;
+        }
     </style>
 
     <div class="mb-4">
         <h2 class="mb-1">Mis logros</h2>
         <p class="text-muted mb-0">Tus hitos en la comunidad de Fuego Austral.</p>
     </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags|default:'secondary' }}{% endif %} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <section class="logro-redeem" aria-labelledby="logro-redeem-title">
+        <h3 id="logro-redeem-title">¿Tenés un código?</h3>
+        <p class="text-muted small mb-3">Ingresalo acá para canjear un logro especial.</p>
+        <form method="post" action="{% url 'mis_logros' %}" class="row g-2 align-items-end">
+            {% csrf_token %}
+            <div class="col-sm-8 col-md-6">
+                <label for="redeem_code" class="form-label visually-hidden">Código de canje</label>
+                <input type="text"
+                       class="form-control"
+                       id="redeem_code"
+                       name="redeem_code"
+                       maxlength="64"
+                       autocomplete="off"
+                       autocapitalize="characters"
+                       spellcheck="false"
+                       placeholder="CÓDIGO"
+                       required>
+            </div>
+            <div class="col-sm-4 col-md-auto">
+                <button type="submit" class="btn btn-primary w-100">Canjear</button>
+            </div>
+        </form>
+    </section>
 
     {% if logros %}
         <section class="logros-section">

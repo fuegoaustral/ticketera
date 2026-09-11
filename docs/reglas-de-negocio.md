@@ -46,6 +46,7 @@ Lista de comportamientos codificados que suelen consultar operaciones o QA. Siem
 - Condición `volunteer_at_events`: bono propio con el rol (`transmutator` / `ranger` / `caos` / `mad`); sin `event_ids` aplica a cualquier evento, con lista a al menos uno de ellos. `must_be_used` exige ingreso escaneado.
 - Condición `attended_events`: owner/holder de `NewTicket` o bono legado `Ticket` (email) en al menos `min_count` de los `event_ids`. `must_be_used` default true aplica al modelo nuevo; el viejo no tiene scan. Si es false, también cuenta órdenes CONFIRMED.
 - Un logro desbloqueado no se re-evalúa; `celebration_shown` controla el modal único por logro (home / Mi Fuego logueado, post-pago, Mis logros).
+- Un código de canje (`redeem_code`) es compartido entre usuarios; cada usuario solo puede canjearlo una vez. El código se compara en mayúsculas.
 
 ## Transferencias y voluntarios
 
