@@ -127,7 +127,7 @@
     </style>
 
     <div class="mb-4">
-        <h2 class="mb-1">Mis logros</h2>
+        <h2 class="mb-1">Figuritas</h2>
         <p class="text-muted mb-0">Tus hitos en la comunidad de Fuego Austral.</p>
     </div>
 
@@ -142,7 +142,7 @@
 
     <section class="logro-redeem" aria-labelledby="logro-redeem-title">
         <h3 id="logro-redeem-title">¿Tenés un código?</h3>
-        <p class="text-muted small mb-3">Ingresalo acá para canjear un logro especial.</p>
+        <p class="text-muted small mb-3">Ingresalo acá para canjear una figurita especial.</p>
         <form method="post" action="{% url 'mis_logros' %}" class="row g-2 align-items-end">
             {% csrf_token %}
             <div class="col-sm-8 col-md-6">
@@ -194,7 +194,7 @@
                     {% endfor %}
                 </div>
             {% else %}
-                <p class="text-muted mb-0">Todavía no desbloqueaste ningún logro. ¡Seguí participando!</p>
+                <p class="text-muted mb-0">Todavía no desbloqueaste ninguna figurita. ¡Seguí participando!</p>
             {% endif %}
         </section>
 
@@ -213,19 +213,19 @@
                             <div class="logro-body">
                                 <div class="logro-name">{{ item.achievement.name }}</div>
                                 <div class="logro-status">
-                                    Todavía no desbloqueaste este logro
+                                    Todavía no desbloqueaste esta figurita
                                 </div>
                             </div>
                         </article>
                     {% endfor %}
                 </div>
             {% else %}
-                <p class="text-muted mb-0">Desbloqueaste todos los logros disponibles. ¡Felicidades!</p>
+                <p class="text-muted mb-0">Desbloqueaste todas las figuritas disponibles. ¡Felicidades!</p>
             {% endif %}
         </section>
     {% else %}
         <div class="alert alert-secondary">
-            Todavía no hay logros disponibles.
+            Todavía no hay figuritas disponibles.
         </div>
     {% endif %}
 {% endblock %}
