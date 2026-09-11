@@ -4,6 +4,14 @@ from django.db import models
 from utils.models import BaseModel
 
 
+def normalize_redeem_code(value):
+    """Normaliza códigos de canje: trim + uppercase. Vacío → None."""
+    if value is None:
+        return None
+    normalized = str(value).strip().upper()
+    return normalized or None
+
+
 class Achievement(BaseModel):
     """Definición de un logro desbloqueable."""
 
@@ -24,7 +32,7 @@ class Achievement(BaseModel):
         choices=ConditionType.choices,
         blank=True,
         null=True,
-        help_text='Vacío = solo asignación manual (sin auto-unlock).',
+        help_text='Vacío = solo canje por código o asignación manual (sin auto-unlock).',
     )
     condition_config = models.JSONField(
         default=dict,
@@ -36,6 +44,16 @@ class Achievement(BaseModel):
             'role: transmutator | ranger | caos | mad). '
             'attended_events: {"event_ids": [14, 7, 4, 1], "min_count": 2} '
             '(al menos N eventos distintos; must_be_used default true).'
+        ),
+    )
+    redeem_code = models.CharField(
+        max_length=64,
+        blank=True,
+        null=True,
+        unique=True,
+        help_text=(
+            'Código secreto compartido para canjear este logro en Mis logros. '
+            'Se normaliza a mayúsculas. Vacío = no canjeable por código.'
         ),
     )
     is_active = models.BooleanField(default=True)
@@ -52,9 +70,19 @@ class Achievement(BaseModel):
     def __str__(self):
         return self.name
 
+    def save(self, *args, **kwargs):
+        self.redeem_code = normalize_redeem_code(self.redeem_code)
+        if not self.condition_type:
+            self.condition_type = None
+        super().save(*args, **kwargs)
+
     @property
     def image_url(self):
         return self.image.url if self.image else ''
+
+    @property
+    def is_redeemable(self):
+        return bool(self.redeem_code)
 
 
 class UserAchievement(BaseModel):

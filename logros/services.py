@@ -1,7 +1,15 @@
 from django.utils import timezone
 
 from logros.conditions import is_condition_met
-from logros.models import Achievement, UserAchievement
+from logros.models import Achievement, UserAchievement, normalize_redeem_code
+
+
+class RedeemCodeError(Exception):
+    """Error de canje de código de logro."""
+
+    def __init__(self, code, message):
+        self.code = code
+        super().__init__(message)
 
 
 def serialize_achievement(achievement):
@@ -105,6 +113,35 @@ def revoke_achievement(user, achievement):
         ua.revoked = True
         ua.save(update_fields=['revoked', 'updated_at'])
     return ua
+
+
+def redeem_achievement_code(user, code):
+    """
+    Canjea un código secreto compartido y desbloquea el logro asociado.
+    Retorna el Achievement desbloqueado.
+    Lanza RedeemCodeError con code in {'empty', 'invalid', 'inactive', 'already_unlocked'}.
+    """
+    if not user or not user.is_authenticated:
+        raise RedeemCodeError('invalid', 'Tenés que iniciar sesión para canjear un código.')
+
+    normalized = normalize_redeem_code(code)
+    if not normalized:
+        raise RedeemCodeError('empty', 'Ingresá un código.')
+
+    try:
+        achievement = Achievement.objects.get(redeem_code=normalized)
+    except Achievement.DoesNotExist:
+        raise RedeemCodeError('invalid', 'Ese código no es válido.')
+
+    if not achievement.is_active:
+        raise RedeemCodeError('inactive', 'Ese logro no está disponible.')
+
+    existing = UserAchievement.objects.filter(user=user, achievement=achievement).first()
+    if existing and not existing.revoked:
+        raise RedeemCodeError('already_unlocked', 'Ya tenés este logro desbloqueado.')
+
+    grant_achievement(user, achievement, manual=False)
+    return achievement
 
 
 def get_pending_celebrations(user):
