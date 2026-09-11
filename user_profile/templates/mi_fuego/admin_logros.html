@@ -1,32 +1,32 @@
 {% extends 'mi_fuego/my_tickets/index.html' %}
 {% load static %}
 
-{% block page_title %}Administrar logros{% endblock %}
+{% block page_title %}Administrar figuritas{% endblock %}
 
 {% block submenu %}
 <div class="mobile-menu-toggle d-lg-none mb-3">
     <button class="btn btn-outline-secondary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-expanded="false" aria-controls="sidebarMenu">
         <i class="fas fa-bars me-2"></i>
-        Menú de Logros
+        Menú de Figuritas
     </button>
 </div>
 <div class="sidebar-menu collapse d-lg-block" id="sidebarMenu">
     <div class="menu-section">
         <h6 class="menu-section-title">
             <i class="fas fa-trophy me-2"></i>
-            Administración de Logros
+            Administración de Figuritas
         </h6>
         <ul class="menu-list">
             <li class="menu-item">
                 <a class="menu-link active" href="{% url 'admin_logros' %}">
                     <i class="fas fa-list me-2"></i>
-                    Crear / listar logros
+                    Crear / listar figuritas
                 </a>
             </li>
             <li class="menu-item">
                 <a class="menu-link" href="{% url 'admin_logros_assign' %}">
                     <i class="fas fa-user-plus me-2"></i>
-                    Asignar logros
+                    Asignar figuritas
                 </a>
             </li>
         </ul>
@@ -42,9 +42,9 @@
                 <div>
                     <h1 class="h3 mb-1">
                         <i class="fas fa-trophy me-2"></i>
-                        Administrar logros
+                        Administrar figuritas
                     </h1>
-                    <p class="text-muted mb-0">Creá logros con imagen, nombre, descripción y condición opcional</p>
+                    <p class="text-muted mb-0">Creá figuritas con imagen, nombre, descripción y condición opcional</p>
                 </div>
             </div>
 
@@ -61,7 +61,7 @@
                 <div class="card-header">
                     <h5 class="card-title mb-0">
                         <i class="fas fa-plus me-2"></i>
-                        Crear logro
+                        Crear figurita
                     </h5>
                 </div>
                 <div class="card-body">
@@ -99,7 +99,7 @@
                                        autocomplete="off"
                                        spellcheck="false"
                                        placeholder="EJ: FUEGO2026">
-                                <small class="text-muted">Código compartido que los usuarios pueden canjear en Mis logros.</small>
+                                <small class="text-muted">Código compartido que los usuarios pueden canjear en Figuritas.</small>
                             </div>
                         </div>
 
@@ -140,7 +140,7 @@
                         <div class="mt-3">
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-plus me-2"></i>
-                                Crear logro
+                                Crear figurita
                             </button>
                         </div>
                     </form>
@@ -151,7 +151,7 @@
                 <div class="card-header">
                     <h5 class="card-title mb-0">
                         <i class="fas fa-list me-2"></i>
-                        Logros existentes
+                        Figuritas existentes
                     </h5>
                 </div>
                 <div class="card-body p-0">
@@ -214,7 +214,7 @@
                             </table>
                         </div>
                     {% else %}
-                        <div class="p-4 text-muted">Todavía no hay logros creados.</div>
+                        <div class="p-4 text-muted">Todavía no hay figuritas creadas.</div>
                     {% endif %}
                 </div>
             </div>

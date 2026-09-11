@@ -1,32 +1,32 @@
 {% extends 'mi_fuego/my_tickets/index.html' %}
 {% load static %}
 
-{% block page_title %}Asignar logros{% endblock %}
+{% block page_title %}Asignar figuritas{% endblock %}
 
 {% block submenu %}
 <div class="mobile-menu-toggle d-lg-none mb-3">
     <button class="btn btn-outline-secondary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-expanded="false" aria-controls="sidebarMenu">
         <i class="fas fa-bars me-2"></i>
-        Menú de Logros
+        Menú de Figuritas
     </button>
 </div>
 <div class="sidebar-menu collapse d-lg-block" id="sidebarMenu">
     <div class="menu-section">
         <h6 class="menu-section-title">
             <i class="fas fa-trophy me-2"></i>
-            Administración de Logros
+            Administración de Figuritas
         </h6>
         <ul class="menu-list">
             <li class="menu-item">
                 <a class="menu-link" href="{% url 'admin_logros' %}">
                     <i class="fas fa-list me-2"></i>
-                    Crear / listar logros
+                    Crear / listar figuritas
                 </a>
             </li>
             <li class="menu-item">
                 <a class="menu-link active" href="{% url 'admin_logros_assign' %}">
                     <i class="fas fa-user-plus me-2"></i>
-                    Asignar logros
+                    Asignar figuritas
                 </a>
             </li>
         </ul>
@@ -42,9 +42,9 @@
                 <div>
                     <h1 class="h3 mb-1">
                         <i class="fas fa-user-plus me-2"></i>
-                        Asignar logros
+                        Asignar figuritas
                     </h1>
-                    <p class="text-muted mb-0">Asociá o quitá logros por email o DNI (override de condición)</p>
+                    <p class="text-muted mb-0">Asociá o quitá figuritas por email o DNI (override de condición)</p>
                 </div>
             </div>
 
@@ -69,7 +69,7 @@
                         <form method="get" class="mb-3">
                             <div class="row g-3 align-items-end">
                                 <div class="col-md-8">
-                                    <label for="achievement_filter" class="form-label">Logro</label>
+                                    <label for="achievement_filter" class="form-label">Figurita</label>
                                     <select class="form-select" id="achievement_filter" name="achievement" onchange="this.form.submit()">
                                         {% for achievement in achievements %}
                                             <option value="{{ achievement.id }}" {% if selected_achievement and selected_achievement.id == achievement.id %}selected{% endif %}>
@@ -99,7 +99,7 @@
                                     <div class="col-md-4">
                                         <button type="submit" class="btn btn-primary w-100">
                                             <i class="fas fa-plus me-2"></i>
-                                            Asignar logro
+                                            Asignar figurita
                                         </button>
                                     </div>
                                 </div>
@@ -143,7 +143,7 @@
                                                         {% endif %}
                                                     </td>
                                                     <td class="text-end">
-                                                        <form method="post" class="d-inline" onsubmit="return confirm('¿Quitar este logro? No se re-otorgará automáticamente.');">
+                                                        <form method="post" class="d-inline" onsubmit="return confirm('¿Quitar esta figurita? No se re-otorgará automáticamente.');">
                                                             {% csrf_token %}
                                                             <input type="hidden" name="action" value="revoke">
                                                             <input type="hidden" name="achievement_id" value="{{ selected_achievement.id }}">
@@ -160,15 +160,15 @@
                                     </table>
                                 </div>
                             {% else %}
-                                <div class="p-4 text-muted">Nadie tiene este logro asignado todavía.</div>
+                                <div class="p-4 text-muted">Nadie tiene esta figurita asignada todavía.</div>
                             {% endif %}
                         </div>
                     </div>
                 {% endif %}
             {% else %}
                 <div class="alert alert-info">
-                    No hay logros activos. Creá uno desde
-                    <a href="{% url 'admin_logros' %}">Administrar logros</a>.
+                    No hay figuritas activas. Creá una desde
+                    <a href="{% url 'admin_logros' %}">Administrar figuritas</a>.
                 </div>
             {% endif %}
         </div>
