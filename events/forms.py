@@ -26,7 +26,7 @@ class LocalizedDecimalField(forms.DecimalField):
 ARTWORK_BLOCK_FIELDS = {
     'proposal': (
         'title', 'proposal', 'dimensions', 'materials', 'technical_needs',
-        'uses_fire', 'fire_details', 'extinguishing_plan', 'power_watts',
+        'uses_sound', 'uses_fire', 'fire_details', 'extinguishing_plan', 'power_watts',
         'safety_plan', 'safety_responsible_email',
     ),
     'grant': ('grant_requested', 'grant_justification'),
@@ -74,7 +74,7 @@ class ArtworkForm(forms.ModelForm):
             'extinguishing_plan': forms.Textarea(attrs={'rows': 5}),
             'safety_plan': forms.Textarea(attrs={'rows': 5}),
             'grant_justification': forms.Textarea(attrs={'rows': 6}),
-            'public_description': forms.Textarea(attrs={'rows': 6, 'maxlength': 500}),
+            'public_description': forms.Textarea(attrs={'rows': 6}),
             'arrival_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
             'departure_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
             'checkout_notes': forms.Textarea(attrs={'rows': 5}),
@@ -98,6 +98,13 @@ class ArtworkForm(forms.ModelForm):
         self.fields['checkout_art_responsible'].widget.attrs['class'] = 'form-select'
         self.fields['collaborator_emails'].widget.attrs.update({'class': 'form-control', 'placeholder': 'persona@ejemplo.com, otra@ejemplo.com'})
         self.fields['safety_responsible_email'].widget.attrs.update({'class': 'form-control', 'placeholder': 'persona@ejemplo.com'})
+        description_limit = program.public_description_max_length
+        self.fields['public_description'].max_length = description_limit
+        self.fields['public_description'].widget.attrs.update({
+            'maxlength': description_limit,
+            'data-character-count': 'public-description-count',
+        })
+        self.fields['public_description'].help_text = f'Máximo {description_limit} caracteres.'
         if self.instance.safety_responsible_id:
             self.fields['safety_responsible_email'].initial = self.instance.safety_responsible.email
         self.fields['expected_version'].initial = self.instance.version if self.instance.pk else None

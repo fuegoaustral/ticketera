@@ -9,6 +9,7 @@ from django.http import Http404, HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from events.utils import get_admin_events_for_user
 from utils.email import send_mail
@@ -262,6 +263,7 @@ def art_dashboard(request):
 
 
 @login_required
+@require_POST
 def artwork_create(request, event_slug):
     program = get_object_or_404(
         ArtProgram.objects.select_related('event'),
@@ -269,68 +271,15 @@ def artwork_create(request, event_slug):
         event__active=True,
         is_current=True,
     )
-    artwork = Artwork(event=program.event, owner=request.user)
-    action = request.POST.get('action', 'save')
-    form = ArtworkForm(
-        request.POST or None, request.FILES or None,
-        instance=artwork, program=program, owner=request.user, actor=request.user, action=action,
+    if not program.registration_is_open():
+        messages.error(request, 'La inscripción de obras está cerrada.')
+        return redirect('art_dashboard')
+    artwork = Artwork.objects.create(
+        event=program.event,
+        owner=request.user,
+        kind=Artwork.Kind.PLANNED,
     )
-    initial_budget_form = ArtworkGrantItemForm(
-        request.POST or None, request.FILES or None,
-        instance=ArtworkGrantItem(phase=ArtworkGrantItem.Phase.BUDGET, created_by=request.user),
-        phase=ArtworkGrantItem.Phase.BUDGET, prefix='initial-budget', auto_id='initial-budget_%s',
-    )
-    initial_photo_form = ArtworkPhotoUploadForm(
-        request.POST or None, request.FILES or None, prefix='initial-photo', auto_id='initial-photo_%s',
-    )
-    initial_person_form = ArtworkLogisticsPersonForm(
-        request.POST or None, prefix='initial-person', auto_id='initial-person_%s',
-    )
-    for inline_form in (initial_budget_form, initial_photo_form, initial_person_form):
-        for field in inline_form.fields.values():
-            field.widget.attrs['form'] = 'artwork-form'
-
-    has_initial_budget = bool(request.POST.get('initial-budget-concept'))
-    has_initial_photos = bool(request.FILES.getlist('initial-photo-images'))
-    has_initial_person = bool(request.POST.get('initial-person-first_name'))
-    initial_forms_valid = (
-        (not has_initial_budget or initial_budget_form.is_valid())
-        and (not has_initial_photos or initial_photo_form.is_valid())
-        and (not has_initial_person or initial_person_form.is_valid())
-    )
-    if request.method == 'POST' and form.is_valid() and initial_forms_valid:
-        with transaction.atomic():
-            if action == 'submit':
-                form.instance.status = Artwork.Status.SUBMITTED
-                form.instance.submitted_at = timezone.now()
-            artwork = form.save()
-            if has_initial_budget:
-                initial_budget_form.instance.artwork = artwork
-                item = initial_budget_form.save()
-                _save_grant_item_images(item, initial_budget_form.cleaned_data['images'], request.user)
-            if has_initial_photos:
-                for image in initial_photo_form.cleaned_data['images']:
-                    ArtworkPhoto.objects.create(
-                        artwork=artwork, image=image, stage=initial_photo_form.cleaned_data['stage'],
-                        caption=initial_photo_form.cleaned_data['caption'],
-                        publication_authorized=initial_photo_form.cleaned_data['publication_authorized'], uploaded_by=request.user,
-                    )
-            if has_initial_person:
-                initial_person_form.instance.artwork = artwork
-                initial_person_form.save()
-            if action == 'submit':
-                _ensure_operations_group(artwork, program)
-            transaction.on_commit(lambda invitations=list(form.new_invitations): _send_invitations(invitations))
-        messages.success(request, 'La propuesta fue enviada.' if action == 'submit' else 'El borrador quedó guardado.')
-        return redirect('artwork_edit', artwork_id=artwork.pk)
-
-    context = _base_context(program.event)
-    context.update({
-        'form': form, 'program': program, 'checkpoints': _checkpoints(program), 'is_new': True,
-        'initial_budget_form': initial_budget_form, 'initial_photo_form': initial_photo_form,
-        'initial_person_form': initial_person_form,
-    })
-    return render(request, 'mi_fuego/art/form.html', context)
+    return redirect('artwork_edit', artwork_id=artwork.pk)
 
 
 @login_required
@@ -839,17 +788,44 @@ def _managed_event(request, event_slug):
     return event
 
 
+def _filtered_artworks(event, params):
+    artworks = event.artworks.select_related('owner', 'safety_responsible').prefetch_related(
+        'grant_items', 'checkout_photos', 'logistics_people', 'artwork_providers__vehicles',
+    )
+    query = params.get('q', '').strip()
+    if query:
+        artworks = artworks.filter(
+            Q(title__icontains=query)
+            | Q(owner__email__icontains=query)
+            | Q(public_title__icontains=query)
+            | Q(assigned_location__icontains=query)
+        )
+    if params.get('status') in Artwork.Status.values:
+        artworks = artworks.filter(status=params['status'])
+    if params.get('grant') in Artwork.GrantStatus.values:
+        artworks = artworks.filter(grant_status=params['grant'])
+    if params.get('kind') in Artwork.Kind.values:
+        artworks = artworks.filter(kind=params['kind'])
+    for parameter, field in (('fire', 'uses_fire'), ('sound', 'uses_sound')):
+        if params.get(parameter) in ('yes', 'no'):
+            artworks = artworks.filter(**{field: params[parameter] == 'yes'})
+    return artworks.distinct().order_by('status', 'title')
+
+
 @login_required
 def art_admin_dashboard(request, event_slug):
     event = _managed_event(request, event_slug)
     if not event:
         return HttpResponseForbidden('No tenés permisos para coordinar Arte en este evento.')
-    artworks = event.artworks.select_related('owner').prefetch_related('grant_items', 'photos', 'checkout_photos').order_by('status', 'title')
+    artworks = _filtered_artworks(event, request.GET)
     admin_events = Event.objects.order_by('-id') if request.user.is_superuser else get_admin_events_for_user(request.user)
     return render(request, 'mi_fuego/art/admin_dashboard.html', {
         **_base_context(event), 'artworks': artworks, 'current_admin_event': event,
         'admin_events': admin_events,
         'nav_primary': 'events', 'nav_secondary': f'art_admin_{event.slug}',
+        'status_choices': Artwork.Status.choices,
+        'grant_choices': Artwork.GrantStatus.choices,
+        'kind_choices': Artwork.Kind.choices,
     })
 
 
@@ -897,12 +873,25 @@ def art_admin_export(request, event_slug):
     response['Content-Disposition'] = f'attachment; filename="arte_{event.slug}.csv"'
     response.write('\ufeff')
     writer = csv.writer(response)
-    writer.writerow(['Obra', 'Responsable', 'Estado', 'Beca', 'Presupuesto ARS', 'Rendición ARS', 'Título público', 'Descripción pública', 'Ubicación asignada', 'Carta digital', 'Carta física recibida', 'Responsable carta física', 'Fotos checkout', 'Checkout verificado'])
-    for artwork in event.artworks.select_related('owner').prefetch_related('grant_items', 'checkout_photos'):
+    writer.writerow([
+        'Obra', 'Modalidad', 'Responsable', 'Estado', 'Etiquetas', 'Responsable de seguridad',
+        'Beca', 'Presupuesto ARS', 'Rendición ARS', 'Título público', 'Descripción pública',
+        'Ubicación asignada', 'Carta digital', 'Carta física', 'Equipo ingreso/desarme',
+        'Proveedores', 'Vehículos', 'Fotos checkout', 'Checkout', 'Actualizada',
+    ])
+    for artwork in _filtered_artworks(event, request.GET):
+        tags = ', '.join(label for enabled, label in (
+            (artwork.uses_fire, 'Tiene fuego'),
+            (artwork.uses_sound, 'Tiene sonido'),
+        ) if enabled)
+        providers = list(artwork.artwork_providers.all())
         writer.writerow([_csv_cell(value) for value in [
             artwork.title,
+            artwork.get_kind_display(),
             artwork.owner.email if artwork.owner else '',
             artwork.get_status_display(),
+            tags,
+            artwork.safety_responsible.email if artwork.safety_responsible else '',
             artwork.get_grant_status_display(),
             artwork.grant_total_ars(ArtworkGrantItem.Phase.BUDGET),
             artwork.grant_total_ars(ArtworkGrantItem.Phase.EXPENSE),
@@ -910,10 +899,13 @@ def art_admin_export(request, event_slug):
             artwork.public_description,
             artwork.assigned_location,
             artwork.understanding_letter.name if artwork.understanding_letter else '',
-            artwork.understanding_letter_physical_received,
-            artwork.understanding_letter_physical_custodian,
+            'Sí' if artwork.understanding_letter_physical_received else 'No',
+            artwork.logistics_people.count(),
+            len(providers),
+            sum(len(provider.vehicles.all()) for provider in providers),
             artwork.checkout_photos.count(),
-            artwork.checkout_verified_at.isoformat() if artwork.checkout_verified_at else '',
+            'Verificado' if artwork.checkout_verified_at else ('Solicitado' if artwork.checkout_completed else 'Pendiente'),
+            artwork.updated_at.isoformat(),
         ]])
     return response
 

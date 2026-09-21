@@ -8,7 +8,7 @@ from django.db.models import Count, Sum, Q
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.core.exceptions import ValidationError
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.utils import timezone
 from django.utils.text import slugify
 from django.contrib.auth.models import User
@@ -505,6 +505,11 @@ class ArtProgram(BaseModel):
     grants_enabled = models.BooleanField(default=False, verbose_name='Becas habilitadas')
     grant_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de becas')
     guide_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de desplegable')
+    public_description_max_length = models.PositiveIntegerField(
+        default=200,
+        validators=[MinValueValidator(1), MaxValueValidator(500)],
+        verbose_name='Máximo de caracteres de la descripción del desplegable',
+    )
     logistics_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de logística')
     checkout_opens = models.DateTimeField(null=True, blank=True, verbose_name='Apertura de checkout')
     checkout_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de checkout')
@@ -608,6 +613,7 @@ class Artwork(BaseModel):
     dimensions = models.CharField(max_length=200, blank=True, verbose_name='Dimensiones')
     materials = models.TextField(blank=True, verbose_name='Materiales')
     technical_needs = models.TextField(blank=True, verbose_name='Necesidades técnicas y energía')
+    uses_sound = models.BooleanField(default=False, verbose_name='La obra utiliza sonido amplificado')
     safety_plan = models.TextField(blank=True, verbose_name='Seguridad y uso de fuego')
     uses_fire = models.BooleanField(default=False, verbose_name='La obra utiliza fuego')
     fire_details = models.TextField(blank=True, verbose_name='Combustible, cantidad y funcionamiento del fuego')
@@ -708,6 +714,17 @@ class Artwork(BaseModel):
 
     def clean(self):
         errors = {}
+        if self.event_id and self.public_description:
+            try:
+                description_limit = self.event.art_program.public_description_max_length
+            except ArtProgram.DoesNotExist:
+                description_limit = None
+            description_changed = (
+                not self.pk
+                or Artwork.objects.filter(pk=self.pk).exclude(public_description=self.public_description).exists()
+            )
+            if description_limit and description_changed and len(self.public_description) > description_limit:
+                errors['public_description'] = f'La descripción puede tener hasta {description_limit} caracteres.'
         if self.checkout_verified_at and not self.checkout_completed:
             errors['checkout_verified_at'] = 'El equipo de la obra debe solicitar el checkout antes de verificarlo.'
         if self.understanding_letter_physical_waiver and not self.understanding_letter_physical_waiver_reason:

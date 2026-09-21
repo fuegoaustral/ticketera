@@ -1051,7 +1051,7 @@ class EventRequestAdmin(admin.ModelAdmin):
 
 @admin.register(ArtProgram)
 class ArtProgramAdmin(admin.ModelAdmin):
-    list_display = ('event', 'is_current', 'registration_opens', 'registration_closes', 'grants_enabled', 'grant_deadline', 'guide_deadline', 'logistics_deadline')
+    list_display = ('event', 'is_current', 'registration_opens', 'registration_closes', 'grants_enabled', 'grant_deadline', 'guide_deadline', 'public_description_max_length', 'logistics_deadline')
     list_filter = ('is_current', 'grants_enabled', 'event')
     date_hierarchy = 'registration_opens'
 
@@ -1229,7 +1229,7 @@ class ArtworkAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Obra', {'fields': ('event', 'owner', 'collaborators', 'operations_group', 'kind', 'title')}),
         ('Check-in de obra', {'fields': ('checkin_arrived_at', 'checkin_art_at', 'checkin_art_by', 'checkin_placed', 'checkin_placement_changed', 'checkin_placement_change_notes', 'understanding_letter', 'understanding_letter_physical_received', 'understanding_letter_physical_custodian', 'understanding_letter_physical_notes', 'understanding_letter_physical_waiver', 'understanding_letter_physical_waiver_reason')}),
-        ('Propuesta y seguridad', {'fields': ('proposal', 'dimensions', 'materials', 'technical_needs', 'safety_plan', 'uses_fire', 'fire_details', 'extinguishing_plan', 'power_watts', 'safety_contact', 'safety_responsible')}),
+        ('Propuesta y seguridad', {'fields': ('proposal', 'dimensions', 'materials', 'technical_needs', 'uses_sound', 'safety_plan', 'uses_fire', 'fire_details', 'extinguishing_plan', 'power_watts', 'safety_contact', 'safety_responsible')}),
         ('Beca', {'fields': ('grant_requested', 'grant_justification', 'grant_status', 'grant_approved_amount_ars', 'confirm_large_grant_amount', 'grant_decision_notes', 'grant_paid_at', 'grant_payment_reference', 'grant_report')}),
         ('Desplegable y placement', {'fields': ('public_title', 'public_description', 'preferred_location', 'assigned_location', 'placement_notes')}),
         ('Logística', {'fields': ('arrival_date', 'departure_date', 'crew', 'providers')}),

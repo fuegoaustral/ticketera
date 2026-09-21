@@ -67,6 +67,8 @@ class ArtworkFlowTest(TestCase):
     def test_primary_fields_are_associated_with_artwork_form(self):
         form = self.artwork_form({})
         self.assertNotIn('kind', form.fields)
+        self.assertEqual(form.fields['public_description'].max_length, 200)
+        self.assertEqual(form.fields['public_description'].widget.attrs['maxlength'], 200)
         for field in form.fields.values():
             self.assertEqual(field.widget.attrs.get('form'), 'artwork-form')
         self.assertTrue(all(checkpoint['anchor'] for checkpoint in _checkpoints(self.program)))
@@ -77,13 +79,17 @@ class ArtworkFlowTest(TestCase):
         incomplete = self.artwork_form({})
         self.assertFalse(incomplete.is_valid())
         self.client.force_login(self.owner)
-        response = self.client.post(reverse('artwork_create', args=[self.event.slug]), {
+        response = self.client.post(reverse('artwork_create', args=[self.event.slug]))
+        artwork = Artwork.objects.get(owner=self.owner)
+        self.assertRedirects(response, reverse('artwork_edit', args=[artwork.pk]))
+        response = self.client.post(reverse('artwork_edit', args=[artwork.pk]), {
             'kind': Artwork.Kind.POPUP,
             'title': 'Faro',
+            'expected_version': artwork.version,
             'action': 'submit',
         })
         self.assertEqual(response.status_code, 302)
-        artwork = Artwork.objects.get(owner=self.owner)
+        artwork.refresh_from_db()
         self.assertEqual(artwork.kind, Artwork.Kind.PLANNED)
         self.assertEqual(artwork.status, Artwork.Status.SUBMITTED)
         self.assertEqual(artwork.proposal, '')
@@ -93,12 +99,15 @@ class ArtworkFlowTest(TestCase):
         self.program.registration_closes = timezone.now() + timedelta(days=1)
         self.program.save(update_fields=['registration_closes'])
         self.client.force_login(self.owner)
-        response = self.client.post(reverse('artwork_create', args=[self.event.slug]), {
-            'title': 'Borrador', 'action': 'save',
+        self.client.post(reverse('artwork_create', args=[self.event.slug]))
+        artwork = Artwork.objects.get(owner=self.owner)
+        response = self.client.post(reverse('artwork_edit', args=[artwork.pk]), {
+            'title': 'Borrador', 'expected_version': artwork.version, 'action': 'save',
         })
 
         self.assertEqual(response.status_code, 302)
-        artwork = Artwork.objects.get(owner=self.owner, title='Borrador')
+        artwork.refresh_from_db()
+        self.assertEqual(artwork.title, 'Borrador')
         self.assertEqual(artwork.status, Artwork.Status.DRAFT)
         self.assertEqual([str(message) for message in get_messages(response.wsgi_request)], ['El borrador quedó guardado.'])
 
@@ -106,28 +115,59 @@ class ArtworkFlowTest(TestCase):
         self.program.registration_closes = timezone.now() + timedelta(days=1)
         self.program.save(update_fields=['registration_closes'])
         self.client.force_login(self.owner)
-        response = self.client.post(reverse('artwork_create', args=[self.event.slug]), {
+        self.client.post(reverse('artwork_create', args=[self.event.slug]))
+        artwork = Artwork.objects.get(owner=self.owner)
+        editor = self.client.get(reverse('artwork_edit', args=[artwork.pk]))
+        self.assertContains(editor, 'Agregar proveedor')
+        self.assertContains(editor, 'Agregar vehículo', count=0)
+        response = self.client.post(reverse('artwork_edit', args=[artwork.pk]), {
             'title': 'Faro', 'uses_fire': 'on', 'fire_details': 'Leña controlada',
             'extinguishing_plan': 'Matafuegos ABC', 'safety_responsible_email': self.collaborator.email,
-            'initial-budget-item_type': 'materials', 'initial-budget-concept': 'Hierro',
-            'initial-budget-amount': '1500', 'initial-budget-currency': 'ARS',
-            'initial-budget-exchange_rate': '1', 'initial-budget-rate_date': timezone.localdate(),
-            'initial-photo-images': self.image('inicio.gif'), 'initial-photo-stage': ArtworkPhoto.Stage.PROPOSAL,
-            'initial-person-first_name': 'Ada', 'initial-person-last_name': 'Sur',
-            'initial-person-email': 'ada@example.com', 'initial-person-phone': '+5491112345678',
-            'initial-person-document_type': 'DNI', 'initial-person-document_number': '30111222',
-            'initial-person-early_entry': 'on', 'initial-person-early_entry_date': timezone.localdate(),
+            'expected_version': artwork.version,
         })
         self.assertEqual(response.status_code, 302)
-        artwork = Artwork.objects.get(owner=self.owner, title='Faro')
+        artwork.refresh_from_db()
+        self.client.post(reverse('grant_item_create', args=[artwork.pk, 'budget']), {
+            'item_type': 'materials', 'concept': 'Hierro', 'amount': '1500', 'currency': 'ARS',
+            'exchange_rate': '1', 'rate_date': timezone.localdate(),
+        })
+        self.client.post(reverse('artwork_photo_upload', args=[artwork.pk]), {
+            'images': self.image('inicio.gif'), 'stage': ArtworkPhoto.Stage.PROPOSAL,
+        })
+        self.client.post(reverse('logistics_person_create', args=[artwork.pk]), {
+            'first_name': 'Ada', 'last_name': 'Sur', 'email': 'ada@example.com', 'phone': '+5491112345678',
+            'document_type': 'DNI', 'document_number': '30111222', 'early_entry': 'on',
+            'early_entry_date': timezone.localdate(),
+        })
         self.assertEqual(artwork.safety_responsible, self.collaborator)
         self.assertEqual(artwork.grant_items.count(), 1)
         self.assertEqual(artwork.photos.count(), 1)
         self.assertEqual(artwork.logistics_people.count(), 1)
 
+    def test_public_description_limit_is_configurable(self):
+        self.program.public_description_max_length = 10
+        self.program.save(update_fields=['public_description_max_length'])
+        form = self.artwork_form({'title': 'Faro', 'public_description': '12345678901'})
+        self.assertFalse(form.is_valid())
+        self.assertIn('public_description', form.errors)
+
+        existing = Artwork.objects.create(
+            event=self.event, owner=self.owner, title='Existente', public_description='12345678901',
+        )
+        unchanged = self.artwork_form({
+            'title': 'Existente editada', 'public_description': existing.public_description,
+            'expected_version': existing.version,
+        }, artwork=existing)
+        self.assertTrue(unchanged.is_valid(), unchanged.errors)
+
     def test_planned_registration_is_closed(self):
         form = self.artwork_form({'title': 'Faro'}, action='submit')
         self.assertFalse(form.is_valid())
+        self.client.force_login(self.owner)
+        self.assertEqual(self.client.get(reverse('artwork_create', args=[self.event.slug])).status_code, 405)
+        response = self.client.post(reverse('artwork_create', args=[self.event.slug]))
+        self.assertRedirects(response, reverse('art_dashboard'))
+        self.assertFalse(Artwork.objects.filter(owner=self.owner).exists())
 
     def test_stale_collaborator_update_is_rejected(self):
         artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Original', proposal='Texto')
@@ -250,6 +290,29 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(self.client.get(reverse('artwork_review', args=[self.event.slug, artwork.pk])).status_code, 200)
 
         self.assertFalse(ArtworkPhotoUploadForm({'stage': ArtworkPhoto.Stage.PROCESS}, {}).is_valid())
+
+    def test_admin_dashboard_filters_and_exports_operational_tags(self):
+        tagged = Artwork.objects.create(
+            event=self.event, owner=self.owner, title='Escultura sonora',
+            uses_fire=True, uses_sound=True,
+        )
+        Artwork.objects.create(event=self.event, owner=self.owner, title='Obra silenciosa')
+        self.client.force_login(self.admin)
+
+        dashboard = self.client.get(reverse('art_admin_dashboard', args=[self.event.slug]), {
+            'fire': 'yes', 'sound': 'yes',
+        })
+        self.assertContains(dashboard, tagged.title)
+        self.assertNotContains(dashboard, 'Obra silenciosa')
+        self.assertContains(dashboard, 'Tiene fuego')
+        self.assertContains(dashboard, 'Tiene sonido')
+
+        exported = self.client.get(reverse('art_admin_export', args=[self.event.slug]), {
+            'fire': 'yes', 'sound': 'yes',
+        }).content.decode('utf-8-sig')
+        self.assertIn('Etiquetas', exported)
+        self.assertIn('Tiene fuego, Tiene sonido', exported)
+        self.assertNotIn('Obra silenciosa', exported)
 
     def test_structured_logistics_checkout_and_grant_item_images(self):
         artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro', proposal='Texto', grant_requested=True)
