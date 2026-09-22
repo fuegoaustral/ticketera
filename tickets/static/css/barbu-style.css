@@ -46,8 +46,8 @@ img {
   }
 }
 
-header,
-footer {
+body > header,
+body > footer {
   background: #1d0402;
   padding: 1rem !important;
 

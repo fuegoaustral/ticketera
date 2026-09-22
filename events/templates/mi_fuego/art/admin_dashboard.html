@@ -2,27 +2,92 @@
 {% block page_title %}Coordinación de Arte{% endblock %}
 {% block submenu %}{% include 'mi_fuego/partials/event_admin_menu.html' %}{% endblock %}
 {% block truecontent %}
-<div class="container-fluid" style="max-width:1100px">
+<div class="container-fluid art-admin-dashboard">
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
         <div><p class="text-uppercase text-muted small fw-semibold mb-1">{{ event.name }}</p><h2 class="h3 mb-1">Obras y becas</h2><p class="text-muted mb-0">Revisión, placement, pagos, checkout y beneficios.</p></div>
-        <a class="btn btn-outline-primary" href="{% url 'art_admin_export' event.slug %}"><i class="fas fa-download me-1"></i> Exportar CSV</a>
+        <a class="btn btn-outline-primary" href="{% url 'art_admin_export' event.slug %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"><i class="fas fa-download me-1" aria-hidden="true"></i> Exportar CSV</a>
     </div>
-    <div class="table-responsive">
-        <table class="table align-middle">
-            <thead><tr><th>Obra</th><th>Estado</th><th>Beca</th><th>Placement</th><th>Checkout</th><th></th></tr></thead>
+
+    <form method="get" class="art-filters mb-3" aria-label="Filtros de obras">
+        <div class="filter-search">
+            <label for="art-filter-q">Buscar</label>
+            <input class="form-control" id="art-filter-q" type="search" name="q" value="{{ request.GET.q }}" placeholder="Obra, email o ubicación">
+        </div>
+        <div>
+            <label for="art-filter-status">Estado</label>
+            <select class="form-select" id="art-filter-status" name="status">
+                <option value="">Todos</option>
+                {% for value, label in status_choices %}<option value="{{ value }}"{% if request.GET.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="art-filter-kind">Modalidad</label>
+            <select class="form-select" id="art-filter-kind" name="kind">
+                <option value="">Todas</option>
+                {% for value, label in kind_choices %}<option value="{{ value }}"{% if request.GET.kind == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="art-filter-grant">Beca</label>
+            <select class="form-select" id="art-filter-grant" name="grant">
+                <option value="">Todas</option>
+                {% for value, label in grant_choices %}<option value="{{ value }}"{% if request.GET.grant == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="art-filter-fire">Fuego</label>
+            <select class="form-select" id="art-filter-fire" name="fire">
+                <option value="">Todos</option>
+                <option value="yes"{% if request.GET.fire == 'yes' %} selected{% endif %}>Tiene fuego</option>
+                <option value="no"{% if request.GET.fire == 'no' %} selected{% endif %}>Sin fuego</option>
+            </select>
+        </div>
+        <div>
+            <label for="art-filter-sound">Sonido</label>
+            <select class="form-select" id="art-filter-sound" name="sound">
+                <option value="">Todos</option>
+                <option value="yes"{% if request.GET.sound == 'yes' %} selected{% endif %}>Tiene sonido</option>
+                <option value="no"{% if request.GET.sound == 'no' %} selected{% endif %}>Sin sonido</option>
+            </select>
+        </div>
+        <div class="filter-actions">
+            <button class="btn btn-primary" type="submit">Filtrar</button>
+            <a class="btn btn-link" href="{% url 'art_admin_dashboard' event.slug %}">Limpiar</a>
+        </div>
+    </form>
+
+    <p class="small text-muted mb-2" aria-live="polite">{{ artworks|length }} obra{{ artworks|length|pluralize:"s" }}</p>
+    <div class="table-responsive art-table-wrap">
+        <table class="table table-sm align-middle art-table">
+            <thead><tr><th>Obra</th><th>Estado</th><th>Etiquetas</th><th>Beca</th><th>Placement</th><th>Carta</th><th>Checkout</th><th><span class="visually-hidden">Acciones</span></th></tr></thead>
             <tbody>
             {% for artwork in artworks %}
                 <tr>
-                    <td><strong>{{ artwork.title|default:'Obra sin título' }}</strong><br><small class="text-muted">{{ artwork.owner.email|default:'Cuenta archivada' }}</small></td>
+                    <td><strong>{{ artwork.title|default:'Obra sin título' }}</strong><br><small class="text-muted">{{ artwork.get_kind_display }} · {{ artwork.owner.email|default:'Cuenta archivada' }}</small></td>
                     <td>{{ artwork.get_status_display }}</td>
+                    <td class="text-nowrap">{% if artwork.uses_fire %}<span class="badge text-bg-warning">Tiene fuego</span>{% endif %}{% if artwork.uses_sound %}<span class="badge text-bg-info">Tiene sonido</span>{% endif %}{% if not artwork.uses_fire and not artwork.uses_sound %}<span class="text-muted">Sin etiquetas</span>{% endif %}</td>
                     <td>{{ artwork.get_grant_status_display }}{% if artwork.grant_requested %}<br><small>Presupuesto ARS {{ artwork.budget_total_ars|floatformat:2 }}</small>{% endif %}</td>
                     <td>{{ artwork.assigned_location|default:'Sin asignar' }}</td>
-                    <td>{% if artwork.checkout_verified_at %}Verificado{% elif artwork.checkout_completed %}Solicitado{% else %}Pendiente{% endif %}</td>
+                    <td>{% if artwork.understanding_letter %}Digital{% else %}<span class="text-muted">Sin digital</span>{% endif %}{% if artwork.understanding_letter_physical_received %}<br><small>Física recibida</small>{% endif %}</td>
+                    <td>{% if artwork.checkout_verified_at %}Verificado{% elif artwork.checkout_completed %}Solicitado{% else %}Pendiente{% endif %}<br><small>{{ artwork.checkout_photos.count }} foto(s)</small></td>
                     <td class="text-end"><a class="btn btn-sm btn-primary" href="{% url 'artwork_review' event.slug artwork.pk %}">Revisar</a></td>
                 </tr>
-            {% empty %}<tr><td colspan="6" class="text-center text-muted py-5">Todavía no hay obras.</td></tr>{% endfor %}
+            {% empty %}<tr><td colspan="8" class="text-center text-muted py-5">No hay obras que coincidan con estos filtros.</td></tr>{% endfor %}
             </tbody>
         </table>
     </div>
 </div>
+<style>
+    .art-admin-dashboard { max-width: 1320px; }
+    .art-filters { display: grid; grid-template-columns: minmax(220px, 2fr) repeat(5, minmax(125px, 1fr)) auto; gap: .75rem; align-items: end; padding: 1rem; border: 1px solid oklch(88% .015 160); border-radius: .5rem; background: oklch(97% .008 160); }
+    .art-filters label { display: block; margin-bottom: .25rem; font-size: .8rem; font-weight: 600; }
+    .filter-actions { display: flex; align-items: center; }
+    .art-table-wrap { max-height: 70vh; border: 1px solid oklch(88% .015 160); }
+    .art-table { min-width: 1050px; margin: 0; }
+    .art-table thead { position: sticky; top: 0; z-index: 1; background: oklch(95% .01 160); }
+    .art-table th { white-space: nowrap; }
+    .art-table td, .art-table th { padding: .65rem; }
+    @media (max-width: 1199px) { .art-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); } .filter-search { grid-column: span 2; } }
+    @media (max-width: 767px) { .art-filters { grid-template-columns: 1fr; } .filter-search { grid-column: auto; } .filter-actions .btn { min-height: 44px; } }
+</style>
 {% endblock %}

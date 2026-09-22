@@ -1,0 +1,60 @@
+<script>
+(function () {
+    function canonical(value) {
+        value = (value || '').trim().replace(/\s/g, '');
+        if (!value) return '';
+        if (value.includes(',')) return value.replace(/\./g, '').replace(',', '.');
+        return value;
+    }
+
+    function display(value, decimals) {
+        const raw = canonical(value);
+        if (!raw) return '';
+        const number = Number(raw);
+        if (!Number.isFinite(number)) return value;
+        return new Intl.NumberFormat('es-AR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(number);
+    }
+
+    function sync(form) {
+        const currency = form.querySelector('[data-currency-select]');
+        const rate = form.querySelector('[data-exchange-rate]');
+        if (currency && rate) {
+            const ars = currency.value === 'ARS';
+            rate.disabled = ars;
+            if (ars) rate.value = '1';
+        }
+        const amount = form.querySelector('[name="amount"], [name="grant_approved_amount_ars"]');
+        const output = form.querySelector('[data-money-total]');
+        const confirmation = form.querySelector('.money-confirmation');
+        if (amount && output) {
+            const amountValue = Number(canonical(amount.value));
+            const rateValue = Number(canonical(rate ? rate.value : '1')) || 1;
+            const total = amountValue * rateValue;
+            output.textContent = Number.isFinite(total) && total > 0 ? 'ARS ' + display(String(total), 2) : 'Completá el monto para ver el total';
+            if (confirmation && !confirmation.classList.contains('has-error')) confirmation.classList.toggle('is-required', total >= 1000000);
+        } else if (amount && confirmation && !confirmation.classList.contains('has-error')) {
+            confirmation.classList.toggle('is-required', Number(canonical(amount.value)) >= 1000000);
+        }
+    }
+
+    document.querySelectorAll('[data-money-input]').forEach(function (input) {
+        const decimals = input.dataset.exchangeRate ? 4 : 2;
+        input.addEventListener('focus', function () { input.value = canonical(input.value); });
+        input.addEventListener('blur', function () { input.value = display(input.value, decimals); });
+        input.addEventListener('input', function () { sync(input.form); });
+    });
+    document.querySelectorAll('[data-currency-select]').forEach(function (select) {
+        select.addEventListener('change', function () { sync(select.form); });
+    });
+    document.querySelectorAll('form').forEach(function (form) {
+        sync(form);
+        form.addEventListener('submit', function () {
+            form.querySelectorAll('[data-money-input]').forEach(function (input) { input.value = canonical(input.value); });
+        });
+    });
+})();
+</script>
+<style>
+    .money-confirmation { display: none; }
+    .money-confirmation.is-required, .money-confirmation.has-error { display: block; }
+</style>

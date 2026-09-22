@@ -1,19 +1,29 @@
 {% extends 'mi_fuego/my_tickets/index.html' %}
+{% load art_format %}
 {% block page_title %}Revisar obra{% endblock %}
 {% block submenu %}{% include 'mi_fuego/partials/event_admin_menu.html' %}{% endblock %}
 {% block truecontent %}
 <div class="container-fluid" style="max-width:1200px">
-    <a class="small text-decoration-none" href="{% url 'art_admin_dashboard' event.slug %}">← Volver a coordinación</a>
+    <a class="small text-decoration-none" href="{% if can_manage %}{% url 'art_admin_dashboard' event.slug %}{% else %}{% url 'art_dashboard' %}{% endif %}">← Volver a Arte</a>
     <div class="d-flex flex-column flex-md-row justify-content-between gap-3 my-4">
         <div><h2 class="h3 mb-1">{{ artwork.title|default:'Obra sin título' }}</h2><p class="text-muted mb-0">{{ artwork.owner.email|default:'Cuenta archivada' }} · {{ artwork.get_kind_display }}</p></div>
         <div class="d-flex gap-2"><a class="btn btn-outline-primary" href="{% url 'artwork_edit' artwork.pk %}">Ver expediente</a><a class="btn btn-outline-primary" href="{% url 'artwork_photo_upload' artwork.pk %}">Subir fotos</a></div>
     </div>
+    <nav class="review-nav mb-4" aria-label="Secciones de revisión">
+        <span class="review-nav-label">Ir a:</span>
+        <a href="#admin-budget">Presupuesto</a>
+        <a href="#admin-expenses">Rendición</a>
+        <a href="#checkout-report">Checkout</a>
+        <a href="{% url 'artwork_edit' artwork.pk %}#carta-entendimiento">Check-in y carta</a>
+        <a href="{% url 'artwork_edit' artwork.pk %}#propuesta">Propuesta y seguridad</a>
+    </nav>
     <div class="row g-3 mb-4">
-        <div class="col-md-4"><div class="p-3 border rounded"><small class="text-muted">Presupuesto</small><br><strong>ARS {{ budget_total_ars|floatformat:2 }}</strong></div></div>
-        <div class="col-md-4"><div class="p-3 border rounded"><small class="text-muted">Rendición</small><br><strong>ARS {{ expense_total_ars|floatformat:2 }}</strong></div></div>
+        <div class="col-md-4"><div class="p-3 border rounded"><small class="text-muted">Presupuesto</small><br><strong>ARS {{ budget_total_ars|art_money }}</strong></div></div>
+        <div class="col-md-4"><div class="p-3 border rounded"><small class="text-muted">Rendición</small><br><strong>ARS {{ expense_total_ars|art_money }}</strong></div></div>
         <div class="col-md-4"><div class="p-3 border rounded"><small class="text-muted">Fotos</small><br><strong>{{ artwork.photos.count }}</strong></div></div>
     </div>
     <div class="row g-4 mb-4">
+        {% if can_manage %}
         <section id="admin-budget" class="col-12" aria-labelledby="admin-budget-title">
             <h3 id="admin-budget-title" class="h5">Detalle del presupuesto</h3>
             <details class="inline-editor inline-create mb-3"{% if budget_create_form.errors %} open{% endif %}>
@@ -24,7 +34,7 @@
                     <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Agregar al presupuesto</button></div>
                 </form>
             </details>
-            {% include 'mi_fuego/art/_grant_items.html' with items=budget_items can_edit=True total_ars=budget_total_ars return_to='review' %}
+            {% include 'mi_fuego/art/_grant_items.html' with items=budget_items can_edit=True can_review=True total_ars=budget_total_ars return_to='review' %}
         </section>
         <section id="admin-expenses" class="col-12" aria-labelledby="admin-expense-title">
             <h3 id="admin-expense-title" class="h5">Detalle de la rendición</h3>
@@ -36,10 +46,25 @@
                     <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Agregar a la rendición</button></div>
                 </form>
             </details>
-            {% include 'mi_fuego/art/_grant_items.html' with items=expense_items can_edit=True total_ars=expense_total_ars return_to='review' %}
+            {% include 'mi_fuego/art/_grant_items.html' with items=expense_items can_edit=True can_review=True total_ars=expense_total_ars return_to='review' %}
+            {% if grant_over_budget %}<div class="alert alert-warning mt-3 mb-0"><strong>Revisión necesaria:</strong> la rendición supera el monto aprobado de ARS {{ artwork.grant_approved_amount_ars|art_money }}.</div>{% endif %}
         </section>
+        {% endif %}
     </div>
-    <form method="post" novalidate>{% csrf_token %}
+    <section id="checkout-report" class="mb-4" aria-labelledby="checkout-report-title">
+        <h3 id="checkout-report-title" class="h5">Paso 2, verificación del nexo de Arte</h3>
+        <p class="text-muted">Confirmá el checkout sólo después de que el equipo haya solicitado el paso 1. Las fotos dejan respaldo del estado final.</p>
+        <details class="inline-editor inline-create mb-3"{% if checkout_photo_upload_form.errors %} open{% endif %}>
+            <summary><i class="fas fa-camera" aria-hidden="true"></i><span>Agregar fotos al reporte</span></summary>
+            <form method="post" action="{% url 'artwork_checkout_photo_upload' artwork.pk %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
+                <input type="hidden" name="return_to" value="review">
+                {% include 'mi_fuego/art/_inline_fields.html' with inline_form=checkout_photo_upload_form %}
+                <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Subir fotos</button></div>
+            </form>
+        </details>
+        {% if checkout_photos %}<div class="row g-3">{% for photo in checkout_photos %}<div class="col-6 col-lg-3"><figure class="gallery-card mb-0"><a href="{{ photo.image.url }}" target="_blank" rel="noopener"><img src="{{ photo.image.url }}" alt="{{ photo.caption|default:photo.get_category_display }}"></a><figcaption class="p-2 small"><strong>{{ photo.get_category_display }}</strong>{% if photo.caption %}<br>{{ photo.caption }}{% endif %}</figcaption>{% if not artwork.checkout_verified_at %}<form method="post" action="{% url 'artwork_checkout_photo_delete' artwork.pk photo.pk %}">{% csrf_token %}<input type="hidden" name="return_to" value="review"><button class="btn btn-sm btn-link text-danger p-2" type="submit" onclick="return confirm('¿Eliminar esta foto?')">Eliminar</button></form>{% endif %}</figure></div>{% endfor %}</div>{% else %}<p class="small text-muted">Todavía no hay fotos de checkout.</p>{% endif %}
+    </section>
+    <form method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}
         {% for field in form.hidden_fields %}{{ field }}{% endfor %}
         {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
         {% for field in form.visible_fields %}{% include 'mi_fuego/art/_field.html' with field=field %}{% endfor %}
@@ -47,12 +72,18 @@
     </form>
 </div>
 <style>
+    .review-nav { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .75rem; border: 1px solid #d8e6df; border-radius: .55rem; background: #f4f8f6; }
+    .review-nav-label { color: #5c6b64; font-size: .875rem; font-weight: 600; }
+    .review-nav a { padding: .45rem .7rem; border: 1px solid #c8d9d0; border-radius: .4rem; color: #176b4a; background: #fff; font-size: .875rem; font-weight: 600; text-decoration: none; }
+    .review-nav a:hover, .review-nav a:focus-visible { color: #0f4c34; background: #e9f5f0; }
+    #admin-budget, #admin-expenses, #checkout-report { scroll-margin-top: 1rem; }
     .inline-editor { border: 1px solid #dee2e6; border-radius: .45rem; background: #fafbfa; }
     .inline-editor > summary { display: flex; align-items: center; gap: .5rem; width: fit-content; padding: .5rem .7rem; color: #176b4a; font-weight: 600; cursor: pointer; list-style: none; }
     .inline-editor > summary::-webkit-details-marker { display: none; }
     .inline-editor[open] > summary { margin-bottom: .25rem; }
     .inline-editor > form { padding: .75rem; border-top: 1px solid #dee2e6; }
     .inline-create { background: #f4f8f6; }
+    .money-summary { display: flex; justify-content: space-between; gap: 1rem; align-items: center; margin: .25rem 0 1rem; padding: .7rem .85rem; border: 1px solid #c8d9d0; border-radius: .4rem; background: #edf6f1; color: #176b4a; }
     .inline-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1rem; }
     .inline-form-wide { grid-column: 1 / -1; }
     .inline-images { display: flex; flex-wrap: wrap; gap: .5rem; }
@@ -62,5 +93,6 @@
     @media (max-width: 767px) { .inline-form-grid { grid-template-columns: 1fr; } .inline-form-wide { grid-column: auto; } }
 </style>
 {% include 'mi_fuego/art/_image_preview.html' %}
+{% include 'mi_fuego/art/_money_inputs.html' %}
 {% include 'mi_fuego/art/_restore_position.html' %}
 {% endblock %}
