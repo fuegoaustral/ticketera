@@ -80,12 +80,11 @@ class ArtworkForm(forms.ModelForm):
             'grant_report': forms.Textarea(attrs={'rows': 8}),
         }
 
-    def __init__(self, *args, program, owner, actor=None, action='save', **kwargs):
+    def __init__(self, *args, program, owner, actor=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.program = program
         self.owner = owner
         self.actor = actor or owner
-        self.action = action
         self.is_manager = self.instance.pk and self.instance.can_manage(self.actor)
         self.is_contributor = self.instance.pk and self.instance.can_edit(self.actor)
         self.new_invitations = []
@@ -213,15 +212,10 @@ class ArtworkForm(forms.ModelForm):
             if closed:
                 self.add_error(None, 'Una fecha límite venció mientras editabas. Recargá la página: no se guardó ningún cambio.')
 
-        if self.action == 'submit':
-            if not self.program.is_current:
-                self.add_error(None, 'Esta convocatoria ya es histórica y no admite nuevas presentaciones.')
-            if self.instance.pk and self.instance.status != Artwork.Status.PENDING:
-                self.add_error(None, 'Esta instalación ya fue presentada. La coordinación gestiona su estado desde la revisión.')
-            if cleaned.get('uses_fire'):
-                for field in ('fire_details', 'extinguishing_plan', 'safety_responsible_email'):
-                    if not cleaned.get(field):
-                        self.add_error(field, 'Completá este campo para una instalación que utiliza fuego.')
+        if cleaned.get('uses_fire') and not self.fields['uses_fire'].disabled:
+            for field in ('fire_details', 'extinguishing_plan', 'safety_responsible_email'):
+                if not cleaned.get(field) and not self.fields[field].disabled:
+                    self.add_error(field, 'Completá este campo para una instalación que utiliza fuego.')
         return cleaned
 
     def save(self, commit=True):

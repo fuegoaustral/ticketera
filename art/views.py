@@ -292,16 +292,14 @@ def artwork_create(request, event_slug):
         messages.error(request, 'La inscripción de instalaciones está cerrada.')
         return redirect('art_dashboard')
 
-    action = request.POST.get('action', 'save')
     form = ArtworkForm(
         request.POST or None, request.FILES or None,
         instance=Artwork(event=program.event, owner=request.user, kind=Artwork.Kind.PLANNED),
-        program=program, owner=request.user, actor=request.user, action=action,
+        program=program, owner=request.user, actor=request.user,
     )
     if request.method == 'POST' and form.is_valid():
         with transaction.atomic():
-            if action == 'submit':
-                form.instance.submitted_at = timezone.now()
+            form.instance.submitted_at = timezone.now()
             artwork = form.save()
             transaction.on_commit(lambda invitations=list(form.new_invitations): _send_invitations(invitations))
         messages.success(
@@ -344,10 +342,10 @@ def _handle_artwork_edit(request, artwork):
     action = request.POST.get('action', 'save')
     form = ArtworkForm(
         request.POST or None, request.FILES or None,
-        instance=artwork, program=program, owner=artwork.owner, actor=request.user, action=action,
+        instance=artwork, program=program, owner=artwork.owner, actor=request.user,
     )
     if request.method == 'POST' and form.is_valid():
-        if action == 'submit':
+        if not form.instance.submitted_at:
             form.instance.submitted_at = timezone.now()
         artwork = form.save()
         if artwork.operations_group_id:
@@ -356,7 +354,7 @@ def _handle_artwork_edit(request, artwork):
         if action == 'checkout':
             _submit_checkout(request, artwork, program)
             return _artwork_redirect(artwork, 'checkout')
-        messages.success(request, 'La propuesta fue enviada.' if action == 'submit' else 'El borrador quedó guardado.')
+        messages.success(request, 'Cambios guardados.')
         return redirect('artwork_edit', artwork_id=artwork.pk)
 
     return render(request, 'art/form.html', _artwork_context(artwork, program, form))

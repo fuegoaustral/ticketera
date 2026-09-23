@@ -62,7 +62,7 @@ class ArtworkFlowTest(TestCase):
             grant_report_deadline=now + timedelta(days=30),
         )
 
-    def artwork_form(self, data, artwork=None, action='save', actor=None):
+    def artwork_form(self, data, artwork=None, actor=None):
         artwork = artwork or Artwork(event=self.event, owner=self.owner)
         return ArtworkForm(
             data,
@@ -70,7 +70,6 @@ class ArtworkFlowTest(TestCase):
             program=self.program,
             owner=artwork.owner,
             actor=actor or self.owner,
-            action=action,
         )
 
     def complete_profile(self, user):
@@ -164,7 +163,7 @@ class ArtworkFlowTest(TestCase):
         self.assertFalse(incomplete.is_valid())
         self.client.force_login(self.owner)
         response = self.client.post(reverse('artwork_create', args=[self.event.slug]), {
-            'kind': Artwork.Kind.POPUP, 'title': 'Faro', 'action': 'submit',
+            'kind': Artwork.Kind.POPUP, 'title': 'Faro',
         })
         artwork = Artwork.objects.get(owner=self.owner)
         self.assertRedirects(response, reverse('artwork_edit', args=[artwork.pk]))
@@ -189,7 +188,7 @@ class ArtworkFlowTest(TestCase):
             'Podés seguir modificándola libremente a medida que la instalación avance.',
         ])
 
-    def test_draft_save_does_not_claim_the_proposal_was_sent(self):
+    def test_save_keeps_the_status_and_confirms_the_changes(self):
         artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
         self.client.force_login(self.owner)
         response = self.client.post(reverse('artwork_edit', args=[artwork.pk]), {
@@ -200,7 +199,32 @@ class ArtworkFlowTest(TestCase):
         artwork.refresh_from_db()
         self.assertEqual(artwork.title, 'Borrador')
         self.assertEqual(artwork.status, Artwork.Status.PENDING)
-        self.assertEqual([str(message) for message in get_messages(response.wsgi_request)], ['El borrador quedó guardado.'])
+        self.assertEqual([str(message) for message in get_messages(response.wsgi_request)], ['Cambios guardados.'])
+
+    def test_save_confirmation_is_rendered_in_an_accessible_status_line(self):
+        artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse('artwork_edit', args=[artwork.pk]), {
+            'title': 'Faro', 'expected_version': artwork.version, 'action': 'save',
+        }, follow=True)
+
+        self.assertContains(response, 'role="status" aria-live="polite"')
+        self.assertContains(response, 'Cambios guardados.')
+        self.assertNotContains(response, 'Guardar borrador')
+        self.assertNotContains(response, 'Guardar y enviar propuesta')
+        self.assertNotContains(self.client.get(reverse('artwork_edit', args=[artwork.pk])), 'Cambios guardados.')
+
+    def test_saving_a_fire_artwork_requires_its_safety_details(self):
+        artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse('artwork_edit', args=[artwork.pk]), {
+            'title': 'Faro', 'uses_fire': 'on', 'expected_version': artwork.version,
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['form'].has_error('extinguishing_plan'))
+        artwork.refresh_from_db()
+        self.assertFalse(artwork.uses_fire)
 
     def test_creation_can_include_safety_budget_gallery_and_early_entry(self):
         self.program.registration_closes = timezone.now() + timedelta(days=1)
@@ -274,8 +298,6 @@ class ArtworkFlowTest(TestCase):
         self.assertTrue(unchanged.is_valid(), unchanged.errors)
 
     def test_planned_registration_is_closed(self):
-        form = self.artwork_form({'title': 'Faro'}, action='submit')
-        self.assertFalse(form.is_valid())
         self.client.force_login(self.owner)
         url = reverse('artwork_create', args=[self.event.slug])
         self.assertRedirects(self.client.get(url), reverse('art_dashboard'))
@@ -518,7 +540,7 @@ class ArtworkFlowTest(TestCase):
         self.assertContains(page, reverse('artwork_provider_edit', args=[artwork.pk, provider.pk]))
         self.assertContains(page, 'Ingreso anticipado')
         self.assertContains(page, 'Desarme y retiro')
-        self.assertContains(page, f'artwork-position-{artwork.pk}')
+        self.assertContains(page, "const key = 'art-position';")
         with self.assertRaises(IntegrityError), transaction.atomic():
             ArtworkProvider.objects.create(
                 artwork=artwork, company_name='Inválido', contact_first_name='Sin', contact_last_name='Operación',
@@ -571,10 +593,10 @@ class ArtworkFlowTest(TestCase):
         )
         self.client.force_login(self.owner)
         response = self.client.post(reverse('artwork_edit', args=[artwork.pk]), {
-            'kind': Artwork.Kind.POPUP, 'title': 'Reabrir', 'proposal': 'Texto',
-            'expected_version': artwork.version, 'action': 'submit',
+            'kind': Artwork.Kind.POPUP, 'title': '=IMPORTXML("evil")', 'proposal': 'Texto',
+            'expected_version': artwork.version, 'action': 'submit', 'status': Artwork.Status.PENDING,
         })
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
         artwork.refresh_from_db()
         self.assertEqual(artwork.status, Artwork.Status.ACTIVE)
 

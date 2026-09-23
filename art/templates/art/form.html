@@ -65,7 +65,7 @@
             {% include 'art/_field.html' with field=form.power_watts %}
             {% include 'art/_field.html' with field=form.uses_sound %}
             <h3 class="h5 mt-5 mb-2">Seguridad y uso de fuego</h3>
-            <p class="small text-muted">Si la instalación utiliza fuego, completá sus detalles, el plan de extinción y la persona responsable antes de enviarla.</p>
+            <p class="small text-muted">Si la instalación utiliza fuego, completá sus detalles, el plan de extinción y la persona responsable.</p>
             {% include 'art/_field.html' with field=form.uses_fire %}
             <div class="fire-fields">
                 {% include 'art/_field.html' with field=form.fire_details %}
@@ -110,7 +110,7 @@
                 {% if artwork.grant_requested and artwork.grant_justification and budget_items %}
                 <form method="post" action="{% url 'grant_submit' artwork.pk %}">{% csrf_token %}<button class="btn btn-primary mt-3" type="submit">Presentar solicitud de beca</button></form>
                 {% else %}
-                <div class="alert alert-info mt-3 mb-0"><strong>Antes de presentar:</strong> marcá “Solicito una beca”, completá la justificación, agregá al menos un ítem y guardá el borrador.</div>
+                <div class="alert alert-info mt-3 mb-0"><strong>Antes de presentar:</strong> marcá “Solicito una beca”, completá la justificación, agregá al menos un ítem y guardá los cambios.</div>
                 {% endif %}
             {% endif %}
             {% if artwork.grant_decision_notes %}<div class="alert alert-info mt-3"><strong>Devolución de becas:</strong><br>{{ artwork.grant_decision_notes|linebreaksbr }}</div>{% endif %}
@@ -282,10 +282,7 @@
         {% if program.is_current or can_manage %}
         <div class="save-bar d-flex flex-column flex-sm-row justify-content-between gap-2 py-3" data-sticky-actions>
             {% if can_manage and artwork %}<a class="btn btn-outline-secondary" href="{% url 'artwork_review' artwork.event.slug artwork.pk %}">Abrir en ESTAFA</a>{% else %}<span></span>{% endif %}
-            <div class="d-flex flex-column flex-sm-row gap-2">
-                <button class="btn btn-outline-primary" type="submit" form="artwork-form" name="action" value="save">Guardar borrador</button>
-                <button class="btn btn-primary" type="submit" form="artwork-form" name="action" value="submit">Guardar y enviar propuesta</button>
-            </div>
+            <button class="btn btn-primary" type="submit" form="artwork-form" name="action" value="save">Guardar</button>
         </div>
         {% else %}
         <div class="alert alert-secondary">Esta convocatoria es histórica y quedó disponible en modo lectura.</div>
@@ -407,5 +404,6 @@
 </script>
 {% include 'art/_image_preview.html' %}
 {% include 'art/_money_inputs.html' %}
+{% include 'art/_messages.html' %}
 {% include 'art/_restore_position.html' %}
 {% endblock %}
