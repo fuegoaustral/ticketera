@@ -60,7 +60,29 @@
                 });
             });
 
+            // Lift the chat bubble above sticky bottom action bars (marked with data-sticky-actions).
+            document.addEventListener("DOMContentLoaded", function () {
+                const bars = document.querySelectorAll("[data-sticky-actions]");
+                if (!bars.length || !("ResizeObserver" in window)) return;
+                const update = function () {
+                    const height = Math.max.apply(null, Array.from(bars, function (bar) { return bar.offsetHeight; }));
+                    document.documentElement.style.setProperty("--sticky-actions-height", height + "px");
+                };
+                const observer = new ResizeObserver(update);
+                bars.forEach(function (bar) { observer.observe(bar); });
+            });
+
       </script>
+      <style>
+        .woot-widget-bubble { bottom: calc(var(--sticky-actions-height, 0px) + 20px) !important; }
+        .woot-widget-bubble.woot-widget--expanded { bottom: calc(var(--sticky-actions-height, 0px) + 24px) !important; }
+        @media only screen and (min-width: 667px) {
+          .woot-widget-holder:not(.has-unread-view) {
+            bottom: calc(var(--sticky-actions-height, 0px) + 104px) !important;
+            max-height: min(640px, calc(100% - var(--sticky-actions-height, 0px) - 124px)) !important;
+          }
+        }
+      </style>
     {% endif %}
   </head>
   <body>
@@ -107,35 +129,47 @@
           </li>
         {% endif %}
         {% if request.user.is_authenticated %}
-          <li class="nav-item dropdown show">
-            <a class="nav-link dropdown-toggle" href="#" id="dropdownProfileButton" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" id="dropdownProfileButton" data-bs-toggle="dropdown" aria-expanded="false">
               Mi cuenta
             </a>
-            <div class="dropdown-menu" aria-labelledby="dropdownProfileButton">
-              <a class="dropdown-item" href="{% url "my_ticket" %}"><i class="fa-solid fa-ticket"></i> Mis Bonos | Eventos</a>
-              <a class="dropdown-item" href="{% url "mis_logros" %}"><i class="fa-solid fa-trophy"></i> Figuritas</a>
+            {% with url_name=request.resolver_match.url_name is_event_admin=user.admin_events.exists can_scan=user.scanner_events.exists can_caja=user.caja_events.exists %}
+            <div class="dropdown-menu dropdown-menu-end account-menu" aria-labelledby="dropdownProfileButton">
+              <div class="account-menu-user">
+                {% if user.get_full_name %}<div class="account-menu-name">{{ user.get_full_name }}</div>{% endif %}
+                <div class="account-menu-email">{{ user.email }}</div>
+              </div>
+              <hr class="dropdown-divider">
+              <a class="dropdown-item{% if nav_primary == "tickets" %} active{% endif %}" href="{% url "my_ticket" %}"{% if nav_primary == "tickets" %} aria-current="page"{% endif %}><i class="fa-solid fa-ticket" aria-hidden="true"></i> Mis bonos y eventos</a>
+              <a class="dropdown-item{% if nav_primary == "art" %} active{% endif %}" href="{% url "art_dashboard" %}"{% if nav_primary == "art" %} aria-current="page"{% endif %}><i class="fa-solid fa-palette" aria-hidden="true"></i> Arte</a>
+              <a class="dropdown-item{% if nav_primary == "logros" %} active{% endif %}" href="{% url "mis_logros" %}"{% if nav_primary == "logros" %} aria-current="page"{% endif %}><i class="fa-solid fa-trophy" aria-hidden="true"></i> Figuritas</a>
               {% if user.profile.miembro_sede %}
-              <a class="dropdown-item" href="{% url "la_sede" %}"><i class="fa-solid fa-house-chimney"></i> La Sede</a>
+              <a class="dropdown-item{% if nav_primary == "la_sede" %} active{% endif %}" href="{% url "la_sede" %}"{% if nav_primary == "la_sede" %} aria-current="page"{% endif %}><i class="fa-solid fa-house-chimney" aria-hidden="true"></i> La Sede</a>
               {% endif %}
-              <a class="dropdown-item" href="{% url "profile" %}"><i class="fa-solid fa-user"></i> Perfil</a>
-              {% if user.admin_events.exists %}
-              <a class="dropdown-item text-success" href="{% url "my_events" %}"><i class="fa-solid fa-cogs text-success"></i> Administrador de eventos</a>
+              <a class="dropdown-item{% if url_name == "profile" %} active{% endif %}" href="{% url "profile" %}"{% if url_name == "profile" %} aria-current="page"{% endif %}><i class="fa-solid fa-user" aria-hidden="true"></i> Perfil</a>
+              {% if is_event_admin or can_scan or can_caja or perms.logros.manage_achievements %}
+              <hr class="dropdown-divider">
+              {% if is_event_admin %}
+              <a class="dropdown-item{% if nav_primary == "events" %} active{% endif %}" href="{% url "my_events" %}"{% if nav_primary == "events" %} aria-current="page"{% endif %}><i class="fa-solid fa-calendar-days" aria-hidden="true"></i> Gestión de eventos</a>
               {% endif %}
-              {% if user.scanner_events.exists or user.admin_events.exists %}
-              <a class="dropdown-item text-success" href="{% url "scanner_events" %}"><i class="fa-solid fa-qrcode text-success"></i> Scanner</a>
+              {% if is_event_admin or can_scan %}
+              <a class="dropdown-item{% if nav_primary == "scanner" %} active{% endif %}" href="{% url "scanner_events" %}"{% if nav_primary == "scanner" %} aria-current="page"{% endif %}><i class="fa-solid fa-qrcode" aria-hidden="true"></i> Scanner</a>
               {% endif %}
-              {% if user.caja_events.exists or user.admin_events.exists %}
-              <a class="dropdown-item text-success" href="{% url "caja_events" %}"><i class="fa-solid fa-cash-register text-success"></i> Cajas</a>
+              {% if is_event_admin or can_caja %}
+              <a class="dropdown-item{% if nav_primary == "caja" %} active{% endif %}" href="{% url "caja_events" %}"{% if nav_primary == "caja" %} aria-current="page"{% endif %}><i class="fa-solid fa-cash-register" aria-hidden="true"></i> Cajas</a>
               {% endif %}
               {% if perms.logros.manage_achievements %}
-              <a class="dropdown-item text-success" href="{% url "admin_logros" %}"><i class="fa-solid fa-trophy text-success"></i> Administrar figuritas</a>
-              <a class="dropdown-item text-success" href="{% url "admin_logros_assign" %}"><i class="fa-solid fa-user-plus text-success"></i> Asignar figuritas</a>
+              <a class="dropdown-item{% if nav_primary == "admin_logros" %} active{% endif %}" href="{% url "admin_logros" %}"{% if nav_primary == "admin_logros" %} aria-current="page"{% endif %}><i class="fa-solid fa-trophy" aria-hidden="true"></i> Gestión de figuritas</a>
               {% endif %}
-              <a class="dropdown-item" href="https://fuegoaustral.org/el-evento/10-principios/" target="_blank">10 principios</a>
-              <a class="dropdown-item" href="https://fuegoaustral.org/faq/" target="_blank">Preguntas frecuentes</a>
-              <a class="dropdown-item" href="https://fuegoaustral.org/prepararse/" target="_blank">Guía de supervivencia</a>
-              <a class="dropdown-item text-danger" href="{% url "account_logout" %}"><i class="fa-solid fa-power-off text-danger"></i> Cerrar sesión</a>
+              {% endif %}
+              <hr class="dropdown-divider">
+              <a class="dropdown-item account-menu-external" href="https://fuegoaustral.org/el-evento/10-principios/" target="_blank" rel="noopener">10 principios<span class="visually-hidden"> (se abre en una pestaña nueva)</span><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
+              <a class="dropdown-item account-menu-external" href="https://fuegoaustral.org/faq/" target="_blank" rel="noopener">Preguntas frecuentes<span class="visually-hidden"> (se abre en una pestaña nueva)</span><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
+              <a class="dropdown-item account-menu-external" href="https://fuegoaustral.org/prepararse/" target="_blank" rel="noopener">Guía de supervivencia<span class="visually-hidden"> (se abre en una pestaña nueva)</span><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
+              <hr class="dropdown-divider">
+              <a class="dropdown-item" href="{% url "account_logout" %}"><i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i> Cerrar sesión</a>
             </div>
+            {% endwith %}
           </li>
         {% else %}
           <li class="nav-item">

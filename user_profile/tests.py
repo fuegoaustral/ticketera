@@ -4,6 +4,7 @@ from datetime import timedelta
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
+from django.urls import reverse
 from django.utils import timezone
 
 from user_profile.forms import (
@@ -126,3 +127,13 @@ class EventRequestFormTests(TestCase):
             files={'header_image': SimpleUploadedFile('banner.gif', TINY_GIF, content_type='image/gif')},
         )
         self.assertTrue(form.is_valid(), form.errors)
+
+
+class LoginFormTests(TestCase):
+    def test_failed_login_keeps_the_email(self):
+        User.objects.create_user(username='ana', email='ana@example.com', password='correcta')
+        response = self.client.post(reverse('account_login'), {'login': 'ana@example.com', 'password': 'incorrecta'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Usuario o contraseña incorrectos.')
+        self.assertContains(response, 'value="ana@example.com"')
+        self.assertContains(response, 'autofocus')

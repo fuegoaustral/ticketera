@@ -118,6 +118,7 @@ class ArtworkForm(forms.ModelForm):
 
         # El título identifica la obra; la descripción se puede completar después.
         self.fields['title'].required = True
+        self.fields['title'].help_text = 'Podés cambiar el nombre cuando quieras.'
         self.fields['proposal'].required = False
 
         if not program.grants_enabled:

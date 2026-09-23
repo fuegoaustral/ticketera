@@ -30,12 +30,9 @@
                     </p>
                 </div>
                 {% if program.registration_is_open %}
-                <form method="post" action="{% url 'artwork_create' program.event.slug %}">
-                    {% csrf_token %}
-                    <button class="btn btn-primary text-nowrap" type="submit">
-                        <i class="fas fa-plus me-2" aria-hidden="true"></i>Nueva obra
-                    </button>
-                </form>
+                <a class="btn btn-primary text-nowrap" href="{% url 'artwork_create' program.event.slug %}">
+                    <i class="fas fa-plus me-2" aria-hidden="true"></i>Nueva obra
+                </a>
                 {% endif %}
             </div>
         {% empty %}

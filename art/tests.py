@@ -76,34 +76,60 @@ class ArtworkFlowTest(TestCase):
             self.assertEqual(field.widget.attrs.get('form'), 'artwork-form')
         self.assertTrue(all(checkpoint['anchor'] for checkpoint in _checkpoints(self.program)))
 
-    def test_public_submission_requires_only_title_and_is_planned(self):
+    def open_registration(self):
         self.program.registration_closes = timezone.now() + timedelta(days=1)
         self.program.save(update_fields=['registration_closes'])
+
+    def test_new_artwork_form_is_blank_until_the_first_valid_save(self):
+        self.open_registration()
+        self.client.force_login(self.owner)
+        url = reverse('artwork_create', args=[self.event.slug])
+        for _ in range(3):
+            response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Podés cambiar el nombre cuando quieras.')
+        self.assertContains(response, 'Guardá la obra para subir fotos.')
+        self.assertFalse(Artwork.objects.exists())
+
+        response = self.client.post(url, {'title': '', 'action': 'save'})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['form'].has_error('title'))
+        self.assertFalse(Artwork.objects.exists())
+
+    def test_public_submission_requires_only_title_and_is_planned(self):
+        self.open_registration()
         incomplete = self.artwork_form({})
         self.assertFalse(incomplete.is_valid())
         self.client.force_login(self.owner)
-        response = self.client.post(reverse('artwork_create', args=[self.event.slug]))
+        response = self.client.post(reverse('artwork_create', args=[self.event.slug]), {
+            'kind': Artwork.Kind.POPUP, 'title': 'Faro', 'action': 'submit',
+        })
         artwork = Artwork.objects.get(owner=self.owner)
         self.assertRedirects(response, reverse('artwork_edit', args=[artwork.pk]))
-        response = self.client.post(reverse('artwork_edit', args=[artwork.pk]), {
-            'kind': Artwork.Kind.POPUP,
-            'title': 'Faro',
-            'expected_version': artwork.version,
-            'action': 'submit',
-        })
-        self.assertEqual(response.status_code, 302)
-        artwork.refresh_from_db()
+        self.assertEqual(artwork.event, self.event)
         self.assertEqual(artwork.kind, Artwork.Kind.PLANNED)
         self.assertEqual(artwork.status, Artwork.Status.PENDING)
         self.assertEqual(artwork.proposal, '')
         self.assertIsNone(artwork.operations_group)
 
-    def test_draft_save_does_not_claim_the_proposal_was_sent(self):
-        self.program.registration_closes = timezone.now() + timedelta(days=1)
-        self.program.save(update_fields=['registration_closes'])
+    def test_first_save_creates_a_draft(self):
+        self.open_registration()
         self.client.force_login(self.owner)
-        self.client.post(reverse('artwork_create', args=[self.event.slug]))
+        response = self.client.post(reverse('artwork_create', args=[self.event.slug]), {
+            'title': 'Borrador', 'action': 'save',
+        })
         artwork = Artwork.objects.get(owner=self.owner)
+        self.assertRedirects(response, reverse('artwork_edit', args=[artwork.pk]))
+        self.assertEqual(artwork.title, 'Borrador')
+        self.assertEqual(artwork.status, Artwork.Status.PENDING)
+        self.assertEqual([str(message) for message in get_messages(response.wsgi_request)], [
+            'La obra quedó inscripta. Queda pendiente de aprobación por ESTAFA. '
+            'Podés seguir modificándola libremente a medida que la obra avance.',
+        ])
+
+    def test_draft_save_does_not_claim_the_proposal_was_sent(self):
+        artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
+        self.client.force_login(self.owner)
         response = self.client.post(reverse('artwork_edit', args=[artwork.pk]), {
             'title': 'Borrador', 'expected_version': artwork.version, 'action': 'save',
         })
@@ -118,7 +144,7 @@ class ArtworkFlowTest(TestCase):
         self.program.registration_closes = timezone.now() + timedelta(days=1)
         self.program.save(update_fields=['registration_closes'])
         self.client.force_login(self.owner)
-        self.client.post(reverse('artwork_create', args=[self.event.slug]))
+        self.client.post(reverse('artwork_create', args=[self.event.slug]), {'title': 'Faro'})
         artwork = Artwork.objects.get(owner=self.owner)
         editor = self.client.get(reverse('artwork_edit', args=[artwork.pk]))
         self.assertContains(editor, 'Agregar proveedor')
@@ -147,6 +173,28 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(artwork.photos.count(), 1)
         self.assertEqual(artwork.logistics_people.count(), 1)
 
+    def test_cleanup_migration_deletes_only_empty_drafts(self):
+        from importlib import import_module
+
+        from django.apps import apps
+        cleanup = import_module('art.migrations.0003_delete_empty_artwork_drafts').delete_empty_drafts
+        # Filas previas a la migración de estados, cuando existía 'draft'.
+        empty = Artwork.objects.create(event=self.event, owner=self.owner, status='draft')
+        titled = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro', status='draft')
+        with_photo = Artwork.objects.create(event=self.event, owner=self.owner, status='draft')
+        ArtworkPhoto.objects.create(artwork=with_photo, image=self.image('foto.gif'), stage=ArtworkPhoto.Stage.PROPOSAL)
+        edited = Artwork.objects.create(event=self.event, owner=self.owner, version=2, status='draft')
+        with_collaborator = Artwork.objects.create(event=self.event, owner=self.owner, status='draft')
+        with_collaborator.collaborators.add(self.collaborator)
+
+        cleanup(apps, None)
+
+        self.assertFalse(Artwork.objects.filter(pk=empty.pk).exists())
+        self.assertEqual(
+            set(Artwork.objects.values_list('pk', flat=True)),
+            {titled.pk, with_photo.pk, edited.pk, with_collaborator.pk},
+        )
+
     def test_public_description_limit_is_configurable(self):
         self.program.public_description_max_length = 10
         self.program.save(update_fields=['public_description_max_length'])
@@ -167,8 +215,9 @@ class ArtworkFlowTest(TestCase):
         form = self.artwork_form({'title': 'Faro'}, action='submit')
         self.assertFalse(form.is_valid())
         self.client.force_login(self.owner)
-        self.assertEqual(self.client.get(reverse('artwork_create', args=[self.event.slug])).status_code, 405)
-        response = self.client.post(reverse('artwork_create', args=[self.event.slug]))
+        url = reverse('artwork_create', args=[self.event.slug])
+        self.assertRedirects(self.client.get(url), reverse('art_dashboard'))
+        response = self.client.post(url, {'title': 'Faro'})
         self.assertRedirects(response, reverse('art_dashboard'))
         self.assertFalse(Artwork.objects.filter(owner=self.owner).exists())
 
@@ -250,6 +299,14 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(response.url, f"{reverse('artwork_edit', args=[artwork.pk])}#beca")
         artwork.refresh_from_db()
         self.assertEqual(artwork.grant_status, Artwork.GrantStatus.PENDING)
+
+    def test_save_bar_lifts_chat_bubble(self):
+        artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
+        self.client.force_login(self.owner)
+        page = self.client.get(reverse('artwork_edit', args=[artwork.pk]))
+        self.assertContains(page, 'class="save-bar', count=1)
+        self.assertContains(page, 'data-sticky-actions>', count=1)
+        self.assertContains(page, '--sticky-actions-height')
 
     def test_permissions_invitation_and_multiple_photo_upload(self):
         artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro', proposal='Texto')
@@ -810,7 +867,7 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual([a.title for a in self.client.get(url, {'status': 'active'}).context['artworks']], [])
 
     def test_status_migration_maps_previous_values(self):
-        new_status = import_module('art.migrations.0003_artwork_status_lifecycle').new_status
+        new_status = import_module('art.migrations.0004_artwork_status_lifecycle').new_status
         verified_at = timezone.now()
         for old, completed, verified, expected in (
             ('draft', False, None, 'pending'), ('submitted', False, None, 'pending'),

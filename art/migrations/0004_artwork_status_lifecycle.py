@@ -34,7 +34,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('art', '0002_rename_tables'),
+        ('art', '0003_delete_empty_artwork_drafts'),
     ]
 
     operations = [
