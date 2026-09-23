@@ -8,17 +8,18 @@
     <a class="small text-decoration-none" href="{% url 'art_dashboard' %}"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i> Volver a Arte</a>
     <header class="mt-3 mb-4">
         <p class="text-uppercase text-muted small fw-semibold mb-2">{{ program.event.name }}</p>
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-start gap-3">
-            <div>
-                <h2 class="h3 mb-2">Expediente de la obra</h2>
-                <p class="text-muted mb-0">Guardá avances por sección. Las fechas cerradas quedan visibles para consulta.</p>
-            </div>
-            {% if artwork %}<span class="badge bg-light text-dark border mt-1">{{ artwork.get_status_display }}</span>{% endif %}
-        </div>
+        <h2 class="h3 mb-2">Expediente de la obra</h2>
+        <p class="text-muted mb-0">Guardá avances por sección. Las fechas cerradas quedan visibles para consulta.</p>
     </header>
 
+    {% if artwork %}
+    <div class="artwork-status mb-4">
+        <p class="d-flex flex-column flex-sm-row align-items-sm-center gap-2 mb-0">{% include 'art/_status_badge.html' %}<span>{{ artwork.stage_hint }}</span></p>
+        {% if artwork.review_feedback %}<div class="artwork-status-message mt-3"><strong>Mensaje de ESTAFA</strong><br>{{ artwork.review_feedback|linebreaksbr }}</div>{% endif %}
+    </div>
+    {% endif %}
+
     {% if not program.is_current %}<div class="alert alert-info">Esta edición es histórica. La información se conserva en modo consulta.</div>{% endif %}
-    {% if artwork.review_feedback %}<div class="alert alert-warning"><strong>Devolución de coordinación:</strong><br>{{ artwork.review_feedback|linebreaksbr }}</div>{% endif %}
     <p class="small text-muted"><span aria-hidden="true">*</span> Campo obligatorio.</p>
 
     <ol class="checkpoint-list list-unstyled d-grid mb-4" aria-label="Estado de fechas límite">
@@ -228,10 +229,9 @@
         <section class="form-section" id="checkout" aria-labelledby="checkout-title">
             <div class="section-heading">
                 <div><span>{% if program.grants_enabled %}07{% else %}06{% endif %}</span><h2 id="checkout-title">Checkout</h2></div>
-                {% if artwork.checkout_verified_at %}<span class="badge bg-success">Verificado</span>{% elif form.checkout_completed.field.disabled %}<span class="badge bg-secondary">No editable</span>{% endif %}
+                {% if artwork.checkout_verified_at %}<span class="badge bg-success">Verificado</span>{% elif artwork.checkout_completed %}<span class="badge border" style="background:#e7f1fb;color:#0b4a7d !important;border-color:#b6d4f0 !important">Enviado</span>{% elif form.checkout_notes.field.disabled %}<span class="badge bg-secondary">No editable</span>{% endif %}
             </div>
-            <p class="text-muted"><strong>Paso 1, equipo de la obra:</strong> solicitá la verificación cuando la obra esté retirada y el espacio limpio. El nexo de Arte completa el paso 2 desde el backoffice.</p>
-            {% include 'art/_field.html' with field=form.checkout_completed %}
+            <p class="text-muted">Se habilita cuando empieza el evento. Cuando retires la obra y limpies el espacio, subí fotos del estado final y enviá el checkout: el equipo de Arte lo verifica en el predio.</p>
             <div class="row"><div class="col-md-6">{% include 'art/_field.html' with field=form.checkout_team_responsible %}</div><div class="col-md-6">{% include 'art/_field.html' with field=form.checkout_art_responsible %}</div></div>
             {% include 'art/_field.html' with field=form.checkout_notes %}
             {% if artwork %}
@@ -249,6 +249,7 @@
                 {% endif %}
                 {% if checkout_photos %}<div class="row g-3">{% for photo in checkout_photos %}<div class="col-6 col-lg-4"><figure class="gallery-card mb-0"><a href="{{ photo.image.url }}" target="_blank" rel="noopener"><img src="{{ photo.image.url }}" alt="{{ photo.caption|default:photo.get_category_display }}"></a><figcaption class="p-2 small"><strong>{{ photo.get_category_display }}</strong>{% if photo.caption %}<br>{{ photo.caption }}{% endif %}</figcaption>{% if can_edit_checkout %}<form method="post" action="{% url 'artwork_checkout_photo_delete' artwork.pk photo.pk %}">{% csrf_token %}<button class="btn btn-sm btn-link text-danger p-2" type="submit" onclick="return confirm('¿Eliminar esta foto?')">Eliminar</button></form>{% endif %}</figure></div>{% endfor %}</div>{% else %}<p class="small text-muted mb-0">Todavía no hay fotos de checkout.</p>{% endif %}
             </div>
+            {% if can_submit_checkout %}<button class="btn btn-primary mt-3" type="submit" form="artwork-form" name="action" value="checkout">Enviar checkout</button>{% endif %}
             {% endif %}
         </section>
 
@@ -292,6 +293,9 @@
 <style>
     .art-form-page { max-width: 920px; overflow-wrap: anywhere; }
     .art-form-page header p { max-width: 68ch; }
+    .artwork-status { padding: 1rem; border: 1px solid #dee2e6; border-radius: .5rem; }
+    .artwork-status .badge { align-self: flex-start; font-size: .8rem; padding: .45em .7em; }
+    .artwork-status-message { padding-top: .75rem; border-top: 1px solid #dee2e6; max-width: 68ch; }
     .checkpoint-list { grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 1rem; }
     .checkpoint { border-bottom: 1px solid #dee2e6; }
     .checkpoint-dot { display: inline-block; width: .65rem; height: .65rem; margin-right: .5rem; border-radius: 50%; background: #6c757d; }

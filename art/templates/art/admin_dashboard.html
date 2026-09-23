@@ -64,7 +64,7 @@
             {% for artwork in artworks %}
                 <tr>
                     <td><strong>{{ artwork.title|default:'Obra sin título' }}</strong><br><small class="text-muted">{{ artwork.get_kind_display }} · {{ artwork.owner.email|default:'Cuenta archivada' }}</small></td>
-                    <td>{{ artwork.get_status_display }}</td>
+                    <td>{% include 'art/_status_badge.html' %}{% if artwork.status == 'pending' %}<form class="mt-2" method="post" action="{% url 'artwork_status' event.slug artwork.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-sm btn-outline-success art-approve" type="submit" name="transition" value="approve" aria-label="Aprobar {{ artwork.title }}"><i class="fas fa-check me-1" aria-hidden="true"></i>Aprobar</button></form>{% endif %}</td>
                     <td class="text-nowrap">{% if artwork.uses_fire %}<span class="badge text-bg-warning">Tiene fuego</span>{% endif %}{% if artwork.uses_sound %}<span class="badge text-bg-info">Tiene sonido</span>{% endif %}{% if not artwork.uses_fire and not artwork.uses_sound %}<span class="text-muted">Sin etiquetas</span>{% endif %}</td>
                     <td>{{ artwork.get_grant_status_display }}{% if artwork.grant_requested %}<br><small>Presupuesto ARS {{ artwork.budget_total_ars|floatformat:2 }}</small>{% endif %}</td>
                     <td>{{ artwork.assigned_location|default:'Sin asignar' }}</td>
@@ -86,6 +86,7 @@
     .art-table { min-width: 1050px; margin: 0; }
     .art-table thead { position: sticky; top: 0; z-index: 1; background: oklch(95% .01 160); }
     .art-table th { white-space: nowrap; }
+    .art-approve { min-height: 44px; }
     .art-table td, .art-table th { padding: .65rem; }
     @media (max-width: 1199px) { .art-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); } .filter-search { grid-column: span 2; } }
     @media (max-width: 767px) { .art-filters { grid-template-columns: 1fr; } .filter-search { grid-column: auto; } .filter-actions .btn { min-height: 44px; } }

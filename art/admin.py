@@ -197,7 +197,7 @@ class ArtworkAdmin(admin.ModelAdmin):
     list_filter = ('event', 'kind', 'status', 'grant_status', 'checkout_completed', 'understanding_letter_physical_received', 'submitted_at')
     search_fields = ('title', 'owner__email', 'public_description')
     autocomplete_fields = ('owner', 'collaborators', 'operations_group', 'checkin_art_by', 'checkout_art_responsible', 'checkout_verified_by', 'safety_responsible')
-    readonly_fields = ('submitted_at', 'checkin_art_by', 'checkout_requested_at', 'checkout_verified_by', 'created_at', 'updated_at', 'version')
+    readonly_fields = ('submitted_at', 'status_changed_at', 'status_changed_by', 'checkin_art_by', 'checkout_requested_at', 'checkout_verified_by', 'created_at', 'updated_at', 'version')
     fieldsets = (
         ('Obra', {'fields': ('event', 'owner', 'collaborators', 'operations_group', 'kind', 'title')}),
         ('Check-in de obra', {'fields': ('checkin_arrived_at', 'checkin_art_at', 'checkin_art_by', 'checkin_placed', 'checkin_placement_changed', 'checkin_placement_change_notes', 'understanding_letter', 'understanding_letter_physical_received', 'understanding_letter_physical_custodian', 'understanding_letter_physical_notes', 'understanding_letter_physical_waiver', 'understanding_letter_physical_waiver_reason')}),
@@ -207,7 +207,7 @@ class ArtworkAdmin(admin.ModelAdmin):
         ('Logística', {'fields': ('arrival_date', 'departure_date', 'crew', 'providers')}),
         ('Checkout, paso 1, equipo de la obra', {'fields': ('checkout_completed', 'checkout_team_responsible', 'checkout_notes', 'checkout_requested_at')}),
         ('Checkout, paso 2, Arte', {'fields': ('checkout_art_responsible', 'checkout_verified_at', 'checkout_verified_by')}),
-        ('Seguimiento', {'fields': ('status', 'review_feedback', 'benefit_status', 'benefit_notes', 'submitted_at', 'version', 'created_at', 'updated_at')}),
+        ('Seguimiento', {'fields': ('status', 'status_changed_at', 'status_changed_by', 'review_feedback', 'benefit_status', 'benefit_notes', 'submitted_at', 'version', 'created_at', 'updated_at')}),
     )
     inlines = [ArtworkBudgetItemInline, ArtworkExpenseItemInline, ArtworkPhotoInline, ArtworkCheckoutPhotoInline, ArtworkInvitationInline, ArtworkLogisticsPersonInline, ArtworkProviderInline]
     actions = ('approve_grant_reports', 'reopen_grant_reports')

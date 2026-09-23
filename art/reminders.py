@@ -22,7 +22,7 @@ BLOCKS = {
     )),
     'guide': ('Desplegable', lambda artwork: not artwork.public_title or not artwork.public_description),
     'logistics': ('Ingreso y salida', lambda artwork: not artwork.arrival_date or not artwork.departure_date),
-    'checkout': ('Checkout', lambda artwork: not artwork.checkout_completed),
+    'checkout': ('Checkout', lambda artwork: artwork.status == artwork.Status.ACTIVE),
     'grant_report': ('Rendición de beca', lambda artwork: artwork.grant_status in (
         artwork.GrantStatus.APPROVED, artwork.GrantStatus.PAID,
     ) and (
@@ -66,7 +66,7 @@ def send_art_reminders(event=None, context=None):
             if not deadline or (timezone.localdate(deadline) - today).days not in reminder_days:
                 continue
             for artwork in program.event.artworks.select_related('owner').prefetch_related('collaborators'):
-                if artwork.status in (artwork.Status.REJECTED, artwork.Status.CANCELLED, artwork.Status.COMPLETED):
+                if artwork.status in (artwork.Status.REJECTED, artwork.Status.CHECKOUT_VERIFIED):
                     continue
                 if not incomplete(artwork):
                     continue

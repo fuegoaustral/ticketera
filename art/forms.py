@@ -32,9 +32,7 @@ ARTWORK_BLOCK_FIELDS = {
     'grant': ('grant_requested', 'grant_justification'),
     'guide': ('public_title', 'public_description', 'preferred_location'),
     'logistics': ('arrival_date', 'departure_date'),
-    'checkout': (
-        'checkout_completed', 'checkout_team_responsible', 'checkout_art_responsible', 'checkout_notes',
-    ),
+    'checkout': ('checkout_team_responsible', 'checkout_art_responsible', 'checkout_notes'),
     'understanding_letter_digital': ('understanding_letter',),
     'grant_report': ('grant_report',),
 }
@@ -138,7 +136,8 @@ class ArtworkForm(forms.ModelForm):
         if self.instance.grant_status == Artwork.GrantStatus.CLOSED:
             self.fields['grant_report'].disabled = True
 
-        if self.instance.checkout_verified_at:
+        checkout_locked = self.instance.status not in (Artwork.Status.ACTIVE, Artwork.Status.CHECKOUT_SUBMITTED)
+        if self.instance.checkout_verified_at or (checkout_locked and not self.is_manager):
             for name in self.BLOCK_FIELDS['checkout']:
                 self.fields[name].disabled = True
 
@@ -150,7 +149,7 @@ class ArtworkForm(forms.ModelForm):
             self.fields['collaborator_emails'].disabled = True
 
         if not self.is_manager:
-            if not program.is_current:
+            if not program.is_current or self.instance.status == Artwork.Status.REJECTED:
                 for name, field in self.fields.items():
                     if name != 'expected_version':
                         field.disabled = True
@@ -215,9 +214,7 @@ class ArtworkForm(forms.ModelForm):
         if self.action == 'submit':
             if not self.program.is_current:
                 self.add_error(None, 'Esta convocatoria ya es histórica y no admite nuevas presentaciones.')
-            if self.instance.pk and self.instance.status not in (
-                Artwork.Status.DRAFT, Artwork.Status.CHANGES_REQUESTED,
-            ):
+            if self.instance.pk and self.instance.status != Artwork.Status.PENDING:
                 self.add_error(None, 'Esta obra ya fue presentada. La coordinación gestiona su estado desde la revisión.')
             if cleaned.get('uses_fire'):
                 for field in ('fire_details', 'extinguishing_plan', 'safety_responsible_email'):
@@ -559,7 +556,7 @@ class ArtworkReviewForm(forms.ModelForm):
             'understanding_letter', 'understanding_letter_physical_received',
             'understanding_letter_physical_custodian', 'understanding_letter_physical_notes',
             'understanding_letter_physical_waiver', 'understanding_letter_physical_waiver_reason',
-            'status', 'review_feedback', 'grant_status', 'grant_approved_amount_ars',
+            'grant_status', 'grant_approved_amount_ars',
             'grant_decision_notes', 'grant_paid_at', 'grant_payment_reference',
             'assigned_location', 'placement_notes', 'checkout_team_responsible',
             'checkout_art_responsible', 'checkout_verified_at',

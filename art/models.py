@@ -94,9 +94,17 @@ class ArtProgram(BaseModel):
             and (not self.registration_closes or at <= self.registration_closes)
         )
 
+    @property
+    def checkout_opens_at(self):
+        """Sin fecha propia, el checkout se habilita cuando empieza el evento."""
+        return self.checkout_opens or self.event.start
+
+    def checkout_is_open(self, at=None):
+        return (at or timezone.now()) >= self.checkout_opens_at
+
     def checkpoint_state(self, block, at=None):
         at = at or timezone.now()
-        opens = getattr(self, f'{block}_opens', None)
+        opens = self.checkout_opens_at if block == 'checkout' else getattr(self, f'{block}_opens', None)
         if opens and at < opens:
             return 'upcoming'
         deadline = getattr(self, f'{block}_deadline')
@@ -119,14 +127,23 @@ class Artwork(BaseModel):
         CLOSED = 'closed', 'Rendición aprobada'
 
     class Status(models.TextChoices):
-        DRAFT = 'draft', 'Borrador'
-        SUBMITTED = 'submitted', 'En revisión'
-        CHANGES_REQUESTED = 'changes', 'Requiere cambios'
-        ACCEPTED = 'accepted', 'Aceptada'
-        REJECTED = 'rejected', 'No aceptada'
-        INSTALLED = 'installed', 'Instalada'
-        COMPLETED = 'completed', 'Finalizada'
-        CANCELLED = 'cancelled', 'Cancelada'
+        PENDING = 'pending', 'Inscripción pendiente'
+        ACTIVE = 'active', 'Inscripción activa'
+        REJECTED = 'rejected', 'Rechazada'
+        CHECKOUT_SUBMITTED = 'checkout', 'Checkout enviado'
+        CHECKOUT_VERIFIED = 'verified', 'Checkout verificado'
+
+    # Etapa que se muestra: una inscripción activa pasa a "Checkout pendiente"
+    # cuando se habilita el checkout, sin que nadie cambie el estado guardado.
+    CHECKOUT_PENDING = 'checkout_pending'
+    STAGES = {
+        Status.PENDING: ('Inscripción pendiente', 'ESTAFA está revisando tu inscripción. Podés seguir editándola mientras tanto.'),
+        Status.ACTIVE: ('Inscripción activa', 'Tu obra está confirmada. Completá cada sección antes de su cierre.'),
+        CHECKOUT_PENDING: ('Checkout pendiente', 'Cuando retires la obra y limpies el espacio, completá el checkout y envialo.'),
+        Status.CHECKOUT_SUBMITTED: ('Checkout enviado', 'El equipo de Arte va a verificar el retiro y la limpieza.'),
+        Status.CHECKOUT_VERIFIED: ('Checkout verificado', '¡Gracias por tu obra!'),
+        Status.REJECTED: ('Rechazada', 'ESTAFA no aceptó esta obra para esta edición.'),
+    }
 
     class BenefitStatus(models.TextChoices):
         NOT_EVALUATED = 'none', 'Sin evaluar'
@@ -220,8 +237,13 @@ class Artwork(BaseModel):
     understanding_letter_physical_waiver_reason = models.TextField(
         blank=True, verbose_name='Motivo de la excepción de carta física',
     )
-    status = models.CharField(max_length=12, choices=Status.choices, default=Status.DRAFT, verbose_name='Estado de la obra')
-    review_feedback = models.TextField(blank=True, verbose_name='Devolución al equipo de la obra')
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING, verbose_name='Estado de la obra')
+    status_changed_at = models.DateTimeField(null=True, blank=True, verbose_name='Cambio de estado')
+    status_changed_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='artwork_status_changes', verbose_name='Estado cambiado por',
+    )
+    review_feedback = models.TextField(blank=True, verbose_name='Mensaje de ESTAFA al equipo de la obra')
     benefit_status = models.CharField(max_length=10, choices=BenefitStatus.choices, default=BenefitStatus.NOT_EVALUATED, verbose_name='Beneficio para la próxima edición')
     benefit_notes = models.TextField(blank=True, verbose_name='Notas del beneficio')
     version = models.PositiveIntegerField(default=1, editable=False)
@@ -243,6 +265,31 @@ class Artwork(BaseModel):
 
     def can_administer(self, user):
         return self.can_manage(user) or self.checkout_art_responsible_id == user.pk
+
+    @property
+    def stage(self):
+        if self.status == self.Status.ACTIVE:
+            try:
+                if self.event.art_program.checkout_is_open():
+                    return self.CHECKOUT_PENDING
+            except ArtProgram.DoesNotExist:
+                pass
+        return self.status
+
+    @property
+    def stage_label(self):
+        return self.STAGES[self.stage][0]
+
+    @property
+    def stage_hint(self):
+        if self.status == self.Status.PENDING and not self.title:
+            return 'Poné un nombre a la obra y guardá para que ESTAFA pueda revisarla.'
+        return self.STAGES[self.stage][1]
+
+    def set_status(self, status, user):
+        self.status = status
+        self.status_changed_at = timezone.now()
+        self.status_changed_by = user
 
     def clean(self):
         errors = {}

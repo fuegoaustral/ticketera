@@ -1,5 +1,7 @@
 from datetime import timedelta
 from decimal import Decimal
+from importlib import import_module
+from unittest.mock import patch
 
 from allauth.account.models import EmailAddress
 from django.contrib.auth.models import User
@@ -92,9 +94,9 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(response.status_code, 302)
         artwork.refresh_from_db()
         self.assertEqual(artwork.kind, Artwork.Kind.PLANNED)
-        self.assertEqual(artwork.status, Artwork.Status.SUBMITTED)
+        self.assertEqual(artwork.status, Artwork.Status.PENDING)
         self.assertEqual(artwork.proposal, '')
-        self.assertEqual(artwork.operations_group.event, self.event)
+        self.assertIsNone(artwork.operations_group)
 
     def test_draft_save_does_not_claim_the_proposal_was_sent(self):
         self.program.registration_closes = timezone.now() + timedelta(days=1)
@@ -109,7 +111,7 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(response.status_code, 302)
         artwork.refresh_from_db()
         self.assertEqual(artwork.title, 'Borrador')
-        self.assertEqual(artwork.status, Artwork.Status.DRAFT)
+        self.assertEqual(artwork.status, Artwork.Status.PENDING)
         self.assertEqual([str(message) for message in get_messages(response.wsgi_request)], ['El borrador quedó guardado.'])
 
     def test_creation_can_include_safety_budget_gallery_and_early_entry(self):
@@ -316,7 +318,12 @@ class ArtworkFlowTest(TestCase):
         self.assertNotIn('Obra silenciosa', exported)
 
     def test_structured_logistics_checkout_and_grant_item_images(self):
-        artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro', proposal='Texto', grant_requested=True)
+        artwork = Artwork.objects.create(
+            event=self.event, owner=self.owner, title='Faro', proposal='Texto', grant_requested=True,
+            status=Artwork.Status.ACTIVE,
+        )
+        self.program.checkout_opens = timezone.now() - timedelta(hours=1)
+        self.program.save(update_fields=['checkout_opens'])
         self.client.force_login(self.owner)
         entry_at = timezone.localtime().replace(hour=9, minute=30, second=0, microsecond=0)
         early_exit_at = entry_at + timedelta(hours=8, minutes=30)
@@ -441,7 +448,7 @@ class ArtworkFlowTest(TestCase):
     def test_security_boundaries(self):
         artwork = Artwork.objects.create(
             event=self.event, owner=self.owner, title='=IMPORTXML("evil")',
-            proposal='Texto', status=Artwork.Status.ACCEPTED,
+            proposal='Texto', status=Artwork.Status.ACTIVE,
         )
         self.client.force_login(self.owner)
         response = self.client.post(reverse('artwork_edit', args=[artwork.pk]), {
@@ -450,7 +457,7 @@ class ArtworkFlowTest(TestCase):
         })
         self.assertEqual(response.status_code, 200)
         artwork.refresh_from_db()
-        self.assertEqual(artwork.status, Artwork.Status.ACCEPTED)
+        self.assertEqual(artwork.status, Artwork.Status.ACTIVE)
 
         artwork.grant_requested = True
         artwork.grant_status = Artwork.GrantStatus.APPROVED
@@ -675,6 +682,144 @@ class ArtworkFlowTest(TestCase):
         self.client.post(reverse('grant_report_submit', args=[artwork.pk]))
         artwork.refresh_from_db()
         self.assertEqual(artwork.grant_status, Artwork.GrantStatus.APPROVED)
+
+    @patch('art.views.send_mail')
+    def test_estafa_approves_rejects_and_reopens_registrations(self, send_mail):
+        artwork = Artwork.objects.create(
+            event=self.event, owner=self.owner, title='Faro', proposal='Texto',
+            checkout_art_responsible=self.stranger,
+        )
+        artwork.collaborators.add(self.collaborator)
+        status_url = reverse('artwork_status', args=[self.event.slug, artwork.pk])
+        list_url = f"{reverse('art_admin_dashboard', args=[self.event.slug])}?status=pending"
+        for user in (self.owner, self.stranger):
+            self.client.force_login(user)
+            self.assertEqual(self.client.post(status_url, {'transition': 'approve'}).status_code, 403)
+
+        self.client.force_login(self.admin)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(status_url, {
+                'transition': 'approve', 'message': 'Nos encanta.', 'next': list_url,
+            })
+        self.assertRedirects(response, list_url, fetch_redirect_response=False)
+        artwork.refresh_from_db()
+        self.assertEqual(artwork.status, Artwork.Status.ACTIVE)
+        self.assertEqual(artwork.status_changed_by, self.admin)
+        self.assertEqual(artwork.review_feedback, 'Nos encanta.')
+        self.assertEqual(artwork.operations_group.event, self.event)
+        send_mail.assert_called_once()
+        self.assertEqual(send_mail.call_args.kwargs['template_name'], 'art_status_changed')
+        self.assertEqual(sorted(send_mail.call_args.kwargs['recipient_list']), ['artista@example.com', 'colab@example.com'])
+        self.assertTrue(send_mail.call_args.kwargs['context']['approved'])
+
+        self.client.post(status_url, {'transition': 'approve'})
+        self.client.post(status_url, {'transition': 'reject', 'message': 'Tarde.'})
+        artwork.refresh_from_db()
+        self.assertEqual(artwork.status, Artwork.Status.ACTIVE)
+
+        self.client.post(status_url, {'transition': 'reopen'})
+        artwork.refresh_from_db()
+        self.assertEqual(artwork.status, Artwork.Status.PENDING)
+        self.assertEqual(artwork.review_feedback, '')
+
+        self.client.post(status_url, {'transition': 'reject', 'message': ' '})
+        artwork.refresh_from_db()
+        self.assertEqual(artwork.status, Artwork.Status.PENDING)
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(status_url, {'transition': 'reject', 'message': 'No entra en el predio.'})
+        artwork.refresh_from_db()
+        self.assertEqual(artwork.status, Artwork.Status.REJECTED)
+        self.assertEqual(send_mail.call_count, 2)
+        self.assertFalse(send_mail.call_args.kwargs['context']['approved'])
+        self.assertEqual(send_mail.call_args.kwargs['context']['artwork'].review_feedback, 'No entra en el predio.')
+        self.assertTrue(all(
+            field.disabled for name, field in self.artwork_form({}, artwork=artwork).fields.items()
+            if name != 'expected_version'
+        ))
+        self.assertFalse(any(
+            field.disabled for name, field in self.artwork_form({}, artwork=artwork, actor=self.admin).fields.items()
+            if name in ('title', 'proposal')
+        ))
+
+    def test_checkout_opens_with_the_event_and_the_team_submits_it(self):
+        artwork = Artwork.objects.create(
+            event=self.event, owner=self.owner, title='Faro', proposal='Texto',
+            status=Artwork.Status.ACTIVE, checkout_art_responsible=self.collaborator,
+        )
+        pending = Artwork.objects.create(event=self.event, owner=self.owner, title='Nube')
+        self.assertEqual(artwork.stage, Artwork.Status.ACTIVE)
+        self.client.force_login(self.owner)
+        edit_url = reverse('artwork_edit', args=[artwork.pk])
+        self.client.post(edit_url, {'title': 'Faro', 'expected_version': artwork.version, 'action': 'checkout'})
+        artwork.refresh_from_db()
+        self.assertEqual(artwork.status, Artwork.Status.ACTIVE)
+
+        self.event.start = timezone.now() - timedelta(hours=1)
+        self.event.save(update_fields=['start'])
+        artwork.refresh_from_db()
+        pending.refresh_from_db()
+        self.assertEqual(artwork.stage, Artwork.CHECKOUT_PENDING)
+        self.assertEqual(artwork.stage_label, 'Checkout pendiente')
+        self.assertEqual(pending.stage, Artwork.Status.PENDING)
+        self.assertNotContains(self.client.get(reverse('artwork_edit', args=[pending.pk])), 'Enviar checkout')
+        self.assertContains(self.client.get(edit_url), 'Enviar checkout')
+
+        self.client.post(edit_url, {
+            'title': 'Faro', 'checkout_notes': 'Quedó limpio.', 'expected_version': artwork.version, 'action': 'checkout',
+        })
+        artwork.refresh_from_db()
+        self.assertEqual(artwork.checkout_notes, 'Quedó limpio.')
+        self.assertEqual(artwork.status, Artwork.Status.ACTIVE)
+
+        ArtworkCheckoutPhoto.objects.create(artwork=artwork, image=self.image('final.gif'), category=ArtworkCheckoutPhoto.Category.CLEANUP)
+        self.client.post(edit_url, {'title': 'Faro', 'checkout_notes': 'Quedó limpio.', 'expected_version': artwork.version, 'action': 'checkout'})
+        artwork.refresh_from_db()
+        self.assertEqual(artwork.status, Artwork.Status.CHECKOUT_SUBMITTED)
+        self.assertTrue(artwork.checkout_completed)
+        self.assertIsNotNone(artwork.checkout_requested_at)
+
+        self.client.force_login(self.collaborator)
+        review_url = reverse('artwork_review', args=[self.event.slug, artwork.pk])
+        self.client.post(review_url, {
+            'expected_updated_at': artwork.updated_at.isoformat(),
+            'checkout_verified_at': timezone.localtime().strftime('%Y-%m-%dT%H:%M'),
+        })
+        artwork.refresh_from_db()
+        self.assertEqual(artwork.status, Artwork.Status.CHECKOUT_VERIFIED)
+        self.assertEqual(artwork.status_changed_by, self.collaborator)
+        self.client.post(review_url, {'expected_updated_at': artwork.updated_at.isoformat(), 'checkout_verified_at': ''})
+        artwork.refresh_from_db()
+        self.assertEqual(artwork.status, Artwork.Status.CHECKOUT_SUBMITTED)
+
+    def test_admin_list_puts_estafa_turn_first_and_filters_by_stage(self):
+        for title, status in (
+            ('Activa', Artwork.Status.ACTIVE), ('Enviada', Artwork.Status.CHECKOUT_SUBMITTED),
+            ('Pendiente', Artwork.Status.PENDING), ('Rechazada', Artwork.Status.REJECTED), ('', Artwork.Status.PENDING),
+        ):
+            Artwork.objects.create(event=self.event, owner=self.owner, title=title, status=status)
+        self.client.force_login(self.admin)
+        url = reverse('art_admin_dashboard', args=[self.event.slug])
+        titles = [artwork.title for artwork in self.client.get(url).context['artworks']]
+        self.assertEqual(titles, ['Pendiente', 'Enviada', 'Activa', 'Rechazada'])
+        self.assertContains(self.client.get(url), 'value="approve"', count=1)
+
+        self.assertEqual([a.title for a in self.client.get(url, {'status': 'checkout_pending'}).context['artworks']], [])
+        self.program.checkout_opens = timezone.now() - timedelta(hours=1)
+        self.program.save(update_fields=['checkout_opens'])
+        self.assertEqual([a.title for a in self.client.get(url, {'status': 'checkout_pending'}).context['artworks']], ['Activa'])
+        self.assertEqual([a.title for a in self.client.get(url, {'status': 'active'}).context['artworks']], [])
+
+    def test_status_migration_maps_previous_values(self):
+        new_status = import_module('art.migrations.0003_artwork_status_lifecycle').new_status
+        verified_at = timezone.now()
+        for old, completed, verified, expected in (
+            ('draft', False, None, 'pending'), ('submitted', False, None, 'pending'),
+            ('changes', False, None, 'pending'), ('accepted', False, None, 'active'),
+            ('installed', True, None, 'checkout'), ('accepted', True, verified_at, 'verified'),
+            ('completed', True, verified_at, 'verified'), ('rejected', False, None, 'rejected'),
+            ('cancelled', False, None, 'rejected'),
+        ):
+            self.assertEqual(new_status(old, completed, verified), expected, old)
 
     def test_only_one_current_art_program(self):
         other_event = Event.objects.create(

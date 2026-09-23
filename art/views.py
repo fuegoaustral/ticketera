@@ -4,11 +4,12 @@ import logging
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Case, IntegerField, Q, Value, When
 from django.http import Http404, HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from events.models import Event, Grupo, GrupoTipo
@@ -79,6 +80,24 @@ def _send_invitations(invitations):
             )
         except Exception:
             logging.exception('No se pudo enviar la invitación de Arte a %s', invitation.email)
+
+
+def _send_status_email(artwork):
+    recipients = [user.email for user in (artwork.owner, *artwork.collaborators.all()) if user and user.email]
+    if not recipients:
+        return
+    try:
+        send_mail(
+            template_name='art_status_changed',
+            recipient_list=list(dict.fromkeys(recipients)),
+            context={
+                'artwork': artwork,
+                'approved': artwork.status == Artwork.Status.ACTIVE,
+                'artwork_path': reverse('artwork_edit', args=[artwork.pk]),
+            },
+        )
+    except Exception:
+        logging.exception('No se pudo avisar el cambio de estado de la obra %s', artwork.pk)
 
 
 def _ensure_operations_group(artwork, program):
@@ -184,6 +203,7 @@ def _artwork_context(artwork, program, form, inline_forms=None):
         'can_edit_checkout': _checkout_editable(artwork, form.actor),
         'can_submit_grant': artwork.can_edit(form.actor) and program.is_current and program.checkpoint_state('grant') == 'open' and artwork.grant_status in (Artwork.GrantStatus.NOT_REQUESTED, Artwork.GrantStatus.INFO_REQUIRED),
         'can_submit_report': artwork.can_edit(form.actor) and program.is_current and program.checkpoint_state('grant_report') == 'open' and artwork.grant_status in (Artwork.GrantStatus.APPROVED, Artwork.GrantStatus.PAID),
+        'can_submit_checkout': _can_submit_checkout(artwork, program, form.actor),
     })
     context.update(_grant_context(artwork, inline_forms))
     return context
@@ -255,6 +275,7 @@ def art_dashboard(request):
     admin_assignments = Artwork.objects.all() if request.user.is_superuser else Artwork.objects.filter(
         Q(checkout_art_responsible=request.user) | Q(event__admins=request.user),
     )
+    admin_assignments = admin_assignments.exclude(title='')
     context.update({
         'programs': programs,
         'artworks': artworks,
@@ -312,18 +333,41 @@ def _handle_artwork_edit(request, artwork):
     )
     if request.method == 'POST' and form.is_valid():
         if action == 'submit':
-            form.instance.status = Artwork.Status.SUBMITTED
             form.instance.submitted_at = timezone.now()
-        if form.cleaned_data.get('checkout_completed') and not artwork.checkout_requested_at:
-            form.instance.checkout_requested_at = timezone.now()
         artwork = form.save()
-        if action == 'submit' or artwork.operations_group_id:
+        if artwork.operations_group_id:
             _ensure_operations_group(artwork, program)
         transaction.on_commit(lambda invitations=list(form.new_invitations): _send_invitations(invitations))
+        if action == 'checkout':
+            _submit_checkout(request, artwork, program)
+            return _artwork_redirect(artwork, 'checkout')
         messages.success(request, 'La propuesta fue enviada.' if action == 'submit' else 'El borrador quedó guardado.')
         return redirect('artwork_edit', artwork_id=artwork.pk)
 
     return render(request, 'art/form.html', _artwork_context(artwork, program, form))
+
+
+def _can_submit_checkout(artwork, program, user):
+    return (
+        artwork.can_edit(user) and program.is_current and program.checkpoint_state('checkout') == 'open'
+        and artwork.status == Artwork.Status.ACTIVE
+    )
+
+
+def _submit_checkout(request, artwork, program):
+    if not _can_submit_checkout(artwork, program, request.user):
+        messages.error(request, 'Esta obra no tiene un checkout pendiente.')
+    elif not artwork.checkout_photos.exists():
+        messages.error(request, 'Los cambios quedaron guardados. Para enviar el checkout, subí al menos una foto del estado final del espacio.')
+    else:
+        artwork.checkout_completed = True
+        artwork.checkout_requested_at = timezone.now()
+        artwork.set_status(Artwork.Status.CHECKOUT_SUBMITTED, request.user)
+        artwork.save(update_fields=[
+            'checkout_completed', 'checkout_requested_at', 'status',
+            'status_changed_at', 'status_changed_by', 'updated_at',
+        ])
+        messages.success(request, 'El checkout fue enviado. El equipo de Arte lo va a verificar.')
 
 
 def _grant_item_editable(artwork, phase, user):
@@ -332,7 +376,7 @@ def _grant_item_editable(artwork, phase, user):
     if artwork.can_manage(user):
         return True
     program = artwork.event.art_program
-    if not program.is_current or not program.grants_enabled:
+    if not program.is_current or not program.grants_enabled or artwork.status == Artwork.Status.REJECTED:
         return False
     if phase == ArtworkGrantItem.Phase.BUDGET:
         return program.checkpoint_state('grant') == 'open' and artwork.grant_status in (
@@ -347,14 +391,20 @@ def _logistics_editable(artwork, user):
     if artwork.can_manage(user):
         return True
     program = artwork.event.art_program
-    return program.is_current and program.checkpoint_state('logistics') == 'open' and artwork.can_edit(user)
+    return (
+        program.is_current and program.checkpoint_state('logistics') == 'open' and artwork.can_edit(user)
+        and artwork.status != Artwork.Status.REJECTED
+    )
 
 
 def _checkout_editable(artwork, user):
     if artwork.can_administer(user):
         return True
     program = artwork.event.art_program
-    return program.is_current and program.checkpoint_state('checkout') == 'open' and artwork.can_edit(user)
+    return (
+        program.is_current and program.checkpoint_state('checkout') == 'open' and artwork.can_edit(user)
+        and artwork.status in (Artwork.Status.ACTIVE, Artwork.Status.CHECKOUT_SUBMITTED)
+    )
 
 
 def _save_grant_item_images(item, images, user):
@@ -790,7 +840,8 @@ def _managed_event(request, event_slug):
 
 
 def _filtered_artworks(event, params):
-    artworks = event.artworks.select_related('owner', 'safety_responsible').prefetch_related(
+    # Una obra sin título es un borrador recién creado: todavía no hay nada que revisar.
+    artworks = event.artworks.exclude(title='').select_related('owner', 'safety_responsible').prefetch_related(
         'grant_items', 'checkout_photos', 'logistics_people', 'artwork_providers__vehicles',
     )
     query = params.get('q', '').strip()
@@ -801,8 +852,18 @@ def _filtered_artworks(event, params):
             | Q(public_title__icontains=query)
             | Q(assigned_location__icontains=query)
         )
-    if params.get('status') in Artwork.Status.values:
-        artworks = artworks.filter(status=params['status'])
+    stage = params.get('status')
+    if stage in Artwork.STAGES:
+        try:
+            checkout_open = event.art_program.checkout_is_open()
+        except ArtProgram.DoesNotExist:
+            checkout_open = False
+        if stage == Artwork.CHECKOUT_PENDING:
+            artworks = artworks.filter(status=Artwork.Status.ACTIVE) if checkout_open else artworks.none()
+        elif stage == Artwork.Status.ACTIVE and checkout_open:
+            artworks = artworks.none()
+        else:
+            artworks = artworks.filter(status=stage)
     if params.get('grant') in Artwork.GrantStatus.values:
         artworks = artworks.filter(grant_status=params['grant'])
     if params.get('kind') in Artwork.Kind.values:
@@ -810,7 +871,15 @@ def _filtered_artworks(event, params):
     for parameter, field in (('fire', 'uses_fire'), ('sound', 'uses_sound')):
         if params.get(parameter) in ('yes', 'no'):
             artworks = artworks.filter(**{field: params[parameter] == 'yes'})
-    return artworks.distinct().order_by('status', 'title')
+    # Primero lo que espera a ESTAFA: inscripciones y checkouts por revisar.
+    turn = Case(
+        When(status=Artwork.Status.PENDING, then=Value(0)),
+        When(status=Artwork.Status.CHECKOUT_SUBMITTED, then=Value(1)),
+        When(status=Artwork.Status.ACTIVE, then=Value(2)),
+        When(status=Artwork.Status.CHECKOUT_VERIFIED, then=Value(3)),
+        default=Value(4), output_field=IntegerField(),
+    )
+    return artworks.distinct().order_by(turn, 'title')
 
 
 @login_required
@@ -824,7 +893,7 @@ def art_admin_dashboard(request, event_slug):
         **_base_context(event), 'artworks': artworks, 'current_admin_event': event,
         'admin_events': admin_events,
         'nav_primary': 'events', 'nav_secondary': f'art_admin_{event.slug}',
-        'status_choices': Artwork.Status.choices,
+        'status_choices': [(stage, label) for stage, (label, _hint) in Artwork.STAGES.items()],
         'grant_choices': Artwork.GrantStatus.choices,
         'kind_choices': Artwork.Kind.choices,
     })
@@ -852,17 +921,61 @@ def artwork_review(request, event_slug, artwork_id):
                     artwork.checkin_art_by = request.user
                 if artwork.checkout_verified_at:
                     artwork.checkout_verified_by = request.user
-                    artwork.status = Artwork.Status.COMPLETED
+                    if artwork.status != Artwork.Status.CHECKOUT_VERIFIED:
+                        artwork.set_status(Artwork.Status.CHECKOUT_VERIFIED, request.user)
                 elif was_verified:
                     artwork.checkout_verified_by = None
-                    if artwork.status == Artwork.Status.COMPLETED:
-                        artwork.status = Artwork.Status.INSTALLED
+                    if artwork.status == Artwork.Status.CHECKOUT_VERIFIED:
+                        artwork.set_status(Artwork.Status.CHECKOUT_SUBMITTED, request.user)
                 artwork.save()
                 messages.success(request, 'La revisión quedó guardada.')
                 return redirect('artwork_review', event_slug=event.slug, artwork_id=artwork.pk)
     else:
         form = ArtworkReviewForm(instance=artwork, can_manage=can_manage)
     return render(request, 'art/review.html', _review_context(artwork, form, request.user))
+
+
+STATUS_TRANSITIONS = {
+    'approve': ((Artwork.Status.PENDING,), Artwork.Status.ACTIVE),
+    'reject': ((Artwork.Status.PENDING,), Artwork.Status.REJECTED),
+    'reopen': ((Artwork.Status.ACTIVE, Artwork.Status.REJECTED), Artwork.Status.PENDING),
+}
+
+
+@login_required
+@require_POST
+def artwork_status(request, event_slug, artwork_id):
+    event = get_object_or_404(Event, slug=event_slug)
+    next_url = request.POST.get('next', '')
+    if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+        next_url = reverse('artwork_review', args=[event.slug, artwork_id])
+    with transaction.atomic():
+        artwork = get_object_or_404(Artwork.objects.select_for_update(), pk=artwork_id, event=event)
+        if not artwork.can_manage(request.user):
+            return HttpResponseForbidden('No tenés permisos para coordinar Arte en este evento.')
+        transition = STATUS_TRANSITIONS.get(request.POST.get('transition'))
+        if not transition or artwork.status not in transition[0]:
+            messages.error(request, 'La obra cambió de estado mientras la revisabas. Revisá su estado actual.')
+            return redirect(next_url)
+        status = transition[1]
+        message = request.POST.get('message', '').strip()
+        if status == Artwork.Status.REJECTED and not message:
+            messages.error(request, 'Contale al equipo por qué se rechaza la obra.')
+            return redirect(next_url)
+        artwork.set_status(status, request.user)
+        artwork.review_feedback = message
+        artwork.save(update_fields=['status', 'status_changed_at', 'status_changed_by', 'review_feedback', 'updated_at'])
+        if status == Artwork.Status.ACTIVE:
+            _ensure_operations_group(artwork, event.art_program)
+        if status != Artwork.Status.PENDING:
+            transaction.on_commit(lambda: _send_status_email(artwork))
+    title = artwork.title or 'Obra sin título'
+    messages.success(request, {
+        Artwork.Status.ACTIVE: f'Aprobaste «{title}». Le avisamos al equipo por email.',
+        Artwork.Status.REJECTED: f'Rechazaste «{title}». Le avisamos al equipo por email.',
+        Artwork.Status.PENDING: f'«{title}» volvió a inscripción pendiente.',
+    }[status])
+    return redirect(next_url)
 
 
 @login_required
@@ -890,7 +1003,7 @@ def art_admin_export(request, event_slug):
             artwork.title,
             artwork.get_kind_display(),
             artwork.owner.email if artwork.owner else '',
-            artwork.get_status_display(),
+            artwork.stage_label,
             tags,
             artwork.safety_responsible.email if artwork.safety_responsible else '',
             artwork.get_grant_status_display(),

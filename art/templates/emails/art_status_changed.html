@@ -1,0 +1,13 @@
+{% extends "emails/base.html" %}
+{% block subject %}{% if approved %}Aprobamos tu obra {{ artwork.title|safe }}{% else %}Novedades sobre tu obra {{ artwork.title|safe }}{% endif %}{% endblock %}
+{% block title %}{% if approved %}Tu inscripción está activa{% else %}Tu obra no fue aceptada{% endif %}{% endblock %}
+{% block content %}
+{% if approved %}
+<p>ESTAFA aprobó <strong>{{ artwork.title }}</strong> para {{ artwork.event.name }}. Tu inscripción ya está activa.</p>
+<p>Completá cada sección del expediente antes de su cierre.</p>
+{% else %}
+<p>ESTAFA no aceptó <strong>{{ artwork.title }}</strong> para {{ artwork.event.name }}.</p>
+{% endif %}
+{% if artwork.review_feedback %}<p><strong>Mensaje de ESTAFA:</strong><br>{{ artwork.review_feedback|linebreaksbr }}</p>{% endif %}
+{% include "emails/partials/btn.html" with href=artwork_path label="Ver expediente" %}
+{% endblock %}

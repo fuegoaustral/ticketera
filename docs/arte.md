@@ -12,12 +12,12 @@ Solo el `ArtProgram` marcado como **convocatoria anual vigente** permite crear o
 
 ## Flujo
 
-1. La persona crea un borrador o registra una obra espontánea si cerró la inscripción ordinaria.
-2. Al enviar la propuesta se crea un grupo `ARTE`; allí se administran integrantes, ingreso anticipado y late checkout con el mecanismo ya existente de grupos.
-3. La coordinación revisa la obra, pide cambios, acepta o rechaza, asigna placement y registra el beneficio para la siguiente edición.
+1. La persona crea la obra o registra una obra espontánea si cerró la inscripción ordinaria. Queda en **Inscripción pendiente**.
+2. ESTAFA la aprueba (**Inscripción activa**) o la rechaza (**Rechazada**, con mensaje obligatorio) desde el listado o la revisión. El equipo recibe un email en ambos casos. Al aprobarla se crea un grupo `ARTE`; allí se administran integrantes, ingreso anticipado y late checkout con el mecanismo ya existente de grupos. Una decisión se puede volver a **Inscripción pendiente**.
+3. La coordinación asigna placement y registra el beneficio para la siguiente edición.
 4. La persona solicita la beca con un presupuesto por ítems. Cada ítem es ARS o USD; los USD guardan monto, cotización ARS/USD, fecha y fuente. El valor queda congelado para mantener trazabilidad histórica.
 5. Una beca aprobada se rinde con gastos por ítems, relato y al menos una foto final o de rendición. La fecha de cada gasto es la fecha real de pago.
-6. Al terminar, la persona solicita checkout y la coordinación lo verifica.
+6. El checkout se habilita en la apertura de checkout del programa o, si no tiene fecha, cuando empieza el evento: las obras activas pasan a **Checkout pendiente**. El equipo sube fotos del estado final y envía el checkout (**Checkout enviado**); el equipo de Arte lo verifica en el predio (**Checkout verificado**).
 
 Los comprobantes contables no se adjuntan todavía: el almacenamiento de medios actual no ofrece el aislamiento privado necesario. La galería sí pide autorización explícita de publicación en cada carga.
 
