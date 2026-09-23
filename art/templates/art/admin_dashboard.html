@@ -46,29 +46,6 @@
                 {% for value, label in kind_choices %}<option value="{{ value }}"{% if request.GET.kind == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
             </select>
         </div>
-        <div>
-            <label for="art-filter-grant">Beca</label>
-            <select class="form-select" id="art-filter-grant" name="grant">
-                <option value="">Todas</option>
-                {% for value, label in grant_choices %}<option value="{{ value }}"{% if request.GET.grant == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
-            </select>
-        </div>
-        <div>
-            <label for="art-filter-fire">Fuego</label>
-            <select class="form-select" id="art-filter-fire" name="fire">
-                <option value="">Todos</option>
-                <option value="yes"{% if request.GET.fire == 'yes' %} selected{% endif %}>Tiene fuego</option>
-                <option value="no"{% if request.GET.fire == 'no' %} selected{% endif %}>Sin fuego</option>
-            </select>
-        </div>
-        <div>
-            <label for="art-filter-sound">Sonido</label>
-            <select class="form-select" id="art-filter-sound" name="sound">
-                <option value="">Todos</option>
-                <option value="yes"{% if request.GET.sound == 'yes' %} selected{% endif %}>Tiene sonido</option>
-                <option value="no"{% if request.GET.sound == 'no' %} selected{% endif %}>Sin sonido</option>
-            </select>
-        </div>
         <div class="filter-actions">
             <button class="btn btn-primary" type="submit">Filtrar</button>
             <a class="btn btn-link" href="{% url 'art_admin_dashboard' event.slug %}">Limpiar</a>
@@ -78,18 +55,18 @@
     <p class="small text-muted mb-2" aria-live="polite">{{ artworks|length }} obra{{ artworks|length|pluralize:"s" }}</p>
     <div class="table-responsive art-table-wrap">
         <table class="table table-sm align-middle art-table">
-            <thead><tr><th>Obra</th><th>Estado</th><th>Etiquetas</th><th>Beca</th><th>Placement</th><th>Carta</th><th>Checkout</th><th><span class="visually-hidden">Acciones</span></th></tr></thead>
+            <thead><tr><th>Obra</th><th>Estado</th><th>Etiquetas</th><th>Beca</th><th>Placement</th><th>Carta</th><th>Checkout</th><th><span class="visually-hidden">Abrir</span></th></tr></thead>
             <tbody>
             {% for artwork in artworks %}
                 <tr>
-                    <td><strong>{{ artwork.title|default:'Obra sin título' }}</strong><br><small class="text-muted">{{ artwork.get_kind_display }} · {{ artwork.owner.email|default:'Cuenta archivada' }}</small></td>
+                    <td><a class="art-row-link stretched-link" href="{% url 'artwork_review' event.slug artwork.pk %}">{{ artwork.title|default:'Obra sin título' }}</a><br><small class="text-muted">{{ artwork.get_kind_display }} · {{ artwork.owner.email|default:'Cuenta archivada' }}</small></td>
                     <td>{% include 'art/_status_badge.html' %}{% if artwork.status == 'pending' %}<form class="mt-2" method="post" action="{% url 'artwork_status' event.slug artwork.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-sm btn-outline-success art-approve" type="submit" name="transition" value="approve" aria-label="Aprobar {{ artwork.title }}"><i class="fas fa-check me-1" aria-hidden="true"></i>Aprobar</button></form>{% endif %}</td>
                     <td class="text-nowrap">{% if artwork.uses_fire %}<span class="badge text-bg-warning">Tiene fuego</span>{% endif %}{% if artwork.uses_sound %}<span class="badge text-bg-info">Tiene sonido</span>{% endif %}{% if not artwork.uses_fire and not artwork.uses_sound %}<span class="text-muted">Sin etiquetas</span>{% endif %}</td>
                     <td>{{ artwork.get_grant_status_display }}{% if artwork.grant_requested %}<br><small>Presupuesto ARS {{ artwork.budget_total_ars|floatformat:2 }}</small>{% endif %}</td>
                     <td>{{ artwork.assigned_location|default:'Sin asignar' }}</td>
                     <td>{% if artwork.understanding_letter %}Digital{% else %}<span class="text-muted">Sin digital</span>{% endif %}{% if artwork.understanding_letter_physical_received %}<br><small>Física recibida</small>{% endif %}</td>
                     <td>{% if artwork.checkout_verified_at %}Verificado{% elif artwork.checkout_completed %}Solicitado{% else %}Pendiente{% endif %}<br><small>{{ artwork.checkout_photos.count }} foto(s)</small></td>
-                    <td class="text-end"><a class="btn btn-sm btn-primary" href="{% url 'artwork_review' event.slug artwork.pk %}">Revisar</a></td>
+                    <td class="text-end text-muted"><i class="fas fa-chevron-right" aria-hidden="true"></i></td>
                 </tr>
             {% empty %}<tr><td colspan="8" class="text-center text-muted py-5">No hay obras que coincidan con estos filtros.</td></tr>{% endfor %}
             </tbody>
@@ -103,16 +80,23 @@
     .assigned-row { min-height: 44px; padding: .6rem .25rem; border-bottom: 1px solid #dee2e6; color: inherit; text-decoration: none; }
     .assigned-row:hover, .assigned-row:focus-visible { background: #f6faf8; color: inherit; }
     .assigned-row:focus-visible { outline: 3px solid rgba(40, 158, 109, .3); outline-offset: 2px; }
-    .art-filters { display: grid; grid-template-columns: minmax(220px, 2fr) repeat(5, minmax(125px, 1fr)) auto; gap: .75rem; align-items: end; padding: 1rem; border: 1px solid oklch(88% .015 160); border-radius: .5rem; background: oklch(97% .008 160); }
+    .art-filters { display: grid; grid-template-columns: minmax(200px, 2fr) repeat(2, minmax(140px, 1fr)) auto; gap: .75rem; align-items: end; padding: 1rem; border: 1px solid oklch(88% .015 160); border-radius: .5rem; background: oklch(97% .008 160); }
     .art-filters label { display: block; margin-bottom: .25rem; font-size: .8rem; font-weight: 600; }
-    .filter-actions { display: flex; align-items: center; }
+    .art-filters .form-control, .art-filters .form-select, .filter-actions .btn { min-height: 52px; }  /* la altura de los inputs del sitio */
+    .filter-actions { display: flex; align-items: center; gap: .25rem; }
+    .filter-actions .btn { display: inline-flex; align-items: center; }
     .art-table-wrap { max-height: 70vh; border: 1px solid oklch(88% .015 160); }
     .art-table { min-width: 1050px; margin: 0; }
-    .art-table thead { position: sticky; top: 0; z-index: 1; background: oklch(95% .01 160); }
+    .art-table thead { position: sticky; top: 0; z-index: 3; background: oklch(95% .01 160); }
     .art-table th { white-space: nowrap; }
     .art-approve { min-height: 44px; }
     .art-table td, .art-table th { padding: .65rem; }
-    @media (max-width: 1399px) { .art-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); } .filter-search { grid-column: span 2; } }
-    @media (max-width: 767px) { .art-filters { grid-template-columns: 1fr; } .filter-search { grid-column: auto; } .filter-actions .btn { min-height: 44px; } }
+    .art-table tbody tr { position: relative; }
+    .art-table tbody tr:hover > * { background: #f6faf8; }
+    .art-row-link { color: inherit; font-weight: 700; text-decoration: none; }
+    .art-row-link:focus-visible { outline: none; }
+    .art-table tbody tr:has(.art-row-link:focus-visible) { outline: 3px solid rgba(40, 158, 109, .35); outline-offset: -3px; }
+    .art-table tbody form { position: relative; z-index: 2; }
+    @media (max-width: 767px) { .art-filters { grid-template-columns: 1fr; } .filter-search { grid-column: auto; } }
 </style>
 {% endblock %}
