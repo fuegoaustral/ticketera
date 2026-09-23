@@ -1,12 +1,31 @@
 {% extends 'mi_fuego/my_tickets/index.html' %}
-{% block page_title %}Coordinación de Arte{% endblock %}
-{% block submenu %}{% include 'mi_fuego/partials/event_admin_menu.html' %}{% endblock %}
+{% block page_title %}ESTAFA (interno){% endblock %}
+{% block submenu %}{% include 'art/_estafa_menu.html' %}{% endblock %}
 {% block truecontent %}
 <div class="container-fluid art-admin-dashboard">
+    {% if not event %}
+    <p class="text-muted">Todavía no hay programas de Arte para coordinar.</p>
+    {% else %}
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
         <div><p class="text-uppercase text-muted small fw-semibold mb-1">{{ event.name }}</p><h2 class="h3 mb-1">Obras y becas</h2><p class="text-muted mb-0">Revisión, placement, pagos, checkout y beneficios.</p></div>
         <a class="btn btn-outline-primary" href="{% url 'art_admin_export' event.slug %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"><i class="fas fa-download me-1" aria-hidden="true"></i> Exportar CSV</a>
     </div>
+
+    {% if assigned_artworks %}
+    <section class="assigned mb-4" aria-labelledby="assigned-title">
+        <h3 class="h5 mb-2" id="assigned-title">Asignadas a vos <span class="text-muted fw-normal">· {{ assigned_artworks|length }}</span></h3>
+        <p class="small text-muted mb-2">Obras donde sos nexo de ESTAFA.</p>
+        <div class="assigned-list">
+            {% for artwork in assigned_artworks %}
+            <a class="assigned-row d-flex justify-content-between align-items-center gap-3" href="{% url 'artwork_review' event.slug artwork.pk %}">
+                <span><strong>{{ artwork.title|default:'Obra sin título' }}</strong> <span class="text-muted">· {{ artwork.get_status_display }}</span></span>
+                <span class="text-primary fw-semibold text-nowrap">Revisar <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i></span>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    <h3 class="h5 mb-3">Todas las obras</h3>
+    {% endif %}
 
     <form method="get" class="art-filters mb-3" aria-label="Filtros de obras">
         <div class="filter-search">
@@ -76,9 +95,14 @@
             </tbody>
         </table>
     </div>
+    {% endif %}
 </div>
 <style>
     .art-admin-dashboard { max-width: 1320px; }
+    .assigned-list { border-top: 1px solid #dee2e6; }
+    .assigned-row { min-height: 44px; padding: .6rem .25rem; border-bottom: 1px solid #dee2e6; color: inherit; text-decoration: none; }
+    .assigned-row:hover, .assigned-row:focus-visible { background: #f6faf8; color: inherit; }
+    .assigned-row:focus-visible { outline: 3px solid rgba(40, 158, 109, .3); outline-offset: 2px; }
     .art-filters { display: grid; grid-template-columns: minmax(220px, 2fr) repeat(5, minmax(125px, 1fr)) auto; gap: .75rem; align-items: end; padding: 1rem; border: 1px solid oklch(88% .015 160); border-radius: .5rem; background: oklch(97% .008 160); }
     .art-filters label { display: block; margin-bottom: .25rem; font-size: .8rem; font-weight: 600; }
     .filter-actions { display: flex; align-items: center; }
@@ -88,7 +112,7 @@
     .art-table th { white-space: nowrap; }
     .art-approve { min-height: 44px; }
     .art-table td, .art-table th { padding: .65rem; }
-    @media (max-width: 1199px) { .art-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); } .filter-search { grid-column: span 2; } }
+    @media (max-width: 1399px) { .art-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); } .filter-search { grid-column: span 2; } }
     @media (max-width: 767px) { .art-filters { grid-template-columns: 1fr; } .filter-search { grid-column: auto; } .filter-actions .btn { min-height: 44px; } }
 </style>
 {% endblock %}

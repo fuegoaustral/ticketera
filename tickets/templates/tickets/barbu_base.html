@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 {% load static %}
 {% load account %}
+{% load estafa %}
 <html lang="es-AR" prefix="og: http://ogp.me/ns# fb: http://ogp.me/ns/fb#">
   <head>
     <meta charset="UTF-8">
@@ -133,7 +134,7 @@
             <a class="nav-link dropdown-toggle" href="#" role="button" id="dropdownProfileButton" data-bs-toggle="dropdown" aria-expanded="false">
               Mi cuenta
             </a>
-            {% with url_name=request.resolver_match.url_name is_event_admin=user.admin_events.exists can_scan=user.scanner_events.exists can_caja=user.caja_events.exists %}
+            {% with url_name=request.resolver_match.url_name is_event_admin=user.admin_events.exists can_scan=user.scanner_events.exists can_caja=user.caja_events.exists is_estafa=user|can_access_estafa %}
             <div class="dropdown-menu dropdown-menu-end account-menu" aria-labelledby="dropdownProfileButton">
               <div class="account-menu-user">
                 {% if user.get_full_name %}<div class="account-menu-name">{{ user.get_full_name }}</div>{% endif %}
@@ -147,10 +148,13 @@
               <a class="dropdown-item{% if nav_primary == "la_sede" %} active{% endif %}" href="{% url "la_sede" %}"{% if nav_primary == "la_sede" %} aria-current="page"{% endif %}><i class="fa-solid fa-house-chimney" aria-hidden="true"></i> La Sede</a>
               {% endif %}
               <a class="dropdown-item{% if url_name == "profile" %} active{% endif %}" href="{% url "profile" %}"{% if url_name == "profile" %} aria-current="page"{% endif %}><i class="fa-solid fa-user" aria-hidden="true"></i> Perfil</a>
-              {% if is_event_admin or can_scan or can_caja or perms.logros.manage_achievements %}
+              {% if is_event_admin or is_estafa or can_scan or can_caja or perms.logros.manage_achievements %}
               <hr class="dropdown-divider">
               {% if is_event_admin %}
               <a class="dropdown-item{% if nav_primary == "events" %} active{% endif %}" href="{% url "my_events" %}"{% if nav_primary == "events" %} aria-current="page"{% endif %}><i class="fa-solid fa-calendar-days" aria-hidden="true"></i> Gestión de eventos</a>
+              {% endif %}
+              {% if is_estafa %}
+              <a class="dropdown-item{% if nav_primary == "estafa" %} active{% endif %}" href="{% url "estafa_home" %}"{% if nav_primary == "estafa" %} aria-current="page"{% endif %}><i class="fa-solid fa-people-group" aria-hidden="true"></i> ESTAFA (interno)</a>
               {% endif %}
               {% if is_event_admin or can_scan %}
               <a class="dropdown-item{% if nav_primary == "scanner" %} active{% endif %}" href="{% url "scanner_events" %}"{% if nav_primary == "scanner" %} aria-current="page"{% endif %}><i class="fa-solid fa-qrcode" aria-hidden="true"></i> Scanner</a>

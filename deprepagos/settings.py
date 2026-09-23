@@ -80,6 +80,7 @@ INSTALLED_APPS = [
 
     'tickets.apps.TicketsConfig',
     'events.apps.EventsConfig',
+    'teams.apps.TeamsConfig',
     'art.apps.ArtConfig',
     'espaciozen.apps.EspaciozenConfig',
     'caja.apps.CajaConfig',

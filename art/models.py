@@ -15,6 +15,9 @@ from auditlog.registry import auditlog
 from events.models import Event
 from utils.models import BaseModel
 
+from .estafa import can_coordinate
+
+
 def default_art_reminder_days():
     return [7, 3, 1]
 
@@ -261,10 +264,7 @@ class Artwork(BaseModel):
         return user == self.owner or self.collaborators.filter(pk=user.pk).exists()
 
     def can_manage(self, user):
-        return user.is_superuser or self.event.admins.filter(pk=user.pk).exists()
-
-    def can_administer(self, user):
-        return self.can_manage(user) or self.checkout_art_responsible_id == user.pk
+        return can_coordinate(user, self.event)
 
     @property
     def stage(self):

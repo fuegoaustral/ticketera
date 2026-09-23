@@ -1,0 +1,40 @@
+<div class="mobile-menu-toggle d-lg-none mb-3">
+    <button class="btn btn-outline-secondary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-expanded="false" aria-controls="sidebarMenu">
+        <i class="fas fa-bars me-2" aria-hidden="true"></i>Menú de ESTAFA
+    </button>
+</div>
+
+<nav class="sidebar-menu collapse d-lg-block" id="sidebarMenu" aria-label="ESTAFA">
+    <h2 class="menu-section-title"><i class="fas fa-palette me-2" aria-hidden="true"></i>ESTAFA (interno)</h2>
+    <ul class="menu-list">
+        {% for estafa_event in estafa_events %}
+            <li>
+                <a class="menu-link{% if current_estafa_event and estafa_event.pk == current_estafa_event.pk %} active{% endif %}"
+                   href="{% url 'art_admin_dashboard' estafa_event.slug %}"
+                   {% if current_estafa_event and estafa_event.pk == current_estafa_event.pk %}aria-current="page"{% endif %}>
+                    <i class="fas fa-fire me-2" aria-hidden="true"></i>{{ estafa_event.name }}
+                </a>
+            </li>
+        {% endfor %}
+    </ul>
+</nav>
+
+<style>
+    .sidebar-menu { margin-bottom: 1rem; }
+    .sidebar-menu .menu-section-title {
+        margin-bottom: .75rem; padding-bottom: .5rem; border-bottom: 2px solid #d9d9d9;
+        color: #1e1e1e; font-size: .9rem; font-weight: 600; letter-spacing: .5px; text-transform: uppercase;
+    }
+    .sidebar-menu .menu-list { margin: 0; padding: 0; list-style: none; }
+    .sidebar-menu .menu-link {
+        display: flex; align-items: center; min-height: 44px; padding: .5rem 1rem; margin-bottom: .25rem;
+        border-radius: .5rem; color: #1e1e1e; font-size: .9rem; text-decoration: none; transition: background-color .2s ease;
+    }
+    .sidebar-menu .menu-link:hover { background: #f8f9fa; color: #1e1e1e; }
+    .sidebar-menu .menu-link.active { background: #e9f5f0; color: #1f7a54; font-weight: 600; }
+    .sidebar-menu .menu-link:focus-visible { outline: 3px solid rgba(40, 158, 109, .35); outline-offset: 2px; }
+    @media (max-width: 991.98px) {
+        .sidebar-menu { padding: 1rem; border: 1px solid #e9ecef; border-radius: .75rem; background: #f8f9fa; }
+    }
+    @media (prefers-reduced-motion: reduce) { .sidebar-menu .menu-link { transition: none; } }
+</style>

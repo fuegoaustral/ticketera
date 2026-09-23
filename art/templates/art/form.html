@@ -281,7 +281,7 @@
 
         {% if program.is_current or can_manage %}
         <div class="save-bar d-flex flex-column flex-sm-row justify-content-between gap-2 py-3" data-sticky-actions>
-            {% if can_manage and artwork %}<a class="btn btn-outline-secondary" href="{% url 'artwork_review' artwork.event.slug artwork.pk %}">Abrir revisión administrativa</a>{% else %}<span></span>{% endif %}
+            {% if can_manage and artwork %}<a class="btn btn-outline-secondary" href="{% url 'artwork_review' artwork.event.slug artwork.pk %}">Abrir en ESTAFA</a>{% else %}<span></span>{% endif %}
             <div class="d-flex flex-column flex-sm-row gap-2">
                 <button class="btn btn-outline-primary" type="submit" form="artwork-form" name="action" value="save">Guardar borrador</button>
                 <button class="btn btn-primary" type="submit" form="artwork-form" name="action" value="submit">Guardar y enviar propuesta</button>

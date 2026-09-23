@@ -14,6 +14,7 @@ from django.utils import timezone
 from django.contrib.messages import get_messages
 
 from .forms import ArtworkForm, ArtworkGrantItemForm, ArtworkPhotoUploadForm, ArtworkProviderForm, ArtworkReviewForm
+from .estafa import ESTAFA_SLUG
 from .reminders import send_art_reminders
 from .views import _checkpoints
 from .models import (
@@ -22,6 +23,7 @@ from .models import (
     ArtworkProviderVehicle,
 )
 from events.models import Event
+from teams.models import Team, TeamMembership
 from user_profile.models import Profile
 
 
@@ -46,8 +48,12 @@ class ArtworkFlowTest(TestCase):
             name='FA Carnaval', slug='fa-carnaval', active=True, is_main=True,
             start=now + timedelta(days=20), end=now + timedelta(days=24),
             transfers_enabled_until=now + timedelta(days=10), header_image='events/heros/no-image.jpg', title='FA', description='Evento',
+            has_volunteers=True,
         )
-        self.event.admins.add(self.admin)
+        # self.admin coordina Arte como miembro de ESTAFA, no como admin del evento.
+        TeamMembership.objects.create(
+            team=Team.objects.get(slug=ESTAFA_SLUG), user=self.admin, started_on=now.date() - timedelta(days=30),
+        )
         self.program = ArtProgram.objects.create(
             event=self.event, is_current=True, grants_enabled=True,
             registration_closes=now - timedelta(days=1),
@@ -66,6 +72,50 @@ class ArtworkFlowTest(TestCase):
             actor=actor or self.owner,
             action=action,
         )
+
+    def complete_profile(self, user):
+        user.profile.document_number = f'2000000{user.pk}'
+        user.profile.phone = f'+54911100000{user.pk:02d}'
+        user.profile.profile_completion = Profile.COMPLETE
+        user.profile.save()
+        return user
+
+    def test_estafa_access_is_for_active_members_on_fuego_austral_events(self):
+        dashboard_url = reverse('art_admin_dashboard', args=[self.event.slug])
+        event_admin = self.complete_profile(User.objects.create_user(username='evadmin', email='evadmin@example.com'))
+        self.event.admins.add(event_admin)
+        self.client.force_login(event_admin)
+        self.assertEqual(self.client.get(dashboard_url).status_code, 403)
+        self.assertEqual(self.client.get(reverse('estafa_home')).status_code, 403)
+
+        former = self.complete_profile(User.objects.create_user(username='ex', email='ex@example.com'))
+        today = timezone.localdate()
+        TeamMembership.objects.create(
+            team=Team.objects.get(slug=ESTAFA_SLUG), user=former,
+            started_on=today - timedelta(days=400), ended_on=today - timedelta(days=1),
+        )
+        self.client.force_login(former)
+        self.assertEqual(self.client.get(dashboard_url).status_code, 403)
+
+        self.client.force_login(self.admin)
+        self.assertRedirects(self.client.get(reverse('estafa_home')), dashboard_url)
+        self.assertContains(self.client.get(dashboard_url), 'ESTAFA (interno)')
+        self.assertRedirects(
+            self.client.get(f'/mi-fuego/mis-eventos/{self.event.slug}/arte/?status=draft'),
+            f'{dashboard_url}?status=draft', status_code=301,
+        )
+        self.event.has_volunteers = False
+        self.event.save(update_fields=['has_volunteers'])
+        self.assertEqual(self.client.get(dashboard_url).status_code, 403)
+
+        superuser = User.objects.create_superuser(username='root', email='root@example.com', password='x')
+        self.client.force_login(superuser)
+        self.assertEqual(self.client.get(dashboard_url).status_code, 200)
+
+    def test_nexo_choices_are_active_estafa_members(self):
+        artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
+        choices = ArtworkReviewForm(instance=artwork).fields['checkout_art_responsible'].queryset
+        self.assertEqual(list(choices), [self.admin])
 
     def test_participant_dashboard_has_no_coordination_content(self):
         Artwork.objects.create(event=self.event, owner=self.owner, title='Obra ajena')
@@ -587,15 +637,23 @@ class ArtworkFlowTest(TestCase):
             event=self.event, owner=self.owner, title='Faro', proposal='Texto',
             checkout_art_responsible=self.collaborator,
         )
-        self.client.force_login(self.collaborator)
         review_url = reverse('artwork_review', args=[self.event.slug, artwork.pk])
+        self.client.force_login(self.collaborator)
+        self.assertEqual(self.client.get(review_url).status_code, 403)
+
+        TeamMembership.objects.create(
+            team=Team.objects.get(slug=ESTAFA_SLUG), user=self.collaborator, started_on=timezone.localdate(),
+        )
+        dashboard = self.client.get(reverse('art_admin_dashboard', args=[self.event.slug]))
+        self.assertEqual(list(dashboard.context['assigned_artworks']), [artwork])
         response = self.client.get(review_url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Carta física recibida')
-        self.assertNotContains(response, 'Estado de la obra')
 
         response = self.client.post(review_url, {
             'expected_updated_at': artwork.updated_at.isoformat(),
+            'status': artwork.status, 'grant_status': artwork.grant_status, 'benefit_status': artwork.benefit_status,
+            'checkout_art_responsible': self.collaborator.pk,
             'understanding_letter_physical_received': 'on',
             'understanding_letter_physical_custodian': 'Coordinación de Arte',
             'understanding_letter_physical_notes': 'Archivo físico, estante B.',
@@ -844,16 +902,22 @@ class ArtworkFlowTest(TestCase):
         self.assertTrue(artwork.checkout_completed)
         self.assertIsNotNone(artwork.checkout_requested_at)
 
+        # El nexo verifica el checkout como miembro de ESTAFA.
+        TeamMembership.objects.create(
+            team=Team.objects.get(slug=ESTAFA_SLUG), user=self.collaborator, started_on=timezone.localdate(),
+        )
         self.client.force_login(self.collaborator)
         review_url = reverse('artwork_review', args=[self.event.slug, artwork.pk])
+        required = {'grant_status': artwork.grant_status, 'benefit_status': artwork.benefit_status}
         self.client.post(review_url, {
+            **required,
             'expected_updated_at': artwork.updated_at.isoformat(),
             'checkout_verified_at': timezone.localtime().strftime('%Y-%m-%dT%H:%M'),
         })
         artwork.refresh_from_db()
         self.assertEqual(artwork.status, Artwork.Status.CHECKOUT_VERIFIED)
         self.assertEqual(artwork.status_changed_by, self.collaborator)
-        self.client.post(review_url, {'expected_updated_at': artwork.updated_at.isoformat(), 'checkout_verified_at': ''})
+        self.client.post(review_url, {**required, 'expected_updated_at': artwork.updated_at.isoformat(), 'checkout_verified_at': ''})
         artwork.refresh_from_db()
         self.assertEqual(artwork.status, Artwork.Status.CHECKOUT_SUBMITTED)
 
