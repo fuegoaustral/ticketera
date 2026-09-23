@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.db.models import Q
 from django.utils import timezone
 
+from .estafa import estafa_members
 from .models import (
     Artwork, ArtworkGrantItem, ArtworkInvitation, ArtworkLogisticsPerson,
     ArtworkPhoto, ArtworkCheckoutPhoto, ArtworkProvider, ArtworkProviderVehicle,
@@ -42,8 +43,8 @@ def _art_responsibles(artwork):
     if not artwork.event_id:
         return User.objects.none()
     return User.objects.filter(
-        Q(is_superuser=True) | Q(admin_events=artwork.event) | Q(pk=artwork.checkout_art_responsible_id),
-    ).distinct().order_by('first_name', 'last_name', 'email')
+        Q(pk__in=estafa_members().values('pk')) | Q(pk=artwork.checkout_art_responsible_id),
+    ).order_by('first_name', 'last_name', 'email')
 
 
 class ArtworkForm(forms.ModelForm):
@@ -108,7 +109,7 @@ class ArtworkForm(forms.ModelForm):
         self.fields['expected_version'].initial = self.instance.version if self.instance.pk else None
         self.fields['checkout_team_responsible'].queryset = self.instance.logistics_people.all() if self.instance.pk else ArtworkLogisticsPerson.objects.none()
         self.fields['checkout_art_responsible'].queryset = _art_responsibles(self.instance)
-        self.fields['checkout_art_responsible'].help_text = 'La coordinación de Arte asigna este responsable.'
+        self.fields['checkout_art_responsible'].help_text = 'ESTAFA asigna este responsable.'
         if self.instance.pk and not self.is_manager and not self.is_contributor:
             for name, field in self.fields.items():
                 if name != 'expected_version':

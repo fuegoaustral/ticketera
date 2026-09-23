@@ -13,9 +13,9 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from events.models import Event, Grupo, GrupoTipo
-from events.utils import get_admin_events_for_user
 from utils.email import send_mail
 
+from .estafa import can_access_estafa, can_coordinate, estafa_events, is_estafa_member
 from .forms import (
     ArtworkForm, ArtworkGrantItemForm, ArtworkLogisticsPersonForm,
     ArtworkCheckoutPhotoUploadForm, ArtworkPhotoUploadForm, ArtworkProviderForm, ArtworkProviderVehicleForm,
@@ -60,11 +60,10 @@ def _accessible_artworks(user):
     if user.is_superuser:
         return Artwork.objects.all()
     collaborator_ids = Artwork.objects.filter(collaborators=user).values('pk')
-    managed_events = Event.objects.filter(admins=user).values('pk')
-    return Artwork.objects.filter(
-        Q(owner=user) | Q(pk__in=collaborator_ids) | Q(event_id__in=managed_events)
-        | Q(checkout_art_responsible=user),
-    )
+    access = Q(owner=user) | Q(pk__in=collaborator_ids)
+    if is_estafa_member(user):
+        access |= Q(event__has_volunteers=True)
+    return Artwork.objects.filter(access)
 
 
 def _send_invitations(invitations):
@@ -209,17 +208,21 @@ def _artwork_context(artwork, program, form, inline_forms=None):
     return context
 
 
+def _estafa_context(user, event):
+    return {
+        **_base_context(event), 'nav_primary': 'estafa',
+        'estafa_events': estafa_events(user), 'current_estafa_event': event,
+    }
+
+
 def _review_context(artwork, form, user, inline_forms=None):
     inline_forms = inline_forms or {}
-    admin_events = Event.objects.order_by('-id') if user.is_superuser else get_admin_events_for_user(user)
     grant_context = _grant_context(artwork, inline_forms)
     for item in grant_context['budget_items'] + grant_context['expense_items']:
         item.review_form = ArtworkGrantItemReviewForm(instance=item, auto_id=f'grant-review-{item.pk}_%s')
     return {
-        **_base_context(artwork.event), **grant_context,
-        'artwork': artwork, 'form': form, 'current_admin_event': artwork.event,
-        'admin_events': admin_events, 'nav_primary': 'events',
-        'nav_secondary': f'art_admin_{artwork.event.slug}',
+        **_estafa_context(user, artwork.event), **grant_context,
+        'artwork': artwork, 'form': form,
         'can_manage': artwork.can_manage(user),
         'checkout_photo_upload_form': inline_forms.get(('checkout-photo-new', None)) or ArtworkCheckoutPhotoUploadForm(
             auto_id='checkout-photo-new_%s',
@@ -229,7 +232,7 @@ def _review_context(artwork, form, user, inline_forms=None):
 
 
 def _inline_error_response(request, artwork, key, inline_form):
-    if request.POST.get('return_to') == 'review' and artwork.can_administer(request.user):
+    if request.POST.get('return_to') == 'review' and artwork.can_manage(request.user):
         review_form = ArtworkReviewForm(instance=artwork, can_manage=artwork.can_manage(request.user))
         return render(
             request, 'art/review.html',
@@ -250,7 +253,7 @@ def _artwork_redirect(artwork, anchor):
 
 
 def _checkout_redirect(request, artwork):
-    if request.POST.get('return_to') == 'review' and artwork.can_administer(request.user):
+    if request.POST.get('return_to') == 'review' and artwork.can_manage(request.user):
         return redirect(f"{reverse('artwork_review', args=[artwork.event.slug, artwork.pk])}#checkout-report")
     return _artwork_redirect(artwork, 'checkout')
 
@@ -272,15 +275,7 @@ def art_dashboard(request):
         .distinct()
     )
     context = _base_context()
-    admin_assignments = Artwork.objects.all() if request.user.is_superuser else Artwork.objects.filter(
-        Q(checkout_art_responsible=request.user) | Q(event__admins=request.user),
-    )
-    admin_assignments = admin_assignments.exclude(title='')
-    context.update({
-        'programs': programs,
-        'artworks': artworks,
-        'admin_assignments': admin_assignments.select_related('event', 'owner').distinct(),
-    })
+    context.update({'programs': programs, 'artworks': artworks})
     return render(request, 'art/dashboard.html', context)
 
 
@@ -336,10 +331,7 @@ def artwork_edit(request, artwork_id):
                 raise Http404
             response = _handle_artwork_edit(request, artwork)
         return response
-    access = _accessible_artworks(request.user).filter(
-        Q(owner=request.user) | Q(collaborators=request.user) | Q(event__admins=request.user),
-    ).distinct()
-    artwork = get_object_or_404(access, pk=artwork_id)
+    artwork = get_object_or_404(_accessible_artworks(request.user), pk=artwork_id)
     return _handle_artwork_edit(request, artwork)
 
 
@@ -421,7 +413,7 @@ def _logistics_editable(artwork, user):
 
 
 def _checkout_editable(artwork, user):
-    if artwork.can_administer(user):
+    if artwork.can_manage(user):
         return True
     program = artwork.event.art_program
     return (
@@ -668,7 +660,7 @@ def artwork_checkout_photo_upload(request, artwork_id):
         artwork = get_object_or_404(access.select_for_update(), pk=artwork_id)
         if not _checkout_editable(artwork, request.user):
             return HttpResponseForbidden('El checkout de esta instalación ya no se puede editar.')
-        if artwork.checkout_verified_at and not artwork.can_administer(request.user):
+        if artwork.checkout_verified_at and not artwork.can_manage(request.user):
             return HttpResponseForbidden('La evidencia de un checkout verificado no se puede modificar.')
         form = ArtworkCheckoutPhotoUploadForm(request.POST, request.FILES, auto_id='checkout-photo-new_%s')
         if form.is_valid():
@@ -695,7 +687,7 @@ def artwork_checkout_photo_delete(request, artwork_id, photo_id):
         photo = get_object_or_404(ArtworkCheckoutPhoto.objects.select_for_update(), pk=photo_id, artwork=artwork)
         if not _checkout_editable(artwork, request.user):
             return HttpResponseForbidden('Esta foto no se puede eliminar.')
-        if artwork.checkout_verified_at and not artwork.can_administer(request.user):
+        if artwork.checkout_verified_at and not artwork.can_manage(request.user):
             return HttpResponseForbidden('La evidencia de un checkout verificado no se puede eliminar.')
         storage, image_name = photo.image.storage, photo.image.name
         photo.delete()
@@ -856,8 +848,8 @@ def art_invitation_accept(request, token):
 
 
 def _managed_event(request, event_slug):
-    event = get_object_or_404(Event, slug=event_slug)
-    if not request.user.is_superuser and not event.admins.filter(pk=request.user.pk).exists():
+    event = get_object_or_404(Event, slug=event_slug, art_program__isnull=False)
+    if not can_coordinate(request.user, event):
         return None
     return event
 
@@ -906,16 +898,25 @@ def _filtered_artworks(event, params):
 
 
 @login_required
+def estafa_home(request):
+    if not can_access_estafa(request.user):
+        return HttpResponseForbidden('Esta sección es sólo para ESTAFA.')
+    events = estafa_events(request.user)
+    event = events.filter(art_program__is_current=True).first() or events.first()
+    if event:
+        return redirect('art_admin_dashboard', event_slug=event.slug)
+    return render(request, 'art/admin_dashboard.html', _estafa_context(request.user, None))
+
+
+@login_required
 def art_admin_dashboard(request, event_slug):
     event = _managed_event(request, event_slug)
     if not event:
         return HttpResponseForbidden('No tenés permisos para coordinar Arte en este evento.')
     artworks = _filtered_artworks(event, request.GET)
-    admin_events = Event.objects.order_by('-id') if request.user.is_superuser else get_admin_events_for_user(request.user)
+    assigned = event.artworks.filter(checkout_art_responsible=request.user).select_related('owner').order_by('status', 'title')
     return render(request, 'art/admin_dashboard.html', {
-        **_base_context(event), 'artworks': artworks, 'current_admin_event': event,
-        'admin_events': admin_events,
-        'nav_primary': 'events', 'nav_secondary': f'art_admin_{event.slug}',
+        **_estafa_context(request.user, event), 'artworks': artworks, 'assigned_artworks': assigned,
         'status_choices': [(stage, label) for stage, (label, _hint) in Artwork.STAGES.items()],
         'grant_choices': Artwork.GrantStatus.choices,
         'kind_choices': Artwork.Kind.choices,
@@ -926,7 +927,7 @@ def art_admin_dashboard(request, event_slug):
 def artwork_review(request, event_slug, artwork_id):
     event = get_object_or_404(Event, slug=event_slug)
     artwork = get_object_or_404(Artwork, pk=artwork_id, event=event)
-    if not artwork.can_administer(request.user):
+    if not artwork.can_manage(request.user):
         return HttpResponseForbidden('No tenés permisos para coordinar Arte en este evento.')
     can_manage = artwork.can_manage(request.user)
     if request.method == 'POST':
@@ -934,7 +935,7 @@ def artwork_review(request, event_slug, artwork_id):
             artwork = get_object_or_404(Artwork.objects.select_for_update(), pk=artwork_id, event=event)
             was_verified = bool(artwork.checkout_verified_at)
             had_art_checkin = bool(artwork.checkin_art_at)
-            if not artwork.can_administer(request.user):
+            if not artwork.can_manage(request.user):
                 return HttpResponseForbidden('No tenés permisos para coordinar Arte en este evento.')
             can_manage = artwork.can_manage(request.user)
             form = ArtworkReviewForm(request.POST, request.FILES, instance=artwork, can_manage=can_manage)

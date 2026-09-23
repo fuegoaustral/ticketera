@@ -1,10 +1,10 @@
 {% extends 'mi_fuego/my_tickets/index.html' %}
 {% load art_format %}
 {% block page_title %}Revisar instalación{% endblock %}
-{% block submenu %}{% include 'mi_fuego/partials/event_admin_menu.html' %}{% endblock %}
+{% block submenu %}{% include 'art/_estafa_menu.html' %}{% endblock %}
 {% block truecontent %}
 <div class="container-fluid" style="max-width:1200px">
-    <a class="small text-decoration-none" href="{% if can_manage %}{% url 'art_admin_dashboard' event.slug %}{% else %}{% url 'art_dashboard' %}{% endif %}">← Volver a Arte</a>
+    <a class="small text-decoration-none" href="{% url 'art_admin_dashboard' event.slug %}">← Volver a ESTAFA</a>
     <div class="d-flex flex-column flex-md-row justify-content-between gap-3 my-4">
         <div><h2 class="h3 mb-1">{{ artwork.title|default:'Instalación sin título' }}</h2><p class="text-muted mb-0">{{ artwork.owner.email|default:'Cuenta archivada' }} · {{ artwork.get_kind_display }}</p></div>
         <div class="d-flex gap-2"><a class="btn btn-outline-primary" href="{% url 'artwork_edit' artwork.pk %}">Ver instalación</a><a class="btn btn-outline-primary" href="{% url 'artwork_photo_upload' artwork.pk %}">Subir fotos</a></div>

@@ -6,6 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from events.models import Event
+from teams.models import Team, TeamMembership
 from user_profile.models import Profile
 
 
@@ -43,9 +44,9 @@ class AccountMenuTest(TestCase):
         self.assertIn(reverse('art_dashboard'), menu)
         self.assertIn('Mis bonos y eventos', menu)
         self.assertIn('https://fuegoaustral.org/faq/', menu)
-        self.assertIn('rel="noopener"', menu)
+        self.assertNotIn('target="_blank"', menu)
         self.assertIn(reverse('account_logout'), menu)
-        for name in ('my_events', 'scanner_events', 'caja_events', 'admin_logros'):
+        for name in ('my_events', 'estafa_home', 'scanner_events', 'caja_events', 'admin_logros'):
             self.assertNotIn(reverse(name), menu)
         self.assertNotIn(reverse('la_sede'), menu)
         self.assertNotIn('text-success', menu)
@@ -62,6 +63,18 @@ class AccountMenuTest(TestCase):
         for name in ('my_events', 'scanner_events', 'caja_events'):
             self.assertIn(reverse(name), menu)
         self.assertNotIn(reverse('admin_logros'), menu)
+        self.assertNotIn(reverse('estafa_home'), menu)
+
+    def test_estafa_member_sees_estafa_only_while_active(self):
+        estafa = Team.objects.get(slug='estafa')
+        today = timezone.localdate()
+        membership = TeamMembership.objects.create(team=estafa, user=self.user, started_on=today - timedelta(days=30))
+        menu = self.menu()
+        self.assertIn(reverse('estafa_home'), menu)
+        self.assertNotIn(reverse('my_events'), menu)
+        membership.ended_on = today - timedelta(days=1)
+        membership.save()
+        self.assertNotIn(reverse('estafa_home'), self.menu())
 
     def test_scanner_role_sees_only_scanner(self):
         self.event.access_scanner.add(self.user)
