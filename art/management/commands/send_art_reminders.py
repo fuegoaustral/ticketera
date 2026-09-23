@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 
-from events.art_reminders import send_art_reminders
+from art.reminders import send_art_reminders
 
 
 class Command(BaseCommand):

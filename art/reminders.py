@@ -6,10 +6,11 @@ from django.urls import reverse
 from django.utils import timezone
 from twilio.rest import Client
 
+from events.models import Event
 from tickets.models import MessageIdempotency
 from utils.email import send_mail
 
-from .models import ArtProgram, ArtworkGrantItem, ArtworkPhoto, Event
+from .models import ArtProgram, ArtworkGrantItem, ArtworkPhoto
 
 
 BLOCKS = {

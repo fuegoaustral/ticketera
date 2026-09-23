@@ -11,6 +11,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from events.models import Event, Grupo, GrupoTipo
 from events.utils import get_admin_events_for_user
 from utils.email import send_mail
 
@@ -22,7 +23,7 @@ from .forms import (
 from .models import (
     ArtProgram, Artwork, ArtworkGrantItem, ArtworkGrantItemPhoto,
     ArtworkInvitation, ArtworkLogisticsPerson, ArtworkPhoto, ArtworkCheckoutPhoto, ArtworkProvider,
-    ArtworkProviderVehicle, Event, Grupo, GrupoMiembro, GrupoTipo,
+    ArtworkProviderVehicle,
 )
 
 
@@ -211,7 +212,7 @@ def _inline_error_response(request, artwork, key, inline_form):
     if request.POST.get('return_to') == 'review' and artwork.can_administer(request.user):
         review_form = ArtworkReviewForm(instance=artwork, can_manage=artwork.can_manage(request.user))
         return render(
-            request, 'mi_fuego/art/review.html',
+            request, 'art/review.html',
             _review_context(artwork, review_form, request.user, {key: inline_form}),
         )
     program = artwork.event.art_program
@@ -219,7 +220,7 @@ def _inline_error_response(request, artwork, key, inline_form):
         instance=artwork, program=program, owner=artwork.owner, actor=request.user,
     )
     return render(
-        request, 'mi_fuego/art/form.html',
+        request, 'art/form.html',
         _artwork_context(artwork, program, artwork_form, {key: inline_form}),
     )
 
@@ -259,7 +260,7 @@ def art_dashboard(request):
         'artworks': artworks,
         'admin_assignments': admin_assignments.select_related('event', 'owner').distinct(),
     })
-    return render(request, 'mi_fuego/art/dashboard.html', context)
+    return render(request, 'art/dashboard.html', context)
 
 
 @login_required
@@ -322,7 +323,7 @@ def _handle_artwork_edit(request, artwork):
         messages.success(request, 'La propuesta fue enviada.' if action == 'submit' else 'El borrador quedó guardado.')
         return redirect('artwork_edit', artwork_id=artwork.pk)
 
-    return render(request, 'mi_fuego/art/form.html', _artwork_context(artwork, program, form))
+    return render(request, 'art/form.html', _artwork_context(artwork, program, form))
 
 
 def _grant_item_editable(artwork, phase, user):
@@ -776,7 +777,7 @@ def art_invitation_accept(request, token):
         invitation.save(update_fields=['accepted_at', 'updated_at'])
         messages.success(request, f'Ya colaborás en “{invitation.artwork.title or "esta obra"}”.')
         return redirect('artwork_edit', artwork_id=invitation.artwork_id)
-    return render(request, 'mi_fuego/art/invitation.html', {
+    return render(request, 'art/invitation.html', {
         **_base_context(invitation.artwork.event), 'invitation': invitation,
     })
 
@@ -819,7 +820,7 @@ def art_admin_dashboard(request, event_slug):
         return HttpResponseForbidden('No tenés permisos para coordinar Arte en este evento.')
     artworks = _filtered_artworks(event, request.GET)
     admin_events = Event.objects.order_by('-id') if request.user.is_superuser else get_admin_events_for_user(request.user)
-    return render(request, 'mi_fuego/art/admin_dashboard.html', {
+    return render(request, 'art/admin_dashboard.html', {
         **_base_context(event), 'artworks': artworks, 'current_admin_event': event,
         'admin_events': admin_events,
         'nav_primary': 'events', 'nav_secondary': f'art_admin_{event.slug}',
@@ -861,7 +862,7 @@ def artwork_review(request, event_slug, artwork_id):
                 return redirect('artwork_review', event_slug=event.slug, artwork_id=artwork.pk)
     else:
         form = ArtworkReviewForm(instance=artwork, can_manage=can_manage)
-    return render(request, 'mi_fuego/art/review.html', _review_context(artwork, form, request.user))
+    return render(request, 'art/review.html', _review_context(artwork, form, request.user))
 
 
 @login_required

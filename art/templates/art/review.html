@@ -30,11 +30,11 @@
                 <summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar ítem</span></summary>
                 <form method="post" action="{% url 'grant_item_create' artwork.pk 'budget' %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
                     <input type="hidden" name="return_to" value="review">
-                    {% include 'mi_fuego/art/_inline_fields.html' with inline_form=budget_create_form %}
+                    {% include 'art/_inline_fields.html' with inline_form=budget_create_form %}
                     <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Agregar al presupuesto</button></div>
                 </form>
             </details>
-            {% include 'mi_fuego/art/_grant_items.html' with items=budget_items can_edit=True can_review=True total_ars=budget_total_ars return_to='review' %}
+            {% include 'art/_grant_items.html' with items=budget_items can_edit=True can_review=True total_ars=budget_total_ars return_to='review' %}
         </section>
         <section id="admin-expenses" class="col-12" aria-labelledby="admin-expense-title">
             <h3 id="admin-expense-title" class="h5">Detalle de la rendición</h3>
@@ -42,11 +42,11 @@
                 <summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar gasto</span></summary>
                 <form method="post" action="{% url 'grant_item_create' artwork.pk 'expense' %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
                     <input type="hidden" name="return_to" value="review">
-                    {% include 'mi_fuego/art/_inline_fields.html' with inline_form=expense_create_form %}
+                    {% include 'art/_inline_fields.html' with inline_form=expense_create_form %}
                     <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Agregar a la rendición</button></div>
                 </form>
             </details>
-            {% include 'mi_fuego/art/_grant_items.html' with items=expense_items can_edit=True can_review=True total_ars=expense_total_ars return_to='review' %}
+            {% include 'art/_grant_items.html' with items=expense_items can_edit=True can_review=True total_ars=expense_total_ars return_to='review' %}
             {% if grant_over_budget %}<div class="alert alert-warning mt-3 mb-0"><strong>Revisión necesaria:</strong> la rendición supera el monto aprobado de ARS {{ artwork.grant_approved_amount_ars|art_money }}.</div>{% endif %}
         </section>
         {% endif %}
@@ -58,7 +58,7 @@
             <summary><i class="fas fa-camera" aria-hidden="true"></i><span>Agregar fotos al reporte</span></summary>
             <form method="post" action="{% url 'artwork_checkout_photo_upload' artwork.pk %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
                 <input type="hidden" name="return_to" value="review">
-                {% include 'mi_fuego/art/_inline_fields.html' with inline_form=checkout_photo_upload_form %}
+                {% include 'art/_inline_fields.html' with inline_form=checkout_photo_upload_form %}
                 <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Subir fotos</button></div>
             </form>
         </details>
@@ -67,7 +67,7 @@
     <form method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}
         {% for field in form.hidden_fields %}{{ field }}{% endfor %}
         {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
-        {% for field in form.visible_fields %}{% include 'mi_fuego/art/_field.html' with field=field %}{% endfor %}
+        {% for field in form.visible_fields %}{% include 'art/_field.html' with field=field %}{% endfor %}
         <div class="d-flex justify-content-end"><button class="btn btn-primary" type="submit">Guardar revisión</button></div>
     </form>
 </div>
@@ -92,7 +92,7 @@
     .inline-images .btn { position: absolute; top: 0; right: 0; padding: .15rem .3rem; }
     @media (max-width: 767px) { .inline-form-grid { grid-template-columns: 1fr; } .inline-form-wide { grid-column: auto; } }
 </style>
-{% include 'mi_fuego/art/_image_preview.html' %}
-{% include 'mi_fuego/art/_money_inputs.html' %}
-{% include 'mi_fuego/art/_restore_position.html' %}
+{% include 'art/_image_preview.html' %}
+{% include 'art/_money_inputs.html' %}
+{% include 'art/_restore_position.html' %}
 {% endblock %}

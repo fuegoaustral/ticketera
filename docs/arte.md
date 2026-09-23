@@ -6,7 +6,7 @@ El módulo reúne en un expediente por obra la propuesta, beca, desplegable, log
 
 - Participantes: `/mi-fuego/arte/`
 - Coordinación: `/mi-fuego/mis-eventos/<evento>/arte/`
-- Configuración: Django Admin → Eventos → Programas de Arte
+- Configuración: Django Admin → Arte → Programas de Arte
 
 Solo el `ArtProgram` marcado como **convocatoria anual vigente** permite crear obras. Los programas anteriores y sus obras se conservan como histórico. El sistema impide marcar dos convocatorias como vigentes.
 

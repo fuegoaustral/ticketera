@@ -6,7 +6,7 @@ import django.core.validators
 from django.db import migrations, models
 import django.db.models.deletion
 from django.utils import timezone
-import events.models
+import art.models
 import uuid
 
 
@@ -142,7 +142,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='artprogram',
             name='reminder_days',
-            field=models.JSONField(blank=True, default=events.models.default_art_reminder_days, verbose_name='Días de anticipación para recordatorios'),
+            field=models.JSONField(blank=True, default=art.models.default_art_reminder_days, verbose_name='Días de anticipación para recordatorios'),
         ),
         migrations.AddField(
             model_name='artprogram',

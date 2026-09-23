@@ -12,13 +12,14 @@ from django.utils import timezone
 from django.contrib.messages import get_messages
 
 from .forms import ArtworkForm, ArtworkGrantItemForm, ArtworkPhotoUploadForm, ArtworkProviderForm, ArtworkReviewForm
-from .art_reminders import send_art_reminders
-from .art_views import _checkpoints
+from .reminders import send_art_reminders
+from .views import _checkpoints
 from .models import (
     ArtProgram, Artwork, ArtworkGrantItem, ArtworkInvitation,
     ArtworkCheckoutPhoto, ArtworkLogisticsPerson, ArtworkPhoto, ArtworkProvider,
-    ArtworkProviderVehicle, Event,
+    ArtworkProviderVehicle,
 )
+from events.models import Event
 from user_profile.models import Profile
 
 

@@ -40,7 +40,7 @@
             {% if form.understanding_letter.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
         </div>
         <p class="text-muted">Subí la versión digital firmada{% if program.understanding_letter_digital_opens %} desde {{ program.understanding_letter_digital_opens|date:'d/m/Y H:i' }}{% endif %}{% if program.understanding_letter_digital_deadline %} hasta {{ program.understanding_letter_digital_deadline|date:'d/m/Y H:i' }}{% endif %}. La versión física se entrega{% if program.understanding_letter_physical_opens %} desde {{ program.understanding_letter_physical_opens|date:'d/m/Y H:i' }}{% endif %}{% if program.understanding_letter_physical_deadline %} hasta {{ program.understanding_letter_physical_deadline|date:'d/m/Y H:i' }}{% endif %}; si tenés una excepción por distancia a CABA, la coordinación puede autorizar entregarla en el evento antes de empezar a construir. En el evento, Arte registra la llegada y ubicación final de la obra.</p>
-        {% include 'mi_fuego/art/_field.html' with field=form.understanding_letter %}
+        {% include 'art/_field.html' with field=form.understanding_letter %}
         {% if artwork.understanding_letter_physical_received %}<div class="alert alert-success py-2 mb-0"><strong>Carta física recibida.</strong>{% if artwork.understanding_letter_physical_custodian %} Responsable: {{ artwork.understanding_letter_physical_custodian }}.{% endif %}{% if artwork.understanding_letter_physical_notes %}<br>{{ artwork.understanding_letter_physical_notes|linebreaksbr }}{% endif %}</div>{% endif %}
     </section>
 
@@ -56,24 +56,24 @@
                 {% if form.title.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
             </div>
             <p class="text-muted">El nombre es obligatorio y lo podés cambiar después. La descripción es opcional.</p>
-            {% include 'mi_fuego/art/_field.html' with field=form.title %}
-            {% include 'mi_fuego/art/_field.html' with field=form.proposal %}
-            {% include 'mi_fuego/art/_field.html' with field=form.dimensions %}
-            {% include 'mi_fuego/art/_field.html' with field=form.materials %}
-            {% include 'mi_fuego/art/_field.html' with field=form.technical_needs %}
-            {% include 'mi_fuego/art/_field.html' with field=form.power_watts %}
-            {% include 'mi_fuego/art/_field.html' with field=form.uses_sound %}
+            {% include 'art/_field.html' with field=form.title %}
+            {% include 'art/_field.html' with field=form.proposal %}
+            {% include 'art/_field.html' with field=form.dimensions %}
+            {% include 'art/_field.html' with field=form.materials %}
+            {% include 'art/_field.html' with field=form.technical_needs %}
+            {% include 'art/_field.html' with field=form.power_watts %}
+            {% include 'art/_field.html' with field=form.uses_sound %}
             <h3 class="h5 mt-5 mb-2">Seguridad y uso de fuego</h3>
             <p class="small text-muted">Si la obra utiliza fuego, completá sus detalles, el plan de extinción y la persona responsable antes de enviarla.</p>
-            {% include 'mi_fuego/art/_field.html' with field=form.uses_fire %}
+            {% include 'art/_field.html' with field=form.uses_fire %}
             <div class="fire-fields">
-                {% include 'mi_fuego/art/_field.html' with field=form.fire_details %}
-                {% include 'mi_fuego/art/_field.html' with field=form.extinguishing_plan %}
+                {% include 'art/_field.html' with field=form.fire_details %}
+                {% include 'art/_field.html' with field=form.extinguishing_plan %}
             </div>
-            {% include 'mi_fuego/art/_field.html' with field=form.safety_plan %}
-            {% include 'mi_fuego/art/_field.html' with field=form.safety_responsible_email %}
+            {% include 'art/_field.html' with field=form.safety_plan %}
+            {% include 'art/_field.html' with field=form.safety_responsible_email %}
             <h3 class="h5 mt-5 mb-2">Colaboradores</h3>
-            {% include 'mi_fuego/art/_field.html' with field=form.collaborator_emails %}
+            {% include 'art/_field.html' with field=form.collaborator_emails %}
             {% if artwork.invitations.all %}
                 <p class="small text-muted mb-0">Invitaciones pendientes:
                 {% for invitation in artwork.invitations.all %}{% if invitation.is_pending %}<span class="badge bg-light text-dark border">{{ invitation.email }}</span>{% endif %}{% endfor %}</p>
@@ -87,8 +87,8 @@
                 {% if artwork %}<span class="badge bg-light text-dark border">{{ artwork.get_grant_status_display }}</span>{% endif %}
             </div>
             <p class="text-muted">Cada monto conserva moneda, fecha, fuente y cotización. Los totales históricos no cambian.</p>
-            {% include 'mi_fuego/art/_field.html' with field=form.grant_requested %}
-            {% include 'mi_fuego/art/_field.html' with field=form.grant_justification %}
+            {% include 'art/_field.html' with field=form.grant_requested %}
+            {% include 'art/_field.html' with field=form.grant_justification %}
 
             <div class="grant-panel mt-4">
                 <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
@@ -98,12 +98,12 @@
                 <details class="inline-editor inline-create mb-3"{% if budget_create_form.errors %} open{% endif %}>
                     <summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar ítem</span></summary>
                     <form method="post" action="{% url 'grant_item_create' artwork.pk 'budget' %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
-                        {% include 'mi_fuego/art/_inline_fields.html' with inline_form=budget_create_form %}
+                        {% include 'art/_inline_fields.html' with inline_form=budget_create_form %}
                         <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Agregar al presupuesto</button></div>
                     </form>
                 </details>
                 {% endif %}
-                {% include 'mi_fuego/art/_grant_items.html' with items=budget_items can_edit=can_edit_budget total_ars=budget_total_ars %}
+                {% include 'art/_grant_items.html' with items=budget_items can_edit=can_edit_budget total_ars=budget_total_ars %}
             </div>
             {% if can_submit_grant %}
                 {% if artwork.grant_requested and artwork.grant_justification and budget_items %}
@@ -125,7 +125,7 @@
             <details class="inline-editor inline-create mb-3"{% if photo_upload_form.errors %} open{% endif %}>
                 <summary><i class="fas fa-camera" aria-hidden="true"></i><span>Subir fotos</span></summary>
                 <form method="post" action="{% url 'artwork_photo_upload' artwork.pk %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
-                    {% include 'mi_fuego/art/_inline_fields.html' with inline_form=photo_upload_form %}
+                    {% include 'art/_inline_fields.html' with inline_form=photo_upload_form %}
                     <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Subir fotos</button></div>
                 </form>
             </details>
@@ -150,10 +150,10 @@
                 {% if form.public_title.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
             </div>
             <p class="text-muted">El texto público tiene el límite exacto del desplegable. La asignación la completa coordinación.</p>
-            {% include 'mi_fuego/art/_field.html' with field=form.public_title %}
-            {% include 'mi_fuego/art/_field.html' with field=form.public_description %}
+            {% include 'art/_field.html' with field=form.public_title %}
+            {% include 'art/_field.html' with field=form.public_description %}
             <div class="character-count text-end small text-muted" id="public-description-count" aria-live="polite"></div>
-            {% include 'mi_fuego/art/_field.html' with field=form.preferred_location %}
+            {% include 'art/_field.html' with field=form.preferred_location %}
             {% if artwork.assigned_location %}<div class="alert alert-success mb-0"><strong>Ubicación asignada:</strong> {{ artwork.assigned_location }}{% if artwork.placement_notes %}<br>{{ artwork.placement_notes|linebreaksbr }}{% endif %}</div>{% endif %}
         </section>
 
@@ -163,7 +163,7 @@
                 {% if form.arrival_date.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
             </div>
             <p class="text-muted">Separá quién ingresa antes del evento y quién participa del desarme. Proveedores y vehículos se cargan por separado.</p>
-            <div class="row"><div class="col-md-6">{% include 'mi_fuego/art/_field.html' with field=form.arrival_date %}</div><div class="col-md-6">{% include 'mi_fuego/art/_field.html' with field=form.departure_date %}</div></div>
+            <div class="row"><div class="col-md-6">{% include 'art/_field.html' with field=form.arrival_date %}</div><div class="col-md-6">{% include 'art/_field.html' with field=form.departure_date %}</div></div>
             <div class="d-flex justify-content-between align-items-center gap-3 mt-4 mb-2">
                 <h3 class="h5 mb-0">Personas del equipo</h3>
             </div>
@@ -171,7 +171,7 @@
             <details class="inline-editor inline-create mb-3"{% if person_create_form.errors %} open{% endif %}>
                 <summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar persona</span></summary>
                 <form method="post" action="{% url 'logistics_person_create' artwork.pk %}" novalidate>{% csrf_token %}
-                    {% include 'mi_fuego/art/_inline_fields.html' with inline_form=person_create_form %}
+                    {% include 'art/_inline_fields.html' with inline_form=person_create_form %}
                     <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Agregar persona</button></div>
                 </form>
             </details>
@@ -186,7 +186,7 @@
                     <td>{% if person.dismantling %}{{ person.dismantling_date|date:'d/m/Y' }}{% else %}<span class="text-muted">No</span>{% endif %}</td>
                     {% if can_edit_logistics %}<td class="text-end text-nowrap"><form class="d-inline" method="post" action="{% url 'logistics_person_delete' artwork.pk person.pk %}">{% csrf_token %}<button class="btn btn-sm btn-link text-danger px-1" type="submit" title="Eliminar persona" aria-label="Eliminar {{ person }}" onclick="return confirm('¿Eliminar esta persona?')"><i class="fas fa-trash" aria-hidden="true"></i></button></form></td>{% endif %}
                 </tr>
-                {% if can_edit_logistics %}<tr class="inline-table-editor"><td colspan="5"><details class="inline-editor"{% if person.inline_form.errors %} open{% endif %}><summary><i class="fas fa-pen" aria-hidden="true"></i><span>Editar {{ person }}</span></summary><form method="post" action="{% url 'logistics_person_edit' artwork.pk person.pk %}" novalidate>{% csrf_token %}{% include 'mi_fuego/art/_inline_fields.html' with inline_form=person.inline_form %}<div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Guardar persona</button></div></form></details></td></tr>{% endif %}
+                {% if can_edit_logistics %}<tr class="inline-table-editor"><td colspan="5"><details class="inline-editor"{% if person.inline_form.errors %} open{% endif %}><summary><i class="fas fa-pen" aria-hidden="true"></i><span>Editar {{ person }}</span></summary><form method="post" action="{% url 'logistics_person_edit' artwork.pk person.pk %}" novalidate>{% csrf_token %}{% include 'art/_inline_fields.html' with inline_form=person.inline_form %}<div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Guardar persona</button></div></form></details></td></tr>{% endif %}
                 {% endfor %}</tbody>
             </table></div>
             {% else %}<p class="small text-muted">Todavía no hay personas cargadas.</p>{% endif %}
@@ -202,7 +202,7 @@
             <details class="inline-editor inline-create mb-3"{% if provider_create_form.errors %} open{% endif %}>
                 <summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar proveedor</span></summary>
                 <form class="provider-inline-form" method="post" action="{% url 'artwork_provider_create' artwork.pk %}" novalidate>{% csrf_token %}
-                    {% include 'mi_fuego/art/_provider_fields.html' with inline_form=provider_create_form %}
+                    {% include 'art/_provider_fields.html' with inline_form=provider_create_form %}
                     <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Agregar proveedor</button></div>
                 </form>
             </details>
@@ -216,10 +216,10 @@
                     </div>
                     {% if provider.for_entry %}<small class="d-block text-muted mt-1"><strong>Ingreso anticipado:</strong> {{ provider.early_entry_at|date:'d/m/Y H:i' }} a {{ provider.early_exit_at|date:'d/m/Y H:i' }}</small>{% endif %}
                     {% if provider.for_exit %}<small class="d-block text-muted"><strong>Desarme y retiro:</strong> {{ provider.dismantling_entry_at|date:'d/m/Y H:i' }} a {{ provider.dismantling_exit_at|date:'d/m/Y H:i' }}</small>{% endif %}
-                    {% if can_edit_logistics %}<details class="inline-editor mt-2"{% if provider.inline_form.errors %} open{% endif %}><summary><i class="fas fa-pen" aria-hidden="true"></i><span>Editar proveedor</span></summary><form class="provider-inline-form" method="post" action="{% url 'artwork_provider_edit' artwork.pk provider.pk %}" novalidate>{% csrf_token %}{% include 'mi_fuego/art/_provider_fields.html' with inline_form=provider.inline_form %}<div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Guardar proveedor</button></div></form></details>{% endif %}
+                    {% if can_edit_logistics %}<details class="inline-editor mt-2"{% if provider.inline_form.errors %} open{% endif %}><summary><i class="fas fa-pen" aria-hidden="true"></i><span>Editar proveedor</span></summary><form class="provider-inline-form" method="post" action="{% url 'artwork_provider_edit' artwork.pk provider.pk %}" novalidate>{% csrf_token %}{% include 'art/_provider_fields.html' with inline_form=provider.inline_form %}<div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Guardar proveedor</button></div></form></details>{% endif %}
                     <div class="mt-3"><strong class="small">Vehículos</strong></div>
-                    {% if provider.inline_vehicles %}<div class="table-responsive"><table class="table table-sm mb-0"><tbody>{% for vehicle in provider.inline_vehicles %}<tr><td><strong>{{ vehicle.plate }}</strong> · {{ vehicle.get_vehicle_type_display }} · {{ vehicle.make_model }}<br><small class="text-muted">Conduce {{ vehicle.driver_name }} · {{ vehicle.get_driver_document_type_display }} {{ vehicle.driver_document_number }}{% if vehicle.notes %} · {{ vehicle.notes }}{% endif %}</small></td>{% if can_edit_logistics %}<td class="text-end"><form method="post" action="{% url 'artwork_vehicle_delete' artwork.pk provider.pk vehicle.pk %}">{% csrf_token %}<button class="btn btn-sm btn-link text-danger px-1" type="submit" title="Eliminar vehículo" aria-label="Eliminar vehículo {{ vehicle.plate }}" onclick="return confirm('¿Eliminar este vehículo?')"><i class="fas fa-trash" aria-hidden="true"></i></button></form></td>{% endif %}</tr>{% if can_edit_logistics %}<tr class="inline-table-editor"><td colspan="2"><details class="inline-editor"{% if vehicle.inline_form.errors %} open{% endif %}><summary><i class="fas fa-pen" aria-hidden="true"></i><span>Editar vehículo {{ vehicle.plate }}</span></summary><form method="post" action="{% url 'artwork_vehicle_edit' artwork.pk provider.pk vehicle.pk %}" novalidate>{% csrf_token %}{% include 'mi_fuego/art/_inline_fields.html' with inline_form=vehicle.inline_form %}<div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Guardar vehículo</button></div></form></details></td></tr>{% endif %}{% endfor %}</tbody></table></div>{% else %}<p class="small text-muted mb-0">Sin vehículos.</p>{% endif %}
-                    {% if can_edit_logistics %}<details class="inline-editor inline-create mt-2"{% if provider.vehicle_create_form.errors %} open{% endif %}><summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar vehículo</span></summary><form method="post" action="{% url 'artwork_vehicle_create' artwork.pk provider.pk %}" novalidate>{% csrf_token %}{% include 'mi_fuego/art/_inline_fields.html' with inline_form=provider.vehicle_create_form %}<div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Agregar vehículo</button></div></form></details>{% endif %}
+                    {% if provider.inline_vehicles %}<div class="table-responsive"><table class="table table-sm mb-0"><tbody>{% for vehicle in provider.inline_vehicles %}<tr><td><strong>{{ vehicle.plate }}</strong> · {{ vehicle.get_vehicle_type_display }} · {{ vehicle.make_model }}<br><small class="text-muted">Conduce {{ vehicle.driver_name }} · {{ vehicle.get_driver_document_type_display }} {{ vehicle.driver_document_number }}{% if vehicle.notes %} · {{ vehicle.notes }}{% endif %}</small></td>{% if can_edit_logistics %}<td class="text-end"><form method="post" action="{% url 'artwork_vehicle_delete' artwork.pk provider.pk vehicle.pk %}">{% csrf_token %}<button class="btn btn-sm btn-link text-danger px-1" type="submit" title="Eliminar vehículo" aria-label="Eliminar vehículo {{ vehicle.plate }}" onclick="return confirm('¿Eliminar este vehículo?')"><i class="fas fa-trash" aria-hidden="true"></i></button></form></td>{% endif %}</tr>{% if can_edit_logistics %}<tr class="inline-table-editor"><td colspan="2"><details class="inline-editor"{% if vehicle.inline_form.errors %} open{% endif %}><summary><i class="fas fa-pen" aria-hidden="true"></i><span>Editar vehículo {{ vehicle.plate }}</span></summary><form method="post" action="{% url 'artwork_vehicle_edit' artwork.pk provider.pk vehicle.pk %}" novalidate>{% csrf_token %}{% include 'art/_inline_fields.html' with inline_form=vehicle.inline_form %}<div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Guardar vehículo</button></div></form></details></td></tr>{% endif %}{% endfor %}</tbody></table></div>{% else %}<p class="small text-muted mb-0">Sin vehículos.</p>{% endif %}
+                    {% if can_edit_logistics %}<details class="inline-editor inline-create mt-2"{% if provider.vehicle_create_form.errors %} open{% endif %}><summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar vehículo</span></summary><form method="post" action="{% url 'artwork_vehicle_create' artwork.pk provider.pk %}" novalidate>{% csrf_token %}{% include 'art/_inline_fields.html' with inline_form=provider.vehicle_create_form %}<div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Agregar vehículo</button></div></form></details>{% endif %}
                 </div>
                 {% endfor %}
             {% else %}<p class="small text-muted mb-0">Todavía no hay proveedores cargados.</p>{% endif %}
@@ -231,9 +231,9 @@
                 {% if artwork.checkout_verified_at %}<span class="badge bg-success">Verificado</span>{% elif form.checkout_completed.field.disabled %}<span class="badge bg-secondary">No editable</span>{% endif %}
             </div>
             <p class="text-muted"><strong>Paso 1, equipo de la obra:</strong> solicitá la verificación cuando la obra esté retirada y el espacio limpio. El nexo de Arte completa el paso 2 desde el backoffice.</p>
-            {% include 'mi_fuego/art/_field.html' with field=form.checkout_completed %}
-            <div class="row"><div class="col-md-6">{% include 'mi_fuego/art/_field.html' with field=form.checkout_team_responsible %}</div><div class="col-md-6">{% include 'mi_fuego/art/_field.html' with field=form.checkout_art_responsible %}</div></div>
-            {% include 'mi_fuego/art/_field.html' with field=form.checkout_notes %}
+            {% include 'art/_field.html' with field=form.checkout_completed %}
+            <div class="row"><div class="col-md-6">{% include 'art/_field.html' with field=form.checkout_team_responsible %}</div><div class="col-md-6">{% include 'art/_field.html' with field=form.checkout_art_responsible %}</div></div>
+            {% include 'art/_field.html' with field=form.checkout_notes %}
             {% if artwork %}
             <div class="mt-4" id="checkout-report">
                 <h3 class="h5 mb-1">Reporte fotográfico del checkout</h3>
@@ -242,7 +242,7 @@
                 <details class="inline-editor inline-create mb-3"{% if checkout_photo_upload_form.errors %} open{% endif %}>
                     <summary><i class="fas fa-camera" aria-hidden="true"></i><span>Agregar fotos al reporte</span></summary>
                     <form method="post" action="{% url 'artwork_checkout_photo_upload' artwork.pk %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
-                        {% include 'mi_fuego/art/_inline_fields.html' with inline_form=checkout_photo_upload_form %}
+                        {% include 'art/_inline_fields.html' with inline_form=checkout_photo_upload_form %}
                         <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Subir fotos</button></div>
                     </form>
                 </details>
@@ -255,7 +255,7 @@
         {% if program.grants_enabled and form.grant_report %}
         <section class="form-section" id="rendicion" aria-labelledby="grant-report-title">
             <div class="section-heading"><div><span>08</span><h2 id="grant-report-title">Rendición de beca</h2></div></div>
-            {% include 'mi_fuego/art/_field.html' with field=form.grant_report %}
+            {% include 'art/_field.html' with field=form.grant_report %}
             {% if artwork %}
             <div class="d-flex justify-content-between align-items-center gap-3 my-3">
                 <div><h3 class="h5 mb-1">Gastos realizados</h3><p class="small text-muted mb-0">Total convertido: <strong>ARS {{ expense_total_ars|art_money }}</strong></p></div>
@@ -264,12 +264,12 @@
             <details class="inline-editor inline-create mb-3"{% if expense_create_form.errors %} open{% endif %}>
                 <summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar gasto</span></summary>
                 <form method="post" action="{% url 'grant_item_create' artwork.pk 'expense' %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
-                    {% include 'mi_fuego/art/_inline_fields.html' with inline_form=expense_create_form %}
+                    {% include 'art/_inline_fields.html' with inline_form=expense_create_form %}
                     <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Agregar a la rendición</button></div>
                 </form>
             </details>
             {% endif %}
-            {% include 'mi_fuego/art/_grant_items.html' with items=expense_items can_edit=can_edit_expenses total_ars=expense_total_ars %}
+            {% include 'art/_grant_items.html' with items=expense_items can_edit=can_edit_expenses total_ars=expense_total_ars %}
             {% if grant_over_budget %}<div class="alert alert-warning mt-3 mb-0"><strong>Revisá los montos:</strong> la rendición supera el monto aprobado de ARS {{ artwork.grant_approved_amount_ars|art_money }}.</div>{% endif %}
             {% if can_submit_report %}<form method="post" action="{% url 'grant_report_submit' artwork.pk %}">{% csrf_token %}<button class="btn btn-primary mt-3" type="submit">Enviar rendición</button></form>{% endif %}
             {% endif %}
@@ -399,7 +399,7 @@
         syncCharacterCount();
     }
 </script>
-{% include 'mi_fuego/art/_image_preview.html' %}
-{% include 'mi_fuego/art/_money_inputs.html' %}
-{% include 'mi_fuego/art/_restore_position.html' %}
+{% include 'art/_image_preview.html' %}
+{% include 'art/_money_inputs.html' %}
+{% include 'art/_restore_position.html' %}
 {% endblock %}

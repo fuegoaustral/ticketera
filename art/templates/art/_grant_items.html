@@ -24,7 +24,7 @@
                     <details class="inline-editor mt-2"{% if item.review_status == 'pending' %} open{% endif %}>
                         <summary><i class="fas fa-check-circle" aria-hidden="true"></i><span>Revisar ítem</span></summary>
                         <form method="post" action="{% url 'grant_item_review' artwork.event.slug artwork.pk item.pk %}" novalidate>{% csrf_token %}
-                            {% include 'mi_fuego/art/_inline_fields.html' with inline_form=item.review_form %}
+                            {% include 'art/_inline_fields.html' with inline_form=item.review_form %}
                             <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Guardar revisión</button></div>
                         </form>
                     </details>
@@ -38,7 +38,7 @@
                     <form method="post" action="{% url 'grant_item_edit' artwork.pk item.pk %}" enctype="multipart/form-data" novalidate>
                         {% csrf_token %}
                         {% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}">{% endif %}
-                        {% include 'mi_fuego/art/_inline_fields.html' with inline_form=item.inline_form %}
+                        {% include 'art/_inline_fields.html' with inline_form=item.inline_form %}
                         {% if item.photos.all %}
                         <div class="inline-images mb-3">
                             {% for photo in item.photos.all %}
