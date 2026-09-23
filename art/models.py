@@ -53,9 +53,9 @@ class ArtProgram(BaseModel):
     reminder_days = models.JSONField(default=default_art_reminder_days, blank=True, verbose_name='Días de anticipación para recordatorios')
     reminder_email_enabled = models.BooleanField(default=True, verbose_name='Recordatorios por email')
     reminder_whatsapp_enabled = models.BooleanField(default=False, verbose_name='Recordatorios por WhatsApp')
-    early_entry_slots = models.PositiveIntegerField(default=0, verbose_name='Cupos de ingreso anticipado por obra')
+    early_entry_slots = models.PositiveIntegerField(default=0, verbose_name='Cupos de ingreso anticipado por instalación')
     early_entry_from = models.DateTimeField(null=True, blank=True, verbose_name='Ingreso anticipado desde')
-    late_checkout_slots = models.PositiveIntegerField(default=0, verbose_name='Cupos de late checkout por obra')
+    late_checkout_slots = models.PositiveIntegerField(default=0, verbose_name='Cupos de late checkout por instalación')
     late_checkout_until = models.DateTimeField(null=True, blank=True, verbose_name='Late checkout hasta')
 
     class Meta:
@@ -105,8 +105,8 @@ class ArtProgram(BaseModel):
 
 class Artwork(BaseModel):
     class Kind(models.TextChoices):
-        PLANNED = 'planned', 'Obra inscripta'
-        POPUP = 'popup', 'Obra espontánea (popup)'
+        PLANNED = 'planned', 'Instalación inscripta'
+        POPUP = 'popup', 'Instalación espontánea (popup)'
 
     class GrantStatus(models.TextChoices):
         NOT_REQUESTED = 'none', 'No solicitada'
@@ -140,14 +140,14 @@ class Artwork(BaseModel):
     operations_group = models.OneToOneField('events.Grupo', on_delete=models.SET_NULL, null=True, blank=True, related_name='artwork')
     kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.PLANNED, verbose_name='Modalidad')
 
-    title = models.CharField(max_length=120, blank=True, verbose_name='Nombre de la obra')
+    title = models.CharField(max_length=120, blank=True, verbose_name='Nombre de la instalación')
     proposal = models.TextField(blank=True, verbose_name='Descripción de la propuesta')
     dimensions = models.CharField(max_length=200, blank=True, verbose_name='Dimensiones')
     materials = models.TextField(blank=True, verbose_name='Materiales')
     technical_needs = models.TextField(blank=True, verbose_name='Necesidades técnicas y energía')
-    uses_sound = models.BooleanField(default=False, verbose_name='La obra utiliza sonido amplificado')
+    uses_sound = models.BooleanField(default=False, verbose_name='La instalación utiliza sonido amplificado')
     safety_plan = models.TextField(blank=True, verbose_name='Seguridad y uso de fuego')
-    uses_fire = models.BooleanField(default=False, verbose_name='La obra utiliza fuego')
+    uses_fire = models.BooleanField(default=False, verbose_name='La instalación utiliza fuego')
     fire_details = models.TextField(blank=True, verbose_name='Combustible, cantidad y funcionamiento del fuego')
     extinguishing_plan = models.TextField(blank=True, verbose_name='Plan y elementos de extinción')
     power_watts = models.PositiveIntegerField(null=True, blank=True, verbose_name='Potencia eléctrica máxima (W)')
@@ -158,9 +158,9 @@ class Artwork(BaseModel):
     )
 
     grant_requested = models.BooleanField(default=False, verbose_name='Quiero solicitar una beca')
-    grant_justification = models.TextField(blank=True, verbose_name='Por qué la beca hace posible la obra')
+    grant_justification = models.TextField(blank=True, verbose_name='Por qué la beca hace posible la instalación')
     grant_status = models.CharField(max_length=10, choices=GrantStatus.choices, default=GrantStatus.NOT_REQUESTED, verbose_name='Estado de la beca')
-    grant_report = models.TextField(blank=True, verbose_name='Rendición y resultado de la obra')
+    grant_report = models.TextField(blank=True, verbose_name='Rendición y resultado de la instalación')
     grant_approved_amount_ars = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(1)], verbose_name='Monto aprobado en ARS')
     grant_decision_notes = models.TextField(blank=True, verbose_name='Devolución sobre la beca')
     grant_paid_at = models.DateField(null=True, blank=True, verbose_name='Fecha de pago de la beca')
@@ -177,20 +177,20 @@ class Artwork(BaseModel):
     crew = models.TextField(blank=True, verbose_name='Equipo que ingresa')
     providers = models.TextField(blank=True, verbose_name='Proveedores y vehículos')
 
-    checkin_arrived_at = models.DateTimeField(null=True, blank=True, verbose_name='Hora de llegada de la obra al evento')
+    checkin_arrived_at = models.DateTimeField(null=True, blank=True, verbose_name='Hora de llegada de la instalación al evento')
     checkin_art_at = models.DateTimeField(null=True, blank=True, verbose_name='Check-in realizado con Arte')
     checkin_art_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='artwork_checkins', verbose_name='Check-in registrado por',
     )
-    checkin_placed = models.BooleanField(default=False, verbose_name='La obra quedó ubicada')
+    checkin_placed = models.BooleanField(default=False, verbose_name='La instalación quedó ubicada')
     checkin_placement_changed = models.BooleanField(default=False, verbose_name='El placement original cambió')
     checkin_placement_change_notes = models.TextField(blank=True, verbose_name='Cambio de placement y motivo')
 
     checkout_completed = models.BooleanField(default=False, verbose_name='Solicito verificar el retiro y limpieza')
     checkout_team_responsible = models.ForeignKey(
         'ArtworkLogisticsPerson', on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='team_checkout_artworks', verbose_name='Responsable del equipo de la obra',
+        related_name='team_checkout_artworks', verbose_name='Responsable del equipo de la instalación',
     )
     checkout_art_responsible = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True,
@@ -220,8 +220,8 @@ class Artwork(BaseModel):
     understanding_letter_physical_waiver_reason = models.TextField(
         blank=True, verbose_name='Motivo de la excepción de carta física',
     )
-    status = models.CharField(max_length=12, choices=Status.choices, default=Status.DRAFT, verbose_name='Estado de la obra')
-    review_feedback = models.TextField(blank=True, verbose_name='Devolución al equipo de la obra')
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.DRAFT, verbose_name='Estado de la instalación')
+    review_feedback = models.TextField(blank=True, verbose_name='Devolución al equipo de la instalación')
     benefit_status = models.CharField(max_length=10, choices=BenefitStatus.choices, default=BenefitStatus.NOT_EVALUATED, verbose_name='Beneficio para la próxima edición')
     benefit_notes = models.TextField(blank=True, verbose_name='Notas del beneficio')
     version = models.PositiveIntegerField(default=1, editable=False)
@@ -229,11 +229,11 @@ class Artwork(BaseModel):
 
     class Meta:
         ordering = ['-updated_at']
-        verbose_name = 'Obra de Arte'
-        verbose_name_plural = 'Obras de Arte'
+        verbose_name = 'Instalación de Arte'
+        verbose_name_plural = 'Instalaciones de Arte'
 
     def __str__(self):
-        return f'{self.title or "Obra sin título"} · {self.event.name}'
+        return f'{self.title or "Instalación sin título"} · {self.event.name}'
 
     def can_edit(self, user):
         return user == self.owner or self.collaborators.filter(pk=user.pk).exists()
@@ -258,13 +258,13 @@ class Artwork(BaseModel):
             if description_limit and description_changed and len(self.public_description) > description_limit:
                 errors['public_description'] = f'La descripción puede tener hasta {description_limit} caracteres.'
         if self.checkout_verified_at and not self.checkout_completed:
-            errors['checkout_verified_at'] = 'El equipo de la obra debe solicitar el checkout antes de verificarlo.'
+            errors['checkout_verified_at'] = 'El equipo de la instalación debe solicitar el checkout antes de verificarlo.'
         if self.understanding_letter_physical_waiver and not self.understanding_letter_physical_waiver_reason:
             errors['understanding_letter_physical_waiver_reason'] = 'Indicá por qué corresponde la excepción por distancia a CABA.'
         if self.checkin_art_at and not self.checkin_arrived_at:
-            errors['checkin_arrived_at'] = 'Indicá primero la hora de llegada de la obra.'
+            errors['checkin_arrived_at'] = 'Indicá primero la hora de llegada de la instalación.'
         if self.checkin_placement_changed and not self.checkin_placed:
-            errors['checkin_placed'] = 'Marcá que la obra quedó ubicada antes de registrar un cambio de placement.'
+            errors['checkin_placed'] = 'Marcá que la instalación quedó ubicada antes de registrar un cambio de placement.'
         if self.checkin_placement_changed and not self.checkin_placement_change_notes:
             errors['checkin_placement_change_notes'] = 'Explicá el cambio respecto del placement original.'
         if self.understanding_letter_physical_received and not (
@@ -386,8 +386,8 @@ class ArtworkLogisticsPerson(BaseModel):
 
     class Meta:
         ordering = ['last_name', 'first_name']
-        verbose_name = 'Persona de logística de obra'
-        verbose_name_plural = 'Personas de logística de obra'
+        verbose_name = 'Persona de logística de instalación'
+        verbose_name_plural = 'Personas de logística de instalación'
         constraints = [
             models.UniqueConstraint(fields=['artwork', 'document_type', 'document_number'], name='unique_artwork_logistics_document'),
         ]
@@ -414,8 +414,8 @@ class ArtworkProvider(BaseModel):
 
     class Meta:
         ordering = ['company_name']
-        verbose_name = 'Proveedor de obra'
-        verbose_name_plural = 'Proveedores de obra'
+        verbose_name = 'Proveedor de instalación'
+        verbose_name_plural = 'Proveedores de instalación'
         constraints = [
             models.CheckConstraint(check=Q(for_entry=True) | Q(for_exit=True), name='art_provider_has_operation'),
         ]
@@ -443,8 +443,8 @@ class ArtworkProviderVehicle(BaseModel):
 
     class Meta:
         ordering = ['plate']
-        verbose_name = 'Vehículo de proveedor de obra'
-        verbose_name_plural = 'Vehículos de proveedores de obra'
+        verbose_name = 'Vehículo de proveedor de instalación'
+        verbose_name_plural = 'Vehículos de proveedores de instalación'
         constraints = [
             models.UniqueConstraint(fields=['provider', 'plate'], name='unique_artwork_provider_plate'),
         ]
@@ -457,7 +457,7 @@ class ArtworkPhoto(BaseModel):
     class Stage(models.TextChoices):
         PROPOSAL = 'proposal', 'Propuesta'
         PROCESS = 'process', 'Proceso'
-        FINAL = 'final', 'Obra terminada'
+        FINAL = 'final', 'Instalación terminada'
         GRANT_REPORT = 'grant', 'Rendición de beca'
 
     artwork = models.ForeignKey(Artwork, on_delete=models.CASCADE, related_name='photos')
@@ -469,8 +469,8 @@ class ArtworkPhoto(BaseModel):
 
     class Meta:
         ordering = ['created_at']
-        verbose_name = 'Foto de obra'
-        verbose_name_plural = 'Fotos de obras'
+        verbose_name = 'Foto de instalación'
+        verbose_name_plural = 'Fotos de instalaciones'
 
     def __str__(self):
         return f'{self.get_stage_display()} · {self.artwork}'
@@ -480,7 +480,7 @@ class ArtworkCheckoutPhoto(BaseModel):
     class Category(models.TextChoices):
         DIRT = 'dirt', 'M.U.G.R.E.'
         ENVIRONMENTAL_DAMAGE = 'environmental_damage', 'Daño ambiental'
-        ARTWORK_PARTS = 'artwork_parts', 'Partes de la obra'
+        ARTWORK_PARTS = 'artwork_parts', 'Partes de la instalación'
         BURN_REMAINS = 'burn_remains', 'Restos de quema'
         CLEANUP = 'cleanup', 'Limpieza y estado final'
         OTHER = 'other', 'Otro'
@@ -493,8 +493,8 @@ class ArtworkCheckoutPhoto(BaseModel):
 
     class Meta:
         ordering = ['created_at']
-        verbose_name = 'Foto de checkout de obra'
-        verbose_name_plural = 'Fotos de checkout de obras'
+        verbose_name = 'Foto de checkout de instalación'
+        verbose_name_plural = 'Fotos de checkout de instalaciones'
 
     def __str__(self):
         return f'{self.get_category_display()} · {self.artwork}'

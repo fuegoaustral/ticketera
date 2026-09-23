@@ -1,7 +1,7 @@
 {% extends 'mi_fuego/my_tickets/index.html' %}
 {% load art_format %}
 
-{% block page_title %}{{ artwork.title|default:'Obra sin título' }}{% endblock page_title %}
+{% block page_title %}{{ artwork.title|default:'Instalación sin título' }}{% endblock page_title %}
 
 {% block truecontent %}
 <div class="container-fluid art-form-page">
@@ -10,7 +10,7 @@
         <p class="text-uppercase text-muted small fw-semibold mb-2">{{ program.event.name }}</p>
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-start gap-3">
             <div>
-                <h2 class="h3 mb-2">Expediente de la obra</h2>
+                <h2 class="h3 mb-2">Instalación de Arte</h2>
                 <p class="text-muted mb-0">Guardá avances por sección. Las fechas cerradas quedan visibles para consulta.</p>
             </div>
             {% if artwork %}<span class="badge bg-light text-dark border mt-1">{{ artwork.get_status_display }}</span>{% endif %}
@@ -39,7 +39,7 @@
             <div><span>01</span><h2 id="understanding-letter-title">Check-in · carta de entendimiento</h2></div>
             {% if form.understanding_letter.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
         </div>
-        <p class="text-muted">Subí la versión digital firmada{% if program.understanding_letter_digital_opens %} desde {{ program.understanding_letter_digital_opens|date:'d/m/Y H:i' }}{% endif %}{% if program.understanding_letter_digital_deadline %} hasta {{ program.understanding_letter_digital_deadline|date:'d/m/Y H:i' }}{% endif %}. La versión física se entrega{% if program.understanding_letter_physical_opens %} desde {{ program.understanding_letter_physical_opens|date:'d/m/Y H:i' }}{% endif %}{% if program.understanding_letter_physical_deadline %} hasta {{ program.understanding_letter_physical_deadline|date:'d/m/Y H:i' }}{% endif %}; si tenés una excepción por distancia a CABA, la coordinación puede autorizar entregarla en el evento antes de empezar a construir. En el evento, Arte registra la llegada y ubicación final de la obra.</p>
+        <p class="text-muted">Subí la versión digital firmada{% if program.understanding_letter_digital_opens %} desde {{ program.understanding_letter_digital_opens|date:'d/m/Y H:i' }}{% endif %}{% if program.understanding_letter_digital_deadline %} hasta {{ program.understanding_letter_digital_deadline|date:'d/m/Y H:i' }}{% endif %}. La versión física se entrega{% if program.understanding_letter_physical_opens %} desde {{ program.understanding_letter_physical_opens|date:'d/m/Y H:i' }}{% endif %}{% if program.understanding_letter_physical_deadline %} hasta {{ program.understanding_letter_physical_deadline|date:'d/m/Y H:i' }}{% endif %}; si tenés una excepción por distancia a CABA, la coordinación puede autorizar entregarla en el evento antes de empezar a construir. En el evento, Arte registra la llegada y ubicación final de la instalación.</p>
         {% include 'art/_field.html' with field=form.understanding_letter %}
         {% if artwork.understanding_letter_physical_received %}<div class="alert alert-success py-2 mb-0"><strong>Carta física recibida.</strong>{% if artwork.understanding_letter_physical_custodian %} Responsable: {{ artwork.understanding_letter_physical_custodian }}.{% endif %}{% if artwork.understanding_letter_physical_notes %}<br>{{ artwork.understanding_letter_physical_notes|linebreaksbr }}{% endif %}</div>{% endif %}
     </section>
@@ -64,7 +64,7 @@
             {% include 'art/_field.html' with field=form.power_watts %}
             {% include 'art/_field.html' with field=form.uses_sound %}
             <h3 class="h5 mt-5 mb-2">Seguridad y uso de fuego</h3>
-            <p class="small text-muted">Si la obra utiliza fuego, completá sus detalles, el plan de extinción y la persona responsable antes de enviarla.</p>
+            <p class="small text-muted">Si la instalación utiliza fuego, completá sus detalles, el plan de extinción y la persona responsable antes de enviarla.</p>
             {% include 'art/_field.html' with field=form.uses_fire %}
             <div class="fire-fields">
                 {% include 'art/_field.html' with field=form.fire_details %}
@@ -121,7 +121,7 @@
             <div class="section-heading">
                 <div><span>{% if program.grants_enabled %}04{% else %}03{% endif %}</span><h2 id="gallery-title">Galería</h2></div>
             </div>
-            <p class="text-muted">Fotos de propuesta, proceso y obra terminada. Podés elegir varias desde el teléfono.</p>
+            <p class="text-muted">Fotos de propuesta, proceso e instalación terminada. Podés elegir varias desde el teléfono.</p>
             <details class="inline-editor inline-create mb-3"{% if photo_upload_form.errors %} open{% endif %}>
                 <summary><i class="fas fa-camera" aria-hidden="true"></i><span>Subir fotos</span></summary>
                 <form method="post" action="{% url 'artwork_photo_upload' artwork.pk %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
@@ -230,7 +230,7 @@
                 <div><span>{% if program.grants_enabled %}07{% else %}06{% endif %}</span><h2 id="checkout-title">Checkout</h2></div>
                 {% if artwork.checkout_verified_at %}<span class="badge bg-success">Verificado</span>{% elif form.checkout_completed.field.disabled %}<span class="badge bg-secondary">No editable</span>{% endif %}
             </div>
-            <p class="text-muted"><strong>Paso 1, equipo de la obra:</strong> solicitá la verificación cuando la obra esté retirada y el espacio limpio. El nexo de Arte completa el paso 2 desde el backoffice.</p>
+            <p class="text-muted"><strong>Paso 1, equipo de la instalación:</strong> solicitá la verificación cuando la instalación esté retirada y el espacio limpio. El nexo de Arte completa el paso 2 desde el backoffice.</p>
             {% include 'art/_field.html' with field=form.checkout_completed %}
             <div class="row"><div class="col-md-6">{% include 'art/_field.html' with field=form.checkout_team_responsible %}</div><div class="col-md-6">{% include 'art/_field.html' with field=form.checkout_art_responsible %}</div></div>
             {% include 'art/_field.html' with field=form.checkout_notes %}

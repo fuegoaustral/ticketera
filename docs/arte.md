@@ -1,6 +1,6 @@
 # Arte de Fuego Austral
 
-El módulo reúne en un expediente por obra la propuesta, beca, desplegable, logística, galería y checkout del evento anual principal. Una persona puede tener varias obras y sumar colaboradores por email.
+El módulo reúne en una Instalación de Arte la propuesta, beca, desplegable, logística, galería y checkout del evento anual principal. Una persona puede tener varias instalaciones y sumar colaboradores por email.
 
 ## Accesos
 
@@ -8,13 +8,13 @@ El módulo reúne en un expediente por obra la propuesta, beca, desplegable, log
 - Coordinación: `/mi-fuego/mis-eventos/<evento>/arte/`
 - Configuración: Django Admin → Arte → Programas de Arte
 
-Solo el `ArtProgram` marcado como **convocatoria anual vigente** permite crear obras. Los programas anteriores y sus obras se conservan como histórico. El sistema impide marcar dos convocatorias como vigentes.
+Solo el `ArtProgram` marcado como **convocatoria anual vigente** permite crear instalaciones. Los programas anteriores y sus instalaciones se conservan como histórico. El sistema impide marcar dos convocatorias como vigentes.
 
 ## Flujo
 
-1. La persona crea un borrador o registra una obra espontánea si cerró la inscripción ordinaria.
+1. La persona crea un borrador o registra una instalación espontánea si cerró la inscripción ordinaria.
 2. Al enviar la propuesta se crea un grupo `ARTE`; allí se administran integrantes, ingreso anticipado y late checkout con el mecanismo ya existente de grupos.
-3. La coordinación revisa la obra, pide cambios, acepta o rechaza, asigna placement y registra el beneficio para la siguiente edición.
+3. La coordinación revisa la instalación, pide cambios, acepta o rechaza, asigna placement y registra el beneficio para la siguiente edición.
 4. La persona solicita la beca con un presupuesto por ítems. Cada ítem es ARS o USD; los USD guardan monto, cotización ARS/USD, fecha y fuente. El valor queda congelado para mantener trazabilidad histórica.
 5. Una beca aprobada se rinde con gastos por ítems, relato y al menos una foto final o de rendición. La fecha de cada gasto es la fecha real de pago.
 6. Al terminar, la persona solicita checkout y la coordinación lo verifica.

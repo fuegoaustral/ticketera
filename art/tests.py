@@ -519,7 +519,7 @@ class ArtworkFlowTest(TestCase):
         response = self.client.get(review_url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Carta física recibida')
-        self.assertNotContains(response, 'Estado de la obra')
+        self.assertNotContains(response, 'Estado de la instalación')
 
         response = self.client.post(review_url, {
             'expected_updated_at': artwork.updated_at.isoformat(),

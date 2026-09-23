@@ -84,19 +84,19 @@ def _send_invitations(invitations):
 def _ensure_operations_group(artwork, program):
     if artwork.operations_group_id:
         if artwork.operations_group.nombre != artwork.title:
-            artwork.operations_group.nombre = artwork.title or f'Obra #{artwork.pk}'
+            artwork.operations_group.nombre = artwork.title or f'Instalación #{artwork.pk}'
             artwork.operations_group.save(update_fields=['nombre', 'updated_at'])
         return artwork.operations_group
     if not artwork.owner_id:
         return artwork.operations_group
     art_type, _ = GrupoTipo.objects.get_or_create(
         nombre='ARTE',
-        defaults={'descripcion': 'Obras de arte de Fuego Austral'},
+        defaults={'descripcion': 'Instalaciones de arte de Fuego Austral'},
     )
     group = Grupo.objects.create(
         event=artwork.event,
         lider=artwork.owner,
-        nombre=artwork.title or f'Obra #{artwork.pk}',
+        nombre=artwork.title or f'Instalación #{artwork.pk}',
         tipo=art_type,
         ingreso_anticipado_amount=program.early_entry_slots,
         ingreso_anticipado_desde=program.early_entry_from,
@@ -273,7 +273,7 @@ def artwork_create(request, event_slug):
         is_current=True,
     )
     if not program.registration_is_open():
-        messages.error(request, 'La inscripción de obras está cerrada.')
+        messages.error(request, 'La inscripción de instalaciones está cerrada.')
         return redirect('art_dashboard')
     artwork = Artwork.objects.create(
         event=program.event,
@@ -484,7 +484,7 @@ def grant_submit(request, artwork_id):
             return HttpResponseForbidden('La solicitud de beca ya fue presentada.')
         errors = []
         if not artwork.grant_requested:
-            errors.append('Marcá que querés solicitar una beca y guardá la obra.')
+            errors.append('Marcá que querés solicitar una beca y guardá la instalación.')
         if not artwork.grant_justification:
             errors.append('Completá la justificación de la beca.')
         if not artwork.grant_items.filter(phase=ArtworkGrantItem.Phase.BUDGET).exists():
@@ -514,7 +514,7 @@ def grant_report_submit(request, artwork_id):
         if not program.is_current or not program.grants_enabled or program.checkpoint_state('grant_report') != 'open':
             return HttpResponseForbidden('La rendición no está abierta.')
         if artwork.grant_status not in (Artwork.GrantStatus.APPROVED, Artwork.GrantStatus.PAID):
-            return HttpResponseForbidden('La obra no tiene una beca aprobada para rendir.')
+            return HttpResponseForbidden('La instalación no tiene una beca aprobada para rendir.')
         if not artwork.grant_report:
             messages.error(request, 'Completá y guardá el relato de la rendición.')
         elif not artwork.grant_items.filter(phase=ArtworkGrantItem.Phase.EXPENSE).exists():
@@ -535,18 +535,18 @@ def artwork_photo_upload(request, artwork_id):
     access = _accessible_artworks(request.user)
     artwork = get_object_or_404(access, pk=artwork_id)
     if not artwork.can_edit(request.user) and not artwork.can_manage(request.user):
-        return HttpResponseForbidden('La galería de esta obra no se puede editar.')
+        return HttpResponseForbidden('La galería de esta instalación no se puede editar.')
     if request.method != 'POST':
         return _artwork_redirect(artwork, 'galeria')
     with transaction.atomic():
         artwork = get_object_or_404(access.select_for_update(), pk=artwork_id)
         if not artwork.can_edit(request.user) and not artwork.can_manage(request.user):
-            return HttpResponseForbidden('La galería de esta obra no se puede editar.')
+            return HttpResponseForbidden('La galería de esta instalación no se puede editar.')
         form = ArtworkPhotoUploadForm(request.POST, request.FILES, auto_id='photo-new_%s')
         if form.is_valid():
             images = form.cleaned_data['images']
             if artwork.photos.count() + len(images) > 100:
-                form.add_error('images', 'La galería admite hasta 100 fotos por obra.')
+                form.add_error('images', 'La galería admite hasta 100 fotos por instalación.')
             else:
                 for image in images:
                     ArtworkPhoto.objects.create(
@@ -569,7 +569,7 @@ def artwork_photo_delete(request, artwork_id, photo_id):
     with transaction.atomic():
         artwork = get_object_or_404(_accessible_artworks(request.user).select_for_update(), pk=artwork_id)
         if not artwork.can_edit(request.user) and not artwork.can_manage(request.user):
-            return HttpResponseForbidden('La galería de esta obra no se puede editar.')
+            return HttpResponseForbidden('La galería de esta instalación no se puede editar.')
         photo = get_object_or_404(ArtworkPhoto.objects.select_for_update(), pk=photo_id, artwork=artwork)
         protected_evidence = (
             artwork.grant_status in (Artwork.GrantStatus.REPORTED, Artwork.GrantStatus.CLOSED)
@@ -594,14 +594,14 @@ def artwork_checkout_photo_upload(request, artwork_id):
     with transaction.atomic():
         artwork = get_object_or_404(access.select_for_update(), pk=artwork_id)
         if not _checkout_editable(artwork, request.user):
-            return HttpResponseForbidden('El checkout de esta obra ya no se puede editar.')
+            return HttpResponseForbidden('El checkout de esta instalación ya no se puede editar.')
         if artwork.checkout_verified_at and not artwork.can_administer(request.user):
             return HttpResponseForbidden('La evidencia de un checkout verificado no se puede modificar.')
         form = ArtworkCheckoutPhotoUploadForm(request.POST, request.FILES, auto_id='checkout-photo-new_%s')
         if form.is_valid():
             images = form.cleaned_data['images']
             if artwork.checkout_photos.count() + len(images) > 100:
-                form.add_error('images', 'El reporte de checkout admite hasta 100 fotos por obra.')
+                form.add_error('images', 'El reporte de checkout admite hasta 100 fotos por instalación.')
             else:
                 for image in images:
                     ArtworkCheckoutPhoto.objects.create(
@@ -636,7 +636,7 @@ def logistics_person_edit(request, artwork_id, person_id=None):
     access = _accessible_artworks(request.user)
     artwork = get_object_or_404(access, pk=artwork_id)
     if not _logistics_editable(artwork, request.user):
-        return HttpResponseForbidden('La logística de esta obra ya no se puede editar.')
+        return HttpResponseForbidden('La logística de esta instalación ya no se puede editar.')
     person = get_object_or_404(ArtworkLogisticsPerson, artwork=artwork, pk=person_id) if person_id else ArtworkLogisticsPerson(artwork=artwork, created_by=request.user)
     if request.method != 'POST':
         return _artwork_redirect(artwork, 'logistica')
@@ -648,11 +648,11 @@ def logistics_person_edit(request, artwork_id, person_id=None):
         with transaction.atomic():
             artwork = get_object_or_404(access.select_for_update(), pk=artwork_id)
             if not _logistics_editable(artwork, request.user):
-                return HttpResponseForbidden('La logística de esta obra ya no se puede editar.')
+                return HttpResponseForbidden('La logística de esta instalación ya no se puede editar.')
             form.instance.artwork = artwork
             form.instance.created_by = form.instance.created_by or request.user
             form.save()
-        messages.success(request, 'Persona guardada en la logística de la obra.')
+        messages.success(request, 'Persona guardada en la logística de la instalación.')
         return _artwork_redirect(artwork, 'logistica')
     return _inline_error_response(
         request, artwork, ('person', person.pk) if person_id else ('person-new', None), form,
@@ -680,7 +680,7 @@ def artwork_provider_edit(request, artwork_id, provider_id=None):
     access = _accessible_artworks(request.user)
     artwork = get_object_or_404(access, pk=artwork_id)
     if not _logistics_editable(artwork, request.user):
-        return HttpResponseForbidden('La logística de esta obra ya no se puede editar.')
+        return HttpResponseForbidden('La logística de esta instalación ya no se puede editar.')
     provider = get_object_or_404(ArtworkProvider, artwork=artwork, pk=provider_id) if provider_id else ArtworkProvider(artwork=artwork, created_by=request.user)
     if request.method != 'POST':
         return _artwork_redirect(artwork, 'logistica')
@@ -692,7 +692,7 @@ def artwork_provider_edit(request, artwork_id, provider_id=None):
         with transaction.atomic():
             artwork = get_object_or_404(access.select_for_update(), pk=artwork_id)
             if not _logistics_editable(artwork, request.user):
-                return HttpResponseForbidden('La logística de esta obra ya no se puede editar.')
+                return HttpResponseForbidden('La logística de esta instalación ya no se puede editar.')
             form.instance.artwork = artwork
             form.instance.created_by = form.instance.created_by or request.user
             provider = form.save()
@@ -723,7 +723,7 @@ def artwork_vehicle_edit(request, artwork_id, provider_id, vehicle_id=None):
     artwork = get_object_or_404(access, pk=artwork_id)
     provider = get_object_or_404(ArtworkProvider, artwork=artwork, pk=provider_id)
     if not _logistics_editable(artwork, request.user):
-        return HttpResponseForbidden('La logística de esta obra ya no se puede editar.')
+        return HttpResponseForbidden('La logística de esta instalación ya no se puede editar.')
     vehicle = get_object_or_404(ArtworkProviderVehicle, provider=provider, pk=vehicle_id) if vehicle_id else ArtworkProviderVehicle(provider=provider)
     if request.method != 'POST':
         return _artwork_redirect(artwork, 'logistica')
@@ -736,7 +736,7 @@ def artwork_vehicle_edit(request, artwork_id, provider_id, vehicle_id=None):
             artwork = get_object_or_404(access.select_for_update(), pk=artwork_id)
             provider = get_object_or_404(ArtworkProvider, artwork=artwork, pk=provider_id)
             if not _logistics_editable(artwork, request.user):
-                return HttpResponseForbidden('La logística de esta obra ya no se puede editar.')
+                return HttpResponseForbidden('La logística de esta instalación ya no se puede editar.')
             form.instance.provider = provider
             form.save()
         messages.success(request, 'Vehículo guardado.')
@@ -775,7 +775,7 @@ def art_invitation_accept(request, token):
         invitation.artwork.collaborators.add(request.user)
         invitation.accepted_at = timezone.now()
         invitation.save(update_fields=['accepted_at', 'updated_at'])
-        messages.success(request, f'Ya colaborás en “{invitation.artwork.title or "esta obra"}”.')
+        messages.success(request, f'Ya colaborás en “{invitation.artwork.title or "esta instalación"}”.')
         return redirect('artwork_edit', artwork_id=invitation.artwork_id)
     return render(request, 'art/invitation.html', {
         **_base_context(invitation.artwork.event), 'invitation': invitation,
@@ -875,7 +875,7 @@ def art_admin_export(request, event_slug):
     response.write('\ufeff')
     writer = csv.writer(response)
     writer.writerow([
-        'Obra', 'Modalidad', 'Responsable', 'Estado', 'Etiquetas', 'Responsable de seguridad',
+        'Instalación', 'Modalidad', 'Responsable', 'Estado', 'Etiquetas', 'Responsable de seguridad',
         'Beca', 'Presupuesto ARS', 'Rendición ARS', 'Título público', 'Descripción pública',
         'Ubicación asignada', 'Carta digital', 'Carta física', 'Equipo ingreso/desarme',
         'Proveedores', 'Vehículos', 'Fotos checkout', 'Checkout', 'Actualizada',

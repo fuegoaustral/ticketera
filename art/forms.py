@@ -118,7 +118,7 @@ class ArtworkForm(forms.ModelForm):
         elif not self.is_manager:
             self.fields['checkout_art_responsible'].disabled = True
 
-        # El título identifica la obra; la descripción se puede completar después.
+        # El título identifica la instalación; la descripción se puede completar después.
         self.fields['title'].required = True
         self.fields['proposal'].required = False
 
@@ -175,7 +175,7 @@ class ArtworkForm(forms.ModelForm):
                 if email not in emails and email != owner_email:
                     emails.append(email)
         if len(emails) > 20:
-            raise forms.ValidationError('Podés sumar hasta 20 colaboradores por obra.')
+            raise forms.ValidationError('Podés sumar hasta 20 colaboradores por instalación.')
         return emails
 
     def clean_safety_responsible_email(self):
@@ -191,7 +191,7 @@ class ArtworkForm(forms.ModelForm):
         cleaned = super().clean()
         now = timezone.now()
         if not self.instance.pk and not self.program.registration_is_open(now):
-            self.add_error(None, 'La inscripción de obras está cerrada.')
+            self.add_error(None, 'La inscripción de instalaciones está cerrada.')
 
         arrival = cleaned.get('arrival_date')
         departure = cleaned.get('departure_date')
@@ -218,11 +218,11 @@ class ArtworkForm(forms.ModelForm):
             if self.instance.pk and self.instance.status not in (
                 Artwork.Status.DRAFT, Artwork.Status.CHANGES_REQUESTED,
             ):
-                self.add_error(None, 'Esta obra ya fue presentada. La coordinación gestiona su estado desde la revisión.')
+                self.add_error(None, 'Esta instalación ya fue presentada. La coordinación gestiona su estado desde la revisión.')
             if cleaned.get('uses_fire'):
                 for field in ('fire_details', 'extinguishing_plan', 'safety_responsible_email'):
                     if not cleaned.get(field):
-                        self.add_error(field, 'Completá este campo para una obra que utiliza fuego.')
+                        self.add_error(field, 'Completá este campo para una instalación que utiliza fuego.')
         return cleaned
 
     def save(self, commit=True):
@@ -397,7 +397,7 @@ class ArtworkPhotoUploadForm(forms.Form):
     caption = forms.CharField(required=False, widget=forms.Textarea(attrs={'rows': 4}), label='Descripción o crédito')
     publication_authorized = forms.BooleanField(
         required=False,
-        label='Autorizo a Fuego Austral a publicar estas fotos en el archivo de la obra',
+        label='Autorizo a Fuego Austral a publicar estas fotos en el archivo de la instalación',
     )
 
     def __init__(self, *args, **kwargs):
@@ -606,7 +606,7 @@ class ArtworkReviewForm(forms.ModelForm):
         if self.instance.pk and self.is_bound:
             expected = cleaned.get('expected_updated_at')
             if not expected or expected != self.instance.updated_at.isoformat():
-                self.add_error(None, 'Otra coordinación modificó esta obra. Recargá la página antes de guardar.')
+                self.add_error(None, 'Otra coordinación modificó esta instalación. Recargá la página antes de guardar.')
         if cleaned.get('grant_status') in (Artwork.GrantStatus.APPROVED, Artwork.GrantStatus.PAID) and not cleaned.get('grant_approved_amount_ars'):
             self.add_error('grant_approved_amount_ars', 'Indicá el monto aprobado.')
         if cleaned.get('grant_approved_amount_ars') and cleaned['grant_approved_amount_ars'] >= Decimal('1000000') and not cleaned.get('confirm_large_grant_amount'):
@@ -614,7 +614,7 @@ class ArtworkReviewForm(forms.ModelForm):
         if cleaned.get('grant_status') == Artwork.GrantStatus.PAID and not cleaned.get('grant_paid_at'):
             self.add_error('grant_paid_at', 'Indicá cuándo se pagó la beca.')
         if cleaned.get('checkout_verified_at') and not self.instance.checkout_completed:
-            self.add_error('checkout_verified_at', 'Esperá la solicitud de checkout del equipo de la obra.')
+            self.add_error('checkout_verified_at', 'Esperá la solicitud de checkout del equipo de la instalación.')
         if cleaned.get('understanding_letter_physical_received') and not (
             cleaned.get('understanding_letter_physical_custodian')
             or cleaned.get('understanding_letter_physical_notes')
