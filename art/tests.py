@@ -297,6 +297,14 @@ class ArtworkFlowTest(TestCase):
         artwork.refresh_from_db()
         self.assertEqual(artwork.grant_status, Artwork.GrantStatus.PENDING)
 
+    def test_save_bar_lifts_chat_bubble(self):
+        artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
+        self.client.force_login(self.owner)
+        page = self.client.get(reverse('artwork_edit', args=[artwork.pk]))
+        self.assertContains(page, 'class="save-bar', count=1)
+        self.assertContains(page, 'data-sticky-actions>', count=1)
+        self.assertContains(page, '--sticky-actions-height')
+
     def test_permissions_invitation_and_multiple_photo_upload(self):
         artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro', proposal='Texto')
         self.client.force_login(self.stranger)
