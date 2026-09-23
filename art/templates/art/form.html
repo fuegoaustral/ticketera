@@ -1,7 +1,7 @@
 {% extends 'mi_fuego/my_tickets/index.html' %}
 {% load art_format %}
 
-{% block page_title %}{{ artwork.title|default:'Obra sin título' }}{% endblock page_title %}
+{% block page_title %}{% if artwork %}{{ artwork.title|default:'Obra sin título' }}{% else %}Nueva obra{% endif %}{% endblock page_title %}
 
 {% block truecontent %}
 <div class="container-fluid art-form-page">
@@ -55,7 +55,7 @@
                 <div><span>02</span><h2 id="proposal-title">Propuesta</h2></div>
                 {% if form.title.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
             </div>
-            <p class="text-muted">El nombre es obligatorio y lo podés cambiar después. La descripción es opcional.</p>
+            <p class="text-muted">Solo el nombre es obligatorio. El resto lo completás a medida que la obra avance.</p>
             {% include 'art/_field.html' with field=form.title %}
             {% include 'art/_field.html' with field=form.proposal %}
             {% include 'art/_field.html' with field=form.dimensions %}
@@ -103,7 +103,7 @@
                     </form>
                 </details>
                 {% endif %}
-                {% include 'art/_grant_items.html' with items=budget_items can_edit=can_edit_budget total_ars=budget_total_ars %}
+                {% if artwork %}{% include 'art/_grant_items.html' with items=budget_items can_edit=can_edit_budget total_ars=budget_total_ars %}{% else %}<p class="small text-muted mb-0">Guardá la obra para agregar ítems al presupuesto.</p>{% endif %}
             </div>
             {% if can_submit_grant %}
                 {% if artwork.grant_requested and artwork.grant_justification and budget_items %}
@@ -122,6 +122,7 @@
                 <div><span>{% if program.grants_enabled %}04{% else %}03{% endif %}</span><h2 id="gallery-title">Galería</h2></div>
             </div>
             <p class="text-muted">Fotos de propuesta, proceso y obra terminada. Podés elegir varias desde el teléfono.</p>
+            {% if artwork %}
             <details class="inline-editor inline-create mb-3"{% if photo_upload_form.errors %} open{% endif %}>
                 <summary><i class="fas fa-camera" aria-hidden="true"></i><span>Subir fotos</span></summary>
                 <form method="post" action="{% url 'artwork_photo_upload' artwork.pk %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
@@ -129,6 +130,7 @@
                     <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Subir fotos</button></div>
                 </form>
             </details>
+            {% endif %}
             {% if artwork.photos.all %}
                 <div class="row g-3">
                     {% for photo in artwork.photos.all %}
@@ -141,7 +143,7 @@
                     </div>
                     {% endfor %}
                 </div>
-            {% else %}<p class="small text-muted mb-0">Todavía no hay fotos.</p>{% endif %}
+            {% elif artwork %}<p class="small text-muted mb-0">Todavía no hay fotos.</p>{% else %}<p class="small text-muted mb-0">Guardá la obra para subir fotos.</p>{% endif %}
         </section>
 
         <section class="form-section" id="placement" aria-labelledby="guide-title">
@@ -189,7 +191,7 @@
                 {% if can_edit_logistics %}<tr class="inline-table-editor"><td colspan="5"><details class="inline-editor"{% if person.inline_form.errors %} open{% endif %}><summary><i class="fas fa-pen" aria-hidden="true"></i><span>Editar {{ person }}</span></summary><form method="post" action="{% url 'logistics_person_edit' artwork.pk person.pk %}" novalidate>{% csrf_token %}{% include 'art/_inline_fields.html' with inline_form=person.inline_form %}<div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Guardar persona</button></div></form></details></td></tr>{% endif %}
                 {% endfor %}</tbody>
             </table></div>
-            {% else %}<p class="small text-muted">Todavía no hay personas cargadas.</p>{% endif %}
+            {% elif artwork %}<p class="small text-muted">Todavía no hay personas cargadas.</p>{% else %}<p class="small text-muted">Guardá la obra para agregar personas.</p>{% endif %}
 
             <div class="mt-5 mb-3"><h3 class="h5 mb-1">Proveedores por operación</h3><p class="small text-muted mb-0">Un proveedor marcado para ambas operaciones aparece en las dos listas.</p></div>
             <div class="row g-3 operation-lists">
@@ -222,7 +224,7 @@
                     {% if can_edit_logistics %}<details class="inline-editor inline-create mt-2"{% if provider.vehicle_create_form.errors %} open{% endif %}><summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar vehículo</span></summary><form method="post" action="{% url 'artwork_vehicle_create' artwork.pk provider.pk %}" novalidate>{% csrf_token %}{% include 'art/_inline_fields.html' with inline_form=provider.vehicle_create_form %}<div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Agregar vehículo</button></div></form></details>{% endif %}
                 </div>
                 {% endfor %}
-            {% else %}<p class="small text-muted mb-0">Todavía no hay proveedores cargados.</p>{% endif %}
+            {% elif artwork %}<p class="small text-muted mb-0">Todavía no hay proveedores cargados.</p>{% else %}<p class="small text-muted mb-0">Guardá la obra para agregar proveedores y vehículos.</p>{% endif %}
         </section>
 
         <section class="form-section" id="checkout" aria-labelledby="checkout-title">

@@ -9,7 +9,6 @@ from django.http import Http404, HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.http import require_POST
 
 from events.models import Event, Grupo, GrupoTipo
 from events.utils import get_admin_events_for_user
@@ -264,8 +263,8 @@ def art_dashboard(request):
 
 
 @login_required
-@require_POST
 def artwork_create(request, event_slug):
+    """Blank dossier: the artwork only exists after the first valid save."""
     program = get_object_or_404(
         ArtProgram.objects.select_related('event'),
         event__slug=event_slug,
@@ -275,12 +274,38 @@ def artwork_create(request, event_slug):
     if not program.registration_is_open():
         messages.error(request, 'La inscripción de obras está cerrada.')
         return redirect('art_dashboard')
-    artwork = Artwork.objects.create(
-        event=program.event,
-        owner=request.user,
-        kind=Artwork.Kind.PLANNED,
+
+    action = request.POST.get('action', 'save')
+    form = ArtworkForm(
+        request.POST or None, request.FILES or None,
+        instance=Artwork(event=program.event, owner=request.user, kind=Artwork.Kind.PLANNED),
+        program=program, owner=request.user, actor=request.user, action=action,
     )
-    return redirect('artwork_edit', artwork_id=artwork.pk)
+    if request.method == 'POST' and form.is_valid():
+        with transaction.atomic():
+            if action == 'submit':
+                form.instance.status = Artwork.Status.SUBMITTED
+                form.instance.submitted_at = timezone.now()
+            artwork = form.save()
+            if action == 'submit':
+                _ensure_operations_group(artwork, program)
+            transaction.on_commit(lambda invitations=list(form.new_invitations): _send_invitations(invitations))
+        messages.success(
+            request,
+            'La obra quedó inscripta. Queda pendiente de aprobación por ESTAFA. '
+            'Podés seguir modificándola libremente a medida que la obra avance.',
+        )
+        return redirect('artwork_edit', artwork_id=artwork.pk)
+
+    context = _base_context(program.event)
+    context.update({
+        'form': form,
+        'program': program,
+        'artwork': None,
+        'checkpoints': _checkpoints(program),
+        'budget_total_ars': 0,
+    })
+    return render(request, 'art/form.html', context)
 
 
 @login_required
