@@ -60,7 +60,29 @@
                 });
             });
 
+            // Lift the chat bubble above sticky bottom action bars (marked with data-sticky-actions).
+            document.addEventListener("DOMContentLoaded", function () {
+                const bars = document.querySelectorAll("[data-sticky-actions]");
+                if (!bars.length || !("ResizeObserver" in window)) return;
+                const update = function () {
+                    const height = Math.max.apply(null, Array.from(bars, function (bar) { return bar.offsetHeight; }));
+                    document.documentElement.style.setProperty("--sticky-actions-height", height + "px");
+                };
+                const observer = new ResizeObserver(update);
+                bars.forEach(function (bar) { observer.observe(bar); });
+            });
+
       </script>
+      <style>
+        .woot-widget-bubble { bottom: calc(var(--sticky-actions-height, 0px) + 20px) !important; }
+        .woot-widget-bubble.woot-widget--expanded { bottom: calc(var(--sticky-actions-height, 0px) + 24px) !important; }
+        @media only screen and (min-width: 667px) {
+          .woot-widget-holder:not(.has-unread-view) {
+            bottom: calc(var(--sticky-actions-height, 0px) + 104px) !important;
+            max-height: min(640px, calc(100% - var(--sticky-actions-height, 0px) - 124px)) !important;
+          }
+        }
+      </style>
     {% endif %}
   </head>
   <body>
