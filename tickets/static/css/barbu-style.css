@@ -857,8 +857,6 @@ dl {
   --bs-dropdown-link-hover-bg: #f3f3f3;
   --bs-dropdown-link-active-color: var(--text-color);
   --bs-dropdown-link-active-bg: #f3f3f3;
-  --bs-dropdown-header-color: #6c757d;
-  --bs-dropdown-header-padding-y: 0.5rem;
   max-width: calc(100vw - 2rem);
   max-height: calc(100dvh - 6rem);
   overflow-y: auto;
@@ -881,15 +879,6 @@ dl {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.account-menu .dropdown-header {
-  margin: 0;
-  padding-bottom: 0.25rem;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 .account-menu .dropdown-item {

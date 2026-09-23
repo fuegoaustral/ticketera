@@ -42,10 +42,11 @@ class AccountMenuTest(TestCase):
         self.assertIn('ana@example.com', menu)
         self.assertIn(reverse('art_dashboard'), menu)
         self.assertIn('Mis bonos y eventos', menu)
-        self.assertIn('Información', menu)
+        self.assertIn('https://fuegoaustral.org/faq/', menu)
         self.assertIn('rel="noopener"', menu)
         self.assertIn(reverse('account_logout'), menu)
-        self.assertNotIn('Administración', menu)
+        for name in ('my_events', 'scanner_events', 'caja_events', 'admin_logros'):
+            self.assertNotIn(reverse(name), menu)
         self.assertNotIn(reverse('la_sede'), menu)
         self.assertNotIn('text-success', menu)
         self.assertNotIn('text-danger', menu)
@@ -58,7 +59,6 @@ class AccountMenuTest(TestCase):
     def test_event_admin_sees_events_scanner_and_cajas(self):
         self.event.admins.add(self.user)
         menu = self.menu()
-        self.assertIn('Administración', menu)
         for name in ('my_events', 'scanner_events', 'caja_events'):
             self.assertIn(reverse(name), menu)
         self.assertNotIn(reverse('admin_logros'), menu)
@@ -66,7 +66,6 @@ class AccountMenuTest(TestCase):
     def test_scanner_role_sees_only_scanner(self):
         self.event.access_scanner.add(self.user)
         menu = self.menu()
-        self.assertIn('Administración', menu)
         self.assertIn(reverse('scanner_events'), menu)
         self.assertNotIn(reverse('my_events'), menu)
         self.assertNotIn(reverse('caja_events'), menu)
@@ -74,7 +73,6 @@ class AccountMenuTest(TestCase):
     def test_figuritas_permission_sees_figuritas_admin(self):
         self.user.user_permissions.add(Permission.objects.get(codename='manage_achievements'))
         menu = self.menu()
-        self.assertIn('Administración', menu)
         self.assertIn(reverse('admin_logros'), menu)
         self.assertIn(reverse('admin_logros_assign'), menu)
         self.assertNotIn(reverse('my_events'), menu)
