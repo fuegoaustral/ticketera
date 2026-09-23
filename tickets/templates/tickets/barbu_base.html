@@ -128,7 +128,7 @@
               {% if is_event_admin or can_scan or can_caja or perms.logros.manage_achievements %}
               <hr class="dropdown-divider">
               {% if is_event_admin %}
-              <a class="dropdown-item{% if nav_primary == "events" %} active{% endif %}" href="{% url "my_events" %}"{% if nav_primary == "events" %} aria-current="page"{% endif %}><i class="fa-solid fa-calendar-days" aria-hidden="true"></i> Eventos</a>
+              <a class="dropdown-item{% if nav_primary == "events" %} active{% endif %}" href="{% url "my_events" %}"{% if nav_primary == "events" %} aria-current="page"{% endif %}><i class="fa-solid fa-calendar-days" aria-hidden="true"></i> Gestión de eventos</a>
               {% endif %}
               {% if is_event_admin or can_scan %}
               <a class="dropdown-item{% if nav_primary == "scanner" %} active{% endif %}" href="{% url "scanner_events" %}"{% if nav_primary == "scanner" %} aria-current="page"{% endif %}><i class="fa-solid fa-qrcode" aria-hidden="true"></i> Scanner</a>
@@ -137,8 +137,7 @@
               <a class="dropdown-item{% if nav_primary == "caja" %} active{% endif %}" href="{% url "caja_events" %}"{% if nav_primary == "caja" %} aria-current="page"{% endif %}><i class="fa-solid fa-cash-register" aria-hidden="true"></i> Cajas</a>
               {% endif %}
               {% if perms.logros.manage_achievements %}
-              <a class="dropdown-item{% if url_name == "admin_logros" %} active{% endif %}" href="{% url "admin_logros" %}"{% if url_name == "admin_logros" %} aria-current="page"{% endif %}><i class="fa-solid fa-trophy" aria-hidden="true"></i> Figuritas</a>
-              <a class="dropdown-item{% if url_name == "admin_logros_assign" %} active{% endif %}" href="{% url "admin_logros_assign" %}"{% if url_name == "admin_logros_assign" %} aria-current="page"{% endif %}><i class="fa-solid fa-user-plus" aria-hidden="true"></i> Asignar figuritas</a>
+              <a class="dropdown-item{% if nav_primary == "admin_logros" %} active{% endif %}" href="{% url "admin_logros" %}"{% if nav_primary == "admin_logros" %} aria-current="page"{% endif %}><i class="fa-solid fa-trophy" aria-hidden="true"></i> Gestión de figuritas</a>
               {% endif %}
               {% endif %}
               <hr class="dropdown-divider">

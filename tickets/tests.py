@@ -74,5 +74,5 @@ class AccountMenuTest(TestCase):
         self.user.user_permissions.add(Permission.objects.get(codename='manage_achievements'))
         menu = self.menu()
         self.assertIn(reverse('admin_logros'), menu)
-        self.assertIn(reverse('admin_logros_assign'), menu)
+        self.assertNotIn(reverse('admin_logros_assign'), menu)
         self.assertNotIn(reverse('my_events'), menu)
