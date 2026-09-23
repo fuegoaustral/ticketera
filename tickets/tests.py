@@ -44,7 +44,7 @@ class AccountMenuTest(TestCase):
         self.assertIn(reverse('art_dashboard'), menu)
         self.assertIn('Mis bonos y eventos', menu)
         self.assertIn('https://fuegoaustral.org/faq/', menu)
-        self.assertIn('rel="noopener"', menu)
+        self.assertNotIn('target="_blank"', menu)
         self.assertIn(reverse('account_logout'), menu)
         for name in ('my_events', 'estafa_home', 'scanner_events', 'caja_events', 'admin_logros'):
             self.assertNotIn(reverse(name), menu)

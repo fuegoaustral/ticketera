@@ -99,7 +99,7 @@ class ArtworkFlowTest(TestCase):
 
         self.client.force_login(self.admin)
         self.assertRedirects(self.client.get(reverse('estafa_home')), dashboard_url)
-        self.assertContains(self.client.get(dashboard_url), 'ESTAFA (interno)')
+        self.assertContains(self.client.get(dashboard_url), 'ESTAFA')
         self.assertRedirects(
             self.client.get(f'/mi-fuego/mis-eventos/{self.event.slug}/arte/?status=draft'),
             f'{dashboard_url}?status=draft', status_code=301,

@@ -5,7 +5,7 @@ El módulo reúne en un expediente por obra la propuesta, beca, desplegable, log
 ## Accesos
 
 - Participantes: `/mi-fuego/arte/`
-- ESTAFA (interno): `/mi-fuego/estafa/<evento>/`
+- ESTAFA: `/mi-fuego/estafa/<evento>/`
 - Configuración: Django Admin → Arte → Programas de Arte
 
 ESTAFA es un equipo global (Django Admin → Equipos, sólo superusuarios). Cada membresía es un período con fecha de ingreso y, opcionalmente, de salida; quien sale y vuelve suma un período nuevo y el historial se conserva. Sólo las personas con una membresía activa y los superusuarios entran a ESTAFA, y únicamente sobre eventos de Fuego Austral (los que tienen voluntariado, `has_volunteers`). Ser admin de un evento no da acceso a Arte. El nexo de cada obra se elige entre los miembros activos y ve sus obras en "Asignadas a vos".
