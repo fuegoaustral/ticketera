@@ -40,26 +40,6 @@
         {% endfor %}
     </section>
 
-    {% if admin_assignments %}
-    <section class="mb-5 review-queue" aria-labelledby="assignments-title">
-        <div class="d-flex justify-content-between align-items-baseline gap-3 mb-3">
-            <div>
-                <p class="text-uppercase text-success small fw-semibold mb-1">Backoffice de Arte</p>
-                <h3 class="h4 mb-0" id="assignments-title">Obras para revisar</h3>
-            </div>
-            <span class="badge bg-success-subtle text-success-emphasis border">{{ admin_assignments|length }} obra{{ admin_assignments|length|pluralize:"s" }}</span>
-        </div>
-        <div class="artwork-list">
-            {% for artwork in admin_assignments %}
-            <a class="artwork-row d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 py-3" href="{% url 'artwork_review' artwork.event.slug artwork.pk %}">
-                <div><div class="d-flex align-items-center gap-2 flex-wrap mb-1"><h4 class="h5 mb-0">{{ artwork.title|default:'Obra sin título' }}</h4>{% include 'art/_status_badge.html' %}</div><p class="small text-muted mb-0">{{ artwork.event.name }} · Responsable: {{ artwork.owner.email|default:'Cuenta archivada' }}</p></div>
-                <span class="text-primary fw-semibold text-nowrap">Revisar obra <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i></span>
-            </a>
-            {% endfor %}
-        </div>
-    </section>
-    {% endif %}
-
     <section aria-labelledby="artworks-title">
         <h3 class="h4 mb-3" id="artworks-title">Mis obras</h3>
         {% if artworks %}
@@ -81,9 +61,8 @@
                 {% endfor %}
             </div>
         {% else %}
-            <div class="empty-art py-5 text-center">
-                <i class="fas fa-palette fa-2x text-muted mb-3" aria-hidden="true"></i>
-                <p class="mb-0">Cuando crees o te sumen a una obra, va a aparecer acá.</p>
+            <div class="empty-art py-4 px-3 text-center">
+                <p class="mb-0 text-muted">Todavía no tenés obras. Cuando crees una o te sumen a un equipo, va a aparecer acá.</p>
             </div>
         {% endif %}
     </section>

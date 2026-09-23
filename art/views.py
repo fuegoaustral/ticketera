@@ -272,15 +272,7 @@ def art_dashboard(request):
         .distinct()
     )
     context = _base_context()
-    admin_assignments = Artwork.objects.all() if request.user.is_superuser else Artwork.objects.filter(
-        Q(checkout_art_responsible=request.user) | Q(event__admins=request.user),
-    )
-    admin_assignments = admin_assignments.exclude(title='')
-    context.update({
-        'programs': programs,
-        'artworks': artworks,
-        'admin_assignments': admin_assignments.select_related('event', 'owner').distinct(),
-    })
+    context.update({'programs': programs, 'artworks': artworks})
     return render(request, 'art/dashboard.html', context)
 
 

@@ -67,6 +67,15 @@ class ArtworkFlowTest(TestCase):
             action=action,
         )
 
+    def test_participant_dashboard_has_no_coordination_content(self):
+        Artwork.objects.create(event=self.event, owner=self.owner, title='Obra ajena')
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('art_dashboard'))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Obra ajena')
+        self.assertNotContains(response, 'Obras para revisar')
+        self.assertContains(response, 'Todavía no tenés obras.')
+
     def test_primary_fields_are_associated_with_artwork_form(self):
         form = self.artwork_form({})
         self.assertNotIn('kind', form.fields)
