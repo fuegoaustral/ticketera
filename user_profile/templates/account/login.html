@@ -43,6 +43,7 @@
                                    class="form-control"
                                    id="id_login"
                                    name="login"
+                                   value="{{ form.login.value|default_if_none:'' }}"
                                    placeholder="Email"
                                    required
                                    autocomplete="off">
@@ -52,6 +53,7 @@
                                    name="password"
                                    placeholder="Contraseña"
                                    autocomplete="current-password"
+                                   {% if form.errors %}autofocus{% endif %}
                                    required>
                             {{ form.remember_me }}
                             {{ form.remember_me.label_tag }}

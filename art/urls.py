@@ -4,7 +4,7 @@ from .views import (
     art_admin_dashboard, art_admin_export, art_dashboard, art_invitation_accept,
     artwork_provider_delete, artwork_provider_edit, artwork_vehicle_delete,
     artwork_vehicle_edit,
-    artwork_create, artwork_edit, artwork_photo_delete, artwork_photo_upload,
+    artwork_create, artwork_edit, artwork_status, artwork_photo_delete, artwork_photo_upload,
     artwork_checkout_photo_delete, artwork_checkout_photo_upload,
     artwork_review, grant_item_create, grant_item_delete, grant_item_edit, grant_item_review,
     grant_item_photo_delete, grant_report_submit, grant_submit,
@@ -38,5 +38,6 @@ urlpatterns = [
     path("mis-eventos/<slug:event_slug>/arte/", art_admin_dashboard, name="art_admin_dashboard"),
     path("mis-eventos/<slug:event_slug>/arte/exportar/", art_admin_export, name="art_admin_export"),
     path("mis-eventos/<slug:event_slug>/arte/<int:artwork_id>/", artwork_review, name="artwork_review"),
+    path("mis-eventos/<slug:event_slug>/arte/<int:artwork_id>/estado/", artwork_status, name="artwork_status"),
     path("mis-eventos/<slug:event_slug>/arte/<int:artwork_id>/beca/item/<int:item_id>/revisar/", grant_item_review, name="grant_item_review"),
 ]
