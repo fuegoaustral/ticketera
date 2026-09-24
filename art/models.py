@@ -212,10 +212,6 @@ class Artwork(BaseModel):
         'ArtworkLogisticsPerson', on_delete=models.SET_NULL, null=True, blank=True,
         related_name='team_checkout_artworks', verbose_name='Responsable del equipo de la instalación',
     )
-    checkout_art_responsible = models.ForeignKey(
-        User, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='art_checkout_assignments', verbose_name='Responsable de Arte',
-    )
     checkout_notes = models.TextField(blank=True, verbose_name='Notas de checkout')
     checkout_requested_at = models.DateTimeField(null=True, blank=True, verbose_name='Checkout solicitado')
     checkout_verified_at = models.DateTimeField(null=True, blank=True, verbose_name='Checkout verificado')
@@ -245,6 +241,10 @@ class Artwork(BaseModel):
     status_changed_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='artwork_status_changes', verbose_name='Estado cambiado por',
+    )
+    estafa_contact = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='estafa_contact_artworks', verbose_name='Contacto de ESTAFA',
     )
     review_feedback = models.TextField(blank=True, verbose_name='Mensaje de ESTAFA al equipo de la instalación')
     benefit_status = models.CharField(max_length=10, choices=BenefitStatus.choices, default=BenefitStatus.NOT_EVALUATED, verbose_name='Beneficio para la próxima edición')

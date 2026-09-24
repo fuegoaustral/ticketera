@@ -14,7 +14,7 @@
     {% if assigned_artworks %}
     <section class="assigned mb-4" aria-labelledby="assigned-title">
         <h3 class="h5 mb-2" id="assigned-title">Asignadas a vos <span class="text-muted fw-normal">· {{ assigned_artworks|length }}</span></h3>
-        <p class="small text-muted mb-2">Instalaciones donde sos nexo de ESTAFA.</p>
+        <p class="small text-muted mb-2">Instalaciones donde sos contacto de ESTAFA.</p>
         <div class="assigned-list">
             {% for artwork in assigned_artworks %}
             <a class="assigned-row d-flex justify-content-between align-items-center gap-3" href="{% url 'artwork_review' event.slug artwork.pk %}">
@@ -59,7 +59,7 @@
             <tbody>
             {% for artwork in artworks %}
                 <tr>
-                    <td><a class="art-row-link stretched-link" href="{% url 'artwork_review' event.slug artwork.pk %}">{{ artwork.title|default:'Instalación sin título' }}</a><br><small class="text-muted">{{ artwork.get_kind_display }} · {{ artwork.owner.email|default:'Cuenta archivada' }}</small></td>
+                    <td><a class="art-row-link stretched-link" href="{% url 'artwork_review' event.slug artwork.pk %}">{{ artwork.title|default:'Instalación sin título' }}</a><br><small class="text-muted">{{ artwork.get_kind_display }} · {{ artwork.owner.email|default:'Cuenta archivada' }}<br>{% if artwork.estafa_contact %}Contacto: {{ artwork.estafa_contact.get_full_name|default:artwork.estafa_contact.email }}{% else %}Sin contacto de ESTAFA{% endif %}</small></td>
                     <td>{% include 'art/_status_badge.html' %}{% if artwork.status == 'pending' %}<form class="mt-2" method="post" action="{% url 'artwork_status' event.slug artwork.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-sm btn-outline-success art-approve" type="submit" name="transition" value="approve" aria-label="Aprobar {{ artwork.title }}"><i class="fas fa-check me-1" aria-hidden="true"></i>Aprobar</button></form>{% endif %}</td>
                     <td class="text-nowrap">{% if artwork.uses_fire %}<span class="badge text-bg-warning">Tiene fuego</span>{% endif %}{% if artwork.uses_sound %}<span class="badge text-bg-info">Tiene sonido</span>{% endif %}{% if not artwork.uses_fire and not artwork.uses_sound %}<span class="text-muted">Sin etiquetas</span>{% endif %}</td>
                     <td>{{ artwork.get_grant_status_display }}{% if artwork.grant_requested %}<br><small>Presupuesto ARS {{ artwork.budget_total_ars|floatformat:2 }}</small>{% endif %}</td>

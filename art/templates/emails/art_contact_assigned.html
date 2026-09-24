@@ -1,0 +1,8 @@
+{% extends "emails/base.html" %}
+{% block subject %}Tu contacto de ESTAFA para {{ artwork.title|default:"tu instalación"|safe }}{% endblock %}
+{% block title %}Tenés contacto en ESTAFA{% endblock %}
+{% block content %}
+<p><strong>{{ contact_name }}</strong> es tu contacto de ESTAFA para <strong>{{ artwork.title|default:"tu instalación" }}</strong> y se va a comunicar con vos a la brevedad.</p>
+<p>Te acompaña durante todo el proceso, hasta el checkout.{% if artwork.estafa_contact.email %} Si querés escribirle antes, respondé este email o escribí a <a href="mailto:{{ artwork.estafa_contact.email }}">{{ artwork.estafa_contact.email }}</a>.{% endif %}</p>
+{% include "emails/partials/btn.html" with href=artwork_path label="Ver instalación" %}
+{% endblock %}

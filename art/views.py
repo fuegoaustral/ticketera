@@ -19,7 +19,7 @@ from .estafa import can_access_estafa, can_coordinate, estafa_events, is_estafa_
 from .forms import (
     ArtworkForm, ArtworkGrantItemForm, ArtworkLogisticsPersonForm,
     ArtworkCheckoutPhotoUploadForm, ArtworkPhotoUploadForm, ArtworkProviderForm, ArtworkProviderVehicleForm,
-    ArtworkGrantItemReviewForm, ArtworkReviewForm,
+    ArtworkContactForm, ArtworkGrantItemReviewForm, ArtworkReviewForm,
 )
 from .models import (
     ArtProgram, Artwork, ArtworkGrantItem, ArtworkGrantItemPhoto,
@@ -82,13 +82,13 @@ def _send_invitations(invitations):
 
 
 def _send_status_email(artwork):
-    recipients = [user.email for user in (artwork.owner, *artwork.collaborators.all()) if user and user.email]
+    recipients = _team_emails(artwork)
     if not recipients:
         return
     try:
         send_mail(
             template_name='art_status_changed',
-            recipient_list=list(dict.fromkeys(recipients)),
+            recipient_list=recipients,
             context={
                 'artwork': artwork,
                 'approved': artwork.status == Artwork.Status.ACTIVE,
@@ -97,6 +97,46 @@ def _send_status_email(artwork):
         )
     except Exception:
         logging.exception('No se pudo avisar el cambio de estado de la instalación %s', artwork.pk)
+
+
+def _team_emails(artwork):
+    return list(dict.fromkeys(
+        user.email for user in (artwork.owner, *artwork.collaborators.all()) if user and user.email
+    ))
+
+
+def _send_contact_email(artwork):
+    recipients = _team_emails(artwork)
+    contact = artwork.estafa_contact
+    if not recipients:
+        return
+    try:
+        send_mail(
+            template_name='art_contact_assigned',
+            recipient_list=recipients,
+            context={
+                'artwork': artwork,
+                'contact_name': contact.get_full_name() or contact.email,
+                'artwork_path': reverse('artwork_edit', args=[artwork.pk]),
+            },
+            headers={'Reply-To': contact.email} if contact.email else None,
+        )
+    except Exception:
+        logging.exception('No se pudo avisar el contacto de ESTAFA de la instalación %s', artwork.pk)
+
+
+def _send_checkout_submitted_email(artwork):
+    contact = artwork.estafa_contact
+    if not contact or not contact.email:
+        return
+    try:
+        send_mail(
+            template_name='art_checkout_submitted',
+            recipient_list=[contact.email],
+            context={'artwork': artwork, 'review_path': reverse('artwork_review', args=[artwork.event.slug, artwork.pk])},
+        )
+    except Exception:
+        logging.exception('No se pudo avisar el checkout enviado de la instalación %s', artwork.pk)
 
 
 def _ensure_operations_group(artwork, program):
@@ -226,6 +266,7 @@ def _review_context(artwork, form, user, inline_forms=None):
     return {
         **_estafa_context(user, artwork.event), **grant_context,
         'artwork': artwork, 'form': form,
+        'contact_form': ArtworkContactForm(instance=artwork, auto_id='contact_%s'),
         'can_manage': artwork.can_manage(user),
         'checkout_photo_upload_form': inline_forms.get(('checkout-photo-new', None)) or ArtworkCheckoutPhotoUploadForm(
             auto_id='checkout-photo-new_%s',
@@ -273,7 +314,7 @@ def art_dashboard(request):
     programs = ArtProgram.objects.select_related('event').filter(is_current=True, event__active=True)
     artworks = (
         Artwork.objects.filter(Q(owner=request.user) | Q(collaborators=request.user))
-        .select_related('event', 'owner')
+        .select_related('event', 'estafa_contact')
         .prefetch_related('collaborators')
         .distinct()
     )
@@ -383,6 +424,7 @@ def _submit_checkout(request, artwork, program):
             'checkout_completed', 'checkout_requested_at', 'status',
             'status_changed_at', 'status_changed_by', 'updated_at',
         ])
+        transaction.on_commit(lambda: _send_checkout_submitted_email(artwork))
         messages.success(request, 'El checkout fue enviado. El equipo de Arte lo va a verificar.')
 
 
@@ -856,7 +898,7 @@ def _managed_event(request, event_slug):
 
 
 def _filtered_artworks(event, params):
-    artworks = event.artworks.select_related('owner', 'safety_responsible').prefetch_related(
+    artworks = event.artworks.select_related('owner', 'safety_responsible', 'estafa_contact').prefetch_related(
         'grant_items', 'checkout_photos', 'logistics_people', 'artwork_providers__vehicles',
     )
     query = params.get('q', '').strip()
@@ -914,7 +956,7 @@ def art_admin_dashboard(request, event_slug):
     if not event:
         return HttpResponseForbidden('No tenés permisos para coordinar Arte en este evento.')
     artworks = _filtered_artworks(event, request.GET)
-    assigned = event.artworks.filter(checkout_art_responsible=request.user).select_related('owner').order_by('status', 'title')
+    assigned = event.artworks.filter(estafa_contact=request.user).select_related('owner').order_by('status', 'title')
     return render(request, 'art/admin_dashboard.html', {
         **_estafa_context(request.user, event), 'artworks': artworks, 'assigned_artworks': assigned,
         'status_choices': [(stage, label) for stage, (label, _hint) in Artwork.STAGES.items()],
@@ -957,6 +999,29 @@ def artwork_review(request, event_slug, artwork_id):
     else:
         form = ArtworkReviewForm(instance=artwork, can_manage=can_manage)
     return render(request, 'art/review.html', _review_context(artwork, form, request.user))
+
+
+@login_required
+@require_POST
+def artwork_contact(request, event_slug, artwork_id):
+    event = get_object_or_404(Event, slug=event_slug)
+    with transaction.atomic():
+        artwork = get_object_or_404(Artwork.objects.select_for_update(), pk=artwork_id, event=event)
+        if not artwork.can_manage(request.user):
+            return HttpResponseForbidden('No tenés permisos para coordinar Arte en este evento.')
+        previous_id = artwork.estafa_contact_id
+        form = ArtworkContactForm(request.POST, instance=artwork)
+        if not form.is_valid():
+            messages.error(request, 'Elegí una persona activa de ESTAFA.')
+        elif form.cleaned_data['estafa_contact'] and form.cleaned_data['estafa_contact'].pk != previous_id:
+            artwork = form.save()
+            contact = artwork.estafa_contact
+            transaction.on_commit(lambda: _send_contact_email(artwork))
+            messages.success(request, f'{contact.get_full_name() or contact.email} es el contacto de ESTAFA. Le avisamos al equipo por email.')
+        elif not form.cleaned_data['estafa_contact'] and previous_id:
+            form.save()
+            messages.success(request, 'La instalación quedó sin contacto de ESTAFA.')
+    return redirect('artwork_review', event_slug=event.slug, artwork_id=artwork.pk)
 
 
 STATUS_TRANSITIONS = {
