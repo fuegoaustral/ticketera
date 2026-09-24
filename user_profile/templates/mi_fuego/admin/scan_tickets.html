@@ -246,7 +246,7 @@
                                         </div>
                                         <div class="col-12 d-none" id="group-info-container">
                                             <div class="detail-item">
-                                                <label class="text-muted">Ingreso anticipado / Grupo</label>
+                                                <label class="text-muted">Ingreso anticipado / Equipo</label>
                                                 <h6 id="ticket-group-info" class="mb-0"></h6>
                                             </div>
                                         </div>
@@ -768,7 +768,7 @@
                     const desde = r.ingreso_anticipado_desde ? ' — desde ' + r.ingreso_anticipado_desde : '';
                     earlyLine = '<br><small class="text-success"><i class="fas fa-clock me-1"></i>Ingreso anticipado — ' + (r.grupo_nombre || '') + desde + '</small>';
                 } else if (r.grupo_nombre) {
-                    earlyLine = '<br><small class="text-muted">Grupo: ' + r.grupo_nombre + '</small>';
+                    earlyLine = '<br><small class="text-muted">Equipo: ' + r.grupo_nombre + '</small>';
                 }
                 return '<div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">' +
                     '<div><strong>' + (r.holder_name || '—') + '</strong>' + (r.document_number ? ' <span class="text-muted">' + r.document_number + '</span>' : '') + '<br><small class="text-muted">' + (r.ticket_type || '') + '</small>' + usedBadge + earlyLine + '</div>' +
@@ -1215,13 +1215,13 @@
                 scannedByContainer.classList.add('d-none');
             }
 
-            // Ingreso anticipado / Grupo (con fechas)
+            // Ingreso anticipado / Equipo (con fechas)
             const groupInfoContainer = document.getElementById('group-info-container');
             const ticketGroupInfo = document.getElementById('ticket-group-info');
             if (ticket.group_info && ticket.group_info.grupo_nombre) {
                 groupInfoContainer.classList.remove('d-none');
                 const early = ticket.group_info.has_early_access ? 'Sí' : 'No';
-                let text = 'Ingreso anticipado: ' + early + ' — Grupo: ' + ticket.group_info.grupo_nombre;
+                let text = 'Ingreso anticipado: ' + early + ' — Equipo: ' + ticket.group_info.grupo_nombre;
                 if (ticket.group_info.ingreso_anticipado_desde) {
                     text += ' — desde ' + ticket.group_info.ingreso_anticipado_desde;
                 }

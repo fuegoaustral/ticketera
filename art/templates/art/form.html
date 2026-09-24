@@ -20,19 +20,19 @@
     <header class="mt-3 mb-4">
         <p class="text-uppercase text-muted small fw-semibold mb-2">{{ program.event.name }}</p>
         <h2 class="h3 mb-2">Instalación de Arte</h2>
-        <p class="text-muted mb-0">Guardá avances por sección. Las fechas cerradas quedan visibles para consulta.</p>
+        <p class="text-muted mb-0">{% if can_edit_artwork %}Guardá avances por sección. Las fechas cerradas quedan visibles para consulta.{% else %}Sos parte del equipo y podés ver la instalación. Para editarla, pedile permiso a {{ artwork.owner.get_full_name|default:artwork.owner.email|default:'la persona responsable' }}.{% endif %}</p>
     </header>
 
     {% if artwork %}
     <div class="artwork-status mb-4">
-        <p class="d-flex flex-column flex-sm-row align-items-sm-center gap-2 mb-0">{% include 'art/_status_badge.html' %}{% if not acting_as_estafa %}<span>{{ artwork.stage_hint }}</span>{% endif %}</p>
+        <p class="d-flex flex-column flex-sm-row align-items-sm-center gap-2 mb-0">{% include 'art/_status_badge.html' %}{% if not acting_as_estafa and can_edit_artwork %}<span>{{ artwork.stage_hint }}</span>{% endif %}</p>
         {% if artwork.review_feedback %}<div class="artwork-status-message mt-3"><strong>Mensaje de ESTAFA</strong><br>{{ artwork.review_feedback|linebreaksbr }}</div>{% endif %}
         {% if artwork.estafa_contact %}{% with contact=artwork.estafa_contact %}<p class="artwork-contact mt-3 mb-0">{% if acting_as_estafa %}Contacto de ESTAFA{% else %}Tu contacto en ESTAFA{% endif %}: {% if contact.get_full_name %}<strong>{{ contact.get_full_name }}</strong> · {% endif %}<a href="mailto:{{ contact.email }}">{{ contact.email }}</a></p>{% endwith %}{% endif %}
     </div>
     {% endif %}
 
     {% if not program.is_current %}<div class="alert alert-info">Esta edición es histórica. La información se conserva en modo consulta.</div>{% endif %}
-    <p class="small text-muted"><span aria-hidden="true">*</span> Campo obligatorio.</p>
+    {% if can_edit_artwork %}<p class="small text-muted"><span aria-hidden="true">*</span> Campo obligatorio.</p>{% endif %}
 
     <ol class="checkpoint-list list-unstyled d-grid mb-4" aria-label="Estado de fechas límite">
         {% for checkpoint in checkpoints %}
@@ -40,7 +40,7 @@
                 <span class="checkpoint-dot checkpoint-{{ checkpoint.state }}" aria-hidden="true"></span>
                 <a href="#{{ checkpoint.anchor }}"><strong>{{ checkpoint.label }}</strong></a>
                 <small class="d-block text-muted ms-4">
-                    {% if checkpoint.state == 'closed' %}Cerrado{% elif checkpoint.state == 'upcoming' %}Todavía no habilitado{% else %}Editable{% endif %}
+                    {% if checkpoint.state == 'closed' %}Cerrado{% elif checkpoint.state == 'upcoming' %}Todavía no habilitado{% elif can_edit_artwork %}Editable{% else %}Abierto{% endif %}
                     {% if checkpoint.deadline %} · hasta {{ checkpoint.deadline|date:'d/m/Y H:i' }}{% endif %}
                 </small>
             </li>
@@ -50,7 +50,7 @@
     <section class="form-section mb-4" id="carta-entendimiento" aria-labelledby="understanding-letter-title">
         <div class="section-heading">
             <div><span>01</span><h2 id="understanding-letter-title">Check-in · carta de entendimiento</h2></div>
-            {% if form.understanding_letter.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
+            {% if can_edit_artwork and form.understanding_letter.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
         </div>
         <p class="text-muted">Subí la versión digital firmada{% if program.understanding_letter_digital_opens %} desde {{ program.understanding_letter_digital_opens|date:'d/m/Y H:i' }}{% endif %}{% if program.understanding_letter_digital_deadline %} hasta {{ program.understanding_letter_digital_deadline|date:'d/m/Y H:i' }}{% endif %}. La versión física se entrega{% if program.understanding_letter_physical_opens %} desde {{ program.understanding_letter_physical_opens|date:'d/m/Y H:i' }}{% endif %}{% if program.understanding_letter_physical_deadline %} hasta {{ program.understanding_letter_physical_deadline|date:'d/m/Y H:i' }}{% endif %}; si tenés una excepción por distancia a CABA, la coordinación puede autorizar entregarla en el evento antes de empezar a construir. En el evento, Arte registra la llegada y ubicación final de la instalación.</p>
         {% include 'art/_field.html' with field=form.understanding_letter %}
@@ -66,7 +66,7 @@
         <section class="form-section" id="propuesta" aria-labelledby="proposal-title">
             <div class="section-heading">
                 <div><span>02</span><h2 id="proposal-title">Propuesta</h2></div>
-                {% if form.title.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
+                {% if can_edit_artwork and form.title.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
             </div>
             <p class="text-muted">Solo el nombre es obligatorio. El resto lo completás a medida que la instalación avance.</p>
             {% include 'art/_field.html' with field=form.title %}
@@ -85,18 +85,62 @@
             </div>
             {% include 'art/_field.html' with field=form.safety_plan %}
             {% include 'art/_field.html' with field=form.safety_responsible_email %}
-            <h3 class="h5 mt-5 mb-2">Colaboradores</h3>
-            {% include 'art/_field.html' with field=form.collaborator_emails %}
-            {% if artwork.invitations.all %}
-                <p class="small text-muted mb-0">Invitaciones pendientes:
-                {% for invitation in artwork.invitations.all %}{% if invitation.is_pending %}<span class="badge bg-light text-dark border">{{ invitation.email }}</span>{% endif %}{% endfor %}</p>
+        </section>
+
+        <section class="form-section" id="equipo" aria-labelledby="team-title">
+            <div class="section-heading">
+                <div><span>03</span><h2 id="team-title">Equipo de la instalación</h2></div>
+            </div>
+            <p class="text-muted">Sumá a quienes hacen la instalación. Solo quienes tienen permiso de edición pueden cambiarla; el resto la puede ver.</p>
+            {% if artwork %}
+            {% if can_edit_team %}
+            <form class="team-add mb-3" method="post" action="{% url 'artwork_team_add' artwork.pk %}" novalidate>{% csrf_token %}
+                <label class="form-label" for="{{ team_add_form.identifier.id_for_label }}">{{ team_add_form.identifier.label }}</label>
+                <div class="team-add-row">
+                    <input type="text" name="{{ team_add_form.identifier.html_name }}" id="{{ team_add_form.identifier.id_for_label }}" value="{{ team_add_form.identifier.value|default:'' }}" maxlength="254" class="form-control{% if team_add_form.identifier.errors %} is-invalid{% endif %}" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="persona@ejemplo.com" aria-describedby="team-add-help{% if team_add_form.identifier.errors %} team-add-error{% endif %}"{% if team_add_form.identifier.errors %} aria-invalid="true"{% endif %} required>
+                    <button class="btn btn-primary" type="submit">Sumar</button>
+                </div>
+                {% if team_add_form.identifier.errors %}<div class="invalid-feedback d-block" id="team-add-error">{{ team_add_form.identifier.errors.0 }}</div>{% endif %}
+                <div class="form-text" id="team-add-help">{{ team_add_form.identifier.help_text }} Le avisamos por email.</div>
+            </form>
             {% endif %}
+            <ul class="team-list list-unstyled mb-0">
+                {% for member in team_members %}
+                {% with name=member.user.get_full_name|default:member.user.email %}
+                <li class="team-member">
+                    <div class="team-member-person">
+                        <strong>{{ name }}</strong>{% if member.is_self %} <span class="text-muted">(vos)</span>{% endif %}
+                        {% if member.user.get_full_name %}<small class="d-block text-muted">{{ member.user.email }}</small>{% endif %}
+                        {% if member.missing_ticket %}<small class="team-ticket-warning"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i>{% if member.is_self %}<span>Todavía no tenés tu bono para este evento · <a href="{{ tickets_path }}">Conseguí tu bono</a></span>{% else %}<span>Todavía no tiene bono para este evento</span>{% endif %}</small>{% endif %}
+                    </div>
+                    <div class="team-member-access">
+                        {% if member.is_leader %}<span class="team-role">Responsable</span>
+                        {% elif can_grant_edit %}
+                        <form method="post" action="{% url 'artwork_team_access' artwork.pk member.pk %}">{% csrf_token %}
+                            <div class="form-check form-switch team-switch">
+                                <input class="form-check-input" type="checkbox" role="switch" name="can_edit" id="team-edit-{{ member.pk }}"{% if member.can_edit %} checked{% endif %} onchange="this.form.requestSubmit()">
+                                <label class="form-check-label" for="team-edit-{{ member.pk }}">Puede editar</label>
+                            </div>
+                            <noscript><button class="btn btn-sm btn-outline-secondary" type="submit">Guardar</button></noscript>
+                        </form>
+                        {% else %}<span class="team-role">{% if member.can_edit %}Puede editar{% else %}Puede ver{% endif %}</span>{% endif %}
+                        {% if member.can_remove %}
+                        <form method="post" action="{% url 'artwork_team_remove' artwork.pk member.pk %}">{% csrf_token %}
+                            <button class="btn btn-link text-danger team-remove" type="submit" aria-label="Quitar a {{ name }} del equipo" onclick="return confirm('¿Quitar a {{ name|escapejs }} del equipo?')">Quitar</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </li>
+                {% endwith %}
+                {% endfor %}
+            </ul>
+            {% else %}<p class="small text-muted mb-0">Guardá la instalación para sumar personas.</p>{% endif %}
         </section>
 
         {% if program.grants_enabled %}
         <section class="form-section" id="beca" aria-labelledby="grant-title">
             <div class="section-heading">
-                <div><span>03</span><h2 id="grant-title">Beca</h2></div>
+                <div><span>04</span><h2 id="grant-title">Beca</h2></div>
                 {% if artwork %}<span class="badge bg-light text-dark border">{{ artwork.get_grant_status_display }}</span>{% endif %}
             </div>
             <p class="text-muted">Cada monto conserva moneda, fecha, fuente y cotización. Los totales históricos no cambian.</p>
@@ -132,10 +176,10 @@
 
         <section class="form-section" id="galeria" aria-labelledby="gallery-title">
             <div class="section-heading">
-                <div><span>{% if program.grants_enabled %}04{% else %}03{% endif %}</span><h2 id="gallery-title">Galería</h2></div>
+                <div><span>{% if program.grants_enabled %}05{% else %}04{% endif %}</span><h2 id="gallery-title">Galería</h2></div>
             </div>
             <p class="text-muted">Fotos de propuesta, proceso e instalación terminada. Podés elegir varias desde el teléfono.</p>
-            {% if artwork %}
+            {% if artwork and can_edit_artwork %}
             <details class="inline-editor inline-create mb-3"{% if photo_upload_form.errors %} open{% endif %}>
                 <summary><i class="fas fa-camera" aria-hidden="true"></i><span>Subir fotos</span></summary>
                 <form method="post" action="{% url 'artwork_photo_upload' artwork.pk %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
@@ -151,7 +195,7 @@
                         <figure class="gallery-card mb-0">
                             <a href="{{ photo.image.url }}" target="_blank" rel="noopener"><img src="{{ photo.image.url }}" alt="{{ photo.caption|default:photo.get_stage_display }}"></a>
                             <figcaption class="p-2 small"><strong>{{ photo.get_stage_display }}</strong>{% if photo.caption %}<br>{{ photo.caption }}{% endif %}{% if photo.publication_authorized %}<br><span class="text-success">Publicación autorizada</span>{% endif %}</figcaption>
-                            <form method="post" action="{% url 'artwork_photo_delete' artwork.pk photo.pk %}">{% csrf_token %}<button class="btn btn-sm btn-link text-danger p-2" type="submit" onclick="return confirm('¿Eliminar esta foto?')">Eliminar</button></form>
+                            {% if can_edit_artwork %}<form method="post" action="{% url 'artwork_photo_delete' artwork.pk photo.pk %}">{% csrf_token %}<button class="btn btn-sm btn-link text-danger p-2" type="submit" onclick="return confirm('¿Eliminar esta foto?')">Eliminar</button></form>{% endif %}
                         </figure>
                     </div>
                     {% endfor %}
@@ -161,8 +205,8 @@
 
         <section class="form-section" id="placement" aria-labelledby="guide-title">
             <div class="section-heading">
-                <div><span>{% if program.grants_enabled %}05{% else %}04{% endif %}</span><h2 id="guide-title">Desplegable y placement</h2></div>
-                {% if form.public_title.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
+                <div><span>{% if program.grants_enabled %}06{% else %}05{% endif %}</span><h2 id="guide-title">Desplegable y placement</h2></div>
+                {% if can_edit_artwork and form.public_title.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
             </div>
             <p class="text-muted">El texto público tiene el límite exacto del desplegable. La asignación la completa coordinación.</p>
             {% include 'art/_field.html' with field=form.public_title %}
@@ -174,39 +218,12 @@
 
         <section class="form-section" id="logistica" aria-labelledby="logistics-title">
             <div class="section-heading">
-                <div><span>{% if program.grants_enabled %}06{% else %}05{% endif %}</span><h2 id="logistics-title">Ingreso anticipado, proveedores y desarme</h2></div>
-                {% if form.arrival_date.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
+                <div><span>{% if program.grants_enabled %}07{% else %}06{% endif %}</span><h2 id="logistics-title">Ingreso anticipado, proveedores y desarme</h2></div>
+                {% if can_edit_artwork and form.arrival_date.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
             </div>
-            <p class="text-muted">Separá quién ingresa antes del evento y quién participa del desarme. Proveedores y vehículos se cargan por separado.</p>
+            <p class="text-muted">Fechas generales de ingreso y desarme, y los proveedores y vehículos que entran al predio. Las personas se suman en <a href="#equipo">Equipo de la instalación</a>.</p>
             <div class="row"><div class="col-md-6">{% include 'art/_field.html' with field=form.arrival_date %}</div><div class="col-md-6">{% include 'art/_field.html' with field=form.departure_date %}</div></div>
-            <div class="d-flex justify-content-between align-items-center gap-3 mt-4 mb-2">
-                <h3 class="h5 mb-0">Personas del equipo</h3>
-            </div>
-            {% if can_edit_logistics %}
-            <details class="inline-editor inline-create mb-3"{% if person_create_form.errors %} open{% endif %}>
-                <summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar persona</span></summary>
-                <form method="post" action="{% url 'logistics_person_create' artwork.pk %}" novalidate>{% csrf_token %}
-                    {% include 'art/_inline_fields.html' with inline_form=person_create_form %}
-                    <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Agregar persona</button></div>
-                </form>
-            </details>
-            {% endif %}
-            {% if logistics_people %}
-            <div class="table-responsive"><table class="table table-sm align-middle logistics-people-table">
-                <thead><tr><th>Persona</th><th>Documento</th><th>Ingreso anticipado</th><th>Desarme</th>{% if can_edit_logistics %}<th><span class="visually-hidden">Acciones</span></th>{% endif %}</tr></thead>
-                <tbody>{% for person in logistics_people %}<tr>
-                    <td><strong>{{ person.first_name }} {{ person.last_name }}</strong><small class="text-muted d-block">{{ person.email }}</small><small class="text-muted d-block">{{ person.phone }}</small></td>
-                    <td>{{ person.get_document_type_display }}<br>{{ person.document_number }}</td>
-                    <td>{% if person.early_entry %}{{ person.early_entry_date|date:'d/m/Y' }}{% else %}<span class="text-muted">No</span>{% endif %}</td>
-                    <td>{% if person.dismantling %}{{ person.dismantling_date|date:'d/m/Y' }}{% else %}<span class="text-muted">No</span>{% endif %}</td>
-                    {% if can_edit_logistics %}<td class="text-end text-nowrap"><form class="d-inline" method="post" action="{% url 'logistics_person_delete' artwork.pk person.pk %}">{% csrf_token %}<button class="btn btn-sm btn-link text-danger px-1" type="submit" title="Eliminar persona" aria-label="Eliminar {{ person }}" onclick="return confirm('¿Eliminar esta persona?')"><i class="fas fa-trash" aria-hidden="true"></i></button></form></td>{% endif %}
-                </tr>
-                {% if can_edit_logistics %}<tr class="inline-table-editor"><td colspan="5"><details class="inline-editor"{% if person.inline_form.errors %} open{% endif %}><summary><i class="fas fa-pen" aria-hidden="true"></i><span>Editar {{ person }}</span></summary><form method="post" action="{% url 'logistics_person_edit' artwork.pk person.pk %}" novalidate>{% csrf_token %}{% include 'art/_inline_fields.html' with inline_form=person.inline_form %}<div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Guardar persona</button></div></form></details></td></tr>{% endif %}
-                {% endfor %}</tbody>
-            </table></div>
-            {% elif artwork %}<p class="small text-muted">Todavía no hay personas cargadas.</p>{% else %}<p class="small text-muted">Guardá la instalación para agregar personas.</p>{% endif %}
-
-            <div class="mt-5 mb-3"><h3 class="h5 mb-1">Proveedores por operación</h3><p class="small text-muted mb-0">Un proveedor marcado para ambas operaciones aparece en las dos listas.</p></div>
+            <div class="mt-4 mb-3"><h3 class="h5 mb-1">Proveedores por operación</h3><p class="small text-muted mb-0">Un proveedor marcado para ambas operaciones aparece en las dos listas.</p></div>
             <div class="row g-3 operation-lists">
                 <div class="col-md-6"><section aria-labelledby="entry-providers-title"><h4 id="entry-providers-title" class="h6">Ingreso anticipado</h4>{% if entry_providers %}<ul class="list-unstyled mb-0">{% for provider in entry_providers %}<li><strong>{{ provider.company_name }}</strong><span>Entrada {{ provider.early_entry_at|date:'d/m/Y H:i' }}<br>Salida {{ provider.early_exit_at|date:'d/m/Y H:i' }}</span><small>{{ provider.service_description }}</small></li>{% endfor %}</ul>{% else %}<p class="small text-muted mb-0">Sin proveedores de ingreso.</p>{% endif %}</section></div>
                 <div class="col-md-6"><section aria-labelledby="exit-providers-title"><h4 id="exit-providers-title" class="h6">Desarme y retiro</h4>{% if exit_providers %}<ul class="list-unstyled mb-0">{% for provider in exit_providers %}<li><strong>{{ provider.company_name }}</strong><span>Entrada {{ provider.dismantling_entry_at|date:'d/m/Y H:i' }}<br>Salida {{ provider.dismantling_exit_at|date:'d/m/Y H:i' }}</span><small>{{ provider.service_description }}</small></li>{% endfor %}</ul>{% else %}<p class="small text-muted mb-0">Sin proveedores de desarme.</p>{% endif %}</section></div>
@@ -242,8 +259,8 @@
 
         <section class="form-section" id="checkout" aria-labelledby="checkout-title">
             <div class="section-heading">
-                <div><span>{% if program.grants_enabled %}07{% else %}06{% endif %}</span><h2 id="checkout-title">Checkout</h2></div>
-                {% if artwork.checkout_verified_at %}<span class="badge bg-success">Verificado</span>{% elif artwork.checkout_completed %}<span class="badge border" style="background:#e7f1fb;color:#0b4a7d !important;border-color:#b6d4f0 !important">Enviado</span>{% elif form.checkout_notes.field.disabled %}<span class="badge bg-secondary">No editable</span>{% endif %}
+                <div><span>{% if program.grants_enabled %}08{% else %}07{% endif %}</span><h2 id="checkout-title">Checkout</h2></div>
+                {% if artwork.checkout_verified_at %}<span class="badge bg-success">Verificado</span>{% elif artwork.checkout_completed %}<span class="badge border" style="background:#e7f1fb;color:#0b4a7d !important;border-color:#b6d4f0 !important">Enviado</span>{% elif can_edit_artwork and form.checkout_notes.field.disabled %}<span class="badge bg-secondary">No editable</span>{% endif %}
             </div>
             <p class="text-muted">Se habilita cuando empieza el evento. Cuando retires la instalación y limpies el espacio, subí fotos del estado final y enviá el checkout: el equipo de Arte lo verifica en el predio.</p>
             <div class="row"><div class="col-md-6">{% include 'art/_field.html' with field=form.checkout_team_responsible %}</div></div>
@@ -269,7 +286,7 @@
 
         {% if program.grants_enabled and form.grant_report %}
         <section class="form-section" id="rendicion" aria-labelledby="grant-report-title">
-            <div class="section-heading"><div><span>08</span><h2 id="grant-report-title">Rendición de beca</h2></div></div>
+            <div class="section-heading"><div><span>09</span><h2 id="grant-report-title">Rendición de beca</h2></div></div>
             {% include 'art/_field.html' with field=form.grant_report %}
             {% if artwork %}
             <div class="d-flex justify-content-between align-items-center gap-3 my-3">
@@ -291,7 +308,8 @@
         </section>
         {% endif %}
 
-        {% if program.is_current or can_manage %}
+        {% if not can_edit_artwork %}
+        {% elif program.is_current or can_manage %}
         <div class="save-bar d-flex flex-column flex-sm-row justify-content-between gap-2 py-3" data-sticky-actions>
             {% if can_manage and artwork and not acting_as_estafa %}<a class="btn btn-outline-secondary" href="{% url 'artwork_review' artwork.event.slug artwork.pk %}">Abrir en ESTAFA</a>{% else %}<span></span>{% endif %}
             <button class="btn btn-primary" type="submit" form="artwork-form" name="action" value="save">Guardar</button>
@@ -344,9 +362,23 @@
     .inline-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1rem; }
     .inline-form-wide { grid-column: 1 / -1; }
     .inline-table-editor td { padding: 0 0 .75rem; border-top: 0; }
-    .logistics-people-table { min-width: 720px; }
-    .logistics-people-table th { white-space: nowrap; }
-    .logistics-people-table th:nth-child(3), .logistics-people-table th:nth-child(4), .logistics-people-table td:nth-child(3), .logistics-people-table td:nth-child(4) { width: 135px; white-space: nowrap; }
+    .team-add { max-width: 34rem; }
+    .team-add-row { display: flex; gap: .5rem; }
+    .team-add-row .form-control { min-height: 44px; }
+    .team-add-row .btn { flex-shrink: 0; min-height: 44px; padding-inline: 1.25rem; white-space: nowrap; }
+    .team-member { display: flex; justify-content: space-between; align-items: center; gap: .5rem 1.5rem; padding: .85rem 0; border-top: 1px solid #dee2e6; }
+    .team-member:last-child { border-bottom: 1px solid #dee2e6; }
+    .team-member-person { min-width: 0; }
+    .team-ticket-warning { display: flex; align-items: baseline; gap: .4rem; margin-top: .3rem; color: #7a4a00; }
+    .team-ticket-warning a { color: inherit; font-weight: 600; }
+    .team-member-access { display: flex; align-items: center; gap: 1rem; flex-shrink: 0; }
+    .team-role { color: #5c636a; }
+    .team-switch { display: flex; align-items: center; gap: .6rem; min-height: 44px; margin: 0; padding-left: 0; }
+    .team-switch .form-check-input { width: 2.5rem; height: 1.35rem; margin: 0; float: none; cursor: pointer; }
+    .team-switch .form-check-input:checked { background-color: #176b4a; border-color: #176b4a; }
+    .team-switch .form-check-input:focus-visible { box-shadow: 0 0 0 .25rem rgba(23, 107, 74, .25); }
+    .team-switch .form-check-label { cursor: pointer; }
+    .team-remove { min-height: 44px; padding-inline: .5rem; }
     .inline-images { display: flex; flex-wrap: wrap; gap: .5rem; }
     .inline-images > span { position: relative; }
     .inline-images img { width: 88px; height: 66px; object-fit: cover; border-radius: .3rem; }
@@ -362,6 +394,7 @@
     .provider-operation-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 .75rem; }
     .provider-operation.is-disabled { opacity: .58; }
     .save-bar { position: sticky; bottom: 0; z-index: 2; background: rgba(250, 251, 250, .97); border-top: 1px solid #dee2e6; }
+    @media (max-width: 575px) { .team-member { flex-direction: column; align-items: stretch; } .team-member-access { justify-content: space-between; } }
     @media (max-width: 767px) { .checkpoint-list, .inline-form-grid, .provider-operation-grid, .provider-operation-fields { grid-template-columns: 1fr; } .inline-form-wide { grid-column: auto; } .provider-operation > p { min-height: 0; } .art-form-page { padding-inline: 0; } }
 </style>
 <script>

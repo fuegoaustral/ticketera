@@ -1,4 +1,3 @@
-from datetime import timedelta
 from decimal import Decimal
 
 from django import forms
@@ -8,7 +7,7 @@ from django.utils import timezone
 
 from .estafa import estafa_members
 from .models import (
-    Artwork, ArtworkGrantItem, ArtworkInvitation, ArtworkLogisticsPerson,
+    Artwork, ArtworkGrantItem,
     ArtworkPhoto, ArtworkCheckoutPhoto, ArtworkProvider, ArtworkProviderVehicle,
 )
 
@@ -45,6 +44,15 @@ def _estafa_contacts(artwork):
     ).order_by('first_name', 'last_name', 'email')
 
 
+def _limit_to_team(field, artwork):
+    """El responsable del checkout se elige entre las personas del equipo de la instalación."""
+    field.queryset = User.objects.filter(
+        pk__in=artwork.team_members().values('user'),
+    ).order_by('first_name', 'last_name', 'email')
+    field.label_from_instance = lambda user: user.get_full_name() or user.email
+    field.empty_label = 'Elegí una persona del equipo'
+
+
 class EstafaContactChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, user):
         return user.get_full_name() or user.email
@@ -69,11 +77,6 @@ class ArtworkContactForm(forms.ModelForm):
 class ArtworkForm(forms.ModelForm):
     BLOCK_FIELDS = ARTWORK_BLOCK_FIELDS
 
-    collaborator_emails = forms.CharField(
-        required=False,
-        label='Colaboradores',
-        help_text='Emails separados por coma. Si todavía no tienen cuenta, recibirán una invitación.',
-    )
     safety_responsible_email = forms.EmailField(
         required=False,
         label='Responsable de seguridad',
@@ -106,13 +109,11 @@ class ArtworkForm(forms.ModelForm):
         self.actor = actor or owner
         self.is_manager = self.instance.pk and self.instance.can_manage(self.actor)
         self.is_contributor = self.instance.pk and self.instance.can_edit(self.actor)
-        self.new_invitations = []
 
         for field in self.fields.values():
             field.widget.attrs.setdefault('class', 'form-check-input' if isinstance(field.widget, forms.CheckboxInput) else 'form-control')
             field.widget.attrs['form'] = 'artwork-form'
         self.fields['checkout_team_responsible'].widget.attrs['class'] = 'form-select'
-        self.fields['collaborator_emails'].widget.attrs.update({'class': 'form-control', 'placeholder': 'persona@ejemplo.com, otra@ejemplo.com'})
         self.fields['safety_responsible_email'].widget.attrs.update({'class': 'form-control', 'placeholder': 'persona@ejemplo.com'})
         description_limit = program.public_description_max_length
         self.fields['public_description'].max_length = description_limit
@@ -124,7 +125,7 @@ class ArtworkForm(forms.ModelForm):
         if self.instance.safety_responsible_id:
             self.fields['safety_responsible_email'].initial = self.instance.safety_responsible.email
         self.fields['expected_version'].initial = self.instance.version if self.instance.pk else None
-        self.fields['checkout_team_responsible'].queryset = self.instance.logistics_people.all() if self.instance.pk else ArtworkLogisticsPerson.objects.none()
+        _limit_to_team(self.fields['checkout_team_responsible'], self.instance)
         if self.instance.pk and not self.is_manager and not self.is_contributor:
             for name, field in self.fields.items():
                 if name != 'expected_version':
@@ -156,13 +157,6 @@ class ArtworkForm(forms.ModelForm):
             for name in self.BLOCK_FIELDS['checkout']:
                 self.fields[name].disabled = True
 
-        if self.instance.pk:
-            emails = list(self.instance.collaborators.order_by('email').values_list('email', flat=True))
-            emails += list(self.instance.invitations.filter(accepted_at=None, revoked_at=None).values_list('email', flat=True))
-            self.fields['collaborator_emails'].initial = ', '.join(dict.fromkeys(emails))
-        if self.actor != owner:
-            self.fields['collaborator_emails'].disabled = True
-
         if not self.is_manager:
             if not program.is_current or self.instance.status == Artwork.Status.REJECTED:
                 for name, field in self.fields.items():
@@ -175,22 +169,6 @@ class ArtworkForm(forms.ModelForm):
                     for name in fields:
                         if name in self.fields:
                             self.fields[name].disabled = True
-
-    def clean_collaborator_emails(self):
-        if self.fields['collaborator_emails'].disabled:
-            return []
-        raw = self.cleaned_data['collaborator_emails'].replace('\n', ',').replace(';', ',')
-        validate = forms.EmailField().clean
-        emails = []
-        for value in raw.split(','):
-            if value.strip():
-                email = validate(value.strip()).lower()
-                owner_email = (self.owner.email or '').lower() if self.owner else ''
-                if email not in emails and email != owner_email:
-                    emails.append(email)
-        if len(emails) > 20:
-            raise forms.ValidationError('Podés sumar hasta 20 colaboradores por instalación.')
-        return emails
 
     def clean_safety_responsible_email(self):
         email = self.cleaned_data['safety_responsible_email'].lower()
@@ -239,39 +217,7 @@ class ArtworkForm(forms.ModelForm):
             artwork.version += 1
         if commit:
             artwork.save()
-            if self.actor == self.owner and not self.fields['collaborator_emails'].disabled:
-                self._sync_collaborators(artwork, self.cleaned_data['collaborator_emails'])
         return artwork
-
-    def _sync_collaborators(self, artwork, emails):
-        users = []
-        pending = []
-        current_users = {
-            user.email.lower(): user
-            for user in artwork.collaborators.all()
-            if user.email
-        }
-        for email in emails:
-            if email in current_users:
-                users.append(current_users[email])
-                continue
-            existing = ArtworkInvitation.objects.filter(artwork=artwork, email=email).first()
-            should_send = not existing or not existing.is_pending
-            invitation, created = ArtworkInvitation.objects.update_or_create(
-                artwork=artwork,
-                email=email,
-                defaults={
-                    'invited_by': self.actor,
-                    'expires_at': timezone.now() + timedelta(days=30),
-                    'accepted_at': None,
-                    'revoked_at': None,
-                },
-            )
-            pending.append(email)
-            if created or should_send:
-                self.new_invitations.append(invitation)
-        artwork.collaborators.set(users)
-        artwork.invitations.filter(accepted_at=None, revoked_at=None).exclude(email__in=pending).update(revoked_at=timezone.now())
 
 
 class ArtworkGrantItemForm(forms.ModelForm):
@@ -442,37 +388,40 @@ class ArtworkCheckoutPhotoUploadForm(forms.Form):
         return images
 
 
-class ArtworkLogisticsPersonForm(forms.ModelForm):
-    class Meta:
-        model = ArtworkLogisticsPerson
-        fields = (
-            'first_name', 'last_name', 'email', 'phone', 'document_type', 'document_number',
-            'early_entry', 'early_entry_date', 'dismantling', 'dismantling_date',
-        )
-        widgets = {
-            'phone': forms.TextInput(attrs={'type': 'tel'}),
-            'early_entry_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
-            'dismantling_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
-        }
+class ArtworkTeamAddForm(forms.Form):
+    identifier = forms.CharField(
+        max_length=254, label='Email o DNI',
+        help_text='La persona necesita una cuenta en Fuego Austral.',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control', 'autocomplete': 'off', 'autocapitalize': 'none', 'spellcheck': 'false',
+            'placeholder': 'persona@ejemplo.com',
+        }),
+    )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, artwork, **kwargs):
         super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            field.widget.attrs.setdefault('class', 'form-check-input' if isinstance(field.widget, forms.CheckboxInput) else ('form-select' if isinstance(field.widget, forms.Select) else 'form-control'))
+        self.artwork = artwork
+        self.user = None
 
-    def clean(self):
-        cleaned = super().clean()
-        if not cleaned.get('early_entry') and not cleaned.get('dismantling'):
-            self.add_error(None, 'Indicá si participa del ingreso anticipado, del desarme o de ambos.')
-        if not cleaned.get('early_entry'):
-            cleaned['early_entry_date'] = None
-        if not cleaned.get('dismantling'):
-            cleaned['dismantling_date'] = None
-        if cleaned.get('early_entry') and not cleaned.get('early_entry_date'):
-            self.add_error('early_entry_date', 'Indicá la fecha de ingreso anticipado.')
-        if cleaned.get('dismantling') and not cleaned.get('dismantling_date'):
-            self.add_error('dismantling_date', 'Indicá la fecha de desarme y salida.')
-        return cleaned
+    def clean_identifier(self):
+        from allauth.account.models import EmailAddress
+
+        identifier = self.cleaned_data['identifier'].strip()
+        user = User.objects.filter(email__iexact=identifier).first()
+        if not user:
+            address = EmailAddress.objects.select_related('user').filter(email__iexact=identifier).first()
+            user = address.user if address else None
+        document = identifier.replace('.', '').replace(' ', '')
+        if not user and document.isdigit():
+            user = User.objects.filter(profile__document_number__in=(identifier, document)).first()
+        if not user:
+            raise forms.ValidationError(
+                'No encontramos una cuenta con ese email o DNI. Pedile que se registre en Fuego Austral y volvé a sumarla.'
+            )
+        if self.artwork.is_team_member(user):
+            raise forms.ValidationError('Esa persona ya es parte del equipo de la instalación.')
+        self.user = user
+        return identifier
 
 
 class ArtworkProviderForm(forms.ModelForm):
@@ -602,7 +551,7 @@ class ArtworkReviewForm(forms.ModelForm):
         self.fields['expected_updated_at'].initial = self.instance.updated_at.isoformat() if self.instance.pk else ''
         if self.instance.pk:
             if 'checkout_team_responsible' in self.fields:
-                self.fields['checkout_team_responsible'].queryset = self.instance.logistics_people.all()
+                _limit_to_team(self.fields['checkout_team_responsible'], self.instance)
         for field in self.fields.values():
             field.widget.attrs.setdefault('class', 'form-select' if isinstance(field.widget, forms.Select) else 'form-control')
 

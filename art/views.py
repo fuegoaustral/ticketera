@@ -4,7 +4,7 @@ import logging
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import Case, IntegerField, Q, Value, When
+from django.db.models import Case, F, IntegerField, Q, Value, When
 from django.http import Http404, HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -12,18 +12,19 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
-from events.models import Event, Grupo, GrupoTipo
+from events.models import Event, Grupo, GrupoMiembro, GrupoTipo
+from tickets.models import NewTicket, TicketType
 from utils.email import send_mail
 
 from .estafa import can_access_estafa, can_coordinate, estafa_events, is_estafa_member
 from .forms import (
-    ArtworkForm, ArtworkGrantItemForm, ArtworkLogisticsPersonForm,
+    ArtworkForm, ArtworkGrantItemForm, ArtworkTeamAddForm,
     ArtworkCheckoutPhotoUploadForm, ArtworkPhotoUploadForm, ArtworkProviderForm, ArtworkProviderVehicleForm,
     ArtworkContactForm, ArtworkGrantItemReviewForm, ArtworkReviewForm,
 )
 from .models import (
     ArtProgram, Artwork, ArtworkGrantItem, ArtworkGrantItemPhoto,
-    ArtworkInvitation, ArtworkLogisticsPerson, ArtworkPhoto, ArtworkCheckoutPhoto, ArtworkProvider,
+    ArtworkPhoto, ArtworkCheckoutPhoto, ArtworkProvider,
     ArtworkProviderVehicle,
 )
 
@@ -59,26 +60,33 @@ def _checkpoints(program):
 def _accessible_artworks(user):
     if user.is_superuser:
         return Artwork.objects.all()
-    collaborator_ids = Artwork.objects.filter(collaborators=user).values('pk')
-    access = Q(owner=user) | Q(pk__in=collaborator_ids)
+    team_ids = Artwork.objects.filter(
+        Q(collaborators=user) | Q(operations_group__miembros__user=user),
+    ).values('pk')
+    access = Q(owner=user) | Q(pk__in=team_ids)
     if is_estafa_member(user):
         access |= Q(event__has_volunteers=True)
     return Artwork.objects.filter(access)
 
 
-def _send_invitations(invitations):
-    for invitation in invitations:
-        try:
-            send_mail(
-                template_name='art_collaboration_invitation',
-                recipient_list=[invitation.email],
-                context={
-                    'invitation': invitation,
-                    'accept_path': reverse('art_invitation_accept', kwargs={'token': invitation.token}),
-                },
-            )
-        except Exception:
-            logging.exception('No se pudo enviar la invitación de Arte a %s', invitation.email)
+def _send_team_member_added_email(artwork, user, added_by):
+    if not user.email:
+        return
+    try:
+        send_mail(
+            template_name='art_team_member_added',
+            recipient_list=[user.email],
+            context={
+                'artwork': artwork,
+                'added_by_name': added_by.get_full_name() or added_by.email,
+                'can_edit': artwork.can_edit(user),
+                'missing_ticket': _ticket_sales_started(artwork.event) and not _has_ticket(user, artwork.event),
+                'artwork_path': reverse('artwork_edit', args=[artwork.pk]),
+                'tickets_path': _tickets_path(artwork.event),
+            },
+        )
+    except Exception:
+        logging.exception('No se pudo avisar a %s que la sumaron a la instalación %s', user.email, artwork.pk)
 
 
 def _send_status_email(artwork):
@@ -166,6 +174,57 @@ def _ensure_operations_group(artwork, program):
     return group
 
 
+def _ticket_sales_started(event):
+    now = timezone.now()
+    return TicketType.objects.filter(event=event, is_direct_type=False).filter(
+        Q(date_from__isnull=True) | Q(date_from__lte=now),
+    ).exists()
+
+
+def _has_ticket(user, event):
+    return NewTicket.objects.filter(event=event, holder=user, owner=user).exists()
+
+
+def _tickets_path(event):
+    return reverse('event_home', args=[event.slug]) if event.slug else reverse('home')
+
+
+def _team_editable(artwork, user):
+    if artwork.can_manage(user):
+        return True
+    program = artwork.event.art_program
+    return program.is_current and artwork.status != Artwork.Status.REJECTED and artwork.can_manage_team(user)
+
+
+def _team_context(artwork, user, team_add_form=None):
+    members = list(artwork.team_members().order_by('user__first_name', 'user__last_name', 'user__email'))
+    editor_ids = set(artwork.collaborators.values_list('pk', flat=True))
+    sales_started = _ticket_sales_started(artwork.event)
+    ticket_holders = set(
+        NewTicket.objects.filter(
+            event=artwork.event, holder__in=[member.user for member in members], owner=F('holder'),
+        ).values_list('holder_id', flat=True)
+    ) if sales_started else set()
+    for member in members:
+        member.is_leader = member.user_id == artwork.owner_id
+        member.is_self = member.user_id == user.pk
+        member.can_edit = member.is_leader or member.user_id in editor_ids
+        member.missing_ticket = sales_started and member.user_id not in ticket_holders
+    # La persona responsable primero; después, el orden alfabético.
+    members.sort(key=lambda member: not member.is_leader)
+    editable = _team_editable(artwork, user)
+    can_grant = editable and artwork.can_grant_edit(user)
+    for member in members:
+        member.can_remove = editable and not member.is_leader and (can_grant or not member.can_edit)
+    return {
+        'team_members': members,
+        'team_add_form': team_add_form or ArtworkTeamAddForm(artwork=artwork, auto_id='team-add_%s'),
+        'can_edit_team': editable,
+        'can_grant_edit': can_grant,
+        'tickets_path': _tickets_path(artwork.event),
+    }
+
+
 def _grant_context(artwork, inline_forms=None):
     inline_forms = inline_forms or {}
     budget = list(artwork.grant_items.filter(phase=ArtworkGrantItem.Phase.BUDGET).prefetch_related('photos'))
@@ -197,12 +256,7 @@ def _grant_context(artwork, inline_forms=None):
 def _artwork_context(artwork, program, form, inline_forms=None):
     inline_forms = inline_forms or {}
     context = _base_context(artwork.event)
-    people = list(artwork.logistics_people.all())
     providers = list(artwork.artwork_providers.prefetch_related('vehicles'))
-    for person in people:
-        person.inline_form = inline_forms.get(('person', person.pk)) or ArtworkLogisticsPersonForm(
-            instance=person, auto_id=f'person-{person.pk}_%s',
-        )
     for provider in providers:
         provider.inline_form = inline_forms.get(('provider', provider.pk)) or ArtworkProviderForm(
             instance=provider, auto_id=f'provider-{provider.pk}_%s',
@@ -225,10 +279,6 @@ def _artwork_context(artwork, program, form, inline_forms=None):
             auto_id='checkout-photo-new_%s',
         ),
         'checkout_photos': artwork.checkout_photos.all(),
-        'logistics_people': people,
-        'person_create_form': inline_forms.get(('person-new', None)) or ArtworkLogisticsPersonForm(
-            instance=ArtworkLogisticsPerson(artwork=artwork), auto_id='person-new_%s',
-        ),
         'artwork_providers': providers,
         'entry_providers': [provider for provider in providers if provider.for_entry],
         'exit_providers': [provider for provider in providers if provider.for_exit],
@@ -236,6 +286,7 @@ def _artwork_context(artwork, program, form, inline_forms=None):
             instance=ArtworkProvider(artwork=artwork), auto_id='provider-new_%s',
         ),
         'can_manage': artwork.can_manage(form.actor),
+        'can_edit_artwork': artwork.can_edit(form.actor) or artwork.can_manage(form.actor),
         'can_edit_budget': _grant_item_editable(artwork, ArtworkGrantItem.Phase.BUDGET, form.actor),
         'can_edit_expenses': _grant_item_editable(artwork, ArtworkGrantItem.Phase.EXPENSE, form.actor),
         'can_edit_logistics': _logistics_editable(artwork, form.actor),
@@ -248,6 +299,7 @@ def _artwork_context(artwork, program, form, inline_forms=None):
     if context['can_manage'] and not artwork.can_edit(form.actor):
         context.update(_estafa_context(form.actor, artwork.event), acting_as_estafa=True)
     context.update(_grant_context(artwork, inline_forms))
+    context.update(_team_context(artwork, form.actor, inline_forms.get(('team-add', None))))
     return context
 
 
@@ -313,7 +365,9 @@ def _grant_redirect(request, artwork, phase):
 def art_dashboard(request):
     programs = ArtProgram.objects.select_related('event').filter(is_current=True, event__active=True)
     artworks = (
-        Artwork.objects.filter(Q(owner=request.user) | Q(collaborators=request.user))
+        Artwork.objects.filter(
+            Q(owner=request.user) | Q(collaborators=request.user) | Q(operations_group__miembros__user=request.user),
+        )
         .select_related('event', 'estafa_contact')
         .prefetch_related('collaborators')
         .distinct()
@@ -345,7 +399,7 @@ def artwork_create(request, event_slug):
         with transaction.atomic():
             form.instance.submitted_at = timezone.now()
             artwork = form.save()
-            transaction.on_commit(lambda invitations=list(form.new_invitations): _send_invitations(invitations))
+            _ensure_operations_group(artwork, program)
         messages.success(
             request,
             'La instalación quedó inscripta. Queda pendiente de aprobación por ESTAFA. '
@@ -358,6 +412,7 @@ def artwork_create(request, event_slug):
         'form': form,
         'program': program,
         'artwork': None,
+        'can_edit_artwork': True,
         'checkpoints': _checkpoints(program),
         'budget_total_ars': 0,
     })
@@ -392,9 +447,7 @@ def _handle_artwork_edit(request, artwork):
         if not form.instance.submitted_at:
             form.instance.submitted_at = timezone.now()
         artwork = form.save()
-        if artwork.operations_group_id:
-            _ensure_operations_group(artwork, program)
-        transaction.on_commit(lambda invitations=list(form.new_invitations): _send_invitations(invitations))
+        _ensure_operations_group(artwork, program)
         if action == 'checkout':
             _submit_checkout(request, artwork, program)
             return _artwork_redirect(artwork, 'checkout')
@@ -433,6 +486,8 @@ def _grant_item_editable(artwork, phase, user):
         return False
     if artwork.can_manage(user):
         return True
+    if not artwork.can_edit(user):
+        return False
     program = artwork.event.art_program
     if not program.is_current or not program.grants_enabled or artwork.status == Artwork.Status.REJECTED:
         return False
@@ -740,47 +795,67 @@ def artwork_checkout_photo_delete(request, artwork_id, photo_id):
 
 
 @login_required
-def logistics_person_edit(request, artwork_id, person_id=None):
-    access = _accessible_artworks(request.user)
-    artwork = get_object_or_404(access, pk=artwork_id)
-    if not _logistics_editable(artwork, request.user):
-        return HttpResponseForbidden('La logística de esta instalación ya no se puede editar.')
-    person = get_object_or_404(ArtworkLogisticsPerson, artwork=artwork, pk=person_id) if person_id else ArtworkLogisticsPerson(artwork=artwork, created_by=request.user)
-    if request.method != 'POST':
-        return _artwork_redirect(artwork, 'logistica')
-    form = ArtworkLogisticsPersonForm(
-        request.POST, instance=person,
-        auto_id=f'person-{person_id}_%s' if person_id else 'person-new_%s',
-    )
-    if form.is_valid():
-        with transaction.atomic():
-            artwork = get_object_or_404(access.select_for_update(), pk=artwork_id)
-            if not _logistics_editable(artwork, request.user):
-                return HttpResponseForbidden('La logística de esta instalación ya no se puede editar.')
-            form.instance.artwork = artwork
-            form.instance.created_by = form.instance.created_by or request.user
-            form.save()
-        messages.success(request, 'Persona guardada en la logística de la instalación.')
-        return _artwork_redirect(artwork, 'logistica')
-    return _inline_error_response(
-        request, artwork, ('person', person.pk) if person_id else ('person-new', None), form,
-    )
+@require_POST
+def artwork_team_add(request, artwork_id):
+    with transaction.atomic():
+        artwork = get_object_or_404(_accessible_artworks(request.user).select_for_update(), pk=artwork_id)
+        if not _team_editable(artwork, request.user):
+            return HttpResponseForbidden('El equipo de esta instalación no se puede editar.')
+        form = ArtworkTeamAddForm(request.POST, artwork=artwork, auto_id='team-add_%s')
+        if not form.is_valid():
+            return _inline_error_response(request, artwork, ('team-add', None), form)
+        group = _ensure_operations_group(artwork, artwork.event.art_program)
+        GrupoMiembro.objects.create(grupo=group, user=form.user)
+        transaction.on_commit(lambda: _send_team_member_added_email(artwork, form.user, request.user))
+    messages.success(request, f'{form.user.get_full_name() or form.user.email} ya es parte del equipo. Le avisamos por email.')
+    return _artwork_redirect(artwork, 'equipo')
 
 
 @login_required
-def logistics_person_delete(request, artwork_id, person_id):
-    if request.method != 'POST':
-        return HttpResponseForbidden('Esta persona no se puede eliminar.')
+@require_POST
+def artwork_team_remove(request, artwork_id, member_id):
     with transaction.atomic():
         artwork = get_object_or_404(_accessible_artworks(request.user).select_for_update(), pk=artwork_id)
-        person = get_object_or_404(ArtworkLogisticsPerson.objects.select_for_update(), artwork=artwork, pk=person_id)
-        if not _logistics_editable(artwork, request.user):
-            return HttpResponseForbidden('Esta persona no se puede eliminar.')
-        if artwork.checkout_team_responsible_id == person.pk and artwork.checkout_completed:
-            return HttpResponseForbidden('No se puede eliminar al responsable de un checkout solicitado.')
-        person.delete()
-    messages.success(request, 'Persona eliminada de la logística.')
-    return _artwork_redirect(artwork, 'logistica')
+        member = get_object_or_404(artwork.team_members(), pk=member_id)
+        if not _team_editable(artwork, request.user) or member.user_id == artwork.owner_id:
+            return HttpResponseForbidden('Esta persona no se puede quitar del equipo.')
+        if artwork.can_edit(member.user) and not artwork.can_grant_edit(request.user):
+            return HttpResponseForbidden('Solo la persona responsable puede quitar a quien edita la instalación.')
+        if artwork.checkout_completed and artwork.checkout_team_responsible_id == member.user_id:
+            messages.error(request, 'Es la persona responsable del checkout enviado. Cambiala en el checkout antes de quitarla.')
+            return _artwork_redirect(artwork, 'equipo')
+        limit = artwork.event.ingreso_anticipado_limite_carga
+        if (member.ingreso_anticipado or member.ingreso_anticipado_fecha) and limit and timezone.now() > limit:
+            messages.error(request, 'Tiene ingreso anticipado y ya cerró la carga de ingresos anticipados.')
+            return _artwork_redirect(artwork, 'equipo')
+        artwork.collaborators.remove(member.user)
+        if artwork.checkout_team_responsible_id == member.user_id:
+            artwork.checkout_team_responsible = None
+            artwork.save(update_fields=['checkout_team_responsible', 'updated_at'])
+        member.delete()
+    messages.success(request, f'{member.user.get_full_name() or member.user.email} ya no es parte del equipo.')
+    return _artwork_redirect(artwork, 'equipo')
+
+
+@login_required
+@require_POST
+def artwork_team_access(request, artwork_id, member_id):
+    with transaction.atomic():
+        artwork = get_object_or_404(_accessible_artworks(request.user).select_for_update(), pk=artwork_id)
+        member = get_object_or_404(artwork.team_members(), pk=member_id)
+        if (
+            not _team_editable(artwork, request.user) or not artwork.can_grant_edit(request.user)
+            or member.user_id == artwork.owner_id
+        ):
+            return HttpResponseForbidden('No podés cambiar quién edita esta instalación.')
+        name = member.user.get_full_name() or member.user.email
+        if request.POST.get('can_edit') == 'on':
+            artwork.collaborators.add(member.user)
+            messages.success(request, f'{name} ahora puede editar la instalación.')
+        else:
+            artwork.collaborators.remove(member.user)
+            messages.success(request, f'{name} ya no puede editar la instalación.')
+    return _artwork_redirect(artwork, 'equipo')
 
 
 @login_required
@@ -869,27 +944,6 @@ def artwork_vehicle_delete(request, artwork_id, provider_id, vehicle_id):
     return _artwork_redirect(artwork, 'logistica')
 
 
-@login_required
-def art_invitation_accept(request, token):
-    invitation = get_object_or_404(ArtworkInvitation.objects.select_related('artwork'), token=token)
-    verified_email = request.user.email and request.user.email.lower() == invitation.email.lower()
-    try:
-        verified_email = verified_email and request.user.emailaddress_set.filter(email__iexact=invitation.email, verified=True).exists()
-    except AttributeError:
-        verified_email = False
-    if not invitation.is_pending or not verified_email:
-        return HttpResponseForbidden('La invitación venció o no corresponde al email verificado de tu cuenta.')
-    if request.method == 'POST':
-        invitation.artwork.collaborators.add(request.user)
-        invitation.accepted_at = timezone.now()
-        invitation.save(update_fields=['accepted_at', 'updated_at'])
-        messages.success(request, f'Ya colaborás en “{invitation.artwork.title or "esta instalación"}”.')
-        return redirect('artwork_edit', artwork_id=invitation.artwork_id)
-    return render(request, 'art/invitation.html', {
-        **_base_context(invitation.artwork.event), 'invitation': invitation,
-    })
-
-
 def _managed_event(request, event_slug):
     event = get_object_or_404(Event, slug=event_slug, art_program__isnull=False)
     if not can_coordinate(request.user, event):
@@ -899,7 +953,7 @@ def _managed_event(request, event_slug):
 
 def _filtered_artworks(event, params):
     artworks = event.artworks.select_related('owner', 'safety_responsible', 'estafa_contact').prefetch_related(
-        'grant_items', 'checkout_photos', 'logistics_people', 'artwork_providers__vehicles',
+        'grant_items', 'checkout_photos', 'operations_group__miembros', 'artwork_providers__vehicles',
     )
     query = params.get('q', '').strip()
     if query:
@@ -1079,7 +1133,7 @@ def art_admin_export(request, event_slug):
     writer.writerow([
         'Instalación', 'Modalidad', 'Responsable', 'Estado', 'Etiquetas', 'Responsable de seguridad',
         'Beca', 'Presupuesto ARS', 'Rendición ARS', 'Título público', 'Descripción pública',
-        'Ubicación asignada', 'Carta digital', 'Carta física', 'Equipo ingreso/desarme',
+        'Ubicación asignada', 'Carta digital', 'Carta física', 'Personas del equipo',
         'Proveedores', 'Vehículos', 'Fotos checkout', 'Checkout', 'Actualizada',
     ])
     for artwork in _filtered_artworks(event, request.GET):
@@ -1103,7 +1157,7 @@ def art_admin_export(request, event_slug):
             artwork.assigned_location,
             artwork.understanding_letter.name if artwork.understanding_letter else '',
             'Sí' if artwork.understanding_letter_physical_received else 'No',
-            artwork.logistics_people.count(),
+            len(artwork.operations_group.miembros.all()) if artwork.operations_group else 0,
             len(providers),
             sum(len(provider.vehicles.all()) for provider in providers),
             artwork.checkout_photos.count(),
