@@ -14,7 +14,9 @@ from django.urls import reverse
 from django.utils import timezone
 from django.contrib.messages import get_messages
 
-from .forms import ArtworkForm, ArtworkGrantItemForm, ArtworkPhotoUploadForm, ArtworkProviderForm, ArtworkReviewForm
+from .forms import (
+    ArtworkContactForm, ArtworkForm, ArtworkGrantItemForm, ArtworkPhotoUploadForm, ArtworkProviderForm, ArtworkReviewForm,
+)
 from .estafa import ESTAFA_SLUG
 from .reminders import send_art_reminders
 from .views import _checkpoints
@@ -115,10 +117,79 @@ class ArtworkFlowTest(TestCase):
         self.client.force_login(superuser)
         self.assertEqual(self.client.get(dashboard_url).status_code, 200)
 
-    def test_nexo_choices_are_active_estafa_members(self):
+    def test_estafa_contact_choices_are_active_members_and_the_current_contact(self):
         artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
-        choices = ArtworkReviewForm(instance=artwork).fields['checkout_art_responsible'].queryset
-        self.assertEqual(list(choices), [self.admin])
+        self.assertEqual(list(ArtworkContactForm(instance=artwork).fields['estafa_contact'].queryset), [self.admin])
+        # Quien dejó ESTAFA sigue siendo el contacto hasta que se elija a otra persona.
+        artwork.estafa_contact = self.stranger
+        self.assertEqual(
+            set(ArtworkContactForm(instance=artwork).fields['estafa_contact'].queryset), {self.admin, self.stranger},
+        )
+        self.assertNotIn('estafa_contact', self.artwork_form({}, artwork=artwork, actor=self.admin).fields)
+
+    @patch('art.views.send_mail')
+    def test_estafa_assigns_a_contact_the_team_sees(self, send_mail):
+        contact = self.complete_profile(User.objects.create_user(
+            username='juana', email='juana@example.com', first_name='Juana', last_name='Coord',
+        ))
+        TeamMembership.objects.create(team=Team.objects.get(slug=ESTAFA_SLUG), user=contact, started_on=timezone.localdate())
+        artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
+        artwork.collaborators.add(self.collaborator)
+        contact_url = reverse('artwork_contact', args=[self.event.slug, artwork.pk])
+        edit_url = reverse('artwork_edit', args=[artwork.pk])
+        self.client.force_login(self.owner)
+        self.assertNotContains(self.client.get(edit_url), 'Tu contacto en ESTAFA')
+
+        self.assertEqual(self.client.post(contact_url, {'estafa_contact': self.admin.pk}).status_code, 403)
+        artwork.refresh_from_db()
+        self.assertIsNone(artwork.estafa_contact)
+
+        self.client.force_login(self.admin)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(contact_url, {'estafa_contact': contact.pk})
+        self.assertRedirects(response, reverse('artwork_review', args=[self.event.slug, artwork.pk]))
+        artwork.refresh_from_db()
+        self.assertEqual(artwork.estafa_contact, contact)
+        # Sólo se avisa al equipo de la instalación; responder le escribe al contacto.
+        send_mail.assert_called_once()
+        sent = send_mail.call_args.kwargs
+        self.assertEqual(sent['template_name'], 'art_contact_assigned')
+        self.assertEqual(set(sent['recipient_list']), {'artista@example.com', 'colab@example.com'})
+        self.assertEqual(sent['headers'], {'Reply-To': 'juana@example.com'})
+        self.assertContains(self.client.get(reverse('art_admin_dashboard', args=[self.event.slug])), 'Contacto: Juana Coord')
+
+        # Guardar el mismo contacto no vuelve a avisar.
+        send_mail.reset_mock()
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(contact_url, {'estafa_contact': contact.pk})
+        send_mail.assert_not_called()
+
+        self.client.force_login(contact)
+        dashboard = self.client.get(reverse('art_admin_dashboard', args=[self.event.slug]))
+        self.assertEqual(list(dashboard.context['assigned_artworks']), [artwork])
+
+        self.client.force_login(self.collaborator)
+        response = self.client.get(edit_url)
+        self.assertContains(response, 'Tu contacto en ESTAFA')
+        self.assertContains(response, '<strong>Juana Coord</strong>')
+        self.assertContains(response, 'href="mailto:juana@example.com"')
+        self.assertNotContains(response, 'name="estafa_contact"')
+        mine = self.client.get(reverse('art_dashboard'))
+        self.assertContains(mine, '<span class="text-muted">Contacto de ESTAFA:</span> Juana Coord')
+        self.assertNotContains(mine, 'Responsable:')
+        self.assertNotContains(mine, 'Instalación inscripta')
+
+        self.client.force_login(self.admin)
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(contact_url, {'estafa_contact': ''})
+        send_mail.assert_not_called()
+        artwork.refresh_from_db()
+        self.assertIsNone(artwork.estafa_contact)
+        self.assertContains(self.client.get(reverse('art_admin_dashboard', args=[self.event.slug])), 'Sin contacto de ESTAFA')
+
+        self.client.post(contact_url, {'estafa_contact': self.stranger.pk})
+        artwork.refresh_from_db()
+        self.assertIsNone(artwork.estafa_contact)
 
     def test_participant_dashboard_has_no_coordination_content(self):
         Artwork.objects.create(event=self.event, owner=self.owner, title='Instalación ajena')
@@ -720,7 +791,7 @@ class ArtworkFlowTest(TestCase):
     def test_art_responsible_manages_checkout_letter_and_evidence(self):
         artwork = Artwork.objects.create(
             event=self.event, owner=self.owner, title='Faro', proposal='Texto',
-            checkout_art_responsible=self.collaborator,
+            estafa_contact=self.collaborator,
         )
         review_url = reverse('artwork_review', args=[self.event.slug, artwork.pk])
         self.client.force_login(self.collaborator)
@@ -738,7 +809,6 @@ class ArtworkFlowTest(TestCase):
         response = self.client.post(review_url, {
             'expected_updated_at': artwork.updated_at.isoformat(),
             'status': artwork.status, 'grant_status': artwork.grant_status, 'benefit_status': artwork.benefit_status,
-            'checkout_art_responsible': self.collaborator.pk,
             'understanding_letter_physical_received': 'on',
             'understanding_letter_physical_custodian': 'Coordinación de Arte',
             'understanding_letter_physical_notes': 'Archivo físico, estante B.',
@@ -896,7 +966,7 @@ class ArtworkFlowTest(TestCase):
     def test_estafa_approves_rejects_and_reopens_registrations(self, send_mail):
         artwork = Artwork.objects.create(
             event=self.event, owner=self.owner, title='Faro', proposal='Texto',
-            checkout_art_responsible=self.stranger,
+            estafa_contact=self.stranger,
         )
         artwork.collaborators.add(self.collaborator)
         status_url = reverse('artwork_status', args=[self.event.slug, artwork.pk])
@@ -953,7 +1023,7 @@ class ArtworkFlowTest(TestCase):
     def test_checkout_opens_with_the_event_and_the_team_submits_it(self):
         artwork = Artwork.objects.create(
             event=self.event, owner=self.owner, title='Faro', proposal='Texto',
-            status=Artwork.Status.ACTIVE, checkout_art_responsible=self.collaborator,
+            status=Artwork.Status.ACTIVE, estafa_contact=self.collaborator,
         )
         pending = Artwork.objects.create(event=self.event, owner=self.owner, title='Nube')
         self.assertEqual(artwork.stage, Artwork.Status.ACTIVE)
@@ -981,13 +1051,18 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(artwork.status, Artwork.Status.ACTIVE)
 
         ArtworkCheckoutPhoto.objects.create(artwork=artwork, image=self.image('final.gif'), category=ArtworkCheckoutPhoto.Category.CLEANUP)
-        self.client.post(edit_url, {'title': 'Faro', 'checkout_notes': 'Quedó limpio.', 'expected_version': artwork.version, 'action': 'checkout'})
+        with patch('art.views.send_mail') as send_mail, self.captureOnCommitCallbacks(execute=True):
+            self.client.post(edit_url, {'title': 'Faro', 'checkout_notes': 'Quedó limpio.', 'expected_version': artwork.version, 'action': 'checkout'})
         artwork.refresh_from_db()
         self.assertEqual(artwork.status, Artwork.Status.CHECKOUT_SUBMITTED)
         self.assertTrue(artwork.checkout_completed)
         self.assertIsNotNone(artwork.checkout_requested_at)
+        # El contacto de ESTAFA recibe el aviso para verificarlo.
+        send_mail.assert_called_once()
+        self.assertEqual(send_mail.call_args.kwargs['template_name'], 'art_checkout_submitted')
+        self.assertEqual(send_mail.call_args.kwargs['recipient_list'], ['colab@example.com'])
 
-        # El nexo verifica el checkout como miembro de ESTAFA.
+        # El contacto verifica el checkout como miembro de ESTAFA.
         TeamMembership.objects.create(
             team=Team.objects.get(slug=ESTAFA_SLUG), user=self.collaborator, started_on=timezone.localdate(),
         )

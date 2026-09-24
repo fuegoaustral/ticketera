@@ -5,7 +5,7 @@ from .views import (
     art_admin_dashboard, art_admin_export, art_dashboard, art_invitation_accept,
     artwork_provider_delete, artwork_provider_edit, artwork_vehicle_delete,
     artwork_vehicle_edit,
-    artwork_create, artwork_edit, artwork_status, estafa_home, artwork_photo_delete, artwork_photo_upload,
+    artwork_contact, artwork_create, artwork_edit, artwork_status, estafa_home, artwork_photo_delete, artwork_photo_upload,
     artwork_checkout_photo_delete, artwork_checkout_photo_upload,
     artwork_review, grant_item_create, grant_item_delete, grant_item_edit, grant_item_review,
     grant_item_photo_delete, grant_report_submit, grant_submit,
@@ -41,6 +41,7 @@ urlpatterns = [
     path("estafa/<slug:event_slug>/exportar/", art_admin_export, name="art_admin_export"),
     path("estafa/<slug:event_slug>/obra/<int:artwork_id>/", artwork_review, name="artwork_review"),
     path("estafa/<slug:event_slug>/obra/<int:artwork_id>/estado/", artwork_status, name="artwork_status"),
+    path("estafa/<slug:event_slug>/obra/<int:artwork_id>/contacto/", artwork_contact, name="artwork_contact"),
     path("estafa/<slug:event_slug>/obra/<int:artwork_id>/beca/item/<int:item_id>/revisar/", grant_item_review, name="grant_item_review"),
     # Direcciones anteriores de la coordinación de Arte.
     path("mis-eventos/<slug:event_slug>/arte/", RedirectView.as_view(pattern_name="art_admin_dashboard", permanent=True, query_string=True)),

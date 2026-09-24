@@ -45,18 +45,19 @@
         {% if artworks %}
             <div class="artwork-list">
                 {% for artwork in artworks %}
-                    <a class="artwork-row d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 py-3" href="{% url 'artwork_edit' artwork.pk %}">
-                        <div>
-                            <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
-                                <h4 class="h5 mb-0">{{ artwork.title }}</h4>
-                                <span class="badge bg-light text-dark border">{{ artwork.get_kind_display }}</span>
-                                {% include 'art/_status_badge.html' %}
-                                {% if artwork.grant_requested %}<span class="badge bg-light text-dark border">Beca: {{ artwork.get_grant_status_display }}</span>{% endif %}
-                            </div>
-                            <p class="mb-1">{{ artwork.stage_hint }}</p>
-                            <p class="small text-muted mb-0">{{ artwork.event.name }} · Responsable: {{ artwork.owner.email|default:'Cuenta archivada' }} · Actualizada {{ artwork.updated_at|date:'d/m/Y H:i' }}</p>
+                    <a class="artwork-row" href="{% url 'artwork_edit' artwork.pk %}">
+                        <div class="artwork-row-title d-flex align-items-center gap-2 flex-wrap">
+                            <h4 class="h5 mb-0">{{ artwork.title|default:'Instalación sin título' }}</h4>
+                            {% include 'art/_status_badge.html' %}
+                            {% if artwork.kind == 'popup' %}<span class="badge bg-light text-dark border">Espontánea</span>{% endif %}
+                            {% if artwork.grant_requested %}<span class="badge bg-light text-dark border">Beca: {{ artwork.get_grant_status_display }}</span>{% endif %}
                         </div>
-                        <span class="text-primary fw-semibold text-nowrap">Abrir <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i></span>
+                        <p class="artwork-row-meta small text-muted mb-0"><span>{{ artwork.event.name }}</span> <span>Actualizada el {{ artwork.updated_at|date:'d/m/Y' }}</span></p>
+                        <p class="artwork-row-hint mb-0">{{ artwork.stage_hint }}</p>
+                        <div class="artwork-row-foot d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
+                            {% if artwork.estafa_contact %}<span class="small"><i class="fas fa-user-check me-1 text-success" aria-hidden="true"></i><span class="text-muted">Contacto de ESTAFA:</span> {{ artwork.estafa_contact.get_full_name|default:artwork.estafa_contact.email }}</span>{% else %}<span></span>{% endif %}
+                            <span class="text-primary fw-semibold text-nowrap">Abrir <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i></span>
+                        </div>
                     </a>
                 {% endfor %}
             </div>
@@ -78,10 +79,27 @@
         background: oklch(97% .015 160);
     }
     .art-home header p { max-width: 68ch; }
-    .program-row, .artwork-row { border-bottom: 1px solid #dee2e6; }
-    .program-row:first-of-type, .artwork-row:first-child { border-top: 1px solid #dee2e6; }
-    .artwork-row { color: inherit; text-decoration: none; transition: background-color 180ms ease-out; }
-    .artwork-row:hover, .artwork-row:focus-visible { color: inherit; background: #f6faf8; text-decoration: none; }
+    .program-row { border-bottom: 1px solid #dee2e6; }
+    .program-row:first-of-type { border-top: 1px solid #dee2e6; }
+    .artwork-list { display: grid; gap: .75rem; }
+    .artwork-row {
+        display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "title meta" "hint hint" "foot foot";
+        gap: .5rem 1.5rem; padding: 1rem 1.25rem; border: 1px solid #dee2e6; border-radius: .5rem;
+        color: inherit; text-decoration: none; transition: background-color 180ms ease-out, border-color 180ms ease-out;
+    }
+    .artwork-row:hover, .artwork-row:focus-visible { color: inherit; background: #f6faf8; border-color: #c8d9d0; text-decoration: none; }
+    .artwork-row-title { grid-area: title; }
+    .artwork-row-meta { grid-area: meta; text-align: right; line-height: 1.4; }
+    .artwork-row-meta span { display: block; }
+    .artwork-row-hint { grid-area: hint; max-width: 68ch; }
+    .artwork-row-foot { grid-area: foot; padding-top: .6rem; border-top: 1px solid #eef1ef; }
+    @media (max-width: 575px) {
+        .artwork-row { grid-template-columns: 1fr; grid-template-areas: "meta" "title" "hint" "foot"; padding: 1rem; }
+        .artwork-row-meta { text-align: left; }
+        .artwork-row-meta span { display: inline; }
+        .artwork-row-meta span + span::before { content: "· "; }
+    }
+    @media (prefers-reduced-motion: reduce) { .artwork-row { transition: none; } }
     .artwork-row:focus-visible { outline: 3px solid rgba(40, 158, 109, .3); outline-offset: 2px; }
     .empty-art { border: 1px dashed #adb5bd; border-radius: .75rem; }
 </style>

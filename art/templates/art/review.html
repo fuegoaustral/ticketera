@@ -32,6 +32,16 @@
             </form>
             {% endif %}
         {% endif %}
+        {% if can_manage %}
+        <form class="review-contact" method="post" action="{% url 'artwork_contact' event.slug artwork.pk %}">{% csrf_token %}
+            <label class="form-label fw-semibold" for="{{ contact_form.estafa_contact.id_for_label }}">{{ contact_form.estafa_contact.label }}</label>
+            <div class="d-flex flex-column flex-sm-row gap-2">
+                {{ contact_form.estafa_contact }}
+                <button class="btn btn-outline-primary text-nowrap" type="submit">Guardar contacto</button>
+            </div>
+            <small class="d-block text-muted mt-2" id="contact-help">Acompaña al equipo durante todo el proceso. Le avisamos al equipo por email.</small>
+        </form>
+        {% endif %}
     </section>
     <nav class="review-nav mb-4" aria-label="Secciones de revisión">
         <span class="review-nav-label">Ir a:</span>
@@ -76,7 +86,7 @@
         {% endif %}
     </div>
     <section id="checkout-report" class="mb-4" aria-labelledby="checkout-report-title">
-        <h3 id="checkout-report-title" class="h5">Paso 2, verificación del nexo de Arte</h3>
+        <h3 id="checkout-report-title" class="h5">Paso 2, verificación de ESTAFA</h3>
         <p class="text-muted">Confirmá el checkout sólo después de que el equipo haya solicitado el paso 1. Las fotos dejan respaldo del estado final.</p>
         <details class="inline-editor inline-create mb-3"{% if checkout_photo_upload_form.errors %} open{% endif %}>
             <summary><i class="fas fa-camera" aria-hidden="true"></i><span>Agregar fotos al reporte</span></summary>
@@ -100,6 +110,9 @@
     .review-status .badge { font-size: .8rem; padding: .45em .7em; }
     .review-status .btn { min-height: 44px; }
     .review-status-message { max-width: 68ch; }
+    .review-contact { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #d8e6df; }
+    .review-contact > div { max-width: 40rem; }
+    .review-contact .form-select { min-height: 44px; }
     .review-nav { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .75rem; border: 1px solid #d8e6df; border-radius: .55rem; background: #f4f8f6; }
     .review-nav-label { color: #5c6b64; font-size: .875rem; font-weight: 600; }
     .review-nav a { padding: .45rem .7rem; border: 1px solid #c8d9d0; border-radius: .4rem; color: #176b4a; background: #fff; font-size: .875rem; font-weight: 600; text-decoration: none; }

@@ -27,6 +27,7 @@
     <div class="artwork-status mb-4">
         <p class="d-flex flex-column flex-sm-row align-items-sm-center gap-2 mb-0">{% include 'art/_status_badge.html' %}{% if not acting_as_estafa %}<span>{{ artwork.stage_hint }}</span>{% endif %}</p>
         {% if artwork.review_feedback %}<div class="artwork-status-message mt-3"><strong>Mensaje de ESTAFA</strong><br>{{ artwork.review_feedback|linebreaksbr }}</div>{% endif %}
+        {% if artwork.estafa_contact %}{% with contact=artwork.estafa_contact %}<p class="artwork-contact mt-3 mb-0">{% if acting_as_estafa %}Contacto de ESTAFA{% else %}Tu contacto en ESTAFA{% endif %}: {% if contact.get_full_name %}<strong>{{ contact.get_full_name }}</strong> · {% endif %}<a href="mailto:{{ contact.email }}">{{ contact.email }}</a></p>{% endwith %}{% endif %}
     </div>
     {% endif %}
 
@@ -245,7 +246,7 @@
                 {% if artwork.checkout_verified_at %}<span class="badge bg-success">Verificado</span>{% elif artwork.checkout_completed %}<span class="badge border" style="background:#e7f1fb;color:#0b4a7d !important;border-color:#b6d4f0 !important">Enviado</span>{% elif form.checkout_notes.field.disabled %}<span class="badge bg-secondary">No editable</span>{% endif %}
             </div>
             <p class="text-muted">Se habilita cuando empieza el evento. Cuando retires la instalación y limpies el espacio, subí fotos del estado final y enviá el checkout: el equipo de Arte lo verifica en el predio.</p>
-            <div class="row"><div class="col-md-6">{% include 'art/_field.html' with field=form.checkout_team_responsible %}</div><div class="col-md-6">{% include 'art/_field.html' with field=form.checkout_art_responsible %}</div></div>
+            <div class="row"><div class="col-md-6">{% include 'art/_field.html' with field=form.checkout_team_responsible %}</div></div>
             {% include 'art/_field.html' with field=form.checkout_notes %}
             {% if artwork %}
             <div class="mt-4" id="checkout-report">
@@ -308,6 +309,8 @@
     .artwork-status { padding: 1rem; border: 1px solid #dee2e6; border-radius: .5rem; }
     .artwork-status .badge { align-self: flex-start; font-size: .8rem; padding: .45em .7em; }
     .artwork-status-message { padding-top: .75rem; border-top: 1px solid #dee2e6; max-width: 68ch; }
+    .artwork-contact { padding-top: .75rem; border-top: 1px solid #dee2e6; overflow-wrap: anywhere; }
+    .artwork-contact a { padding-block: .7rem; }
     .checkpoint-list { grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 1rem; }
     .checkpoint { border-bottom: 1px solid #dee2e6; }
     .checkpoint-dot { display: inline-block; width: .65rem; height: .65rem; margin-right: .5rem; border-radius: 50%; background: #6c757d; }

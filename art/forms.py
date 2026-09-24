@@ -33,18 +33,37 @@ ARTWORK_BLOCK_FIELDS = {
     'grant': ('grant_requested', 'grant_justification'),
     'guide': ('public_title', 'public_description', 'preferred_location'),
     'logistics': ('arrival_date', 'departure_date'),
-    'checkout': ('checkout_team_responsible', 'checkout_art_responsible', 'checkout_notes'),
+    'checkout': ('checkout_team_responsible', 'checkout_notes'),
     'understanding_letter_digital': ('understanding_letter',),
     'grant_report': ('grant_report',),
 }
 
 
-def _art_responsibles(artwork):
-    if not artwork.event_id:
-        return User.objects.none()
+def _estafa_contacts(artwork):
     return User.objects.filter(
-        Q(pk__in=estafa_members().values('pk')) | Q(pk=artwork.checkout_art_responsible_id),
+        Q(pk__in=estafa_members().values('pk')) | Q(pk=artwork.estafa_contact_id),
     ).order_by('first_name', 'last_name', 'email')
+
+
+class EstafaContactChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, user):
+        return user.get_full_name() or user.email
+
+
+class ArtworkContactForm(forms.ModelForm):
+    estafa_contact = EstafaContactChoiceField(
+        queryset=User.objects.none(), required=False, empty_label='Sin contacto',
+        label='Contacto de ESTAFA',
+        widget=forms.Select(attrs={'class': 'form-select', 'aria-describedby': 'contact-help'}),
+    )
+
+    class Meta:
+        model = Artwork
+        fields = ('estafa_contact',)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['estafa_contact'].queryset = _estafa_contacts(self.instance)
 
 
 class ArtworkForm(forms.ModelForm):
@@ -93,7 +112,6 @@ class ArtworkForm(forms.ModelForm):
             field.widget.attrs.setdefault('class', 'form-check-input' if isinstance(field.widget, forms.CheckboxInput) else 'form-control')
             field.widget.attrs['form'] = 'artwork-form'
         self.fields['checkout_team_responsible'].widget.attrs['class'] = 'form-select'
-        self.fields['checkout_art_responsible'].widget.attrs['class'] = 'form-select'
         self.fields['collaborator_emails'].widget.attrs.update({'class': 'form-control', 'placeholder': 'persona@ejemplo.com, otra@ejemplo.com'})
         self.fields['safety_responsible_email'].widget.attrs.update({'class': 'form-control', 'placeholder': 'persona@ejemplo.com'})
         description_limit = program.public_description_max_length
@@ -107,14 +125,10 @@ class ArtworkForm(forms.ModelForm):
             self.fields['safety_responsible_email'].initial = self.instance.safety_responsible.email
         self.fields['expected_version'].initial = self.instance.version if self.instance.pk else None
         self.fields['checkout_team_responsible'].queryset = self.instance.logistics_people.all() if self.instance.pk else ArtworkLogisticsPerson.objects.none()
-        self.fields['checkout_art_responsible'].queryset = _art_responsibles(self.instance)
-        self.fields['checkout_art_responsible'].help_text = 'ESTAFA asigna este responsable.'
         if self.instance.pk and not self.is_manager and not self.is_contributor:
             for name, field in self.fields.items():
                 if name != 'expected_version':
                     field.disabled = True
-        elif not self.is_manager:
-            self.fields['checkout_art_responsible'].disabled = True
 
         # El título identifica la instalación; la descripción se puede completar después.
         self.fields['title'].required = True
@@ -555,7 +569,7 @@ class ArtworkReviewForm(forms.ModelForm):
             'grant_status', 'grant_approved_amount_ars',
             'grant_decision_notes', 'grant_paid_at', 'grant_payment_reference',
             'assigned_location', 'placement_notes', 'checkout_team_responsible',
-            'checkout_art_responsible', 'checkout_verified_at',
+            'checkout_verified_at',
             'benefit_status', 'benefit_notes',
         )
         widgets = {
@@ -589,8 +603,6 @@ class ArtworkReviewForm(forms.ModelForm):
         if self.instance.pk:
             if 'checkout_team_responsible' in self.fields:
                 self.fields['checkout_team_responsible'].queryset = self.instance.logistics_people.all()
-            if 'checkout_art_responsible' in self.fields:
-                self.fields['checkout_art_responsible'].queryset = _art_responsibles(self.instance)
         for field in self.fields.values():
             field.widget.attrs.setdefault('class', 'form-select' if isinstance(field.widget, forms.Select) else 'form-control')
 
