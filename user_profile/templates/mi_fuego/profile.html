@@ -423,6 +423,25 @@
                         </div>
 
                         <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ profile_form.nickname.id_for_label }}" class="form-label">
+                                        {{ profile_form.nickname.label }} <span class="text-muted fw-normal">(opcional)</span>
+                                    </label>
+                                    {{ profile_form.nickname }}
+                                    <div class="form-text" id="{{ profile_form.nickname.auto_id }}_helptext">{{ profile_form.nickname.help_text }}</div>
+                                    {% if profile_form.nickname.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {% for error in profile_form.nickname.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
                                     <div class="col-md-6">
                                         <div class="form-group mb-3">
                                 <label for="{{ profile_form.document_type.id_for_label }}" class="form-label">

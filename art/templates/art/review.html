@@ -1,0 +1,158 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% load art_format %}
+{% block page_title %}Revisar instalación{% endblock %}
+{% block submenu %}{% include 'art/_estafa_menu.html' %}{% endblock %}
+{% block truecontent %}
+<div class="container-fluid" style="max-width:1200px">
+    <a class="small text-decoration-none" href="{% url 'art_admin_dashboard' event.slug %}">← Volver a ESTAFA</a>
+    <div class="d-flex flex-column flex-md-row justify-content-between gap-3 my-4">
+        <div><h2 class="h3 mb-1">{{ artwork.title|default:'Instalación sin título' }}</h2><p class="text-muted mb-0">{% if artwork.owner %}{{ artwork.owner|person_name }}{% else %}Cuenta archivada{% endif %}</p></div>
+        <div class="d-flex gap-2"><a class="btn btn-outline-primary" href="{% url 'artwork_edit' artwork.pk %}">Ver instalación</a></div>
+    </div>
+    <section class="review-status mb-4" aria-label="Estado">
+        <p class="d-flex flex-wrap align-items-center gap-2 mb-0">
+            {% include 'art/_status_badge.html' %}
+            {% if artwork.status_changed_at %}<small class="text-muted">Desde el {{ artwork.status_changed_at|date:'d/m/Y H:i' }}{% if artwork.status_changed_by %} · {{ artwork.status_changed_by.get_full_name|default:artwork.status_changed_by.email }}{% endif %}</small>{% endif %}
+        </p>
+        {% if can_manage and artwork.status == 'pending' %}
+        <form class="mt-3" method="post" action="{% url 'artwork_status' event.slug artwork.pk %}">{% csrf_token %}
+            <label class="form-label fw-semibold" for="status-message">Mensaje para el equipo <span class="fw-normal text-muted">(opcional al aprobar, obligatorio al rechazar)</span></label>
+            <textarea class="form-control" id="status-message" name="message" rows="3" aria-describedby="status-message-help"></textarea>
+            <div class="d-flex flex-column flex-sm-row align-items-sm-center gap-2 mt-3">
+                <button class="btn btn-success" type="submit" name="transition" value="approve"><i class="fas fa-check me-1" aria-hidden="true"></i>Aprobar</button>
+                <button class="btn btn-outline-danger" type="submit" name="transition" value="reject">Rechazar</button>
+                <small class="text-muted ms-sm-2" id="status-message-help">Le avisamos al equipo por email.</small>
+            </div>
+        </form>
+        {% else %}
+            {% if artwork.review_feedback %}<p class="review-status-message small mt-3 mb-0"><strong>Mensaje enviado:</strong> {{ artwork.review_feedback|linebreaksbr }}</p>{% endif %}
+            {% if can_manage and artwork.status == 'active' or can_manage and artwork.status == 'rejected' %}
+            <form class="mt-2" method="post" action="{% url 'artwork_status' event.slug artwork.pk %}">{% csrf_token %}
+                <button class="btn btn-link px-0" type="submit" name="transition" value="reopen">Volver a inscripción pendiente</button>
+            </form>
+            {% endif %}
+        {% endif %}
+        {% if can_manage %}
+        <form class="review-contact" method="post" action="{% url 'artwork_contact' event.slug artwork.pk %}">{% csrf_token %}
+            <label class="form-label fw-semibold" for="{{ contact_form.estafa_contact.id_for_label }}">{{ contact_form.estafa_contact.label }}</label>
+            <div class="d-flex flex-column flex-sm-row gap-2">
+                {{ contact_form.estafa_contact }}
+                <button class="btn btn-outline-primary text-nowrap" type="submit">Guardar contacto</button>
+            </div>
+            <small class="d-block text-muted mt-2" id="contact-help">Acompaña al equipo durante todo el proceso. Le avisamos al equipo por email.</small>
+        </form>
+        {% endif %}
+    </section>
+    <section class="review-sections" aria-labelledby="sections-title">
+        <h3 class="h5 mb-1" id="sections-title">Secciones</h3>
+        <p class="small text-muted mb-3">Abrí una sección para leer lo que cargó el equipo y completar lo que le toca a ESTAFA.</p>
+        {% if form.non_field_errors %}<div class="alert alert-danger" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+        <div class="review-section-list">
+            {% for section in sections %}
+            <details class="review-section" id="seccion-{{ section.key }}"{% if section.open %} open{% endif %}>
+                <summary>
+                    <span class="review-section-title">{{ section.title }}</span>
+                    <span class="review-section-status status-{{ section.status }}"><i class="fas {% if section.status == 'complete' %}fa-circle-check{% elif section.status == 'missing' %}fa-circle-exclamation{% elif section.status == 'estafa' %}fa-bell{% elif section.status == 'upcoming' %}fa-clock{% else %}fa-circle-info{% endif %}" aria-hidden="true"></i>{{ section.summary }}</span>
+                    <span class="review-section-when">{{ section.when }}</span>
+                    <i class="fas fa-chevron-down review-section-chevron" aria-hidden="true"></i>
+                </summary>
+                <div class="review-section-body">
+                    {% comment %}Lo que cargó el equipo, con los mismos resúmenes que ve el equipo en cada paso.{% endcomment %}
+                    {% if section.template %}<div class="review-summary">{% include section.template with artwork=summary_artwork estafa_view=True %}</div>{% endif %}
+                    {% if section.fields %}
+                    <div class="estafa-fields">
+                        <h4 class="h6"><i class="fas fa-paintbrush me-1" aria-hidden="true"></i>Lo completa ESTAFA</h4>
+                        {% for field in section.fields %}{% include 'art/_field.html' %}{% endfor %}
+                    </div>
+                    {% endif %}
+                    {% if section.anchor %}<a class="review-section-edit" href="{% url 'artwork_edit' artwork.pk %}#{{ section.anchor }}">Ver en la instalación <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i></a>{% endif %}
+                </div>
+            </details>
+            {% endfor %}
+        </div>
+        <form class="review-save" id="{{ form.FORM_ID }}" method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}
+            {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+            <small class="text-muted">Guarda lo que completa ESTAFA en todas las secciones.</small>
+            <button class="btn btn-primary" type="submit">Guardar cambios</button>
+        </form>
+    </section>
+</div>
+<style>
+    .review-status { padding: 1rem; border: 1px solid #d8e6df; border-radius: .55rem; }
+    .review-status .badge { font-size: .8rem; padding: .45em .7em; }
+    .review-status .btn { min-height: 44px; }
+    .review-status-message { max-width: 68ch; }
+    .review-contact { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #d8e6df; }
+    .review-contact > div { max-width: 40rem; }
+    .review-contact .form-select { min-height: 44px; }
+    .review-section-list { border-top: 1px solid #dee2e6; }
+    .review-section { border-bottom: 1px solid #dee2e6; }
+    .review-section > summary { display: grid; grid-template-columns: minmax(12rem, 1.2fr) minmax(0, 1.6fr) minmax(7rem, auto) 1rem; gap: .5rem 1rem; align-items: center; min-height: 52px; padding: .65rem .5rem; cursor: pointer; list-style: none; }
+    .review-section > summary::-webkit-details-marker { display: none; }
+    .review-section > summary:hover { background: #f6faf8; }
+    .review-section > summary:focus-visible { outline: 3px solid rgba(40, 158, 109, .35); outline-offset: -3px; }
+    .review-section > summary, .review-rows dd { font-size: 1rem; line-height: 1.45; }
+    .review-section-title { font-weight: 600; }
+    .review-section-status { display: flex; align-items: baseline; gap: .45rem; }
+    .review-section-status .fas { flex: none; }
+    .status-complete .fas { color: #1f7a54; }
+    .status-missing .fas { color: #9a6700; }
+    .status-estafa { font-weight: 600; }
+    .status-estafa .fas { color: #0b4a7d; }
+    .status-upcoming, .status-info .fas { color: #6c757d; }
+    .review-section-when { color: #6c757d; font-size: .875rem; text-align: right; }
+    .review-section-chevron { color: #6c757d; transition: transform .2s ease; }
+    .review-section[open] .review-section-chevron { transform: rotate(180deg); }
+    .review-section-body { padding: .25rem .5rem 1.25rem; }
+    .review-rows { display: grid; grid-template-columns: minmax(10rem, 14rem) 1fr; gap: .4rem 1rem; margin: 0; }
+    .review-rows dt { color: #5c6b64; font-weight: 600; font-size: .875rem; }
+    .review-rows dd { margin: 0; max-width: 70ch; }
+    .review-people { margin: 0; padding: 0; list-style: none; }
+    .review-people li { display: flex; justify-content: space-between; gap: 1rem; padding: .4rem 0; border-bottom: 1px solid #f0f2f1; }
+    .review-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .75rem; }
+    .review-photos figure { margin: 0; }
+    .review-photos img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: .4rem; }
+    .review-photos figcaption { font-size: .8rem; color: #5c6b64; margin-top: .25rem; }
+    .review-provider { padding: .6rem 0; border-bottom: 1px solid #f0f2f1; }
+    .estafa-fields { margin-top: 1.25rem; padding: 1rem; border: 1px solid #d8e6df; border-radius: .5rem; background: #f6faf8; }
+    .review-section-edit { display: inline-flex; align-items: center; min-height: 44px; margin-top: .5rem; font-weight: 600; text-decoration: none; }
+    .review-save { display: flex; justify-content: flex-end; align-items: center; gap: 1rem; margin-top: 1.25rem; }
+    .review-save .btn { min-height: 44px; }
+    #checkout-report { scroll-margin-top: 1rem; }
+    @media (max-width: 767px) {
+        .review-section > summary { grid-template-columns: 1fr 1rem; }
+        .review-section-title { grid-column: 1; }
+        .review-section-status, .review-section-when { grid-column: 1; text-align: left; }
+        .review-section-chevron { grid-column: 2; grid-row: 1; }
+        .review-rows { grid-template-columns: 1fr; gap: 0; }
+        .review-rows dd { margin-bottom: .6rem; }
+        .review-save { flex-direction: column; align-items: stretch; }
+    }
+    @media (prefers-reduced-motion: reduce) { .review-section-chevron { transition: none; } }
+    .inline-editor { border: 1px solid #dee2e6; border-radius: .45rem; background: #fafbfa; }
+    .inline-editor > summary { display: flex; align-items: center; gap: .5rem; width: fit-content; padding: .5rem .7rem; color: #176b4a; font-weight: 600; cursor: pointer; list-style: none; }
+    .inline-editor > summary::-webkit-details-marker { display: none; }
+    .inline-editor[open] > summary { margin-bottom: .25rem; }
+    .inline-editor > form { padding: .75rem; border-top: 1px solid #dee2e6; }
+    .inline-create { background: #f4f8f6; }
+    .inline-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1rem; }
+    .inline-form-wide { grid-column: 1 / -1; }
+    .inline-images { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .inline-images > span { position: relative; }
+    .inline-images img { width: 88px; height: 66px; object-fit: cover; border-radius: .3rem; }
+    .inline-images .btn { position: absolute; top: 0; right: 0; padding: .15rem .3rem; }
+    @media (max-width: 767px) { .inline-form-grid { grid-template-columns: 1fr; } .inline-form-wide { grid-column: auto; } }
+</style>
+{% include 'art/_summary_styles.html' %}
+{% include 'art/_image_preview.html' %}
+{% include 'art/_messages.html' %}
+{% include 'art/_restore_position.html' %}
+<script>
+    // Un enlace a algo dentro de una sección cerrada (por ejemplo #checkout-report) la abre.
+    (function () {
+        var target = location.hash && document.getElementById(location.hash.slice(1));
+        var section = target && target.closest('details.review-section');
+        if (section) { section.open = true; target.scrollIntoView(); }
+    })();
+</script>
+{% endblock %}

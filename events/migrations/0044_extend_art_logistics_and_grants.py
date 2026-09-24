@@ -3,7 +3,7 @@
 from django.conf import settings
 from django.db import migrations, models
 import django.db.models.deletion
-import events.models
+import art.models
 
 
 class Migration(migrations.Migration):
@@ -112,7 +112,7 @@ class Migration(migrations.Migration):
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-                ('image', models.ImageField(storage=events.models.private_art_storage, upload_to='art/grants')),
+                ('image', models.ImageField(storage=art.models.private_art_storage, upload_to='art/grants')),
                 ('item', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='photos', to='events.artworkgrantitem')),
                 ('uploaded_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL)),
             ],

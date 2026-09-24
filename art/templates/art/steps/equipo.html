@@ -1,0 +1,45 @@
+{% load art_format %}
+<p class="step-lead">Sumá a quienes hacen la instalación con vos. Sólo quienes tienen “Puede editar” pueden cambiarla; el resto la puede ver.</p>
+{% if artwork %}
+{% if can_edit_team %}
+<form class="team-add mb-3" method="post" action="{% url 'artwork_team_add' artwork.pk %}" novalidate>{% csrf_token %}
+    <label class="form-label" for="{{ team_add_form.identifier.id_for_label }}">{{ team_add_form.identifier.label }}</label>
+    <div class="team-add-row">
+        <input type="text" name="{{ team_add_form.identifier.html_name }}" id="{{ team_add_form.identifier.id_for_label }}" value="{{ team_add_form.identifier.value|default:'' }}" maxlength="254" class="form-control{% if team_add_form.identifier.errors %} is-invalid{% endif %}" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="persona@ejemplo.com" aria-describedby="team-add-help{% if team_add_form.identifier.errors %} team-add-error{% endif %}"{% if team_add_form.identifier.errors %} aria-invalid="true"{% endif %} required>
+        <button class="btn btn-primary" type="submit">Sumar</button>
+    </div>
+    {% if team_add_form.identifier.errors %}<div class="field-error" id="team-add-error"><p><i class="fas fa-circle-exclamation" aria-hidden="true"></i>{{ team_add_form.identifier.errors.0 }}</p></div>{% endif %}
+    <div class="form-text" id="team-add-help">{{ team_add_form.identifier.help_text }} Le avisamos por email.</div>
+</form>
+{% endif %}
+<ul class="team-list list-unstyled mb-0">
+    {% for member in team_members %}
+    {% with name=member.user|person_name full_name=member.user|person_full_name %}
+    <li class="team-member">
+        <div class="team-member-person">
+            <strong>{{ name }}</strong>{% if member.is_self %} <span class="text-muted">(vos)</span>{% endif %}
+            {% if name != member.user.email %}<small class="d-block text-muted">{% if full_name %}{{ full_name }} · {% endif %}{{ member.user.email }}</small>{% endif %}
+            {% if member.missing_ticket %}<small class="team-ticket-warning"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i>{% if member.is_self %}<span>Todavía no tenés tu bono para este evento · <a href="{{ tickets_path }}">Conseguí tu bono</a></span>{% else %}<span>Todavía no tiene bono para este evento</span>{% endif %}</small>{% endif %}
+        </div>
+        <div class="team-member-access">
+            {% if member.is_leader %}<span class="team-role">Responsable</span>
+            {% elif can_grant_edit %}
+            <form method="post" action="{% url 'artwork_team_access' artwork.pk member.pk %}">{% csrf_token %}
+                <div class="form-check form-switch team-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" name="can_edit" id="team-edit-{{ member.pk }}"{% if member.can_edit %} checked{% endif %} onchange="this.form.requestSubmit()">
+                    <label class="form-check-label" for="team-edit-{{ member.pk }}">Puede editar</label>
+                </div>
+                <noscript><button class="btn btn-sm btn-outline-secondary" type="submit">Guardar</button></noscript>
+            </form>
+            {% else %}<span class="team-role">{% if member.can_edit %}Puede editar{% else %}Puede ver{% endif %}</span>{% endif %}
+            {% if member.can_remove %}
+            <form method="post" action="{% url 'artwork_team_remove' artwork.pk member.pk %}">{% csrf_token %}
+                <button class="btn btn-link text-danger team-remove" type="submit" aria-label="Quitar a {{ name }} del equipo" onclick="return confirm('¿Quitar a {{ name|escapejs }} del equipo?')">Quitar</button>
+            </form>
+            {% endif %}
+        </div>
+    </li>
+    {% endwith %}
+    {% endfor %}
+</ul>
+{% else %}<p class="small text-muted mb-0">Guardá la instalación para sumar personas.</p>{% endif %}

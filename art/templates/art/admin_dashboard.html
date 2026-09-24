@@ -1,0 +1,104 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% load art_format %}
+{% block page_title %}ESTAFA{% endblock %}
+{% block submenu %}{% include 'art/_estafa_menu.html' %}{% endblock %}
+{% block truecontent %}
+<div class="container-fluid art-admin-dashboard">
+    {% if not event %}
+    <p class="text-muted">Todavía no hay programas de Arte para coordinar.</p>
+    {% else %}
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
+        <div><p class="text-uppercase text-muted small fw-semibold mb-1">{{ event.name }}</p><h2 class="h3 mb-1">Instalaciones</h2><p class="text-muted mb-0">Inscripción, seguimiento y checkout de cada instalación.</p></div>
+        <a class="btn btn-outline-primary" href="{% url 'art_admin_export' event.slug %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"><i class="fas fa-download me-1" aria-hidden="true"></i> Exportar CSV</a>
+    </div>
+
+    {% if assigned_artworks %}
+    <section class="assigned mb-4" aria-labelledby="assigned-title">
+        <h3 class="h5 mb-2" id="assigned-title">Asignadas a vos <span class="text-muted fw-normal">· {{ assigned_artworks|length }}</span></h3>
+        <p class="small text-muted mb-2">Instalaciones donde sos contacto de ESTAFA.</p>
+        <div class="assigned-list">
+            {% for artwork in assigned_artworks %}
+            <a class="assigned-row d-flex justify-content-between align-items-center gap-3" href="{% url 'artwork_review' event.slug artwork.pk %}">
+                <span><strong>{{ artwork.title|default:'Instalación sin título' }}</strong> <span class="text-muted">· {{ artwork.stage_label }}</span></span>
+                <span class="text-primary fw-semibold text-nowrap">Revisar <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i></span>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    <h3 class="h5 mb-3">Todas las instalaciones</h3>
+    {% endif %}
+
+    <form method="get" class="art-filters mb-3" aria-label="Filtros de instalaciones">
+        <div class="filter-search">
+            <label for="art-filter-q">Buscar</label>
+            <input class="form-control" id="art-filter-q" type="search" name="q" value="{{ request.GET.q }}" placeholder="Instalación, persona o email">
+        </div>
+        <div>
+            <label for="art-filter-status">Estado</label>
+            <select class="form-select" id="art-filter-status" name="status">
+                <option value="">Todos</option>
+                {% for value, label in status_choices %}<option value="{{ value }}"{% if request.GET.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="art-filter-contact">Contacto de ESTAFA</label>
+            <select class="form-select" id="art-filter-contact" name="contact">
+                <option value="">Todos</option>
+                <option value="me"{% if request.GET.contact == 'me' %} selected{% endif %}>Asignadas a vos</option>
+                <option value="none"{% if request.GET.contact == 'none' %} selected{% endif %}>Sin contacto</option>
+                {% for value, label in contact_choices %}<option value="{{ value }}"{% if request.GET.contact == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="filter-actions">
+            <button class="btn btn-primary" type="submit">Filtrar</button>
+            <a class="btn btn-link" href="{% url 'art_admin_dashboard' event.slug %}">Limpiar</a>
+        </div>
+    </form>
+
+    <p class="small text-muted mb-2" aria-live="polite">{{ artworks|length }} instalaci{{ artworks|length|pluralize:"ón,ones" }}</p>
+    <div class="table-responsive art-table-wrap">
+        <table class="table table-sm align-middle art-table">
+            <thead><tr><th>Instalación</th><th>Estado</th><th>Contacto</th><th>Declaración</th><th>Checkout</th><th><span class="visually-hidden">Abrir</span></th></tr></thead>
+            <tbody>
+            {% for artwork in artworks %}{% with stage=artwork.stage %}
+                <tr>
+                    <td><a class="art-row-link stretched-link" href="{% url 'artwork_review' event.slug artwork.pk %}">{{ artwork.title|default:'Instalación sin título' }}</a><br><small class="text-muted">{% if artwork.owner %}{{ artwork.owner|person_name }}{% else %}Cuenta archivada{% endif %}</small></td>
+                    <td>{% include 'art/_status_badge.html' %}</td>
+                    <td>{% with contact=artwork.estafa_contact %}{% if contact %}{{ contact|person_name }}{% with full_name=contact|person_full_name %}{% if full_name %}<br><small class="text-muted">{{ full_name }}</small>{% endif %}{% endwith %}{% else %}<span class="text-muted">Sin contacto</span>{% endif %}{% endwith %}</td>
+                    <td>{% if artwork.understanding_letter and artwork.understanding_letter_physical_received %}Digital · física{% elif artwork.understanding_letter %}Digital{% elif artwork.understanding_letter_physical_received %}Física{% else %}{% include 'art/_dash.html' with label='Sin declaración' %}{% endif %}</td>
+                    <td>{% if stage == 'checkout_pending' or stage == 'checkout' or stage == 'verified' %}{% if stage == 'verified' %}Verificado{% elif stage == 'checkout' %}Enviado{% else %}Pendiente{% endif %}{% with photos=artwork.checkout_photos.all|length %}{% if photos %}<br><small class="text-muted">{{ photos }} foto{{ photos|pluralize }}</small>{% endif %}{% endwith %}{% else %}{% include 'art/_dash.html' with label='Checkout todavía no habilitado' %}{% endif %}</td>
+                    <td class="text-end text-muted"><i class="fas fa-chevron-right" aria-hidden="true"></i></td>
+                </tr>
+            {% endwith %}{% empty %}<tr><td colspan="7" class="text-center text-muted py-5">No hay instalaciones que coincidan con estos filtros.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+<style>
+    .art-admin-dashboard { max-width: 1320px; }
+    .assigned-list { border-top: 1px solid #dee2e6; }
+    .assigned-row { min-height: 44px; padding: .6rem .25rem; border-bottom: 1px solid #dee2e6; color: inherit; text-decoration: none; }
+    .assigned-row:hover, .assigned-row:focus-visible { background: #f6faf8; color: inherit; }
+    .assigned-row:focus-visible { outline: 3px solid rgba(40, 158, 109, .3); outline-offset: 2px; }
+    .art-filters { display: grid; grid-template-columns: minmax(200px, 2fr) repeat(2, minmax(140px, 1fr)) auto; gap: .75rem; align-items: end; padding: 1rem; border: 1px solid oklch(88% .015 160); border-radius: .5rem; background: oklch(97% .008 160); }
+    .art-filters label { display: block; margin-bottom: .25rem; font-size: .8rem; font-weight: 600; }
+    .art-filters .form-control, .art-filters .form-select, .filter-actions .btn { min-height: 52px; }  /* la altura de los inputs del sitio */
+    .filter-actions { display: flex; align-items: center; gap: .25rem; }
+    .filter-actions .btn { display: inline-flex; align-items: center; }
+    .art-table-wrap { max-height: 70vh; border: 1px solid oklch(88% .015 160); }
+    .art-table { min-width: 760px; margin: 0; }
+    .art-table thead { position: sticky; top: 0; z-index: 3; background: oklch(95% .01 160); }
+    .art-table th { white-space: nowrap; }
+    .art-table-wrap .art-table tr { line-height: 1.35; }  /* barbu-style.css pone 1rem 2rem y line-height 1 en .table-responsive */
+    .art-table-wrap .art-table td, .art-table-wrap .art-table th { padding: .75rem .6rem; }
+    .art-table-wrap .art-table td:last-child { padding-left: 0; }
+    .art-table tbody tr { position: relative; }
+    .art-table tbody tr:hover > * { background: #f6faf8; }
+    .art-row-link { color: inherit; font-weight: 700; text-decoration: none; }
+    .art-row-link:focus-visible { outline: none; }
+    .art-table tbody tr:has(.art-row-link:focus-visible) { outline: 3px solid rgba(40, 158, 109, .35); outline-offset: -3px; }
+    @media (max-width: 767px) { .art-filters { grid-template-columns: 1fr; } .filter-search { grid-column: auto; } }
+</style>
+{% include 'art/_messages.html' %}
+{% endblock %}

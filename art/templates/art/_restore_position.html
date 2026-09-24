@@ -1,0 +1,84 @@
+<script>
+    // After a post and redirect, put the page back where the person was, instantly (no animated
+    // jump from the top). The #anchor in the redirect stays as the no-JS fallback. If the response
+    // came back with form errors, go to the first error instead.
+    (function () {
+        const key = 'art-position';
+        const formWithAction = function (action) {
+            return Array.from(document.querySelectorAll('form[action]')).find(function (form) {
+                return form.getAttribute('action') === action;
+            });
+        };
+        // Inline editors collapse after saving, so they are anchored to their own panel, found again
+        // by the form's action. Everything else is anchored to its section.
+        const anchors = function (position) {
+            const form = position.action && formWithAction(position.action);
+            return {
+                panel: form && form.closest('details'),
+                section: position.section && document.getElementById(position.section),
+            };
+        };
+
+        document.addEventListener('submit', function (event) {
+            const form = event.target;
+            if (event.defaultPrevented || form.method.toLowerCase() !== 'post') return;
+            const section = (event.submitter && event.submitter.closest('section[id]')) || form.closest('section[id]')
+                || Array.from(document.querySelectorAll('section[id]')).filter(function (candidate) {
+                    return candidate.getBoundingClientRect().top <= 120;
+                }).pop();
+            const position = {
+                path: location.pathname,
+                action: form.closest('details') ? form.getAttribute('action') : '',
+                section: section ? section.id : '',
+                scroll: window.scrollY,
+            };
+            const found = anchors(position);
+            if (found.panel) position.panelTop = found.panel.getBoundingClientRect().top;
+            if (found.section) position.sectionTop = found.section.getBoundingClientRect().top;
+            try {
+                sessionStorage.setItem(key, JSON.stringify(position));
+            } catch (error) { /* Storage unavailable: the #anchor fallback still applies. */ }
+        });
+
+        let saved = null;
+        try {
+            saved = JSON.parse(sessionStorage.getItem(key));
+            sessionStorage.removeItem(key);
+        } catch (error) { return; }
+
+        const jump = function (top) { window.scrollTo({ top: top, behavior: 'instant' }); };
+        const invalid = document.querySelector('.alert-danger, .has-error');
+        if (invalid) {
+            // Un #paso en la dirección haría saltar la página ahí y no al error.
+            if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+            const field = invalid.querySelector('input:not([type=hidden]):not(:disabled), select:not(:disabled), textarea:not(:disabled)');
+            invalid.scrollIntoView({ block: 'center', behavior: 'instant' });
+            (field || invalid).focus({ preventScroll: true });
+            return;
+        }
+        if (!saved || saved.path !== location.pathname) return;
+        if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+
+        const restore = function () {
+            const found = anchors(saved);
+            if (found.panel) {
+                // Keep the collapsed panel on screen, below the fixed messages, even if its form was
+                // scrolled far past it.
+                const top = Math.min(Math.max(saved.panelTop, 120), window.innerHeight / 3);
+                jump(found.panel.getBoundingClientRect().top + window.scrollY - top);
+            } else if (found.section) {
+                jump(found.section.getBoundingClientRect().top + window.scrollY - saved.sectionTop);
+            } else {
+                jump(saved.scroll);
+            }
+        };
+        // Late layout (fonts, images) can shift the target; re-apply until the person scrolls.
+        let touched = false;
+        ['wheel', 'touchstart', 'keydown', 'mousedown'].forEach(function (type) {
+            window.addEventListener(type, function () { touched = true; }, { once: true, passive: true });
+        });
+        restore();
+        document.addEventListener('DOMContentLoaded', function () { if (!touched) restore(); });
+        window.addEventListener('load', function () { if (!touched) restore(); });
+    }());
+</script>

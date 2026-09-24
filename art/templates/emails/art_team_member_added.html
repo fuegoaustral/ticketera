@@ -1,0 +1,9 @@
+{% extends "emails/base.html" %}
+{% block subject %}Te sumaron a {{ artwork.title|safe }}{% endblock %}
+{% block title %}Ya sos parte del equipo{% endblock %}
+{% block content %}
+<p>{{ added_by_name }} te sumó al equipo de la instalación <strong>{{ artwork.title }}</strong> para {{ artwork.event.name }}.</p>
+<p>{% if can_edit %}Podés editarla desde Mi Fuego.{% else %}Podés verla desde Mi Fuego. Si necesitás editarla, pedíselo a la persona responsable.{% endif %}</p>
+{% if missing_ticket %}<p>Todavía no tenés un bono a tu nombre para {{ artwork.event.name }}. <a href="{{ base_url }}{{ tickets_path }}">Conseguí tu bono</a>.</p>{% endif %}
+{% include "emails/partials/btn.html" with href=artwork_path label="Ver instalación" %}
+{% endblock %}

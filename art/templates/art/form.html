@@ -1,0 +1,212 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% load art_format %}
+
+{% block page_title %}{% if artwork %}{{ artwork.title|default:'Instalación sin título' }}{% else %}Nueva instalación{% endif %}{% endblock page_title %}
+
+{% block submenu %}{% if acting_as_estafa %}{% include 'art/_estafa_menu.html' %}{% else %}{{ block.super }}{% endif %}{% endblock submenu %}
+
+{% block truecontent %}
+<div class="container-fluid art-form-page">
+    {% if acting_as_estafa %}
+    <a class="small text-decoration-none" href="{% url 'artwork_review' artwork.event.slug artwork.pk %}"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i> Volver a ESTAFA</a>
+    <div class="estafa-notice d-flex flex-column flex-sm-row align-items-sm-center gap-2 mt-3" role="note">
+        <i class="fas fa-paintbrush d-none d-sm-block" aria-hidden="true"></i>
+        <p class="mb-0 flex-grow-1">Estás viendo la instalación de <strong>{{ artwork.owner.email|default:'una cuenta archivada' }}</strong> como ESTAFA. Lo que guardes queda registrado a tu nombre.</p>
+        <a class="btn btn-sm btn-outline-secondary text-nowrap" href="{% url 'artwork_review' artwork.event.slug artwork.pk %}">Abrir en ESTAFA</a>
+    </div>
+    {% else %}
+    <a class="small text-decoration-none" href="{% url 'art_dashboard' %}"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i> Volver a Arte</a>
+    {% endif %}
+    <header class="mt-3 mb-4">
+        <p class="text-uppercase text-muted small fw-semibold mb-2">{{ program.event.name }}</p>
+        <h2 class="h3 mb-2">Instalación de Arte</h2>
+        <p class="text-muted mb-0">{% if can_edit_artwork %}Completá y modificá cada sección antes de su fecha límite.<br>No te olvides de “Guardar” cuando termines de editar.{% else %}Sos parte del equipo y podés ver la instalación. Para editarla, pedile permiso a {{ artwork.owner.get_full_name|default:artwork.owner.email|default:'la persona responsable' }}.{% endif %}</p>
+    </header>
+
+    {% if artwork %}
+    <div class="artwork-status mb-4">
+        <p class="d-flex flex-column flex-sm-row align-items-sm-center gap-2 mb-0">{% include 'art/_status_badge.html' %}{% if not acting_as_estafa and can_edit_artwork %}<span>{{ artwork.stage_hint }}</span>{% endif %}</p>
+        {% if artwork.review_feedback %}<div class="artwork-status-message mt-3"><strong>Mensaje de ESTAFA</strong><br>{{ artwork.review_feedback|linebreaksbr }}</div>{% endif %}
+        {% if artwork.estafa_contact %}{% with contact=artwork.estafa_contact %}<p class="artwork-contact mt-3 mb-0">{% if acting_as_estafa %}Contacto de ESTAFA{% else %}Tu contacto en ESTAFA{% endif %}: {% if contact.get_full_name %}<strong>{{ contact.get_full_name }}</strong> · {% endif %}<a href="mailto:{{ contact.email }}">{{ contact.email }}</a></p>{% endwith %}{% endif %}
+    </div>
+    {% endif %}
+
+    {% if not program.is_current %}<div class="alert alert-info">Esta edición es histórica. La información se conserva en modo consulta.</div>{% endif %}
+
+    <form id="artwork-form" method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+        {{ form.expected_version }}
+    </form>
+    {% include 'art/_error_summary.html' %}
+
+    {% if next_step %}{% include 'art/_next_step.html' %}{% endif %}
+
+    {% comment %}
+    Línea de tiempo: arriba lo que ya cerró (una línea gris que se abre para leer lo enviado), en el medio
+    lo que se puede completar hoy (tarjetas) y abajo lo que viene (una línea gris con su fecha).
+    Lo que no podés editar lo leés como texto. ESTAFA puede corregir un paso cerrado: debajo del texto,
+    "Editar como ESTAFA" cambia el texto por el formulario. Lo que todavía no se habilitó no lo edita nadie.
+    {% endcomment %}
+    <ol class="steps-timeline list-unstyled" aria-label="Pasos de la instalación">
+        {% for step in steps %}
+        {% if step.state == 'open' %}
+        <li class="steps-item is-open">
+            <span class="steps-dot" aria-hidden="true"></span>
+            <section class="step-card" id="{{ step.key }}" aria-labelledby="{{ step.key }}-title">
+                <header class="step-card-head">
+                    <h2 id="{{ step.key }}-title">{{ step.title }}</h2>
+                    <p class="step-meta"><span>{{ step.when }}</span>{% include 'art/_step_status.html' %}</p>
+                </header>
+                {% if step.editable %}
+                {% include step.template %}
+                {% else %}
+                {% include 'art/steps/_summary.html' %}
+                {% if not can_edit_artwork %}<p class="step-readonly-note"><i class="fas fa-eye" aria-hidden="true"></i><span>Podés ver este paso. Para editarlo, pedile permiso a {{ artwork.owner.get_full_name|default:artwork.owner.email|default:'la persona responsable' }}.</span></p>{% endif %}
+                {% endif %}
+            </section>
+        </li>
+        {% elif step.state == 'closed' %}
+        <li class="steps-item is-closed">
+            <span class="steps-dot" aria-hidden="true"></span>
+            <details class="step-row step-closed" id="{{ step.key }}"{% if step.errors %} open{% endif %}>
+                <summary><strong>{{ step.title }}</strong><span>{{ step.when }} · <span class="step-see"><span class="step-see-open">{% if acting_as_estafa %}Ver lo que envió el equipo{% else %}Ver lo que enviaste{% endif %}</span><span class="step-see-close">Ocultar</span></span></span></summary>
+                <div class="step-closed-body">
+                    {% include 'art/steps/_summary.html' %}
+                    {% if expand_all_steps and step.editable %}
+                    {% comment %}Los campos se envían con "Guardar" aunque el formulario esté plegado.{% endcomment %}
+                    <details class="step-estafa-edit"{% if step.errors %} open{% endif %}>
+                        <summary class="btn btn-sm btn-outline-secondary"><i class="fas fa-lock-open" aria-hidden="true"></i><span class="step-edit-open">Editar como ESTAFA</span><span class="step-edit-close">Volver al texto</span></summary>
+                        <div class="step-estafa-form">
+                            <p class="estafa-override" role="note"><i class="fas fa-lock-open" aria-hidden="true"></i>Este paso ya cerró para el equipo. Como ESTAFA lo podés corregir igual.</p>
+                            {% include step.template %}
+                        </div>
+                    </details>
+                    {% elif not expand_all_steps and program.is_current %}
+                    <p class="step-readonly-note">{% if artwork.estafa_contact %}Si necesitás cambiar algo, escribile a {{ artwork.estafa_contact.get_full_name|default:'tu contacto de ESTAFA' }} (<a href="mailto:{{ artwork.estafa_contact.email }}">{{ artwork.estafa_contact.email }}</a>).{% else %}Si necesitás cambiar algo, escribile a ESTAFA.{% endif %}</p>
+                    {% endif %}
+                </div>
+            </details>
+        </li>
+        {% else %}
+        <li class="steps-item is-upcoming">
+            <span class="steps-dot" aria-hidden="true"></span>
+            <div class="step-row" id="{{ step.key }}"><strong>{{ step.title }}</strong><span>{{ step.when }}</span><small>{{ step.about }}</small></div>
+        </li>
+        {% endif %}
+        {% endfor %}
+    </ol>
+
+    {% if program.grants_enabled %}{% include 'art/_grant_box.html' %}{% endif %}
+
+        {% if not can_edit_artwork %}
+        {% elif program.is_current or can_manage %}
+        <div class="save-bar d-flex flex-column flex-sm-row justify-content-between gap-2 py-3" data-sticky-actions>
+            {% if can_manage and artwork and not acting_as_estafa %}<a class="btn btn-outline-secondary" href="{% url 'artwork_review' artwork.event.slug artwork.pk %}">Abrir en ESTAFA</a>{% else %}<span></span>{% endif %}
+            <button class="btn btn-primary" type="submit" form="artwork-form" name="action" value="save">Guardar</button>
+        </div>
+        {% else %}
+        <div class="alert alert-secondary">Esta convocatoria es histórica y quedó disponible en modo lectura.</div>
+        {% endif %}
+</div>
+
+{% include 'art/_form_styles.html' %}
+<script>
+    const setConditionalRequired = function (field, required) {
+        field.setAttribute('aria-required', required ? 'true' : 'false');
+        const label = document.querySelector('label[for="' + field.id + '"]');
+        if (!label) return;
+        let marker = label.querySelector('.conditional-required-marker');
+        if (!marker) {
+            marker = document.createElement('span');
+            marker.className = 'conditional-required-marker';
+            marker.setAttribute('aria-hidden', 'true');
+            marker.textContent = ' *';
+            label.appendChild(marker);
+        }
+        marker.hidden = !required;
+    };
+
+    document.querySelectorAll('.provider-inline-form').forEach(function (form) {
+        form.querySelectorAll('[data-provider-operation]').forEach(function (block) {
+            const checkbox = form.querySelector('[name="' + block.dataset.toggleName + '"]');
+            const fields = block.querySelectorAll('input[type="datetime-local"]');
+            const sync = function () {
+                fields.forEach(function (field) {
+                    field.disabled = !checkbox.checked;
+                    setConditionalRequired(field, checkbox.checked);
+                });
+                block.classList.toggle('is-disabled', !checkbox.checked);
+            };
+            checkbox.addEventListener('change', sync);
+            sync();
+        });
+    });
+
+    const usesFire = document.getElementById('id_uses_fire');
+    if (usesFire) {
+        const fireFields = ['id_fire_details', 'id_extinguishing_plan', 'id_safety_responsible_email']
+            .map(function (id) { return document.getElementById(id); })
+            .filter(Boolean);
+        const syncFireFields = function () {
+            fireFields.forEach(function (field) { setConditionalRequired(field, usesFire.checked); });
+        };
+        usesFire.addEventListener('change', syncFireFields);
+        syncFireFields();
+    }
+
+    // Campos que dependen de un interruptor (fuego, sonido): sólo se muestran si está activo.
+    document.querySelectorAll('[data-reveal-when]').forEach(function (block) {
+        const toggle = document.getElementById(block.dataset.revealWhen);
+        if (!toggle) return;
+        toggle.setAttribute('aria-controls', block.id);
+        const sync = function () { block.hidden = !toggle.checked; };
+        toggle.addEventListener('change', sync);
+        sync();
+    });
+
+    // Beca: con cambios sin guardar, primero se guarda; si no, el botón lleva directo.
+    const grantBox = document.querySelector('[data-grant-box]');
+    if (grantBox) {
+        const mainForm = document.getElementById('artwork-form');
+        const setDirty = function (dirty) {
+            grantBox.querySelectorAll('[data-when-dirty]').forEach(function (element) { element.hidden = !dirty; });
+            grantBox.querySelectorAll('[data-when-clean]').forEach(function (element) { element.hidden = dirty; });
+        };
+        // Si volvió con errores, lo cargado todavía no se guardó.
+        setDirty(Boolean(document.querySelector('.error-summary')));
+        const markDirty = function (event) { if (event.target.form === mainForm) setDirty(true); };
+        document.addEventListener('input', markDirty);
+        document.addEventListener('change', markDirty);
+    }
+
+    // Elegir archivos ya los sube: no hace falta otro botón.
+    document.querySelectorAll('form[data-autosubmit]').forEach(function (form) {
+        form.querySelector('input[type="file"]').addEventListener('change', function (event) {
+            if (event.target.files.length) form.requestSubmit();
+        });
+    });
+
+    // Un link a un paso cerrado lo abre para ver lo que se envió.
+    const openStep = function () {
+        const target = location.hash && document.getElementById(location.hash.slice(1));
+        if (target && target.tagName === 'DETAILS') target.open = true;
+    };
+    window.addEventListener('hashchange', openStep);
+    openStep();
+
+    const publicDescription = document.querySelector('[data-character-count]');
+    if (publicDescription) {
+        const counter = document.getElementById(publicDescription.dataset.characterCount);
+        const syncCharacterCount = function () {
+            counter.textContent = publicDescription.value.length + ' / ' + publicDescription.maxLength;
+        };
+        publicDescription.addEventListener('input', syncCharacterCount);
+        syncCharacterCount();
+    }
+</script>
+{% include 'art/_steps_styles.html' %}
+{% include 'art/_image_preview.html' %}
+{% include 'art/_money_inputs.html' %}
+{% include 'art/_messages.html' %}
+{% include 'art/_restore_position.html' %}
+{% endblock %}

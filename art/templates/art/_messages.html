@@ -1,0 +1,39 @@
+{% load message_filters %}
+{% comment %}
+Django messages as dismissible Bootstrap alerts, like the other Mi Fuego pages, but fixed at the top
+so they are seen even when the page keeps its scroll position after saving. Site-wide unification: #311.
+The live regions are rendered empty and filled after load so screen readers announce them.
+{% endcomment %}
+<div class="art-messages" data-art-messages>
+    <div data-art-messages-status role="status" aria-live="polite"></div>
+    <div data-art-messages-alert role="alert"></div>
+    {% if messages %}
+        {% with visible_messages=messages|filter_confusing_messages %}
+        <template data-art-messages-source>{% for message in visible_messages %}<div class="alert alert-{% if message.level_tag == 'error' %}danger{% else %}{{ message.level_tag }}{% endif %} alert-dismissible fade show" data-level="{{ message.level_tag }}"><i class="fas {% if message.level_tag == 'error' %}fa-exclamation-circle{% else %}fa-check-circle{% endif %} me-2" aria-hidden="true"></i>{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button></div>{% endfor %}</template>
+        <noscript>{% for message in visible_messages %}<div class="alert alert-{% if message.level_tag == 'error' %}danger{% else %}{{ message.level_tag }}{% endif %}">{{ message }}</div>{% endfor %}</noscript>
+        {% endwith %}
+    {% endif %}
+</div>
+<style>
+    .art-messages { position: fixed; top: 1rem; right: 1rem; z-index: 1090; width: min(24rem, calc(100% - 2rem)); }
+    .art-messages .alert { margin-bottom: .5rem; box-shadow: 0 .5rem 1.5rem rgba(0, 0, 0, .12); }
+    .art-messages .alert-dismissible { padding-right: 3.25rem; }
+    .art-messages .btn-close { width: 44px; height: 44px; padding: 0; top: 50%; right: .25rem; transform: translateY(-50%); }
+</style>
+<script>
+    (function () {
+        const container = document.querySelector('[data-art-messages]');
+        const source = container && container.querySelector('[data-art-messages-source]');
+        if (!source) return;
+        const status = container.querySelector('[data-art-messages-status]');
+        const alert = container.querySelector('[data-art-messages-alert]');
+        // Filled after a beat: live regions only announce changes, not content present at load.
+        setTimeout(function () {
+            source.content.querySelectorAll('[data-level]').forEach(function (message) {
+                (message.dataset.level === 'error' ? alert : status).appendChild(message.cloneNode(true));
+            });
+        }, 150);
+        // A success notice must not outlive the next edit, or it would vouch for unsaved changes.
+        document.addEventListener('input', function () { status.replaceChildren(); }, { once: true });
+    }());
+</script>

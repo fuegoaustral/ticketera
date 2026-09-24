@@ -6,11 +6,11 @@ product
 
 ## Users
 
-Artistas y equipos de obra completan inscripciones, becas, logística, check-in y checkout principalmente desde el teléfono. Coordinación de Arte y responsables de becas revisan expedientes, montos, evidencias y estados principalmente desde computadora, con apoyo móvil durante el evento.
+Artistas y equipos de instalación completan inscripciones, becas, logística, check-in y checkout principalmente desde el teléfono. Coordinación de Arte y responsables de becas revisan instalaciones, montos, evidencias y estados principalmente desde computadora, con apoyo móvil durante el evento.
 
 ## Product Purpose
 
-Ticketera organiza el expediente completo de cada obra de Fuego Austral: propuesta, seguridad, carta de entendimiento, beca, rendición, logística, placement y checkout. La interfaz debe hacer evidente qué falta, quién puede actuar y qué dato queda registrado.
+Ticketera reúne todo lo de cada Instalación de Arte de Fuego Austral: propuesta, seguridad, declaración de entendimiento, beca, rendición, logística, placement y checkout. La interfaz debe hacer evidente qué falta, quién puede actuar y qué dato queda registrado.
 
 ## Brand Personality
 

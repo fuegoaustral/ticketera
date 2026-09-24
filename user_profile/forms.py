@@ -107,8 +107,10 @@ class ProfileStep1Form(forms.ModelForm):
     
     class Meta:
         model = Profile
-        fields = ['document_type', 'document_number']
+        fields = ['nickname', 'document_type', 'document_number']
+        help_texts = {'nickname': 'Así te van a ver en los equipos de Fuego Austral.'}
         widgets = {
+            'nickname': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'nickname', 'aria-describedby': 'id_nickname_helptext'}),
             'document_type': forms.Select(attrs={'class': 'form-select'}),
             'document_number': forms.TextInput(attrs={'class': 'form-control'}),
         }
@@ -222,8 +224,10 @@ class ProfileUpdateForm(forms.ModelForm):
     
     class Meta:
         model = Profile
-        fields = ['document_type', 'document_number']
+        fields = ['nickname', 'document_type', 'document_number']
+        help_texts = {'nickname': 'Así te van a ver en los equipos de Fuego Austral.'}
         widgets = {
+            'nickname': forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'nickname', 'aria-describedby': 'id_nickname_helptext'}),
             'document_type': forms.Select(attrs={'class': 'form-select'}),
             'document_number': forms.TextInput(attrs={'class': 'form-control'}),
         }

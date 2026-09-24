@@ -1,0 +1,20 @@
+<p class="step-lead">Cuando desarmes la instalación y limpies el espacio, subí fotos de cómo quedó el lugar y enviá el checkout. Después, ESTAFA lo verifica en el predio.</p>
+<div class="row"><div class="col-md-6">{% include 'art/_field.html' with field=form.checkout_team_responsible %}</div></div>
+{% include 'art/_field.html' with field=form.checkout_notes %}
+{% if artwork %}
+<div class="mt-4" id="checkout-report">
+    <h3 class="h5 mb-1">Reporte fotográfico del checkout</h3>
+    <p class="small text-muted">Documentá el estado del espacio por categoría para dejar registro del retiro y la limpieza.</p>
+    {% if can_edit_checkout %}
+    <details class="inline-editor inline-create mb-3"{% if checkout_photo_upload_form.errors %} open{% endif %}>
+        <summary><i class="fas fa-camera" aria-hidden="true"></i><span>Agregar fotos al reporte</span></summary>
+        <form method="post" action="{% url 'artwork_checkout_photo_upload' artwork.pk %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
+            {% include 'art/_inline_fields.html' with inline_form=checkout_photo_upload_form %}
+            <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Subir fotos</button></div>
+        </form>
+    </details>
+    {% endif %}
+    {% include 'art/_checkout_photos.html' with can_delete=can_edit_checkout empty='Todavía no hay fotos de checkout.' %}
+</div>
+{% if can_submit_checkout %}<button class="btn btn-primary mt-3" type="submit" form="artwork-form" name="action" value="checkout">Enviar checkout</button>{% endif %}
+{% endif %}

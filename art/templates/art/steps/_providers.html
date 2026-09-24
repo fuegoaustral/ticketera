@@ -1,0 +1,21 @@
+<div class="mt-4 mb-3"><h3 class="h5 mb-1">Proveedores por operación</h3><p class="small text-muted mb-0">Un proveedor marcado para ambas operaciones aparece en las dos listas.</p></div>
+<div class="row g-3 operation-lists">
+    <div class="col-md-6"><section aria-labelledby="entry-providers-title"><h4 id="entry-providers-title" class="h6">Ingreso anticipado</h4>{% if entry_providers %}<ul class="list-unstyled mb-0">{% for provider in entry_providers %}<li><strong>{{ provider.company_name }}</strong><span>Entrada {{ provider.early_entry_at|date:'d/m/Y H:i' }}<br>Salida {{ provider.early_exit_at|date:'d/m/Y H:i' }}</span><small>{{ provider.service_description }}</small></li>{% endfor %}</ul>{% else %}<p class="small text-muted mb-0">Sin proveedores de ingreso.</p>{% endif %}</section></div>
+    <div class="col-md-6"><section aria-labelledby="exit-providers-title"><h4 id="exit-providers-title" class="h6">Desarme y retiro</h4>{% if exit_providers %}<ul class="list-unstyled mb-0">{% for provider in exit_providers %}<li><strong>{{ provider.company_name }}</strong><span>Entrada {{ provider.dismantling_entry_at|date:'d/m/Y H:i' }}<br>Salida {{ provider.dismantling_exit_at|date:'d/m/Y H:i' }}</span><small>{{ provider.service_description }}</small></li>{% endfor %}</ul>{% else %}<p class="small text-muted mb-0">Sin proveedores de desarme.</p>{% endif %}</section></div>
+</div>
+
+<div class="mt-4 mb-2"><h3 class="h5 mb-0">Datos de proveedores y vehículos</h3></div>
+{% if can_edit_logistics %}
+<details class="inline-editor inline-create mb-3"{% if provider_create_form.errors %} open{% endif %}>
+    <summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar proveedor</span></summary>
+    <form class="provider-inline-form" method="post" action="{% url 'artwork_provider_create' artwork.pk %}" novalidate>{% csrf_token %}
+        {% include 'art/_provider_fields.html' with inline_form=provider_create_form %}
+        <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Agregar proveedor</button></div>
+    </form>
+</details>
+{% endif %}
+{% if artwork_providers %}
+    {% for provider in artwork_providers %}
+    {% include 'art/_provider_card.html' with can_edit=can_edit_logistics %}
+    {% endfor %}
+{% elif artwork %}<p class="small text-muted mb-0">Todavía no hay proveedores cargados.</p>{% else %}<p class="small text-muted mb-0">Guardá la instalación para agregar proveedores y vehículos.</p>{% endif %}

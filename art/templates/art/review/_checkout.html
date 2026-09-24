@@ -1,0 +1,12 @@
+{% comment %}El checkout como lo ve el equipo, más las fotos que ESTAFA puede borrar (antes de verificar) y agregar.{% endcomment %}
+<div id="checkout-report">
+    {% if artwork.checkout_verified_at %}{% include 'art/steps/summary/checkout.html' %}{% else %}{% include 'art/steps/summary/checkout.html' with can_delete_checkout_photos=True %}{% endif %}
+    <details class="inline-editor inline-create mt-3"{% if checkout_photo_upload_form.errors %} open{% endif %}>
+        <summary><i class="fas fa-camera" aria-hidden="true"></i><span>Agregar fotos al reporte</span></summary>
+        <form method="post" action="{% url 'artwork_checkout_photo_upload' artwork.pk %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
+            <input type="hidden" name="return_to" value="review">
+            {% include 'art/_inline_fields.html' with inline_form=checkout_photo_upload_form %}
+            <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Subir fotos</button></div>
+        </form>
+    </details>
+</div>

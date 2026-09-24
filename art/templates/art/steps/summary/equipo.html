@@ -1,0 +1,17 @@
+{% load art_format %}
+{% if team_members %}
+<ul class="summary-people list-unstyled mb-0">
+    {% for member in team_members %}
+    {% with name=member.user|person_name full_name=member.user|person_full_name %}
+    <li>
+        <div class="summary-person">
+            <strong>{{ name }}</strong>{% if member.is_self and not estafa_view %} <span class="text-muted">(vos)</span>{% endif %}
+            {% if name != member.user.email %}<small class="d-block text-muted">{% if full_name %}{{ full_name }} · {% endif %}{{ member.user.email }}</small>{% endif %}
+            {% if member.missing_ticket %}<small class="team-ticket-warning"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i><span>{% if member.is_self and not estafa_view %}Todavía no tenés tu bono para este evento{% else %}Todavía no tiene bono para este evento{% endif %}</span></small>{% endif %}
+        </div>
+        <span class="summary-person-detail">{% if member.is_leader %}Responsable{% elif member.can_edit %}Puede editar{% else %}Puede ver{% endif %}</span>
+    </li>
+    {% endwith %}
+    {% endfor %}
+</ul>
+{% else %}<p class="small text-muted mb-0">Todavía no hay personas en el equipo.</p>{% endif %}

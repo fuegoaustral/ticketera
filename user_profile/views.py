@@ -3010,7 +3010,7 @@ def update_ticket_restriccion(request, ticket_key):
             ).first()
         
         if not grupo_miembro:
-            return JsonResponse({'error': 'No pertenecés a ningún grupo para este evento'}, status=404)
+            return JsonResponse({'error': 'No pertenecés a ningún equipo para este evento'}, status=404)
         
         # Obtener la restricción del request
         restriccion = request.POST.get('restriccion')
@@ -3568,7 +3568,7 @@ def accept_terms_ajax(request):
 
 @login_required
 def mis_grupos_view(request, event_slug=None):
-    """Vista para mostrar los grupos del usuario en un evento"""
+    """Vista para mostrar los equipos del usuario en un evento"""
     # Get the specific event from slug
     if event_slug:
         current_event = Event.get_by_slug(event_slug)
@@ -3621,7 +3621,7 @@ def mis_grupos_view(request, event_slug=None):
 
 @login_required
 def grupo_manage_view(request, event_slug, grupo_id):
-    """Vista para que el responsable gestione su grupo (agregar/quitar miembros, marcar ingreso anticipado)"""
+    """Vista para que el responsable gestione su equipo (agregar/quitar miembros, marcar ingreso anticipado)"""
     # Get the specific event from slug
     current_event = Event.get_by_slug(event_slug)
     if not current_event:
@@ -3632,7 +3632,7 @@ def grupo_manage_view(request, event_slug, grupo_id):
     
     # Check if user is the leader
     if grupo.lider != request.user:
-        return HttpResponseForbidden("No tienes permiso para gestionar este grupo")
+        return HttpResponseForbidden("No tienes permiso para gestionar este equipo")
     
     # Get all members
     miembros = grupo.miembros.select_related('user').order_by('-ingreso_anticipado', '-late_checkout', 'user__email')
@@ -3694,14 +3694,14 @@ def grupo_manage_view(request, event_slug, grupo_id):
                     else:
                         # Check if user is already a member
                         if GrupoMiembro.objects.filter(grupo=grupo, user=user).exists():
-                            messages.error(request, f'El usuario {user.email} ya es miembro del grupo')
+                            messages.error(request, f'El usuario {user.email} ya es miembro del equipo')
                         else:
                             # Try to create the member - validation is done at model level
                             try:
                                 miembro = GrupoMiembro(grupo=grupo, user=user)
                                 miembro.full_clean()  # This will trigger the validation
                                 miembro.save()
-                                messages.success(request, f'Usuario {user.email} agregado al grupo')
+                                messages.success(request, f'Usuario {user.email} agregado al equipo')
                             except ValidationError as e:
                                 # Get the error message from validation
                                 error_message = '; '.join(e.messages) if hasattr(e, 'messages') else str(e)
@@ -3721,7 +3721,7 @@ def grupo_manage_view(request, event_slug, grupo_id):
                     miembro = GrupoMiembro.objects.get(id=miembro_id, grupo=grupo)
                     # Don't allow removing the leader
                     if miembro.user == grupo.lider:
-                        messages.error(request, 'No puedes remover al responsable del grupo')
+                        messages.error(request, 'No puedes remover al responsable del equipo')
                     else:
                         # Verificar si el miembro tiene ingreso anticipado y si se puede modificar
                         if (miembro.ingreso_anticipado or miembro.ingreso_anticipado_fecha) and not puede_modificar_ingresos_anticipados(current_event):
@@ -3729,7 +3729,7 @@ def grupo_manage_view(request, event_slug, grupo_id):
                             messages.error(request, f'No se puede eliminar este miembro porque tiene ingreso anticipado. La fecha límite de modificación era el {fecha_limite}')
                         else:
                             miembro.delete()
-                            messages.success(request, f'Miembro removido del grupo')
+                            messages.success(request, f'Miembro removido del equipo')
                 except GrupoMiembro.DoesNotExist:
                     messages.error(request, 'Miembro no encontrado')
                 except Exception as e:
@@ -3762,6 +3762,8 @@ def grupo_manage_view(request, event_slug, grupo_id):
                     messages.success(request, f'Ingreso anticipado {status} para {miembro.user.email}')
                 except GrupoMiembro.DoesNotExist:
                     messages.error(request, 'Miembro no encontrado')
+                except ValidationError as e:
+                    messages.error(request, '; '.join(e.messages))
                 except Exception as e:
                     messages.error(request, f'Error al actualizar ingreso anticipado: {str(e)}')
             return redirect('grupo_manage', event_slug=event_slug, grupo_id=grupo_id)
@@ -3786,6 +3788,8 @@ def grupo_manage_view(request, event_slug, grupo_id):
                     messages.success(request, f'Late checkout {status} para {miembro.user.email}')
                 except GrupoMiembro.DoesNotExist:
                     messages.error(request, 'Miembro no encontrado')
+                except ValidationError as e:
+                    messages.error(request, '; '.join(e.messages))
                 except Exception as e:
                     messages.error(request, f'Error al actualizar late checkout: {str(e)}')
             return redirect('grupo_manage', event_slug=event_slug, grupo_id=grupo_id)
@@ -3916,7 +3920,10 @@ def grupo_toggle_ajax(request, event_slug, grupo_id):
                 })
         
         miembro.ingreso_anticipado = new_value
-        miembro.save()
+        try:
+            miembro.save()
+        except ValidationError as e:
+            return JsonResponse({'success': False, 'error': '; '.join(e.messages)})
         
         return JsonResponse({
             'success': True,
@@ -3939,7 +3946,10 @@ def grupo_toggle_ajax(request, event_slug, grupo_id):
                 })
         
         miembro.late_checkout = new_value
-        miembro.save()
+        try:
+            miembro.save()
+        except ValidationError as e:
+            return JsonResponse({'success': False, 'error': '; '.join(e.messages)})
         
         return JsonResponse({
             'success': True,
@@ -3951,7 +3961,6 @@ def grupo_toggle_ajax(request, event_slug, grupo_id):
     
     elif action == 'update_ingreso_fecha':
         from django.utils.dateparse import parse_date
-        from django.core.exceptions import ValidationError
         
         # Verificar fecha límite
         if not puede_modificar_ingresos_anticipados(current_event):
@@ -4067,7 +4076,7 @@ def grupo_toggle_ajax(request, event_slug, grupo_id):
         if miembro.user != grupo.lider:
             return JsonResponse({
                 'success': False,
-                'error': 'Esta acción solo está permitida para el responsable del grupo'
+                'error': 'Esta acción solo está permitida para el responsable del equipo'
             }, status=403)
         
         # Verificar fecha límite si tiene ingreso anticipado

@@ -1,0 +1,33 @@
+{% comment %}Quién del equipo entra antes y quién se queda después (GrupoMiembro). Cada persona necesita su bono.{% endcomment %}
+{% with group=benefits_form.group %}
+<fieldset class="step-group" id="ingreso-personas">
+    <legend>Quién entra antes y quién se queda después</legend>
+    {% if not group.ingreso_anticipado_amount and not group.late_checkout_amount %}
+    <p class="form-text mt-0 mb-0">Esta instalación todavía no tiene cupos de ingreso anticipado ni de late checkout. Los asigna ESTAFA.</p>
+    {% else %}
+    <p class="form-text mt-0 mb-3">Elegí entre las personas del equipo. Cupos: {{ group.ingreso_anticipado_amount }} de ingreso anticipado y {{ group.late_checkout_amount }} de late checkout{% if group.late_checkout_hasta %} (hasta el {{ group.late_checkout_hasta|date:'d/m H:i' }}){% endif %}. Para entrar antes o quedarse después, cada persona necesita su bono.</p>
+    {% if benefits_form.early_closed %}<p class="form-text mb-3">La carga de ingresos anticipados cerró el {{ artwork.event.ingreso_anticipado_limite_carga|date:'d/m/Y' }}.</p>{% endif %}
+    {% if benefits_form.non_field_errors %}<div class="field-error mb-3" role="alert">{% for error in benefits_form.non_field_errors %}<p><i class="fas fa-circle-exclamation" aria-hidden="true"></i>{{ error }}</p>{% endfor %}</div>{% endif %}
+    <form method="post" action="{% url 'artwork_team_benefits' artwork.pk %}" novalidate>{% csrf_token %}
+        <table class="table align-middle benefits-table">
+            <thead><tr><th scope="col">Persona</th><th scope="col">Ingreso anticipado</th><th scope="col">Late checkout</th></tr></thead>
+            <tbody>
+                {% for member in benefits_form.members %}
+                <tr class="{% if not member.has_ticket %}is-disabled{% endif %}{% if member.early_field.errors %} has-error{% endif %}">
+                    <th scope="row">{{ member.user.get_full_name|default:member.user.email }}{% if not member.has_ticket %}<small><i class="fas fa-triangle-exclamation me-1" aria-hidden="true"></i>Necesita su bono</small>{% endif %}</th>
+                    <td data-label="Ingreso anticipado">
+                        {% if can_edit_logistics %}<label class="visually-hidden" for="{{ member.early_field.id_for_label }}">{{ member.early_field.label }}</label>{{ member.early_field }}{% else %}{{ member.ingreso_anticipado_fecha|date:'d/m'|default:'—' }}{% endif %}
+                        {% if member.early_field.errors %}<div class="field-error" id="{{ member.early_field.id_for_label }}-error">{% for error in member.early_field.errors %}<p><i class="fas fa-circle-exclamation" aria-hidden="true"></i>{{ error }}</p>{% endfor %}</div>{% endif %}
+                    </td>
+                    <td data-label="Late checkout">
+                        {% if can_edit_logistics %}<div class="form-check form-switch team-switch">{{ member.late_field }}<label class="visually-hidden" for="{{ member.late_field.id_for_label }}">{{ member.late_field.label }}</label></div>{% else %}{{ member.late_checkout|yesno:'Sí,No' }}{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if can_edit_logistics %}<button class="btn btn-sm btn-primary" type="submit">Guardar ingreso y late checkout</button>{% endif %}
+    </form>
+    {% endif %}
+</fieldset>
+{% endwith %}

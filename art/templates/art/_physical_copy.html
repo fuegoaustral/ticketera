@@ -1,0 +1,17 @@
+{% comment %}Sólo lectura para el equipo: ESTAFA marca cuándo recibe la copia física.{% endcomment %}
+{% if artwork.understanding_letter_physical_received %}
+<div class="physical-copy is-received">
+    <i class="fas fa-circle-check" aria-hidden="true"></i>
+    <div><strong>ESTAFA recibió la copia física</strong>{% if artwork.understanding_letter_physical_custodian or artwork.understanding_letter_physical_received_at %}<p class="mb-0">La recibió {{ artwork.understanding_letter_physical_custodian|default:'ESTAFA' }}{% if artwork.understanding_letter_physical_received_at %} el {{ artwork.understanding_letter_physical_received_at|date:'d/m/Y' }}{% endif %}.</p>{% endif %}</div>
+</div>
+{% elif artwork.understanding_letter_physical_waiver %}
+<div class="physical-copy is-waived">
+    <i class="fas fa-circle-info" aria-hidden="true"></i>
+    <div><strong>La entregás en el evento</strong><p class="mb-0">ESTAFA te autorizó a entregar la copia física en el evento, antes de empezar a construir.</p></div>
+</div>
+{% else %}
+<div class="physical-copy is-pending">
+    <i class="fas fa-hand-holding" aria-hidden="true"></i>
+    <div><strong>Pendiente de entrega</strong><p class="mb-0">Entregale la copia física firmada a alguien de ESTAFA{% if program.understanding_letter_physical_deadline %} antes del {{ program.understanding_letter_physical_deadline|date:'d/m' }}{% endif %}. Cuando la reciban, lo marcan acá.</p></div>
+</div>
+{% endif %}

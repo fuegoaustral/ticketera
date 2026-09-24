@@ -3,7 +3,7 @@
 from django.conf import settings
 from django.db import migrations, models
 import django.db.models.deletion
-import events.models
+import art.models
 
 
 class Migration(migrations.Migration):
@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='artwork',
             name='understanding_letter',
-            field=models.FileField(blank=True, storage=events.models.private_art_storage, upload_to='art/understanding_letters', verbose_name='Carta de entendimiento digital'),
+            field=models.FileField(blank=True, storage=art.models.private_art_storage, upload_to='art/understanding_letters', verbose_name='Carta de entendimiento digital'),
         ),
         migrations.AddField(
             model_name='artwork',
@@ -40,7 +40,7 @@ class Migration(migrations.Migration):
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-                ('image', models.ImageField(storage=events.models.private_art_storage, upload_to='art/checkout')),
+                ('image', models.ImageField(storage=art.models.private_art_storage, upload_to='art/checkout')),
                 ('category', models.CharField(choices=[('dirt', 'M.U.G.R.E.'), ('environmental_damage', 'Daño ambiental'), ('artwork_parts', 'Partes de la obra'), ('burn_remains', 'Restos de quema'), ('cleanup', 'Limpieza y estado final'), ('other', 'Otro')], default='other', max_length=20, verbose_name='Categoría')),
                 ('caption', models.TextField(blank=True, verbose_name='Detalle')),
                 ('artwork', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='checkout_photos', to='events.artwork')),

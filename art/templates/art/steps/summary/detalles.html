@@ -1,0 +1,54 @@
+{% load art_format %}
+{% comment %}Lo que se ve en el formulario, en el mismo orden. Lo que depende de un interruptor aparece si está activo.{% endcomment %}
+<div class="summary-group">
+    {% include 'art/steps/summary/_group_title.html' with title='La idea' %}
+    <dl class="step-readonly">
+        {% include 'art/steps/summary/_row.html' with label='Nombre' value=artwork.title %}
+        {% include 'art/steps/summary/_row.html' with label='Descripción' value=artwork.proposal multiline=True %}
+    </dl>
+</div>
+<div class="summary-group">
+    {% include 'art/steps/summary/_group_title.html' with title='Tamaño y materiales' %}
+    <dl class="step-readonly">
+        {% include 'art/steps/summary/_row.html' with label='Dimensiones' value=artwork.dimensions %}
+        {% include 'art/steps/summary/_row.html' with label='Materiales' value=artwork.materials multiline=True %}
+        {% include 'art/steps/summary/_row.html' with label='Necesidades técnicas y energía' value=artwork.technical_needs multiline=True %}
+    </dl>
+</div>
+<div class="summary-group">
+    {% include 'art/steps/summary/_group_title.html' with title='Sonido' %}
+    <dl class="step-readonly">
+        {% include 'art/steps/summary/_row.html' with label='Sonido amplificado' value=artwork.uses_sound|yesno:'Sí,No' %}
+        {% if artwork.uses_sound %}{% if artwork.power_watts is not None %}{% include 'art/steps/summary/_row.html' with label='Potencia eléctrica máxima' value=artwork.power_watts|stringformat:'s'|add:' W' %}{% else %}{% include 'art/steps/summary/_row.html' with label='Potencia eléctrica máxima' value='' %}{% endif %}{% endif %}
+    </dl>
+</div>
+<div class="summary-group">
+    {% include 'art/steps/summary/_group_title.html' with title='Seguridad y uso de fuego' %}
+    <dl class="step-readonly">
+        {% include 'art/steps/summary/_row.html' with label='Usa fuego' value=artwork.uses_fire|yesno:'Sí,No' %}
+        {% if artwork.uses_fire %}
+        {% include 'art/steps/summary/_row.html' with label='Combustible, cantidad y funcionamiento' value=artwork.fire_details multiline=True %}
+        {% include 'art/steps/summary/_row.html' with label='Plan y elementos de extinción' value=artwork.extinguishing_plan multiline=True %}
+        {% include 'art/steps/summary/_row.html' with label='Plan de seguridad' value=artwork.safety_plan multiline=True %}
+        {% include 'art/steps/summary/_row.html' with label='Responsable de seguridad' value=artwork.safety_responsible|person_label %}
+        {% endif %}
+    </dl>
+</div>
+<div class="summary-group">
+    {% include 'art/steps/summary/_group_title.html' with title='¿Se quema?' %}
+    <dl class="step-readonly">
+        {% include 'art/steps/summary/_row.html' with label='Se quema' value=artwork.burns|yesno:'Sí,No' %}
+        {% if artwork.burns %}
+        {% include 'art/steps/summary/_row.html' with label='Cuándo prefiere quemarla' value=artwork.burn_preferred_time %}
+        {% include 'art/steps/summary/_row.html' with label='Sola o con otras' value=artwork.get_burn_company_display %}
+        {% endif %}
+    </dl>
+</div>
+<div class="summary-group">
+    {% include 'art/steps/summary/_group_title.html' with title='Archivos' %}
+    {% if artwork_files %}{% include 'art/_artwork_files.html' with can_edit_files=False %}{% else %}<p class="small text-muted mb-2">No se subieron archivos.</p>{% endif %}
+    <dl class="step-readonly">
+        <dt>Link a más archivos</dt>
+        <dd>{% if artwork.files_url %}<a href="{{ artwork.files_url }}" target="_blank" rel="noopener">{{ artwork.files_url }}<span class="visually-hidden"> (se abre en otra pestaña)</span></a>{% else %}{% include 'art/_dash.html' with label='Sin completar' %}{% endif %}</dd>
+    </dl>
+</div>

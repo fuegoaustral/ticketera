@@ -2,7 +2,7 @@
 
 from django.db import migrations, models
 from django.core.files.storage import default_storage
-import events.models
+import art.models
 
 
 def move_art_photos_to_private_storage(apps, schema_editor):
@@ -32,7 +32,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='artworkphoto',
             name='image',
-            field=models.ImageField(storage=events.models.private_art_storage, upload_to='art/gallery'),
+            field=models.ImageField(storage=art.models.private_art_storage, upload_to='art/gallery'),
         ),
         migrations.RunPython(move_art_photos_to_private_storage, migrations.RunPython.noop),
         migrations.AddConstraint(

@@ -1,0 +1,7 @@
+{% comment %}Qué completar ahora y hasta cuándo: el paso abierto con algo pendiente que vence primero.{% endcomment %}
+<section class="next-step" aria-labelledby="next-step-title">
+    <p class="next-step-kicker">Lo próximo{% if next_step.deadline %} · hasta el {{ next_step.deadline|date:'d/m' }}{% endif %}</p>
+    <h2 class="h5 mb-1" id="next-step-title">Completá {{ next_step.title|lower|capfirst }}</h2>
+    <p class="mb-3">Te falta: {% for item in next_step.missing %}{{ item|lower }}{% if forloop.revcounter == 2 %} y {% elif not forloop.last %}, {% endif %}{% endfor %}.</p>
+    <a class="btn btn-primary" href="#{{ next_step.key }}">Ir a {{ next_step.short|lower }}<i class="fas fa-arrow-right ms-2" aria-hidden="true"></i></a>
+</section>

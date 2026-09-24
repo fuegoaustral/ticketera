@@ -1,0 +1,110 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+
+{% block page_title %}Arte{% endblock page_title %}
+
+{% block truecontent %}
+<div class="container-fluid art-home">
+    <header class="art-hero mb-5">
+        <p class="text-uppercase text-muted small fw-semibold mb-2">Fuego Austral</p>
+        <h2 class="h3 mb-2">Tus instalaciones, en un solo lugar</h2>
+        <p class="text-muted mb-0">Propuesta, beca, galería, equipo, ingreso, salida y checkout del evento anual.</p>
+    </header>
+
+    <section class="mb-5" aria-labelledby="new-artwork-title">
+        <div class="d-flex justify-content-between align-items-end gap-3 mb-3">
+            <div>
+                <h3 class="h4 mb-1" id="new-artwork-title">Inscripciones</h3>
+                <p class="text-muted mb-0">Una instalación planificada o espontánea comienza con el mismo formulario.</p>
+            </div>
+        </div>
+        {% for program in programs %}
+            <div class="program-row d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 py-3">
+                <div>
+                    <h4 class="h5 mb-1">{{ program.event.name }}</h4>
+                    <p class="small text-muted mb-0">
+                        {% if program.registration_is_open %}
+                            Inscripción abierta{% if program.registration_closes %} hasta el {{ program.registration_closes|date:'d/m/Y H:i' }}{% endif %}.
+                        {% elif program.registration_closes and program.registration_closes < now %}
+                            La inscripción de instalaciones cerró.
+                        {% elif program.registration_opens %}
+                            La inscripción abre el {{ program.registration_opens|date:'d/m/Y H:i' }}.
+                        {% else %}
+                            La inscripción todavía no abrió.
+                        {% endif %}
+                    </p>
+                </div>
+                {% if program.registration_is_open %}
+                <a class="btn btn-primary text-nowrap" href="{% url 'artwork_create' program.event.slug %}">
+                    <i class="fas fa-plus me-2" aria-hidden="true"></i>Nueva instalación
+                </a>
+                {% endif %}
+            </div>
+        {% empty %}
+            <div class="alert alert-info mb-0">Todavía no hay una convocatoria de Arte activa.</div>
+        {% endfor %}
+    </section>
+
+    <section aria-labelledby="artworks-title">
+        <h3 class="h4 mb-3" id="artworks-title">Mis instalaciones</h3>
+        {% if artworks %}
+            <div class="artwork-list">
+                {% for artwork in artworks %}
+                    <a class="artwork-row" href="{% url 'artwork_edit' artwork.pk %}">
+                        <div class="artwork-row-title d-flex align-items-center gap-2 flex-wrap">
+                            <h4 class="h5 mb-0">{{ artwork.title|default:'Instalación sin título' }}</h4>
+                            {% include 'art/_status_badge.html' %}
+                            {% if artwork.kind == 'popup' %}<span class="badge bg-light text-dark border">Espontánea</span>{% endif %}
+                        </div>
+                        <p class="artwork-row-meta small text-muted mb-0"><span>{{ artwork.event.name }}</span> <span>Actualizada el {{ artwork.updated_at|date:'d/m/Y' }}</span></p>
+                        <p class="artwork-row-hint mb-0">{{ artwork.stage_hint }}</p>
+                        <div class="artwork-row-foot d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
+                            {% if artwork.estafa_contact %}<span class="small"><i class="fas fa-user-check me-1 text-success" aria-hidden="true"></i><span class="text-muted">Contacto de ESTAFA:</span> {{ artwork.estafa_contact.get_full_name|default:artwork.estafa_contact.email }}</span>{% else %}<span></span>{% endif %}
+                            <span class="text-primary fw-semibold text-nowrap">Abrir <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i></span>
+                        </div>
+                    </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-art py-4 px-3 text-center">
+                <p class="mb-0 text-muted">Todavía no tenés instalaciones. Cuando crees una o te sumen a un equipo, va a aparecer acá.</p>
+            </div>
+        {% endif %}
+    </section>
+
+</div>
+
+<style>
+    .art-home { max-width: 960px; }
+    .art-hero {
+        padding: 1.5rem;
+        border: 1px solid oklch(90% .03 160);
+        border-radius: .5rem;
+        background: oklch(97% .015 160);
+    }
+    .art-home header p { max-width: 68ch; }
+    .program-row { border-bottom: 1px solid #dee2e6; }
+    .program-row:first-of-type { border-top: 1px solid #dee2e6; }
+    .artwork-list { display: grid; gap: .75rem; }
+    .artwork-row {
+        display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "title meta" "hint hint" "foot foot";
+        gap: .5rem 1.5rem; padding: 1rem 1.25rem; border: 1px solid #dee2e6; border-radius: .5rem;
+        color: inherit; text-decoration: none; transition: background-color 180ms ease-out, border-color 180ms ease-out;
+    }
+    .artwork-row:hover, .artwork-row:focus-visible { color: inherit; background: #f6faf8; border-color: #c8d9d0; text-decoration: none; }
+    .artwork-row-title { grid-area: title; }
+    .artwork-row-meta { grid-area: meta; text-align: right; line-height: 1.4; }
+    .artwork-row-meta span { display: block; }
+    .artwork-row-hint { grid-area: hint; max-width: 68ch; }
+    .artwork-row-foot { grid-area: foot; padding-top: .6rem; border-top: 1px solid #eef1ef; }
+    @media (max-width: 575px) {
+        .artwork-row { grid-template-columns: 1fr; grid-template-areas: "meta" "title" "hint" "foot"; padding: 1rem; }
+        .artwork-row-meta { text-align: left; }
+        .artwork-row-meta span { display: inline; }
+        .artwork-row-meta span + span::before { content: "· "; }
+    }
+    @media (prefers-reduced-motion: reduce) { .artwork-row { transition: none; } }
+    .artwork-row:focus-visible { outline: 3px solid rgba(40, 158, 109, .3); outline-offset: 2px; }
+    .empty-art { border: 1px dashed #adb5bd; border-radius: .75rem; }
+</style>
+{% include 'art/_messages.html' %}
+{% endblock %}

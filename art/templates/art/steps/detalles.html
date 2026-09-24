@@ -1,0 +1,52 @@
+<p class="step-lead">Contanos qué querés hacer. Sólo el nombre es obligatorio: el resto lo vas completando.</p>
+<fieldset class="step-group">
+    <legend>La idea</legend>
+    {% include 'art/_field.html' with field=form.title %}
+    {% include 'art/_field.html' with field=form.proposal %}
+</fieldset>
+<fieldset class="step-group">
+    <legend>Tamaño y materiales</legend>
+    {% include 'art/_field.html' with field=form.dimensions %}
+    {% include 'art/_field.html' with field=form.materials %}
+    {% include 'art/_field.html' with field=form.technical_needs %}
+</fieldset>
+<fieldset class="step-group">
+    <legend>Sonido</legend>
+    {% include 'art/_field.html' with field=form.uses_sound %}
+    {% comment %}Sólo se muestra si la instalación usa sonido amplificado (sin JavaScript, siempre).{% endcomment %}
+    <div id="sound-fields" data-reveal-when="{{ form.uses_sound.id_for_label }}">
+        {% include 'art/_field.html' with field=form.power_watts %}
+    </div>
+</fieldset>
+<fieldset class="step-group">
+    <legend>Seguridad y uso de fuego</legend>
+    <p class="form-text mt-0 mb-3">Si la instalación usa fuego, marcalo y completá sus detalles, el plan de extinción y la persona responsable.</p>
+    {% include 'art/_field.html' with field=form.uses_fire %}
+    {% comment %}Sólo se muestran si la instalación usa fuego (sin JavaScript, siempre).{% endcomment %}
+    <div id="fire-fields" data-reveal-when="{{ form.uses_fire.id_for_label }}">
+        {% include 'art/_field.html' with field=form.fire_details %}
+        {% include 'art/_field.html' with field=form.extinguishing_plan %}
+        {% include 'art/_field.html' with field=form.safety_plan %}
+        {% include 'art/_field.html' with field=form.safety_responsible_email %}
+    </div>
+</fieldset>
+<fieldset class="step-group">
+    <legend>¿Se quema?</legend>
+    {% include 'art/_field.html' with field=form.burns %}
+    {% comment %}Sólo se muestra si la instalación se quema (sin JavaScript, siempre).{% endcomment %}
+    <div id="burn-fields" data-reveal-when="{{ form.burns.id_for_label }}">
+        <p class="form-text mt-0 mb-3">ESTAFA se comunica con los Rangers, que organizan las quemas, para coordinar el día y el horario. Contanos qué preferís.</p>
+        {% include 'art/_field.html' with field=form.burn_preferred_time %}
+        {% include 'art/_field.html' with field=form.burn_company %}
+    </div>
+</fieldset>
+<fieldset class="step-group">
+    <legend>Archivos</legend>
+    <p class="form-text mt-0 mb-3">Bocetos, planos, fotos o renders, en imagen o PDF.</p>
+    {% if artwork %}
+        {% include 'art/_artwork_files.html' %}
+    {% else %}
+        <p class="small text-muted">Guardá la instalación para subir archivos.</p>
+    {% endif %}
+    {% include 'art/_field.html' with field=form.files_url %}
+</fieldset>

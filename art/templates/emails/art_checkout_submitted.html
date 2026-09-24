@@ -1,0 +1,7 @@
+{% extends "emails/base.html" %}
+{% block subject %}Checkout enviado: {{ artwork.title|default:"instalación sin título"|safe }}{% endblock %}
+{% block title %}Checkout para verificar{% endblock %}
+{% block content %}
+<p>El equipo de <strong>{{ artwork.title|default:"una instalación" }}</strong> envió el checkout. Como sos su contacto de ESTAFA, revisá el espacio en el predio y registrá la verificación.</p>
+{% include "emails/partials/btn.html" with href=review_path|add:"#checkout-report" label="Verificar checkout" %}
+{% endblock %}
