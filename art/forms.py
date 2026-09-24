@@ -10,6 +10,7 @@ from .models import (
     Artwork, ArtworkGrantItem,
     ArtworkPhoto, ArtworkCheckoutPhoto, ArtworkProvider, ArtworkProviderVehicle,
 )
+from .templatetags.art_format import person_label
 
 
 class LocalizedDecimalField(forms.DecimalField):
@@ -41,7 +42,7 @@ ARTWORK_BLOCK_FIELDS = {
 def _estafa_contacts(artwork):
     return User.objects.filter(
         Q(pk__in=estafa_members().values('pk')) | Q(pk=artwork.estafa_contact_id),
-    ).order_by('first_name', 'last_name', 'email')
+    ).select_related('profile').order_by('first_name', 'last_name', 'email')
 
 
 def _limit_to_team(field, artwork):
@@ -55,7 +56,7 @@ def _limit_to_team(field, artwork):
 
 class EstafaContactChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, user):
-        return user.get_full_name() or user.email
+        return person_label(user)
 
 
 class ArtworkContactForm(forms.ModelForm):
@@ -492,20 +493,9 @@ class ArtworkProviderVehicleForm(forms.ModelForm):
 
 
 class ArtworkReviewForm(forms.ModelForm):
+    """Lo que registra ESTAFA. Las becas las gestiona otro equipo y no pasan por acá."""
+    FORM_ID = 'estafa-review'
     expected_updated_at = forms.CharField(widget=forms.HiddenInput, required=False)
-    grant_approved_amount_ars = LocalizedDecimalField(
-        required=False, max_digits=14, decimal_places=2, min_value=Decimal('0.01'),
-        label='Monto de beca aprobado',
-        widget=forms.TextInput(attrs={
-            'inputmode': 'decimal', 'autocomplete': 'off', 'data-money-input': 'true',
-            'placeholder': '450.000,00',
-        }),
-    )
-    confirm_large_grant_amount = forms.BooleanField(
-        required=False,
-        label='Confirmo el monto aprobado si supera ARS 1.000.000',
-        help_text='Verificá los separadores y la cantidad de ceros antes de guardar.',
-    )
 
     class Meta:
         model = Artwork
@@ -515,8 +505,6 @@ class ArtworkReviewForm(forms.ModelForm):
             'understanding_letter', 'understanding_letter_physical_received',
             'understanding_letter_physical_custodian', 'understanding_letter_physical_notes',
             'understanding_letter_physical_waiver', 'understanding_letter_physical_waiver_reason',
-            'grant_status', 'grant_approved_amount_ars',
-            'grant_decision_notes', 'grant_paid_at', 'grant_payment_reference',
             'assigned_location', 'placement_notes', 'checkout_team_responsible',
             'checkout_verified_at',
             'benefit_status', 'benefit_notes',
@@ -526,12 +514,12 @@ class ArtworkReviewForm(forms.ModelForm):
             'checkin_art_at': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
             'checkin_placement_change_notes': forms.Textarea(attrs={'rows': 4}),
             'review_feedback': forms.Textarea(attrs={'rows': 5}),
-            'grant_decision_notes': forms.Textarea(attrs={'rows': 5}),
-            'grant_paid_at': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
             'placement_notes': forms.Textarea(attrs={'rows': 5}),
             'checkout_verified_at': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
             'benefit_notes': forms.Textarea(attrs={'rows': 4}),
             'understanding_letter_physical_notes': forms.Textarea(attrs={'rows': 4}),
+            # Sin la casilla para borrar: el archivo actual se ve en la sección.
+            'understanding_letter': forms.FileInput,
         }
 
     def __init__(self, *args, can_manage=True, **kwargs):
@@ -553,7 +541,11 @@ class ArtworkReviewForm(forms.ModelForm):
             if 'checkout_team_responsible' in self.fields:
                 _limit_to_team(self.fields['checkout_team_responsible'], self.instance)
         for field in self.fields.values():
+            if isinstance(field.widget, forms.CheckboxInput):
+                field.widget.attrs.setdefault('class', 'form-check-input')
             field.widget.attrs.setdefault('class', 'form-select' if isinstance(field.widget, forms.Select) else 'form-control')
+            # Los campos viven en la sección que les corresponde, fuera del <form>.
+            field.widget.attrs['form'] = self.FORM_ID
 
     def clean(self):
         cleaned = super().clean()
@@ -561,19 +553,13 @@ class ArtworkReviewForm(forms.ModelForm):
             expected = cleaned.get('expected_updated_at')
             if not expected or expected != self.instance.updated_at.isoformat():
                 self.add_error(None, 'Otra coordinación modificó esta instalación. Recargá la página antes de guardar.')
-        if cleaned.get('grant_status') in (Artwork.GrantStatus.APPROVED, Artwork.GrantStatus.PAID) and not cleaned.get('grant_approved_amount_ars'):
-            self.add_error('grant_approved_amount_ars', 'Indicá el monto aprobado.')
-        if cleaned.get('grant_approved_amount_ars') and cleaned['grant_approved_amount_ars'] >= Decimal('1000000') and not cleaned.get('confirm_large_grant_amount'):
-            self.add_error('confirm_large_grant_amount', 'Confirmá el monto aprobado antes de guardar.')
-        if cleaned.get('grant_status') == Artwork.GrantStatus.PAID and not cleaned.get('grant_paid_at'):
-            self.add_error('grant_paid_at', 'Indicá cuándo se pagó la beca.')
         if cleaned.get('checkout_verified_at') and not self.instance.checkout_completed:
             self.add_error('checkout_verified_at', 'Esperá la solicitud de checkout del equipo de la instalación.')
         if cleaned.get('understanding_letter_physical_received') and not (
             cleaned.get('understanding_letter_physical_custodian')
             or cleaned.get('understanding_letter_physical_notes')
         ):
-            self.add_error('understanding_letter_physical_notes', 'Indicá quién tiene la carta física o dónde está guardada.')
+            self.add_error('understanding_letter_physical_notes', 'Indicá quién tiene la declaración física o dónde está guardada.')
         if cleaned.get('understanding_letter_physical_waiver') and not cleaned.get('understanding_letter_physical_waiver_reason'):
             self.add_error('understanding_letter_physical_waiver_reason', 'Indicá por qué corresponde la excepción por distancia a CABA.')
         return cleaned

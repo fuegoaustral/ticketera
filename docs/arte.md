@@ -24,11 +24,11 @@ Solo el `ArtProgram` marcado como **convocatoria anual vigente** permite crear i
 ## Flujo
 
 1. La persona crea la instalación o registra una instalación espontánea si cerró la inscripción ordinaria. Queda en **Inscripción pendiente**.
-2. ESTAFA la aprueba (**Inscripción activa**) o la rechaza (**Rechazada**, con mensaje obligatorio) desde el listado o la revisión. El equipo recibe un email en ambos casos. Una decisión se puede volver a **Inscripción pendiente**. El contacto de ESTAFA se asigna en cualquier estado y se conserva aunque cambie el estado.
+2. ESTAFA la aprueba (**Inscripción aprobada**) o la rechaza (**Rechazada**, con mensaje obligatorio) desde el listado o la revisión. El equipo recibe un email en ambos casos. Una decisión se puede volver a **Inscripción pendiente**. El contacto de ESTAFA se asigna en cualquier estado y se conserva aunque cambie el estado.
 3. ESTAFA asigna placement y registra el beneficio para la siguiente edición.
 4. La persona solicita la beca con un presupuesto por ítems. Cada ítem es ARS o USD; los USD guardan monto, cotización ARS/USD, fecha y fuente. El valor queda congelado para mantener trazabilidad histórica.
 5. Una beca aprobada se rinde con gastos por ítems, relato y al menos una foto final o de rendición. La fecha de cada gasto es la fecha real de pago.
-6. El checkout se habilita en la apertura de checkout del programa o, si no tiene fecha, cuando empieza el evento: las instalaciones activas pasan a **Checkout pendiente**. El equipo sube fotos del estado final y envía el checkout (**Checkout enviado**); ESTAFA lo verifica en el predio (**Checkout verificado**).
+6. El checkout se habilita en la apertura de checkout del programa o, si no tiene fecha, cuando empieza el evento: las instalaciones aprobadas pasan a **Checkout pendiente**. El equipo sube fotos del estado final y envía el checkout (**Checkout enviado**); ESTAFA lo verifica en el predio (**Checkout verificado**).
 
 Los comprobantes contables no se adjuntan todavía: el almacenamiento de medios actual no ofrece el aislamiento privado necesario. La galería sí pide autorización explícita de publicación en cada carga.
 

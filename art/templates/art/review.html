@@ -6,8 +6,8 @@
 <div class="container-fluid" style="max-width:1200px">
     <a class="small text-decoration-none" href="{% url 'art_admin_dashboard' event.slug %}">← Volver a ESTAFA</a>
     <div class="d-flex flex-column flex-md-row justify-content-between gap-3 my-4">
-        <div><h2 class="h3 mb-1">{{ artwork.title|default:'Instalación sin título' }}</h2><p class="text-muted mb-0">{{ artwork.owner.email|default:'Cuenta archivada' }} · {{ artwork.get_kind_display }}</p></div>
-        <div class="d-flex gap-2"><a class="btn btn-outline-primary" href="{% url 'artwork_edit' artwork.pk %}">Ver instalación</a><a class="btn btn-outline-primary" href="{% url 'artwork_photo_upload' artwork.pk %}">Subir fotos</a></div>
+        <div><h2 class="h3 mb-1">{{ artwork.title|default:'Instalación sin título' }}</h2><p class="text-muted mb-0">{% if artwork.owner %}{{ artwork.owner|person_name }}{% else %}Cuenta archivada{% endif %}</p></div>
+        <div class="d-flex gap-2"><a class="btn btn-outline-primary" href="{% url 'artwork_edit' artwork.pk %}">Ver instalación</a></div>
     </div>
     <section class="review-status mb-4" aria-label="Estado">
         <p class="d-flex flex-wrap align-items-center gap-2 mb-0">
@@ -43,67 +43,39 @@
         </form>
         {% endif %}
     </section>
-    <nav class="review-nav mb-4" aria-label="Secciones de revisión">
-        <span class="review-nav-label">Ir a:</span>
-        <a href="#admin-budget">Presupuesto</a>
-        <a href="#admin-expenses">Rendición</a>
-        <a href="#checkout-report">Checkout</a>
-        <a href="{% url 'artwork_edit' artwork.pk %}#carta-entendimiento">Check-in y carta</a>
-        <a href="{% url 'artwork_edit' artwork.pk %}#propuesta">Propuesta y seguridad</a>
-    </nav>
-    <div class="row g-3 mb-4">
-        <div class="col-md-4"><div class="p-3 border rounded"><small class="text-muted">Presupuesto</small><br><strong>ARS {{ budget_total_ars|art_money }}</strong></div></div>
-        <div class="col-md-4"><div class="p-3 border rounded"><small class="text-muted">Rendición</small><br><strong>ARS {{ expense_total_ars|art_money }}</strong></div></div>
-        <div class="col-md-4"><div class="p-3 border rounded"><small class="text-muted">Fotos</small><br><strong>{{ artwork.photos.count }}</strong></div></div>
-    </div>
-    <div class="row g-4 mb-4">
-        {% if can_manage %}
-        <section id="admin-budget" class="col-12" aria-labelledby="admin-budget-title">
-            <h3 id="admin-budget-title" class="h5">Detalle del presupuesto</h3>
-            <details class="inline-editor inline-create mb-3"{% if budget_create_form.errors %} open{% endif %}>
-                <summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar ítem</span></summary>
-                <form method="post" action="{% url 'grant_item_create' artwork.pk 'budget' %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
-                    <input type="hidden" name="return_to" value="review">
-                    {% include 'art/_inline_fields.html' with inline_form=budget_create_form %}
-                    <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Agregar al presupuesto</button></div>
-                </form>
+    <section class="review-sections" aria-labelledby="sections-title">
+        <h3 class="h5 mb-1" id="sections-title">Secciones</h3>
+        <p class="small text-muted mb-3">Abrí una sección para leer lo que cargó el equipo y completar lo que le toca a ESTAFA.</p>
+        {% if form.non_field_errors %}<div class="alert alert-danger" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+        <div class="review-section-list">
+            {% for section in sections %}
+            <details class="review-section" id="seccion-{{ section.key }}"{% if section.open %} open{% endif %}>
+                <summary>
+                    <span class="review-section-title">{{ section.title }}</span>
+                    <span class="review-section-status status-{{ section.status }}"><i class="fas {% if section.status == 'complete' %}fa-circle-check{% elif section.status == 'missing' %}fa-circle-exclamation{% elif section.status == 'estafa' %}fa-bell{% elif section.status == 'upcoming' %}fa-clock{% else %}fa-circle-info{% endif %}" aria-hidden="true"></i>{{ section.summary }}</span>
+                    <span class="review-section-when">{{ section.when }}</span>
+                    <i class="fas fa-chevron-down review-section-chevron" aria-hidden="true"></i>
+                </summary>
+                <div class="review-section-body">
+                    {% if section.key == 'propuesta' or section.key == 'desplegable' %}{% include 'art/review/_rows.html' %}
+                    {% elif section.key != 'beneficio' %}{% with template_name='art/review/_'|add:section.key|add:'.html' %}{% include template_name %}{% endwith %}{% endif %}
+                    {% if section.fields %}
+                    <div class="estafa-fields">
+                        <h4 class="h6"><i class="fas fa-paintbrush me-1" aria-hidden="true"></i>Lo completa ESTAFA</h4>
+                        {% for field in section.fields %}{% include 'art/_field.html' %}{% endfor %}
+                    </div>
+                    {% endif %}
+                    {% if section.anchor %}<a class="review-section-edit" href="{% url 'artwork_edit' artwork.pk %}#{{ section.anchor }}">Ver en la instalación <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i></a>{% endif %}
+                </div>
             </details>
-            {% include 'art/_grant_items.html' with items=budget_items can_edit=True can_review=True total_ars=budget_total_ars return_to='review' %}
-        </section>
-        <section id="admin-expenses" class="col-12" aria-labelledby="admin-expense-title">
-            <h3 id="admin-expense-title" class="h5">Detalle de la rendición</h3>
-            <details class="inline-editor inline-create mb-3"{% if expense_create_form.errors %} open{% endif %}>
-                <summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar gasto</span></summary>
-                <form method="post" action="{% url 'grant_item_create' artwork.pk 'expense' %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
-                    <input type="hidden" name="return_to" value="review">
-                    {% include 'art/_inline_fields.html' with inline_form=expense_create_form %}
-                    <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Agregar a la rendición</button></div>
-                </form>
-            </details>
-            {% include 'art/_grant_items.html' with items=expense_items can_edit=True can_review=True total_ars=expense_total_ars return_to='review' %}
-            {% if grant_over_budget %}<div class="alert alert-warning mt-3 mb-0"><strong>Revisión necesaria:</strong> la rendición supera el monto aprobado de ARS {{ artwork.grant_approved_amount_ars|art_money }}.</div>{% endif %}
-        </section>
-        {% endif %}
-    </div>
-    <section id="checkout-report" class="mb-4" aria-labelledby="checkout-report-title">
-        <h3 id="checkout-report-title" class="h5">Paso 2, verificación de ESTAFA</h3>
-        <p class="text-muted">Confirmá el checkout sólo después de que el equipo haya solicitado el paso 1. Las fotos dejan respaldo del estado final.</p>
-        <details class="inline-editor inline-create mb-3"{% if checkout_photo_upload_form.errors %} open{% endif %}>
-            <summary><i class="fas fa-camera" aria-hidden="true"></i><span>Agregar fotos al reporte</span></summary>
-            <form method="post" action="{% url 'artwork_checkout_photo_upload' artwork.pk %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
-                <input type="hidden" name="return_to" value="review">
-                {% include 'art/_inline_fields.html' with inline_form=checkout_photo_upload_form %}
-                <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Subir fotos</button></div>
-            </form>
-        </details>
-        {% if checkout_photos %}<div class="row g-3">{% for photo in checkout_photos %}<div class="col-6 col-lg-3"><figure class="gallery-card mb-0"><a href="{{ photo.image.url }}" target="_blank" rel="noopener"><img src="{{ photo.image.url }}" alt="{{ photo.caption|default:photo.get_category_display }}"></a><figcaption class="p-2 small"><strong>{{ photo.get_category_display }}</strong>{% if photo.caption %}<br>{{ photo.caption }}{% endif %}</figcaption>{% if not artwork.checkout_verified_at %}<form method="post" action="{% url 'artwork_checkout_photo_delete' artwork.pk photo.pk %}">{% csrf_token %}<input type="hidden" name="return_to" value="review"><button class="btn btn-sm btn-link text-danger p-2" type="submit" onclick="return confirm('¿Eliminar esta foto?')">Eliminar</button></form>{% endif %}</figure></div>{% endfor %}</div>{% else %}<p class="small text-muted">Todavía no hay fotos de checkout.</p>{% endif %}
+            {% endfor %}
+        </div>
+        <form class="review-save" id="{{ form.FORM_ID }}" method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}
+            {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+            <small class="text-muted">Guarda lo que completa ESTAFA en todas las secciones.</small>
+            <button class="btn btn-primary" type="submit">Guardar cambios</button>
+        </form>
     </section>
-    <form method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}
-        {% for field in form.hidden_fields %}{{ field }}{% endfor %}
-        {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
-        {% for field in form.visible_fields %}{% include 'art/_field.html' with field=field %}{% endfor %}
-        <div class="d-flex justify-content-end"><button class="btn btn-primary" type="submit">Guardar revisión</button></div>
-    </form>
 </div>
 <style>
     .review-status { padding: 1rem; border: 1px solid #d8e6df; border-radius: .55rem; }
@@ -113,18 +85,56 @@
     .review-contact { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #d8e6df; }
     .review-contact > div { max-width: 40rem; }
     .review-contact .form-select { min-height: 44px; }
-    .review-nav { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .75rem; border: 1px solid #d8e6df; border-radius: .55rem; background: #f4f8f6; }
-    .review-nav-label { color: #5c6b64; font-size: .875rem; font-weight: 600; }
-    .review-nav a { padding: .45rem .7rem; border: 1px solid #c8d9d0; border-radius: .4rem; color: #176b4a; background: #fff; font-size: .875rem; font-weight: 600; text-decoration: none; }
-    .review-nav a:hover, .review-nav a:focus-visible { color: #0f4c34; background: #e9f5f0; }
-    #admin-budget, #admin-expenses, #checkout-report { scroll-margin-top: 1rem; }
+    .review-section-list { border-top: 1px solid #dee2e6; }
+    .review-section { border-bottom: 1px solid #dee2e6; }
+    .review-section > summary { display: grid; grid-template-columns: minmax(12rem, 1.2fr) minmax(0, 1.6fr) minmax(7rem, auto) 1rem; gap: .5rem 1rem; align-items: center; min-height: 52px; padding: .65rem .5rem; cursor: pointer; list-style: none; }
+    .review-section > summary::-webkit-details-marker { display: none; }
+    .review-section > summary:hover { background: #f6faf8; }
+    .review-section > summary:focus-visible { outline: 3px solid rgba(40, 158, 109, .35); outline-offset: -3px; }
+    .review-section > summary, .review-rows dd { font-size: 1rem; line-height: 1.45; }
+    .review-section-title { font-weight: 600; }
+    .review-section-status { display: flex; align-items: baseline; gap: .45rem; }
+    .review-section-status .fas { flex: none; }
+    .status-complete .fas { color: #1f7a54; }
+    .status-missing .fas { color: #9a6700; }
+    .status-estafa { font-weight: 600; }
+    .status-estafa .fas { color: #0b4a7d; }
+    .status-upcoming, .status-info .fas { color: #6c757d; }
+    .review-section-when { color: #6c757d; font-size: .875rem; text-align: right; }
+    .review-section-chevron { color: #6c757d; transition: transform .2s ease; }
+    .review-section[open] .review-section-chevron { transform: rotate(180deg); }
+    .review-section-body { padding: .25rem .5rem 1.25rem; }
+    .review-rows { display: grid; grid-template-columns: minmax(10rem, 14rem) 1fr; gap: .4rem 1rem; margin: 0; }
+    .review-rows dt { color: #5c6b64; font-weight: 600; font-size: .875rem; }
+    .review-rows dd { margin: 0; max-width: 70ch; }
+    .review-people { margin: 0; padding: 0; list-style: none; }
+    .review-people li { display: flex; justify-content: space-between; gap: 1rem; padding: .4rem 0; border-bottom: 1px solid #f0f2f1; }
+    .review-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .75rem; }
+    .review-photos figure { margin: 0; }
+    .review-photos img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: .4rem; }
+    .review-photos figcaption { font-size: .8rem; color: #5c6b64; margin-top: .25rem; }
+    .review-provider { padding: .6rem 0; border-bottom: 1px solid #f0f2f1; }
+    .estafa-fields { margin-top: 1.25rem; padding: 1rem; border: 1px solid #d8e6df; border-radius: .5rem; background: #f6faf8; }
+    .review-section-edit { display: inline-flex; align-items: center; min-height: 44px; margin-top: .5rem; font-weight: 600; text-decoration: none; }
+    .review-save { display: flex; justify-content: flex-end; align-items: center; gap: 1rem; margin-top: 1.25rem; }
+    .review-save .btn { min-height: 44px; }
+    #checkout-report { scroll-margin-top: 1rem; }
+    @media (max-width: 767px) {
+        .review-section > summary { grid-template-columns: 1fr 1rem; }
+        .review-section-title { grid-column: 1; }
+        .review-section-status, .review-section-when { grid-column: 1; text-align: left; }
+        .review-section-chevron { grid-column: 2; grid-row: 1; }
+        .review-rows { grid-template-columns: 1fr; gap: 0; }
+        .review-rows dd { margin-bottom: .6rem; }
+        .review-save { flex-direction: column; align-items: stretch; }
+    }
+    @media (prefers-reduced-motion: reduce) { .review-section-chevron { transition: none; } }
     .inline-editor { border: 1px solid #dee2e6; border-radius: .45rem; background: #fafbfa; }
     .inline-editor > summary { display: flex; align-items: center; gap: .5rem; width: fit-content; padding: .5rem .7rem; color: #176b4a; font-weight: 600; cursor: pointer; list-style: none; }
     .inline-editor > summary::-webkit-details-marker { display: none; }
     .inline-editor[open] > summary { margin-bottom: .25rem; }
     .inline-editor > form { padding: .75rem; border-top: 1px solid #dee2e6; }
     .inline-create { background: #f4f8f6; }
-    .money-summary { display: flex; justify-content: space-between; gap: 1rem; align-items: center; margin: .25rem 0 1rem; padding: .7rem .85rem; border: 1px solid #c8d9d0; border-radius: .4rem; background: #edf6f1; color: #176b4a; }
     .inline-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1rem; }
     .inline-form-wide { grid-column: 1 / -1; }
     .inline-images { display: flex; flex-wrap: wrap; gap: .5rem; }
@@ -134,7 +144,14 @@
     @media (max-width: 767px) { .inline-form-grid { grid-template-columns: 1fr; } .inline-form-wide { grid-column: auto; } }
 </style>
 {% include 'art/_image_preview.html' %}
-{% include 'art/_money_inputs.html' %}
 {% include 'art/_messages.html' %}
 {% include 'art/_restore_position.html' %}
+<script>
+    // Un enlace a algo dentro de una sección cerrada (por ejemplo #checkout-report) la abre.
+    (function () {
+        var target = location.hash && document.getElementById(location.hash.slice(1));
+        var section = target && target.closest('details.review-section');
+        if (section) { section.open = true; target.scrollIntoView(); }
+    })();
+</script>
 {% endblock %}

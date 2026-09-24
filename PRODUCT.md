@@ -10,7 +10,7 @@ Artistas y equipos de instalación completan inscripciones, becas, logística, c
 
 ## Product Purpose
 
-Ticketera reúne todo lo de cada Instalación de Arte de Fuego Austral: propuesta, seguridad, carta de entendimiento, beca, rendición, logística, placement y checkout. La interfaz debe hacer evidente qué falta, quién puede actuar y qué dato queda registrado.
+Ticketera reúne todo lo de cada Instalación de Arte de Fuego Austral: propuesta, seguridad, declaración de entendimiento, beca, rendición, logística, placement y checkout. La interfaz debe hacer evidente qué falta, quién puede actuar y qué dato queda registrado.
 
 ## Brand Personality
 

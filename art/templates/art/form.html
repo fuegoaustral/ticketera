@@ -49,12 +49,12 @@
 
     <section class="form-section mb-4" id="carta-entendimiento" aria-labelledby="understanding-letter-title">
         <div class="section-heading">
-            <div><span>01</span><h2 id="understanding-letter-title">Check-in · carta de entendimiento</h2></div>
+            <div><span>01</span><h2 id="understanding-letter-title">Check-in · declaración de entendimiento</h2></div>
             {% if can_edit_artwork and form.understanding_letter.field.disabled %}<span class="badge bg-secondary">Cerrado</span>{% endif %}
         </div>
         <p class="text-muted">Subí la versión digital firmada{% if program.understanding_letter_digital_opens %} desde {{ program.understanding_letter_digital_opens|date:'d/m/Y H:i' }}{% endif %}{% if program.understanding_letter_digital_deadline %} hasta {{ program.understanding_letter_digital_deadline|date:'d/m/Y H:i' }}{% endif %}. La versión física se entrega{% if program.understanding_letter_physical_opens %} desde {{ program.understanding_letter_physical_opens|date:'d/m/Y H:i' }}{% endif %}{% if program.understanding_letter_physical_deadline %} hasta {{ program.understanding_letter_physical_deadline|date:'d/m/Y H:i' }}{% endif %}; si tenés una excepción por distancia a CABA, la coordinación puede autorizar entregarla en el evento antes de empezar a construir. En el evento, Arte registra la llegada y ubicación final de la instalación.</p>
         {% include 'art/_field.html' with field=form.understanding_letter %}
-        {% if artwork.understanding_letter_physical_received %}<div class="alert alert-success py-2 mb-0"><strong>Carta física recibida.</strong>{% if artwork.understanding_letter_physical_custodian %} Responsable: {{ artwork.understanding_letter_physical_custodian }}.{% endif %}{% if artwork.understanding_letter_physical_notes %}<br>{{ artwork.understanding_letter_physical_notes|linebreaksbr }}{% endif %}</div>{% endif %}
+        {% if artwork.understanding_letter_physical_received %}<div class="alert alert-success py-2 mb-0"><strong>Declaración física recibida.</strong>{% if artwork.understanding_letter_physical_custodian %} Responsable: {{ artwork.understanding_letter_physical_custodian }}.{% endif %}{% if artwork.understanding_letter_physical_notes %}<br>{{ artwork.understanding_letter_physical_notes|linebreaksbr }}{% endif %}</div>{% endif %}
     </section>
 
     <form id="artwork-form" method="post" enctype="multipart/form-data" novalidate>
@@ -106,11 +106,11 @@
             {% endif %}
             <ul class="team-list list-unstyled mb-0">
                 {% for member in team_members %}
-                {% with name=member.user.get_full_name|default:member.user.email %}
+                {% with name=member.user|person_name full_name=member.user|person_full_name %}
                 <li class="team-member">
                     <div class="team-member-person">
                         <strong>{{ name }}</strong>{% if member.is_self %} <span class="text-muted">(vos)</span>{% endif %}
-                        {% if member.user.get_full_name %}<small class="d-block text-muted">{{ member.user.email }}</small>{% endif %}
+                        {% if name != member.user.email %}<small class="d-block text-muted">{% if full_name %}{{ full_name }} · {% endif %}{{ member.user.email }}</small>{% endif %}
                         {% if member.missing_ticket %}<small class="team-ticket-warning"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i>{% if member.is_self %}<span>Todavía no tenés tu bono para este evento · <a href="{{ tickets_path }}">Conseguí tu bono</a></span>{% else %}<span>Todavía no tiene bono para este evento</span>{% endif %}</small>{% endif %}
                     </div>
                     <div class="team-member-access">

@@ -1,0 +1,12 @@
+{% if section.rows %}
+<div class="review-photos">
+    {% for photo in section.rows %}
+    <figure>
+        <a href="{{ photo.image.url }}" target="_blank" rel="noopener"><img src="{{ photo.image.url }}" alt="{{ photo.caption|default:photo.get_stage_display }}" loading="lazy"></a>
+        <figcaption>{{ photo.get_stage_display }}{% if photo.publication_authorized %} · publicación autorizada{% endif %}</figcaption>
+    </figure>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-muted mb-0">El equipo todavía no subió fotos.</p>
+{% endif %}

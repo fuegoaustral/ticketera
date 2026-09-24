@@ -1,0 +1,6 @@
+<dl class="review-rows">
+    {% for label, value in section.rows %}
+    <dt>{{ label|capfirst }}</dt>
+    <dd>{% if value or value == 0 %}{{ value|linebreaksbr }}{% else %}{% include 'art/_dash.html' with label='Sin completar' %}{% endif %}</dd>
+    {% endfor %}
+</dl>

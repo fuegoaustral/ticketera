@@ -1,0 +1,15 @@
+<dl class="review-rows">
+    <dt>Ingreso</dt><dd>{% if artwork.arrival_date %}{{ artwork.arrival_date|date:'d/m/Y' }}{% else %}{% include 'art/_dash.html' with label='Sin completar' %}{% endif %}</dd>
+    <dt>Salida</dt><dd>{% if artwork.departure_date %}{{ artwork.departure_date|date:'d/m/Y' }}{% else %}{% include 'art/_dash.html' with label='Sin completar' %}{% endif %}</dd>
+</dl>
+{% for provider in section.rows %}
+<div class="review-provider">
+    <strong>{{ provider.company_name }}</strong> <span class="text-muted">· {{ provider.service_description }}</span>
+    <small class="d-block">{{ provider.contact_first_name }} {{ provider.contact_last_name }} · {{ provider.phone }} · {{ provider.email }}</small>
+    {% if provider.for_entry %}<small class="d-block text-muted">Ingreso anticipado: {{ provider.early_entry_at|date:'d/m H:i'|default:'sin horario' }} a {{ provider.early_exit_at|date:'d/m H:i'|default:'sin horario' }}</small>{% endif %}
+    {% if provider.for_exit %}<small class="d-block text-muted">Desarme y retiro: {{ provider.dismantling_entry_at|date:'d/m H:i'|default:'sin horario' }} a {{ provider.dismantling_exit_at|date:'d/m H:i'|default:'sin horario' }}</small>{% endif %}
+    {% for vehicle in provider.vehicles.all %}<small class="d-block text-muted">{{ vehicle.get_vehicle_type_display }} {{ vehicle.plate }} · {{ vehicle.make_model }} · {{ vehicle.driver_name }}</small>{% endfor %}
+</div>
+{% empty %}
+<p class="text-muted mb-0">Sin proveedores cargados.</p>
+{% endfor %}

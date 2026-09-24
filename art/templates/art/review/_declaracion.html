@@ -1,0 +1,6 @@
+<dl class="review-rows">
+    <dt>Declaración digital</dt>
+    <dd>{% if artwork.understanding_letter %}<a href="{{ artwork.understanding_letter.url }}" target="_blank" rel="noopener">Ver archivo</a>{% else %}{% include 'art/_dash.html' with label='Sin subir' %}{% endif %}</dd>
+    <dt>Declaración física</dt>
+    <dd>{% if artwork.understanding_letter_physical_received %}Recibida{% elif artwork.understanding_letter_physical_waiver %}Excepción por distancia a CABA{% else %}{% include 'art/_dash.html' with label='Sin recibir' %}{% endif %}</dd>
+</dl>

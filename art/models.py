@@ -47,10 +47,10 @@ class ArtProgram(BaseModel):
     logistics_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de logística')
     checkout_opens = models.DateTimeField(null=True, blank=True, verbose_name='Apertura de checkout')
     checkout_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de checkout')
-    understanding_letter_digital_opens = models.DateTimeField(null=True, blank=True, verbose_name='Apertura de carta digital')
-    understanding_letter_digital_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de carta digital')
-    understanding_letter_physical_opens = models.DateTimeField(null=True, blank=True, verbose_name='Apertura de carta física')
-    understanding_letter_physical_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de carta física')
+    understanding_letter_digital_opens = models.DateTimeField(null=True, blank=True, verbose_name='Apertura de declaración digital')
+    understanding_letter_digital_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de declaración digital')
+    understanding_letter_physical_opens = models.DateTimeField(null=True, blank=True, verbose_name='Apertura de declaración física')
+    understanding_letter_physical_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de declaración física')
     grant_report_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de rendición de becas')
     reminder_days = models.JSONField(default=default_art_reminder_days, blank=True, verbose_name='Días de anticipación para recordatorios')
     reminder_email_enabled = models.BooleanField(default=True, verbose_name='Recordatorios por email')
@@ -82,7 +82,7 @@ class ArtProgram(BaseModel):
         ):
             if opens and deadline and deadline < opens:
                 errors[f'understanding_letter_{"digital" if label == "digital" else "physical"}_deadline'] = (
-                    f'El cierre de la carta {label} no puede ser anterior a la apertura.'
+                    f'El cierre de la declaración {label} no puede ser anterior a la apertura.'
                 )
         if not isinstance(self.reminder_days, list) or any(not isinstance(day, int) or day < 0 for day in self.reminder_days):
             errors['reminder_days'] = 'Usá una lista de días enteros no negativos, por ejemplo [7, 3, 1].'
@@ -130,17 +130,17 @@ class Artwork(BaseModel):
 
     class Status(models.TextChoices):
         PENDING = 'pending', 'Inscripción pendiente'
-        ACTIVE = 'active', 'Inscripción activa'
+        ACTIVE = 'active', 'Inscripción aprobada'
         REJECTED = 'rejected', 'Rechazada'
         CHECKOUT_SUBMITTED = 'checkout', 'Checkout enviado'
         CHECKOUT_VERIFIED = 'verified', 'Checkout verificado'
 
-    # Etapa que se muestra: una inscripción activa pasa a "Checkout pendiente"
+    # Etapa que se muestra: una inscripción aprobada pasa a "Checkout pendiente"
     # cuando se habilita el checkout, sin que nadie cambie el estado guardado.
     CHECKOUT_PENDING = 'checkout_pending'
     STAGES = {
         Status.PENDING: ('Inscripción pendiente', 'ESTAFA está revisando tu inscripción. Podés seguir editándola mientras tanto.'),
-        Status.ACTIVE: ('Inscripción activa', 'Tu instalación está confirmada. Completá cada sección antes de su cierre.'),
+        Status.ACTIVE: ('Inscripción aprobada', 'Tu instalación está confirmada. Completá cada sección antes de su cierre.'),
         CHECKOUT_PENDING: ('Checkout pendiente', 'Cuando retires la instalación y limpies el espacio, completá el checkout y envialo.'),
         Status.CHECKOUT_SUBMITTED: ('Checkout enviado', 'El equipo de Arte va a verificar el retiro y la limpieza.'),
         Status.CHECKOUT_VERIFIED: ('Checkout verificado', '¡Gracias por tu instalación!'),
@@ -220,23 +220,23 @@ class Artwork(BaseModel):
     checkout_verified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_artwork_checkouts')
     understanding_letter = models.FileField(
         upload_to='art/understanding_letters', storage=private_art_storage,
-        blank=True, verbose_name='Carta de entendimiento digital',
+        blank=True, verbose_name='Declaración de entendimiento digital',
     )
     understanding_letter_physical_received = models.BooleanField(
-        default=False, verbose_name='Carta física recibida',
+        default=False, verbose_name='Declaración física recibida',
     )
     understanding_letter_physical_custodian = models.CharField(
-        max_length=200, blank=True, verbose_name='Responsable de la carta física',
+        max_length=200, blank=True, verbose_name='Responsable de la declaración física',
     )
     understanding_letter_physical_notes = models.TextField(
-        blank=True, verbose_name='Ubicación o comentarios sobre la carta física',
+        blank=True, verbose_name='Ubicación o comentarios sobre la declaración física',
     )
     understanding_letter_physical_waiver = models.BooleanField(
         default=False, verbose_name='Excepción de entrega previa por distancia a CABA',
         help_text='Autoriza no entregarla previamente en CABA; igualmente debe entregarse en el evento antes de empezar a construir.',
     )
     understanding_letter_physical_waiver_reason = models.TextField(
-        blank=True, verbose_name='Motivo de la excepción de carta física',
+        blank=True, verbose_name='Motivo de la excepción de declaración física',
     )
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING, verbose_name='Estado de la instalación')
     status_changed_at = models.DateTimeField(null=True, blank=True, verbose_name='Cambio de estado')
@@ -270,7 +270,7 @@ class Artwork(BaseModel):
 
         if not self.operations_group_id:
             return GrupoMiembro.objects.none()
-        return self.operations_group.miembros.select_related('user')
+        return self.operations_group.miembros.select_related('user__profile')
 
     def is_team_member(self, user):
         return self.team_members().filter(user=user).exists()
@@ -336,7 +336,7 @@ class Artwork(BaseModel):
             (self.understanding_letter_physical_custodian or '').strip()
             or (self.understanding_letter_physical_notes or '').strip()
         ):
-            errors['understanding_letter_physical_notes'] = 'Indicá quién tiene la carta física o dónde está guardada.'
+            errors['understanding_letter_physical_notes'] = 'Indicá quién tiene la declaración física o dónde está guardada.'
         if errors:
             raise ValidationError(errors)
 

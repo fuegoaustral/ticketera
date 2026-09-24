@@ -1,0 +1,8 @@
+{% load art_format %}
+<ul class="review-people">
+    {% for member in section.rows %}
+    <li><span><strong>{{ member.user|person_name }}</strong>{% with full_name=member.user|person_full_name %}{% if full_name %} <span class="text-muted">· {{ full_name }}</span>{% endif %}{% endwith %}</span><span class="text-muted">{{ member.role }}</span></li>
+    {% empty %}
+    <li class="text-muted">Todavía no hay personas en el equipo.</li>
+    {% endfor %}
+</ul>

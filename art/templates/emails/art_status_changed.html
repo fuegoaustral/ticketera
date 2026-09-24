@@ -1,9 +1,9 @@
 {% extends "emails/base.html" %}
 {% block subject %}{% if approved %}Aprobamos tu instalación {{ artwork.title|safe }}{% else %}Novedades sobre tu instalación {{ artwork.title|safe }}{% endif %}{% endblock %}
-{% block title %}{% if approved %}Tu inscripción está activa{% else %}Tu instalación no fue aceptada{% endif %}{% endblock %}
+{% block title %}{% if approved %}Tu inscripción está aprobada{% else %}Tu instalación no fue aceptada{% endif %}{% endblock %}
 {% block content %}
 {% if approved %}
-<p>ESTAFA aprobó <strong>{{ artwork.title }}</strong> para {{ artwork.event.name }}. Tu inscripción ya está activa.</p>
+<p>ESTAFA aprobó la inscripción de <strong>{{ artwork.title }}</strong> para {{ artwork.event.name }}.</p>
 <p>Completá cada sección de la instalación antes de su cierre.</p>
 {% if artwork.estafa_contact %}<p>Tu contacto de ESTAFA es <strong>{{ artwork.estafa_contact.get_full_name|default:artwork.estafa_contact.email }}</strong>{% if artwork.estafa_contact.email %} (<a href="mailto:{{ artwork.estafa_contact.email }}">{{ artwork.estafa_contact.email }}</a>){% endif %}.</p>{% endif %}
 {% else %}

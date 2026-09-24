@@ -157,7 +157,7 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(sent['template_name'], 'art_contact_assigned')
         self.assertEqual(set(sent['recipient_list']), {'artista@example.com', 'colab@example.com'})
         self.assertEqual(sent['headers'], {'Reply-To': 'juana@example.com'})
-        self.assertContains(self.client.get(reverse('art_admin_dashboard', args=[self.event.slug])), 'Contacto: Juana Coord')
+        self.assertContains(self.client.get(reverse('art_admin_dashboard', args=[self.event.slug])), '<td>Juana Coord</td>', html=True)
 
         # Guardar el mismo contacto no vuelve a avisar.
         send_mail.reset_mock()
@@ -186,7 +186,7 @@ class ArtworkFlowTest(TestCase):
         send_mail.assert_not_called()
         artwork.refresh_from_db()
         self.assertIsNone(artwork.estafa_contact)
-        self.assertContains(self.client.get(reverse('art_admin_dashboard', args=[self.event.slug])), 'Sin contacto de ESTAFA')
+        self.assertContains(self.client.get(reverse('art_admin_dashboard', args=[self.event.slug])), '<td><span class="text-muted">Sin contacto</span></td>', html=True)
 
         self.client.post(contact_url, {'estafa_contact': self.stranger.pk})
         artwork.refresh_from_db()
@@ -648,28 +648,111 @@ class ArtworkFlowTest(TestCase):
 
         self.assertFalse(ArtworkPhotoUploadForm({'stage': ArtworkPhoto.Stage.PROCESS}, {}).is_valid())
 
-    def test_admin_dashboard_filters_and_exports_operational_tags(self):
-        tagged = Artwork.objects.create(
-            event=self.event, owner=self.owner, title='Escultura sonora',
-            uses_fire=True, uses_sound=True,
-        )
-        Artwork.objects.create(event=self.event, owner=self.owner, title='Obra silenciosa')
-        self.client.force_login(self.admin)
+    def test_people_show_by_nickname_then_full_name_then_email(self):
+        from art.templatetags.art_format import person_full_name, person_label, person_name
 
-        dashboard = self.client.get(reverse('art_admin_dashboard', args=[self.event.slug]), {
-            'fire': 'yes', 'sound': 'yes',
+        user = User.objects.create_user(username='sin-nombre', email='sin@example.com')
+        self.assertEqual((person_name(user), person_full_name(user), person_label(user)), ('sin@example.com', '', 'sin@example.com'))
+        user.first_name, user.last_name = 'Juan Bautista', 'Sanchez'
+        self.assertEqual((person_name(user), person_full_name(user)), ('Juan Bautista Sanchez', ''))
+        user.profile.nickname = 'Juancho'
+        self.assertEqual(person_name(user), 'Juancho')
+        self.assertEqual(person_label(user), 'Juancho (Juan Bautista Sanchez)')
+        self.assertEqual(person_name(None), '')
+
+    def test_admin_list_shows_people_by_name_and_searches_them(self):
+        self.owner.first_name, self.owner.last_name = 'Ana', 'Artista'
+        self.owner.save()
+        self.owner.profile.nickname = 'Anita'
+        self.owner.profile.save()
+        Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
+        self.client.force_login(self.admin)
+        url = reverse('art_admin_dashboard', args=[self.event.slug])
+        dashboard = self.client.get(url)
+        self.assertContains(dashboard, 'Anita')
+        self.assertNotContains(dashboard, self.owner.email)
+        self.assertNotContains(dashboard, 'No solicitada')
+        self.assertNotContains(dashboard, '<th>Beca</th>', html=True)
+        for query in ('anita', 'artista', self.owner.email):
+            self.assertEqual([a.title for a in self.client.get(url, {'q': query}).context['artworks']], ['Faro'], query)
+
+    def test_review_sections_mark_complete_when_required_fields_are_filled(self):
+        from art.review_sections import COMPLETE, MISSING, UPCOMING, review_sections
+
+        artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
+
+        def section(key):
+            return {item.key: item for item in review_sections(artwork, self.program)}[key]
+
+        self.assertEqual(section('propuesta').status, MISSING)
+        self.assertEqual(section('propuesta').missing, ['Descripción', 'Dimensiones', 'Materiales'])
+        artwork.proposal, artwork.dimensions, artwork.materials = 'Una torre', '3 × 3', 'Madera'
+        self.assertEqual(section('propuesta').status, COMPLETE)
+        artwork.uses_fire = True
+        self.assertIn('Plan de extinción', section('propuesta').missing)
+
+        self.assertEqual(section('declaracion').missing, ['Declaración digital', 'Declaración física'])
+        artwork.understanding_letter_physical_waiver = True
+        self.assertEqual(section('declaracion').missing, ['Declaración digital'])
+
+        self.assertEqual(section('checkout').status, UPCOMING)
+        artwork.status = Artwork.Status.CHECKOUT_VERIFIED
+        self.assertEqual((section('checkout').status, section('checkout').summary), (COMPLETE, 'Verificado'))
+        self.assertEqual([item.key for item in review_sections(artwork, self.program)], [
+            'declaracion', 'propuesta', 'equipo', 'galeria', 'desplegable', 'logistica', 'checkout', 'beneficio',
+        ])
+
+    def test_review_page_shows_the_team_content_and_saves_estafa_fields(self):
+        artwork = Artwork.objects.create(
+            event=self.event, owner=self.owner, title='Faro', proposal='Una torre de luz', dimensions='3 × 3',
+        )
+        self.client.force_login(self.admin)
+        url = reverse('artwork_review', args=[self.event.slug, artwork.pk])
+        page = self.client.get(url)
+        self.assertContains(page, 'Una torre de luz')
+        self.assertContains(page, 'Pendiente: materiales')
+        self.assertContains(page, 'form="estafa-review"')
+        self.assertNotContains(page, reverse('artwork_photo_upload', args=[artwork.pk]))
+
+        response = self.client.post(url, {
+            'expected_updated_at': artwork.updated_at.isoformat(), 'assigned_location': 'Playa norte',
+            'benefit_status': artwork.benefit_status,
         })
-        self.assertContains(dashboard, tagged.title)
-        self.assertNotContains(dashboard, 'Obra silenciosa')
-        self.assertContains(dashboard, 'Tiene fuego')
-        self.assertContains(dashboard, 'Tiene sonido')
+        self.assertRedirects(response, url)
+        artwork.refresh_from_db()
+        self.assertEqual(artwork.assigned_location, 'Playa norte')
+
+    def test_admin_dashboard_filters_and_exports_by_estafa_contact(self):
+        contact = User.objects.create_user(
+            username='juana', email='juana@example.com', first_name='Juana', last_name='Coord',
+        )
+        TeamMembership.objects.create(team=Team.objects.get(slug=ESTAFA_SLUG), user=contact, started_on=timezone.localdate())
+        Artwork.objects.create(event=self.event, owner=self.owner, title='De Juana', estafa_contact=contact)
+        Artwork.objects.create(event=self.event, owner=self.owner, title='Mía', estafa_contact=self.admin)
+        Artwork.objects.create(event=self.event, owner=self.owner, title='Sin nadie')
+        self.client.force_login(self.admin)
+        url = reverse('art_admin_dashboard', args=[self.event.slug])
+
+        def titles(contact_filter):
+            return [artwork.title for artwork in self.client.get(url, {'contact': contact_filter}).context['artworks']]
+
+        self.assertEqual(titles(''), ['De Juana', 'Mía', 'Sin nadie'])
+        self.assertEqual(titles('me'), ['Mía'])
+        self.assertEqual(titles('none'), ['Sin nadie'])
+        self.assertEqual(titles(str(contact.pk)), ['De Juana'])
+        dashboard = self.client.get(url)
+        self.assertIn((str(contact.pk), 'Juana Coord'), dashboard.context['contact_choices'])
+        self.assertNotContains(dashboard, 'Etiquetas')
+        self.assertNotContains(dashboard, 'Modalidad')
 
         exported = self.client.get(reverse('art_admin_export', args=[self.event.slug]), {
-            'fire': 'yes', 'sound': 'yes',
+            'contact': contact.pk,
         }).content.decode('utf-8-sig')
-        self.assertIn('Etiquetas', exported)
-        self.assertIn('Tiene fuego, Tiene sonido', exported)
-        self.assertNotIn('Obra silenciosa', exported)
+        self.assertIn('Contacto de ESTAFA', exported)
+        self.assertIn('Declaración de entendimiento digital', exported)
+        self.assertIn('juana@example.com', exported)
+        self.assertNotIn('Sin nadie', exported)
+        self.assertNotIn('Etiquetas', exported)
 
     def test_structured_logistics_checkout_and_grant_item_images(self):
         artwork = Artwork.objects.create(
@@ -762,17 +845,10 @@ class ArtworkFlowTest(TestCase):
 
         self.client.force_login(self.admin)
         review = self.client.get(reverse('artwork_review', args=[self.event.slug, artwork.pk]))
-        self.assertContains(review, 'Agregar ítem')
-        self.assertContains(review, 'Agregar gasto')
-        self.assertContains(review, reverse('grant_item_edit', args=[artwork.pk, artwork.grant_items.get().pk]))
-        response = self.client.post(reverse('grant_item_create', args=[artwork.pk, 'expense']), {
-            'item_type': 'service', 'concept': 'Flete', 'amount': '2000', 'currency': 'ARS',
-            'exchange_rate': '1', 'rate_date': timezone.localdate(), 'return_to': 'review',
-        })
-        self.assertEqual(
-            response.url,
-            f"{reverse('artwork_review', args=[self.event.slug, artwork.pk])}#admin-expenses",
-        )
+        # Las becas las gestiona otro equipo: la revisión de ESTAFA no las muestra.
+        for grant_text in ('Agregar ítem', 'Agregar gasto', 'Presupuesto', 'Rendición', 'name="grant_status"'):
+            self.assertNotContains(review, grant_text)
+        self.assertNotIn('grant_status', review.context['form'].fields)
 
         artwork.refresh_from_db()
         form = self.artwork_form({
@@ -860,7 +936,7 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(list(dashboard.context['assigned_artworks']), [artwork])
         response = self.client.get(review_url)
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Carta física recibida')
+        self.assertContains(response, 'Declaración física recibida')
 
         response = self.client.post(review_url, {
             'expected_updated_at': artwork.updated_at.isoformat(),
@@ -1147,7 +1223,7 @@ class ArtworkFlowTest(TestCase):
         url = reverse('art_admin_dashboard', args=[self.event.slug])
         titles = [artwork.title for artwork in self.client.get(url).context['artworks']]
         self.assertEqual(titles, ['Pendiente', 'Enviada', 'Activa', 'Rechazada'])
-        self.assertContains(self.client.get(url), 'value="approve"', count=1)
+        self.assertNotContains(self.client.get(url), 'value="approve"')
 
         self.assertEqual([a.title for a in self.client.get(url, {'status': 'checkout_pending'}).context['artworks']], [])
         self.program.checkout_opens = timezone.now() - timedelta(hours=1)

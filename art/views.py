@@ -3,6 +3,7 @@ import logging
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Case, F, IntegerField, Q, Value, When
 from django.http import Http404, HttpResponse, HttpResponseForbidden
@@ -16,7 +17,7 @@ from events.models import Event, Grupo, GrupoMiembro, GrupoTipo
 from tickets.models import NewTicket, TicketType
 from utils.email import send_mail
 
-from .estafa import can_access_estafa, can_coordinate, estafa_events, is_estafa_member
+from .estafa import can_access_estafa, can_coordinate, estafa_events, estafa_members, is_estafa_member
 from .forms import (
     ArtworkForm, ArtworkGrantItemForm, ArtworkTeamAddForm,
     ArtworkCheckoutPhotoUploadForm, ArtworkPhotoUploadForm, ArtworkProviderForm, ArtworkProviderVehicleForm,
@@ -27,6 +28,8 @@ from .models import (
     ArtworkPhoto, ArtworkCheckoutPhoto, ArtworkProvider,
     ArtworkProviderVehicle,
 )
+from .review_sections import review_sections
+from .templatetags.art_format import person_label
 
 
 def _base_context(event=None):
@@ -49,8 +52,8 @@ def _checkpoints(program):
         {'key': 'guide', 'anchor': 'placement', 'label': 'Desplegable', 'deadline': program.guide_deadline, 'state': program.checkpoint_state('guide')},
         {'key': 'logistics', 'anchor': 'logistica', 'label': 'Ingreso y desarme', 'deadline': program.logistics_deadline, 'state': program.checkpoint_state('logistics')},
         {'key': 'checkout', 'anchor': 'checkout', 'label': 'Checkout', 'deadline': program.checkout_deadline, 'state': program.checkpoint_state('checkout')},
-        {'key': 'understanding_letter_digital', 'anchor': 'carta-entendimiento', 'label': 'Carta de entendimiento digital', 'deadline': program.understanding_letter_digital_deadline, 'state': program.checkpoint_state('understanding_letter_digital')},
-        {'key': 'understanding_letter_physical', 'anchor': 'carta-entendimiento', 'label': 'Carta de entendimiento física', 'deadline': program.understanding_letter_physical_deadline, 'state': program.checkpoint_state('understanding_letter_physical')},
+        {'key': 'understanding_letter_digital', 'anchor': 'carta-entendimiento', 'label': 'Declaración de entendimiento digital', 'deadline': program.understanding_letter_digital_deadline, 'state': program.checkpoint_state('understanding_letter_digital')},
+        {'key': 'understanding_letter_physical', 'anchor': 'carta-entendimiento', 'label': 'Declaración de entendimiento física', 'deadline': program.understanding_letter_physical_deadline, 'state': program.checkpoint_state('understanding_letter_physical')},
     ]
     if program.grants_enabled:
         checkpoints.append({'key': 'grant_report', 'anchor': 'rendicion', 'label': 'Rendición', 'deadline': program.grant_report_deadline, 'state': program.checkpoint_state('grant_report')})
@@ -312,12 +315,16 @@ def _estafa_context(user, event):
 
 def _review_context(artwork, form, user, inline_forms=None):
     inline_forms = inline_forms or {}
-    grant_context = _grant_context(artwork, inline_forms)
-    for item in grant_context['budget_items'] + grant_context['expense_items']:
-        item.review_form = ArtworkGrantItemReviewForm(instance=item, auto_id=f'grant-review-{item.pk}_%s')
+    sections = review_sections(artwork, artwork.event.art_program)
+    checkout_upload_form = inline_forms.get(('checkout-photo-new', None))
+    for section in sections:
+        section.fields = [form[name] for name in section.estafa_fields if name in form.fields]
+        section.open = any(bound.errors for bound in section.fields) or (
+            section.key == 'checkout' and checkout_upload_form is not None
+        )
     return {
-        **_estafa_context(user, artwork.event), **grant_context,
-        'artwork': artwork, 'form': form,
+        **_estafa_context(user, artwork.event),
+        'artwork': artwork, 'form': form, 'sections': sections,
         'contact_form': ArtworkContactForm(instance=artwork, auto_id='contact_%s'),
         'can_manage': artwork.can_manage(user),
         'checkout_photo_upload_form': inline_forms.get(('checkout-photo-new', None)) or ArtworkCheckoutPhotoUploadForm(
@@ -951,15 +958,27 @@ def _managed_event(request, event_slug):
     return event
 
 
-def _filtered_artworks(event, params):
-    artworks = event.artworks.select_related('owner', 'safety_responsible', 'estafa_contact').prefetch_related(
-        'grant_items', 'checkout_photos', 'operations_group__miembros', 'artwork_providers__vehicles',
+def _estafa_contact_choices(event):
+    contacts = User.objects.filter(
+        Q(pk__in=estafa_members().values('pk')) | Q(estafa_contact_artworks__event=event),
+    ).distinct().order_by('first_name', 'last_name', 'email')
+    return [(str(user.pk), person_label(user)) for user in contacts.select_related('profile')]
+
+
+def _filtered_artworks(event, params, user):
+    artworks = event.artworks.select_related(
+        'event__art_program', 'owner__profile', 'safety_responsible', 'estafa_contact__profile',
+    ).prefetch_related(
+        'checkout_photos', 'operations_group__miembros', 'artwork_providers__vehicles',
     )
     query = params.get('q', '').strip()
     if query:
         artworks = artworks.filter(
             Q(title__icontains=query)
             | Q(owner__email__icontains=query)
+            | Q(owner__first_name__icontains=query)
+            | Q(owner__last_name__icontains=query)
+            | Q(owner__profile__nickname__icontains=query)
             | Q(public_title__icontains=query)
             | Q(assigned_location__icontains=query)
         )
@@ -977,11 +996,13 @@ def _filtered_artworks(event, params):
             artworks = artworks.filter(status=stage)
     if params.get('grant') in Artwork.GrantStatus.values:
         artworks = artworks.filter(grant_status=params['grant'])
-    if params.get('kind') in Artwork.Kind.values:
-        artworks = artworks.filter(kind=params['kind'])
-    for parameter, field in (('fire', 'uses_fire'), ('sound', 'uses_sound')):
-        if params.get(parameter) in ('yes', 'no'):
-            artworks = artworks.filter(**{field: params[parameter] == 'yes'})
+    contact = params.get('contact', '')
+    if contact == 'me':
+        artworks = artworks.filter(estafa_contact=user)
+    elif contact == 'none':
+        artworks = artworks.filter(estafa_contact__isnull=True)
+    elif contact.isdigit():
+        artworks = artworks.filter(estafa_contact_id=contact)
     # Primero lo que espera a ESTAFA: inscripciones y checkouts por revisar.
     turn = Case(
         When(status=Artwork.Status.PENDING, then=Value(0)),
@@ -1009,13 +1030,12 @@ def art_admin_dashboard(request, event_slug):
     event = _managed_event(request, event_slug)
     if not event:
         return HttpResponseForbidden('No tenés permisos para coordinar Arte en este evento.')
-    artworks = _filtered_artworks(event, request.GET)
+    artworks = _filtered_artworks(event, request.GET, request.user)
     assigned = event.artworks.filter(estafa_contact=request.user).select_related('owner').order_by('status', 'title')
     return render(request, 'art/admin_dashboard.html', {
         **_estafa_context(request.user, event), 'artworks': artworks, 'assigned_artworks': assigned,
         'status_choices': [(stage, label) for stage, (label, _hint) in Artwork.STAGES.items()],
-        'grant_choices': Artwork.GrantStatus.choices,
-        'kind_choices': Artwork.Kind.choices,
+        'contact_choices': _estafa_contact_choices(event),
     })
 
 
@@ -1131,30 +1151,23 @@ def art_admin_export(request, event_slug):
     response.write('\ufeff')
     writer = csv.writer(response)
     writer.writerow([
-        'Instalación', 'Modalidad', 'Responsable', 'Estado', 'Etiquetas', 'Responsable de seguridad',
-        'Beca', 'Presupuesto ARS', 'Rendición ARS', 'Título público', 'Descripción pública',
-        'Ubicación asignada', 'Carta digital', 'Carta física', 'Personas del equipo',
+        'Instalación', 'Modalidad', 'Responsable', 'Responsable (nombre)', 'Estado', 'Contacto de ESTAFA', 'Responsable de seguridad',
+        'Título público', 'Descripción pública',
+        'Declaración de entendimiento digital', 'Declaración de entendimiento física', 'Personas del equipo',
         'Proveedores', 'Vehículos', 'Fotos checkout', 'Checkout', 'Actualizada',
     ])
-    for artwork in _filtered_artworks(event, request.GET):
-        tags = ', '.join(label for enabled, label in (
-            (artwork.uses_fire, 'Tiene fuego'),
-            (artwork.uses_sound, 'Tiene sonido'),
-        ) if enabled)
+    for artwork in _filtered_artworks(event, request.GET, request.user):
         providers = list(artwork.artwork_providers.all())
         writer.writerow([_csv_cell(value) for value in [
             artwork.title,
             artwork.get_kind_display(),
             artwork.owner.email if artwork.owner else '',
+            person_label(artwork.owner),
             artwork.stage_label,
-            tags,
+            artwork.estafa_contact.email if artwork.estafa_contact else '',
             artwork.safety_responsible.email if artwork.safety_responsible else '',
-            artwork.get_grant_status_display(),
-            artwork.grant_total_ars(ArtworkGrantItem.Phase.BUDGET),
-            artwork.grant_total_ars(ArtworkGrantItem.Phase.EXPENSE),
             artwork.public_title,
             artwork.public_description,
-            artwork.assigned_location,
             artwork.understanding_letter.name if artwork.understanding_letter else '',
             'Sí' if artwork.understanding_letter_physical_received else 'No',
             len(artwork.operations_group.miembros.all()) if artwork.operations_group else 0,

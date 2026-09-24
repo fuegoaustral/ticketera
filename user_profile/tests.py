@@ -11,7 +11,7 @@ from user_profile.forms import (
     MAX_EVENT_REQUEST_BANNER_BYTES,
     EventRequestForm,
 )
-from user_profile.models import SedeSubscription
+from user_profile.models import Profile, SedeSubscription
 from user_profile.services.sede_mercadopago import (
     _deactivate_stale_members,
     _reconcile_local_subscriptions_with_remote_detail_truth,
@@ -137,3 +137,25 @@ class LoginFormTests(TestCase):
         self.assertContains(response, 'Usuario o contraseña incorrectos.')
         self.assertContains(response, 'value="ana@example.com"')
         self.assertContains(response, 'autofocus')
+
+
+class ProfileNicknameTests(TestCase):
+    def test_nickname_is_optional_and_saved_from_personal_information(self):
+        profile = _make_profile('juana')
+        profile.profile_completion = Profile.COMPLETE
+        profile.save()
+        self.client.force_login(profile.user)
+        response = self.client.get(reverse('profile'))
+        self.assertContains(response, '¿Cómo te dicen?')
+
+        data = {
+            'update_profile': '1', 'first_name': 'Juana', 'last_name': 'Pérez',
+            'document_type': Profile.DNI, 'document_number': '30111222',
+        }
+        self.assertRedirects(self.client.post(reverse('profile'), data), reverse('profile'))
+        profile.refresh_from_db()
+        self.assertEqual(profile.nickname, '')
+
+        self.client.post(reverse('profile'), {**data, 'nickname': 'Juani'})
+        profile.refresh_from_db()
+        self.assertEqual(profile.nickname, 'Juani')
