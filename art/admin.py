@@ -12,8 +12,6 @@ from .models import (
     Artwork,
     ArtworkGrantItem,
     ArtworkGrantItemPhoto,
-    ArtworkInvitation,
-    ArtworkLogisticsPerson,
     ArtworkPhoto,
     ArtworkCheckoutPhoto,
     ArtworkProvider,
@@ -152,16 +150,6 @@ class ArtworkCheckoutPhotoInline(admin.TabularInline):
     extra = 0
 
 
-class ArtworkInvitationInline(admin.TabularInline):
-    model = ArtworkInvitation
-    extra = 0
-
-
-class ArtworkLogisticsPersonInline(admin.TabularInline):
-    model = ArtworkLogisticsPerson
-    extra = 0
-
-
 class ArtworkProviderInline(admin.TabularInline):
     model = ArtworkProvider
     extra = 0
@@ -196,7 +184,7 @@ class ArtworkAdmin(admin.ModelAdmin):
     list_display = ('title', 'event', 'kind', 'status', 'owner', 'grant_status', 'assigned_location', 'checkout_verified_at', 'updated_at')
     list_filter = ('event', 'kind', 'status', 'grant_status', 'checkout_completed', 'understanding_letter_physical_received', 'submitted_at')
     search_fields = ('title', 'owner__email', 'public_description')
-    autocomplete_fields = ('owner', 'collaborators', 'operations_group', 'checkin_art_by', 'estafa_contact', 'checkout_verified_by', 'safety_responsible')
+    autocomplete_fields = ('owner', 'collaborators', 'operations_group', 'checkout_team_responsible', 'checkin_art_by', 'estafa_contact', 'checkout_verified_by', 'safety_responsible')
     readonly_fields = ('submitted_at', 'status_changed_at', 'status_changed_by', 'checkin_art_by', 'checkout_requested_at', 'checkout_verified_by', 'created_at', 'updated_at', 'version')
     fieldsets = (
         ('Instalación', {'fields': ('event', 'owner', 'collaborators', 'operations_group', 'kind', 'title')}),
@@ -209,7 +197,7 @@ class ArtworkAdmin(admin.ModelAdmin):
         ('Checkout, paso 2, ESTAFA', {'fields': ('checkout_verified_at', 'checkout_verified_by')}),
         ('Seguimiento', {'fields': ('status', 'status_changed_at', 'status_changed_by', 'estafa_contact', 'review_feedback', 'benefit_status', 'benefit_notes', 'submitted_at', 'version', 'created_at', 'updated_at')}),
     )
-    inlines = [ArtworkBudgetItemInline, ArtworkExpenseItemInline, ArtworkPhotoInline, ArtworkCheckoutPhotoInline, ArtworkInvitationInline, ArtworkLogisticsPersonInline, ArtworkProviderInline]
+    inlines = [ArtworkBudgetItemInline, ArtworkExpenseItemInline, ArtworkPhotoInline, ArtworkCheckoutPhotoInline, ArtworkProviderInline]
     actions = ('approve_grant_reports', 'reopen_grant_reports')
 
     def get_readonly_fields(self, request, obj=None):

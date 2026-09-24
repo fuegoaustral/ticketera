@@ -21,11 +21,12 @@ from .estafa import ESTAFA_SLUG
 from .reminders import send_art_reminders
 from .views import _checkpoints
 from .models import (
-    ArtProgram, Artwork, ArtworkGrantItem, ArtworkInvitation,
-    ArtworkCheckoutPhoto, ArtworkLogisticsPerson, ArtworkPhoto, ArtworkProvider,
+    ArtProgram, Artwork, ArtworkGrantItem,
+    ArtworkCheckoutPhoto, ArtworkPhoto, ArtworkProvider,
     ArtworkProviderVehicle,
 )
 from events.models import Event
+from tickets.models import NewTicket, Order, TicketType
 from teams.models import Team, TeamMembership
 from user_profile.models import Profile
 
@@ -243,7 +244,7 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(artwork.kind, Artwork.Kind.PLANNED)
         self.assertEqual(artwork.status, Artwork.Status.PENDING)
         self.assertEqual(artwork.proposal, '')
-        self.assertIsNone(artwork.operations_group)
+        self.assertEqual(artwork.operations_group.lider, self.owner)
 
     def test_first_save_creates_a_draft(self):
         self.open_registration()
@@ -333,7 +334,7 @@ class ArtworkFlowTest(TestCase):
         artwork.refresh_from_db()
         self.assertFalse(artwork.uses_fire)
 
-    def test_creation_can_include_safety_budget_gallery_and_early_entry(self):
+    def test_creation_can_include_safety_budget_gallery_and_team(self):
         self.program.registration_closes = timezone.now() + timedelta(days=1)
         self.program.save(update_fields=['registration_closes'])
         self.client.force_login(self.owner)
@@ -356,61 +357,147 @@ class ArtworkFlowTest(TestCase):
         self.client.post(reverse('artwork_photo_upload', args=[artwork.pk]), {
             'images': self.image('inicio.gif'), 'stage': ArtworkPhoto.Stage.PROPOSAL,
         })
-        self.client.post(reverse('logistics_person_create', args=[artwork.pk]), {
-            'first_name': 'Ada', 'last_name': 'Sur', 'email': 'ada@example.com', 'phone': '+5491112345678',
-            'document_type': 'DNI', 'document_number': '30111222', 'early_entry': 'on',
-            'early_entry_date': timezone.localdate(),
-        })
+        self.client.post(reverse('artwork_team_add', args=[artwork.pk]), {'identifier': '10000002'})
         self.assertEqual(artwork.safety_responsible, self.collaborator)
         self.assertEqual(artwork.grant_items.count(), 1)
         self.assertEqual(artwork.photos.count(), 1)
-        self.assertEqual(artwork.logistics_people.count(), 1)
-
-    def test_cleanup_migration_deletes_only_empty_drafts(self):
-        from importlib import import_module
-
-        from django.apps import apps
-        cleanup = import_module('art.migrations.0003_delete_empty_artwork_drafts').delete_empty_drafts
-        # Filas previas a la migración de estados, cuando existía 'draft'.
-        empty = Artwork.objects.create(event=self.event, owner=self.owner, status='draft')
-        titled = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro', status='draft')
-        with_photo = Artwork.objects.create(event=self.event, owner=self.owner, status='draft')
-        ArtworkPhoto.objects.create(artwork=with_photo, image=self.image('foto.gif'), stage=ArtworkPhoto.Stage.PROPOSAL)
-        edited = Artwork.objects.create(event=self.event, owner=self.owner, version=2, status='draft')
-        with_collaborator = Artwork.objects.create(event=self.event, owner=self.owner, status='draft')
-        with_collaborator.collaborators.add(self.collaborator)
-
-        cleanup(apps, None)
-
-        self.assertFalse(Artwork.objects.filter(pk=empty.pk).exists())
         self.assertEqual(
-            set(Artwork.objects.values_list('pk', flat=True)),
-            {titled.pk, with_photo.pk, edited.pk, with_collaborator.pk},
+            set(artwork.team_members().values_list('user__email', flat=True)),
+            {self.owner.email, self.collaborator.email},
         )
 
-    def test_cleanup_migration_deletes_blank_pending_artworks(self):
-        from importlib import import_module
+    def team_artwork(self):
+        self.client.force_login(self.owner)
+        self.program.registration_closes = timezone.now() + timedelta(days=1)
+        self.program.save(update_fields=['registration_closes'])
+        self.client.post(reverse('artwork_create', args=[self.event.slug]), {'title': 'Faro'})
+        return Artwork.objects.get(owner=self.owner)
 
-        from django.apps import apps
-        cleanup = import_module('art.migrations.0006_delete_blank_artworks').delete_blank_artworks
-        # Borradores que 0003 no borró: se guardaron una vez y 0004 los pasó a pendientes.
-        saved_once = Artwork.objects.create(event=self.event, owner=self.owner, version=2)
-        grant_click = Artwork.objects.create(event=self.event, owner=self.owner, version=2, grant_requested=True)
-        titled = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
-        with_proposal = Artwork.objects.create(event=self.event, owner=self.owner, proposal='Una idea')
-        with_photo = Artwork.objects.create(event=self.event, owner=self.owner)
-        ArtworkPhoto.objects.create(artwork=with_photo, image=self.image('foto.gif'), stage=ArtworkPhoto.Stage.PROPOSAL)
-        with_collaborator = Artwork.objects.create(event=self.event, owner=self.owner)
-        with_collaborator.collaborators.add(self.collaborator)
-        rejected = Artwork.objects.create(event=self.event, owner=self.owner, status=Artwork.Status.REJECTED)
-
-        cleanup(apps, None)
-
-        self.assertFalse(Artwork.objects.filter(pk__in=[saved_once.pk, grant_click.pk]).exists())
-        self.assertEqual(
-            set(Artwork.objects.values_list('pk', flat=True)),
-            {titled.pk, with_proposal.pk, with_photo.pk, with_collaborator.pk, rejected.pk},
+    def give_ticket(self, user):
+        ticket_type = TicketType.objects.create(event=self.event, name='General', price=Decimal('10.00'), ticket_count=10)
+        order = Order.objects.create(
+            first_name='A', last_name='B', email=user.email, phone='1111111111', dni='30111222',
+            amount=Decimal('10.00'), event=self.event, user=user, status=Order.OrderStatus.CONFIRMED,
         )
+        return NewTicket.objects.create(event=self.event, order=order, ticket_type=ticket_type, owner=user, holder=user)
+
+    @patch('art.views.send_mail')
+    def test_team_is_the_artwork_group_and_people_join_by_email_or_document(self, send_mail):
+        artwork = self.team_artwork()
+        self.assertEqual(artwork.operations_group.lider, self.owner)
+        self.assertEqual(artwork.operations_group.tipo.nombre, 'ARTE')
+        self.assertTrue(artwork.is_team_member(self.owner))
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(reverse('artwork_team_add', args=[artwork.pk]), {'identifier': '10.000.002'})
+        self.assertEqual(response.url, f"{reverse('artwork_edit', args=[artwork.pk])}#equipo")
+        self.assertTrue(artwork.is_team_member(self.collaborator))
+        self.assertFalse(artwork.can_edit(self.collaborator))
+        self.assertEqual(send_mail.call_args.kwargs['template_name'], 'art_team_member_added')
+        self.assertEqual(send_mail.call_args.kwargs['recipient_list'], [self.collaborator.email])
+        self.assertFalse(send_mail.call_args.kwargs['context']['can_edit'])
+        self.assertFalse(send_mail.call_args.kwargs['context']['missing_ticket'])
+
+        EmailAddress.objects.create(user=self.stranger, email='otra.cuenta@example.com', verified=True)
+        self.client.post(reverse('artwork_team_add', args=[artwork.pk]), {'identifier': 'OTRA.cuenta@example.com'})
+        self.assertTrue(artwork.is_team_member(self.stranger))
+
+        duplicate = self.client.post(reverse('artwork_team_add', args=[artwork.pk]), {'identifier': self.collaborator.email})
+        self.assertContains(duplicate, 'Esa persona ya es parte del equipo de la instalación.')
+        missing = self.client.post(reverse('artwork_team_add', args=[artwork.pk]), {'identifier': 'nadie@example.com'})
+        self.assertContains(missing, 'No encontramos una cuenta con ese email o DNI.')
+        self.assertContains(missing, 'aria-invalid="true"')
+        self.assertEqual(artwork.team_members().count(), 3)
+
+        self.client.force_login(self.stranger)
+        self.assertContains(self.client.get(reverse('art_dashboard')), 'Faro')
+        page = self.client.get(reverse('artwork_edit', args=[artwork.pk]))
+        self.assertContains(page, 'Puede ver')
+        self.assertContains(page, 'podés ver la instalación. Para editarla, pedile permiso')
+        self.assertNotContains(page, reverse('artwork_team_add', args=[artwork.pk]))
+        self.assertTrue(page.context['form'].fields['title'].disabled)
+        # Solo ver no es lo mismo que una sección cerrada: sin insignias, sin Guardar, sin cargas.
+        self.assertNotContains(page, 'badge bg-secondary')
+        self.assertNotContains(page, 'value="save"')
+        self.assertNotContains(page, reverse('artwork_photo_upload', args=[artwork.pk]))
+        self.assertNotContains(page, 'Agregar ítem')
+        response = self.client.post(reverse('grant_item_create', args=[artwork.pk, 'budget']), {
+            'item_type': 'materials', 'concept': 'Hierro', 'amount': '1500', 'currency': 'ARS',
+            'exchange_rate': '1', 'rate_date': timezone.localdate(),
+        })
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(artwork.grant_items.exists())
+
+    def test_team_roles_limit_who_adds_removes_and_grants_editing(self):
+        artwork = self.team_artwork()
+        self.client.post(reverse('artwork_team_add', args=[artwork.pk]), {'identifier': self.collaborator.email})
+        self.client.post(reverse('artwork_team_add', args=[artwork.pk]), {'identifier': self.stranger.email})
+        editor = artwork.team_members().get(user=self.collaborator)
+        viewer = artwork.team_members().get(user=self.stranger)
+        leader = artwork.team_members().get(user=self.owner)
+
+        self.client.force_login(self.stranger)
+        extra = User.objects.create_user(username='extra', email='extra@example.com')
+        self.assertEqual(self.client.post(reverse('artwork_team_add', args=[artwork.pk]), {'identifier': extra.email}).status_code, 403)
+        self.assertEqual(self.client.post(reverse('artwork_team_access', args=[artwork.pk, viewer.pk]), {'can_edit': 'on'}).status_code, 403)
+
+        self.client.force_login(self.owner)
+        self.client.post(reverse('artwork_team_access', args=[artwork.pk, editor.pk]), {'can_edit': 'on'})
+        self.assertTrue(artwork.can_edit(self.collaborator))
+        self.assertEqual(self.client.post(reverse('artwork_team_remove', args=[artwork.pk, leader.pk])).status_code, 403)
+        self.assertEqual(self.client.post(reverse('artwork_team_access', args=[artwork.pk, leader.pk])).status_code, 403)
+
+        self.client.force_login(self.collaborator)
+        self.assertEqual(self.client.post(reverse('artwork_team_add', args=[artwork.pk]), {'identifier': extra.email}).status_code, 302)
+        self.assertEqual(self.client.post(reverse('artwork_team_access', args=[artwork.pk, viewer.pk]), {'can_edit': 'on'}).status_code, 403)
+        page = self.client.get(reverse('artwork_edit', args=[artwork.pk]))
+        self.assertNotContains(page, f'id="team-edit-{viewer.pk}"')
+        self.assertEqual(self.client.post(reverse('artwork_team_remove', args=[artwork.pk, viewer.pk])).status_code, 302)
+        self.assertFalse(artwork.is_team_member(self.stranger))
+
+        self.client.force_login(self.admin)
+        self.client.post(reverse('artwork_team_remove', args=[artwork.pk, editor.pk]))
+        self.assertFalse(artwork.is_team_member(self.collaborator))
+        self.assertFalse(artwork.can_edit(self.collaborator))
+
+    def test_team_flags_missing_tickets_once_sales_start(self):
+        artwork = self.team_artwork()
+        self.client.post(reverse('artwork_team_add', args=[artwork.pk]), {'identifier': self.collaborator.email})
+        page = self.client.get(reverse('artwork_edit', args=[artwork.pk]))
+        self.assertNotContains(page, 'bono para este evento')
+
+        TicketType.objects.create(
+            event=self.event, name='Futura', price=Decimal('10.00'), ticket_count=10,
+            date_from=timezone.now() + timedelta(days=1),
+        )
+        self.assertNotContains(self.client.get(reverse('artwork_edit', args=[artwork.pk])), 'bono para este evento')
+
+        self.give_ticket(self.collaborator)
+        page = self.client.get(reverse('artwork_edit', args=[artwork.pk]))
+        self.assertContains(page, 'Todavía no tenés tu bono para este evento')
+        self.assertContains(page, reverse('event_home', args=[self.event.slug]))
+        self.assertNotContains(page, 'Todavía no tiene bono para este evento')
+
+    def test_joining_a_group_needs_no_ticket_but_early_entry_does(self):
+        from events.models import GrupoMiembro
+
+        artwork = self.team_artwork()
+        member = GrupoMiembro.objects.create(grupo=artwork.operations_group, user=self.collaborator)
+        member.ingreso_anticipado = True
+        with self.assertRaisesMessage(ValidationError, 'Para tener ingreso anticipado o late checkout necesita uno.'):
+            member.save()
+        ticket = self.give_ticket(self.collaborator)
+        member.save()
+        member.late_checkout = True
+        member.save()
+
+        # Desvincular el bono saca los beneficios, pero la persona sigue en el equipo.
+        self.complete_profile(self.collaborator)
+        self.client.force_login(self.collaborator)
+        self.client.post(reverse('unassign_ticket', args=[ticket.key]))
+        member.refresh_from_db()
+        self.assertFalse(member.ingreso_anticipado or member.late_checkout)
+        self.assertTrue(artwork.is_team_member(self.collaborator))
 
     def test_public_description_limit_is_configurable(self):
         self.program.public_description_max_length = 10
@@ -523,7 +610,7 @@ class ArtworkFlowTest(TestCase):
         self.assertContains(page, 'data-sticky-actions>', count=1)
         self.assertContains(page, '--sticky-actions-height')
 
-    def test_permissions_invitation_and_multiple_photo_upload(self):
+    def test_permissions_team_and_multiple_photo_upload(self):
         artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro', proposal='Texto')
         self.client.force_login(self.stranger)
         self.assertEqual(self.client.get(reverse('artwork_edit', args=[artwork.pk])).status_code, 404)
@@ -532,24 +619,19 @@ class ArtworkFlowTest(TestCase):
         self.client.force_login(self.owner)
         self.assertEqual(self.client.get(reverse('artwork_edit', args=[artwork.pk])).status_code, 200)
 
-        form = self.artwork_form({
-            'kind': Artwork.Kind.POPUP, 'title': artwork.title, 'proposal': artwork.proposal,
-            'collaborator_emails': 'invitada@example.com', 'expected_version': artwork.version,
-        }, artwork=artwork)
-        self.assertTrue(form.is_valid(), form.errors)
-        form.save()
-        invitation = ArtworkInvitation.objects.get(artwork=artwork, email='invitada@example.com')
-        invited = User.objects.create_user(username='invitada', email='invitada@example.com')
-        invited.profile.document_number = '20000001'
-        invited.profile.phone = '+5491100000099'
-        invited.profile.profile_completion = Profile.COMPLETE
-        invited.profile.save()
-        EmailAddress.objects.create(user=invited, email=invited.email, verified=True, primary=True)
+        invited = self.complete_profile(User.objects.create_user(username='invitada', email='invitada@example.com'))
+        response = self.client.post(reverse('artwork_team_add', args=[artwork.pk]), {'identifier': 'Invitada@Example.com'})
+        self.assertEqual(response.status_code, 302)
+        artwork.refresh_from_db()
+        self.assertTrue(artwork.is_team_member(invited))
+        self.assertFalse(artwork.can_edit(invited))
         self.client.force_login(invited)
-        self.assertEqual(self.client.get(reverse('art_invitation_accept', args=[invitation.token])).status_code, 200)
-        self.assertFalse(artwork.collaborators.filter(pk=invited.pk).exists())
-        self.assertEqual(self.client.post(reverse('art_invitation_accept', args=[invitation.token])).status_code, 302)
-        self.assertTrue(artwork.collaborators.filter(pk=invited.pk).exists())
+        self.assertEqual(self.client.get(reverse('artwork_edit', args=[artwork.pk])).status_code, 200)
+        self.client.force_login(self.owner)
+        member = artwork.team_members().get(user=invited)
+        self.client.post(reverse('artwork_team_access', args=[artwork.pk, member.pk]), {'can_edit': 'on'})
+        self.assertTrue(artwork.can_edit(invited))
+        self.client.force_login(invited)
 
         image = self.image('obra.gif')
         response = self.client.post(reverse('artwork_photo_upload', args=[artwork.pk]), {
@@ -602,23 +684,8 @@ class ArtworkFlowTest(TestCase):
         dismantling_entry_at = entry_at + timedelta(days=4)
         dismantling_exit_at = dismantling_entry_at + timedelta(hours=9)
 
-        response = self.client.post(reverse('logistics_person_create', args=[artwork.pk]), {
-            'first_name': 'Ada', 'last_name': 'Sur', 'email': 'ada@example.com', 'phone': '+5491112345678',
-            'document_type': 'DNI', 'document_number': '30111222', 'early_entry': 'on',
-            'early_entry_date': timezone.localdate(), 'dismantling': 'on',
-            'dismantling_date': timezone.localdate() + timedelta(days=4),
-        })
+        response = self.client.post(reverse('artwork_team_add', args=[artwork.pk]), {'identifier': self.collaborator.email})
         self.assertEqual(response.status_code, 302)
-        person = ArtworkLogisticsPerson.objects.get(artwork=artwork)
-        response = self.client.post(reverse('logistics_person_edit', args=[artwork.pk, person.pk]), {
-            'first_name': 'Ada', 'last_name': 'Sur', 'email': 'ada@example.com', 'phone': '+5491112345678',
-            'document_type': 'DNI', 'document_number': '30111222',
-            'early_entry_date': timezone.localdate(), 'dismantling': 'on',
-            'dismantling_date': timezone.localdate() + timedelta(days=4),
-        })
-        self.assertEqual(response.status_code, 302)
-        person.refresh_from_db()
-        self.assertIsNone(person.early_entry_date)
 
         invalid_provider = self.client.post(reverse('artwork_provider_create', args=[artwork.pk]), {
             'company_name': 'Sin operación', 'contact_first_name': 'Luz', 'contact_last_name': 'Ríos',
@@ -710,12 +777,17 @@ class ArtworkFlowTest(TestCase):
         artwork.refresh_from_db()
         form = self.artwork_form({
             'kind': artwork.kind, 'title': artwork.title, 'proposal': artwork.proposal,
-            'checkout_team_responsible': person.pk, 'expected_version': artwork.version,
+            'checkout_team_responsible': self.collaborator.pk, 'expected_version': artwork.version,
         }, artwork=artwork)
         self.assertTrue(form.is_valid(), form.errors)
         form.save()
         artwork.refresh_from_db()
-        self.assertEqual(artwork.checkout_team_responsible, person)
+        self.assertEqual(artwork.checkout_team_responsible, self.collaborator)
+        outsider = self.artwork_form({
+            'kind': artwork.kind, 'title': artwork.title, 'proposal': artwork.proposal,
+            'checkout_team_responsible': self.stranger.pk, 'expected_version': artwork.version,
+        }, artwork=artwork)
+        self.assertFalse(outsider.is_valid())
 
     def test_security_boundaries(self):
         artwork = Artwork.objects.create(
@@ -750,22 +822,6 @@ class ArtworkFlowTest(TestCase):
         verified_checkout.save()
         artwork.refresh_from_db()
         self.assertTrue(artwork.checkout_completed)
-
-        form = self.artwork_form({
-            'kind': Artwork.Kind.POPUP, 'title': artwork.title, 'proposal': artwork.proposal,
-            'collaborator_emails': self.collaborator.email, 'expected_version': artwork.version,
-        }, artwork=artwork)
-        self.assertTrue(form.is_valid(), form.errors)
-        form.save()
-        self.assertFalse(artwork.collaborators.filter(pk=self.collaborator.pk).exists())
-        self.assertTrue(ArtworkInvitation.objects.filter(artwork=artwork, email=self.collaborator.email).exists())
-
-        too_many = ','.join(f'persona{index}@example.com' for index in range(21))
-        limited = self.artwork_form({
-            'kind': Artwork.Kind.POPUP, 'title': artwork.title, 'proposal': artwork.proposal,
-            'collaborator_emails': too_many, 'expected_version': artwork.version,
-        }, artwork=artwork)
-        self.assertFalse(limited.is_valid())
 
         artwork.collaborators.add(self.collaborator)
         artwork.refresh_from_db()

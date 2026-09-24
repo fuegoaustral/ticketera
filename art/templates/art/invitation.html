@@ -1,9 +1,0 @@
-{% extends 'mi_fuego/my_tickets/index.html' %}
-{% block page_title %}Invitación a una instalación{% endblock %}
-{% block truecontent %}
-<div class="container-fluid" style="max-width:680px">
-    <h2 class="h3">Sumarte a “{{ invitation.artwork.title|default:'esta instalación' }}”</h2>
-    <p>Al aceptar vas a poder ver y editar la instalación junto con el resto del equipo.</p>
-    <form method="post">{% csrf_token %}<button class="btn btn-primary" type="submit">Aceptar invitación</button></form>
-</div>
-{% endblock %}

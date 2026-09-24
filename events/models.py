@@ -282,14 +282,14 @@ class EventTermsAndConditionsAcceptance(BaseModel):
 
 
 class GrupoTipo(BaseModel):
-    """Tipos de grupos (ARTE, CAMP, CAOS, etc)"""
-    nombre = models.CharField(max_length=100, unique=True, help_text="Nombre del tipo de grupo (ej: ARTE, CAMP, CAOS)")
-    descripcion = models.TextField(blank=True, null=True, help_text="Descripción opcional del tipo de grupo")
-    activo = models.BooleanField(default=True, help_text="Indica si el tipo de grupo está activo")
+    """Tipos de equipo (ARTE, CAMP, CAOS, etc)"""
+    nombre = models.CharField(max_length=100, unique=True, help_text="Nombre del tipo de equipo (ej: ARTE, CAMP, CAOS)")
+    descripcion = models.TextField(blank=True, null=True, help_text="Descripción opcional del tipo de equipo")
+    activo = models.BooleanField(default=True, help_text="Indica si el tipo de equipo está activo")
 
     class Meta:
-        verbose_name = "Tipo de Grupo"
-        verbose_name_plural = "Tipos de Grupo"
+        verbose_name = "Tipo de equipo"
+        verbose_name_plural = "Tipos de equipo"
         ordering = ['nombre']
 
     def __str__(self):
@@ -297,26 +297,26 @@ class GrupoTipo(BaseModel):
 
 
 class Grupo(BaseModel):
-    """Grupos de usuarios asociados a un evento"""
-    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='grupos', help_text="Evento al que pertenece el grupo")
-    lider = models.ForeignKey(User, on_delete=models.CASCADE, related_name='grupos_liderados', verbose_name="Responsable", help_text="Usuario responsable del grupo")
-    nombre = models.CharField(max_length=255, help_text="Nombre del grupo")
-    tipo = models.ForeignKey(GrupoTipo, on_delete=models.RESTRICT, related_name='grupos', help_text="Tipo de grupo")
+    """Equipos de personas en un evento (una instalación de arte, un camp, CAOS)"""
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='grupos', help_text="Evento al que pertenece el equipo")
+    lider = models.ForeignKey(User, on_delete=models.CASCADE, related_name='grupos_liderados', verbose_name="Responsable", help_text="Usuario responsable del equipo")
+    nombre = models.CharField(max_length=255, help_text="Nombre del equipo")
+    tipo = models.ForeignKey(GrupoTipo, on_delete=models.RESTRICT, related_name='grupos', help_text="Tipo de equipo")
     ingreso_anticipado_amount = models.PositiveIntegerField(default=0, help_text="Cantidad máxima de personas que pueden tener ingreso anticipado")
     ingreso_anticipado_desde = models.DateTimeField(null=True, blank=True, help_text="Fecha y hora desde la cual se puede hacer ingreso anticipado")
     late_checkout_hasta = models.DateTimeField(null=True, blank=True, help_text="Fecha y hora hasta la cual se puede hacer late checkout")
     late_checkout_amount = models.PositiveIntegerField(default=0, help_text="Cantidad máxima de personas que pueden tener late checkout")
 
     class Meta:
-        verbose_name = "Grupo"
-        verbose_name_plural = "Grupos"
+        verbose_name = "Equipo"
+        verbose_name_plural = "Equipos"
         ordering = ['tipo__nombre', 'nombre']
 
     def __str__(self):
         return f"{self.tipo.nombre} - {self.nombre} ({self.event.name})"
 
     def miembros_count(self):
-        """Retorna la cantidad de miembros del grupo"""
+        """Retorna la cantidad de miembros del equipo"""
         return self.miembros.count()
 
     def ingreso_anticipado_count(self):
@@ -337,7 +337,7 @@ class Grupo(BaseModel):
 
 
 class GrupoMiembro(BaseModel):
-    """Miembros de un grupo"""
+    """Miembros de un equipo"""
     RESTRICCION_CHOICES = [
         ('sin_restricciones', 'Sin Restricciones'),
         ('vegetarian', 'Vegetarian'),
@@ -345,8 +345,8 @@ class GrupoMiembro(BaseModel):
         ('particular', 'Particular'),
     ]
     
-    grupo = models.ForeignKey(Grupo, on_delete=models.CASCADE, related_name='miembros', help_text="Grupo al que pertenece el miembro")
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='grupos_miembro', help_text="Usuario miembro del grupo")
+    grupo = models.ForeignKey(Grupo, on_delete=models.CASCADE, related_name='miembros', help_text="Equipo al que pertenece el miembro")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='grupos_miembro', help_text="Usuario miembro del equipo")
     ingreso_anticipado = models.BooleanField(default=False, help_text="Indica si el miembro tiene ingreso anticipado")
     ingreso_anticipado_fecha = models.DateField(null=True, blank=True, help_text="Fecha de ingreso anticipado (entre desde y fecha de inicio del evento)")
     late_checkout = models.BooleanField(default=False, help_text="Indica si el miembro tiene late checkout")
@@ -358,32 +358,33 @@ class GrupoMiembro(BaseModel):
     )
 
     class Meta:
-        verbose_name = "Miembro de Grupo"
-        verbose_name_plural = "Miembros de Grupo"
+        verbose_name = "Miembro de equipo"
+        verbose_name_plural = "Miembros de equipo"
         unique_together = [['grupo', 'user']]
         ordering = ['-ingreso_anticipado', '-late_checkout', 'user__email']
 
-    def clean(self):
-        """Valida que el usuario tenga un bono para el evento del grupo"""
+    def has_ticket(self):
+        """Si la persona tiene un bono a su nombre (holder y owner) para el evento del equipo"""
         from tickets.models import NewTicket
-        
+
+        return NewTicket.objects.filter(
+            holder=self.user,
+            owner=self.user,
+            event=self.grupo.event,
+        ).exists()
+
+    def clean(self):
+        """Sumarse a un equipo no requiere bono; el ingreso anticipado y el late checkout sí."""
         # No validar si es el responsable (se agrega automáticamente)
-        if self.grupo and self.grupo.lider == self.user:
+        if not (self.grupo_id and self.user_id) or self.grupo.lider_id == self.user_id:
             return
-        
-        # Validar que el usuario tenga un bono (holder y owner) para el evento del grupo
-        if self.grupo and self.user:
-            has_ticket = NewTicket.objects.filter(
-                holder=self.user,
-                owner=self.user,
-                event=self.grupo.event
-            ).exists()
-            
-            if not has_ticket:
-                raise ValidationError(
-                    f'El usuario {self.user.email} no tiene un bono vinculado a su nombre para el evento "{self.grupo.event.name}". '
-                    'Solo se pueden agregar usuarios que sean dueños de un bono para este evento.'
-                )
+
+        has_benefit = self.ingreso_anticipado or self.ingreso_anticipado_fecha or self.late_checkout
+        if has_benefit and not self.has_ticket():
+            raise ValidationError(
+                f'{self.user.email} no tiene un bono a su nombre para "{self.grupo.event.name}". '
+                'Para tener ingreso anticipado o late checkout necesita uno.'
+            )
 
     def save(self, *args, **kwargs):
         """Sobrescribir save para llamar a clean()"""
@@ -396,7 +397,7 @@ class GrupoMiembro(BaseModel):
 
 @receiver(post_save, sender=Grupo)
 def create_grupo_lider_miembro(sender, instance, created, **kwargs):
-    """Agrega automáticamente al responsable como miembro del grupo cuando se crea"""
+    """Agrega automáticamente al responsable como miembro del equipo cuando se crea"""
     if created:
         GrupoMiembro.objects.get_or_create(
             grupo=instance,

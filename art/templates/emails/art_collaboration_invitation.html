@@ -1,8 +1,0 @@
-{% extends "emails/base.html" %}
-{% block subject %}Te invitaron a colaborar en una instalación de Fuego Austral{% endblock %}
-{% block title %}Invitación a una instalación{% endblock %}
-{% block content %}
-<p>Te invitaron a colaborar en <strong>{{ invitation.artwork.title|default:"una instalación" }}</strong> para {{ invitation.artwork.event.name }}.</p>
-<p>Entrá con este mismo email verificado para ver y editar la instalación.</p>
-{% include "emails/partials/btn.html" with href=accept_path label="Aceptar invitación" %}
-{% endblock %}

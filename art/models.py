@@ -1,4 +1,3 @@
-import uuid
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.conf import settings
@@ -156,8 +155,11 @@ class Artwork(BaseModel):
 
     event = models.ForeignKey(Event, on_delete=models.PROTECT, related_name='artworks')
     owner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='owned_artworks', verbose_name='Responsable')
-    collaborators = models.ManyToManyField(User, blank=True, related_name='collaborative_artworks')
-    operations_group = models.OneToOneField('events.Grupo', on_delete=models.SET_NULL, null=True, blank=True, related_name='artwork')
+    # Personas del equipo que pueden editar la instalación, además de su responsable.
+    collaborators = models.ManyToManyField(User, blank=True, related_name='collaborative_artworks', verbose_name='Pueden editar')
+    operations_group = models.OneToOneField(
+        'events.Grupo', on_delete=models.SET_NULL, null=True, blank=True, related_name='artwork', verbose_name='Equipo',
+    )
     kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.PLANNED, verbose_name='Modalidad')
 
     title = models.CharField(max_length=120, blank=True, verbose_name='Nombre de la instalación')
@@ -209,7 +211,7 @@ class Artwork(BaseModel):
 
     checkout_completed = models.BooleanField(default=False, verbose_name='Solicito verificar el retiro y limpieza')
     checkout_team_responsible = models.ForeignKey(
-        'ArtworkLogisticsPerson', on_delete=models.SET_NULL, null=True, blank=True,
+        User, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='team_checkout_artworks', verbose_name='Responsable del equipo de la instalación',
     )
     checkout_notes = models.TextField(blank=True, verbose_name='Notas de checkout')
@@ -262,6 +264,24 @@ class Artwork(BaseModel):
 
     def can_edit(self, user):
         return user == self.owner or self.collaborators.filter(pk=user.pk).exists()
+
+    def team_members(self):
+        from events.models import GrupoMiembro
+
+        if not self.operations_group_id:
+            return GrupoMiembro.objects.none()
+        return self.operations_group.miembros.select_related('user')
+
+    def is_team_member(self, user):
+        return self.team_members().filter(user=user).exists()
+
+    def can_manage_team(self, user):
+        """Sumar y quitar personas: quienes editan la instalación y ESTAFA."""
+        return self.can_edit(user) or self.can_manage(user)
+
+    def can_grant_edit(self, user):
+        """Dar o quitar permiso de edición: solo la persona responsable y ESTAFA."""
+        return user == self.owner or self.can_manage(user)
 
     def can_manage(self, user):
         return can_coordinate(user, self.event)
@@ -415,32 +435,6 @@ ART_DOCUMENT_TYPE_CHOICES = (
 )
 
 
-class ArtworkLogisticsPerson(BaseModel):
-    artwork = models.ForeignKey(Artwork, on_delete=models.CASCADE, related_name='logistics_people')
-    first_name = models.CharField(max_length=100, verbose_name='Nombre')
-    last_name = models.CharField(max_length=100, verbose_name='Apellido')
-    email = models.EmailField()
-    phone = models.CharField(max_length=30, verbose_name='Teléfono')
-    document_type = models.CharField(max_length=10, choices=ART_DOCUMENT_TYPE_CHOICES, default='DNI', verbose_name='Tipo de documento')
-    document_number = models.CharField(max_length=40, verbose_name='Número de documento')
-    early_entry = models.BooleanField(default=False, verbose_name='Participa del ingreso anticipado')
-    early_entry_date = models.DateField(null=True, blank=True, verbose_name='Fecha de ingreso anticipado')
-    dismantling = models.BooleanField(default=False, verbose_name='Participa del desarme')
-    dismantling_date = models.DateField(null=True, blank=True, verbose_name='Fecha de desarme y salida')
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-
-    class Meta:
-        ordering = ['last_name', 'first_name']
-        verbose_name = 'Persona de logística de instalación'
-        verbose_name_plural = 'Personas de logística de instalación'
-        constraints = [
-            models.UniqueConstraint(fields=['artwork', 'document_type', 'document_number'], name='unique_artwork_logistics_document'),
-        ]
-
-    def __str__(self):
-        return f'{self.first_name} {self.last_name}'
-
-
 class ArtworkProvider(BaseModel):
     artwork = models.ForeignKey(Artwork, on_delete=models.CASCADE, related_name='artwork_providers')
     company_name = models.CharField(max_length=200, verbose_name='Proveedor o empresa')
@@ -545,36 +539,11 @@ class ArtworkCheckoutPhoto(BaseModel):
         return f'{self.get_category_display()} · {self.artwork}'
 
 
-class ArtworkInvitation(BaseModel):
-    artwork = models.ForeignKey(Artwork, on_delete=models.CASCADE, related_name='invitations')
-    email = models.EmailField()
-    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
-    invited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    expires_at = models.DateTimeField()
-    accepted_at = models.DateTimeField(null=True, blank=True)
-    revoked_at = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        ordering = ['email']
-        constraints = [
-            models.UniqueConstraint(fields=['artwork', 'email'], name='unique_artwork_invitation_email'),
-        ]
-
-    @property
-    def is_pending(self):
-        return not self.accepted_at and not self.revoked_at and self.expires_at >= timezone.now()
-
-    def __str__(self):
-        return f'{self.email} · {self.artwork}'
-
-
 auditlog.register(ArtProgram)
 auditlog.register(Artwork)
 auditlog.register(ArtworkGrantItem)
 auditlog.register(ArtworkGrantItemPhoto)
-auditlog.register(ArtworkLogisticsPerson)
 auditlog.register(ArtworkProvider)
 auditlog.register(ArtworkProviderVehicle)
 auditlog.register(ArtworkPhoto)
 auditlog.register(ArtworkCheckoutPhoto)
-auditlog.register(ArtworkInvitation)
