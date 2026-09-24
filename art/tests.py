@@ -982,6 +982,56 @@ class ArtworkFlowTest(TestCase):
         artwork.refresh_from_db()
         self.assertEqual(artwork.assigned_location, 'Playa norte')
 
+    def test_event_admin_edits_the_art_program_by_step(self):
+        from django.contrib import admin as django_admin
+        from django.test import RequestFactory
+
+        from art.admin import ArtProgramInline
+
+        superuser = User.objects.create_superuser(username='root', email='root@example.com', password='x')
+        self.client.force_login(superuser)
+        page = self.client.get(reverse('admin:events_event_change', args=[self.event.pk]))
+        for title in ('Inscripción', 'Detalles', 'Desplegable y placement', 'Declaración de entendimiento',
+                      'Logística', 'Galería y checkout', 'Becas', 'Recordatorios'):
+            self.assertContains(page, f'<h2>{title}</h2>', html=True)
+        self.assertContains(page, 'Puede ser posterior al cierre de inscripción')
+        self.assertContains(page, 'Logística es el ingreso anticipado, el late checkout y los proveedores.')
+        self.assertNotContains(page, 'Apertura de declaración')
+        program_page = self.client.get(reverse('admin:art_artprogram_change', args=[self.program.pk]))
+        self.assertContains(program_page, 'Apertura de becas')
+
+        # Sin tocar el bloque, guardar un evento no crea un programa.
+        other = Event.objects.create(
+            name='Otro', slug='otro', start=self.event.start, end=self.event.end,
+            transfers_enabled_until=self.event.transfers_enabled_until,
+            header_image='events/heros/no-image.jpg', title='Otro', description='Evento',
+        )
+        request = RequestFactory().get('/')
+        request.user = superuser
+        formset_class = ArtProgramInline(Event, django_admin.site).get_formset(request, other)
+        blank = formset_class(instance=other)
+        data = {f'{blank.prefix}-{key}': value for key, value in (
+            ('TOTAL_FORMS', '1'), ('INITIAL_FORMS', '0'), ('MIN_NUM_FORMS', '0'), ('MAX_NUM_FORMS', '1'),
+        )}
+        for name, field in blank.forms[0].fields.items():
+            value = blank.forms[0].get_initial_for_field(field, name)
+            if value is True:
+                data[f'{blank.prefix}-0-{name}'] = 'on'
+            elif value is not None and value is not False:
+                data[f'{blank.prefix}-0-{name}'] = field.prepare_value(value)
+            if field.show_hidden_initial:
+                # El navegador devuelve el valor inicial oculto de los campos con default calculado.
+                data[f'initial-{blank.prefix}-0-{name}'] = field.prepare_value(value)
+        formset = formset_class(data, instance=other)
+        self.assertTrue(formset.is_valid(), formset.errors)
+        formset.save()
+        self.assertFalse(ArtProgram.objects.filter(event=other).exists())
+
+    def test_grants_wait_for_their_opening(self):
+        self.assertEqual(self.program.checkpoint_state('grant'), 'open')
+        self.program.grant_opens = timezone.now() + timedelta(days=1)
+        self.assertEqual(self.program.checkpoint_state('grant'), 'upcoming')
+
     def test_admin_dashboard_filters_and_exports_by_estafa_contact(self):
         contact = User.objects.create_user(
             username='juana', email='juana@example.com', first_name='Juana', last_name='Coord',
@@ -1277,10 +1327,9 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(item.review_notes, 'Falta el comprobante del pago.')
 
     def test_understanding_letter_windows_and_distance_waiver(self):
+        # La declaración no tiene apertura, sólo cierres: pasado el cierre digital, no se puede subir.
         now = timezone.now()
-        self.program.understanding_letter_digital_opens = now + timedelta(days=1)
-        self.program.understanding_letter_digital_deadline = now + timedelta(days=10)
-        self.program.understanding_letter_physical_opens = now + timedelta(days=2)
+        self.program.understanding_letter_digital_deadline = now - timedelta(days=1)
         self.program.understanding_letter_physical_deadline = now + timedelta(days=20)
         self.program.save()
         artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro', proposal='Texto')

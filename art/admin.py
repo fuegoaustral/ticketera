@@ -19,11 +19,50 @@ from .models import (
 )
 
 
+# Las fechas del programa agrupadas por paso, en el orden en que pasan.
+ART_PROGRAM_FIELDSETS = (
+    ('Convocatoria', {'fields': ('is_current',)}),
+    ('Inscripción', {'fields': ('registration_opens', 'registration_closes')}),
+    ('Detalles', {'fields': ('proposal_deadline',)}),
+    ('Desplegable y placement', {
+        'description': 'Es la información que le pasamos al equipo de diseño del desplegable.',
+        'fields': ('guide_deadline', 'public_description_max_length'),
+    }),
+    ('Declaración de entendimiento', {'fields': (
+        'understanding_letter_digital_deadline', 'understanding_letter_physical_deadline',
+    )}),
+    ('Logística', {
+        'description': 'Logística es el ingreso anticipado, el late checkout y los proveedores.',
+        'fields': (
+            'logistics_opens', 'logistics_deadline',
+            'early_entry_from', 'early_entry_slots',
+            'late_checkout_until', 'late_checkout_slots',
+        ),
+    }),
+    ('Galería y checkout', {'fields': ('gallery_deadline', 'checkout_opens', 'checkout_deadline')}),
+    ('Becas', {
+        'description': 'Las gestiona el equipo de becas.',
+        'fields': ('grants_enabled', 'grant_opens', 'grant_deadline', 'grant_report_deadline'),
+    }),
+    ('Recordatorios', {'fields': ('reminder_days', 'reminder_email_enabled', 'reminder_whatsapp_enabled')}),
+)
+
+
 @admin.register(ArtProgram)
 class ArtProgramAdmin(admin.ModelAdmin):
     list_display = ('event', 'is_current', 'registration_opens', 'registration_closes', 'grants_enabled', 'grant_deadline', 'guide_deadline', 'public_description_max_length', 'logistics_deadline')
     list_filter = ('is_current', 'grants_enabled', 'event')
     date_hierarchy = 'registration_opens'
+    fieldsets = (('Evento', {'fields': ('event',)}),) + ART_PROGRAM_FIELDSETS
+
+
+class ArtProgramInline(admin.StackedInline):
+    """El programa de Arte dentro del evento. Es opcional: si no se toca, no se crea."""
+    model = ArtProgram
+    fieldsets = ART_PROGRAM_FIELDSETS
+    extra = 1
+    max_num = 1
+    verbose_name_plural = 'Programa de Arte'
 
 
 class ArtworkGrantItemFormSet(BaseInlineFormSet):

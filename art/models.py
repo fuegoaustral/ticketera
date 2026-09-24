@@ -28,46 +28,107 @@ def private_art_storage():
     return default_storage
 
 
+# Se copia al equipo de cada instalación cuando se crea (ver _ensure_operations_group).
+TEAM_COPY_HELP = 'Se copia al equipo de cada instalación cuando se crea. Cambiarlo no modifica los equipos que ya existen.'
+
+
 class ArtProgram(BaseModel):
     """Fechas que habilitan y bloquean cada bloque del formulario de Arte."""
 
-    event = models.OneToOneField(Event, on_delete=models.CASCADE, related_name='art_program')
-    is_current = models.BooleanField(default=False, verbose_name='Convocatoria anual vigente')
-    registration_opens = models.DateTimeField(null=True, blank=True, verbose_name='Apertura de inscripción')
-    registration_closes = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de inscripción')
-    proposal_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de propuesta')
-    grants_enabled = models.BooleanField(default=False, verbose_name='Becas habilitadas')
-    grant_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de becas')
-    guide_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de desplegable')
+    event = models.OneToOneField(Event, on_delete=models.CASCADE, related_name='art_program', verbose_name='Evento')
+    is_current = models.BooleanField(
+        default=False, verbose_name='Convocatoria anual vigente',
+        help_text='La única convocatoria que acepta instalaciones nuevas y que los equipos pueden editar. '
+                  'Las demás quedan como histórico, en modo consulta.',
+    )
+    registration_opens = models.DateTimeField(
+        null=True, blank=True, verbose_name='Apertura de inscripción',
+        help_text='Desde cuándo se pueden inscribir instalaciones nuevas (botón «Nueva instalación»). Vacía: desde ya.',
+    )
+    registration_closes = models.DateTimeField(
+        null=True, blank=True, verbose_name='Cierre de inscripción',
+        help_text='Hasta cuándo se pueden inscribir instalaciones nuevas. Las ya inscriptas se siguen completando '
+                  'según las fechas de cada paso. Vacía: sin cierre.',
+    )
+    proposal_deadline = models.DateTimeField(
+        null=True, blank=True, verbose_name='Cierre de detalles',
+        help_text='Último momento para editar los detalles de la instalación: descripción, dimensiones, materiales y '
+                  'seguridad. Puede ser posterior al cierre de inscripción. Vacía: cierra cuando empieza el evento.',
+    )
+    grants_enabled = models.BooleanField(
+        default=False, verbose_name='Becas habilitadas', help_text='Muestra el paso de beca a los equipos.',
+    )
+    grant_opens = models.DateTimeField(
+        null=True, blank=True, verbose_name='Apertura de becas',
+        help_text='Desde cuándo se puede pedir beca. Vacía: desde ya.',
+    )
+    grant_deadline = models.DateTimeField(
+        null=True, blank=True, verbose_name='Cierre de becas',
+        help_text='Último momento para pedir beca y cargar el presupuesto. Vacía: sin cierre.',
+    )
+    guide_deadline = models.DateTimeField(
+        null=True, blank=True, verbose_name='Cierre de desplegable y placement',
+        help_text='Último momento para editar el título y el texto para el público y la ubicación preferida. '
+                  'Vacía: cierra cuando empieza el evento.',
+    )
     public_description_max_length = models.PositiveIntegerField(
         default=200,
         validators=[MinValueValidator(1), MaxValueValidator(500)],
         verbose_name='Máximo de caracteres de la descripción del desplegable',
     )
     logistics_opens = models.DateTimeField(
-        null=True, blank=True, verbose_name='Apertura de ingreso anticipado y proveedores',
+        null=True, blank=True, verbose_name='Apertura de logística',
         help_text='Mientras esté vacía, el paso queda cerrado y los equipos ven “Te avisamos cuando se habilite”. '
                   'La fecha nunca se les muestra antes de que se habilite.',
     )
-    logistics_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de logística')
+    logistics_deadline = models.DateTimeField(
+        null=True, blank=True, verbose_name='Cierre de logística',
+        help_text='Último momento para cargar ingreso anticipado, late checkout, proveedores y vehículos. '
+                  'Vacía: cierra cuando empieza el evento.',
+    )
     gallery_deadline = models.DateTimeField(
         null=True, blank=True, verbose_name='Cierre de galería',
         help_text='La galería se habilita cuando empieza el evento. Sin fecha de cierre, cierra cuando termina.',
     )
-    checkout_opens = models.DateTimeField(null=True, blank=True, verbose_name='Apertura de checkout')
-    checkout_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de checkout')
-    understanding_letter_digital_opens = models.DateTimeField(null=True, blank=True, verbose_name='Apertura de declaración digital')
-    understanding_letter_digital_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de declaración digital')
-    understanding_letter_physical_opens = models.DateTimeField(null=True, blank=True, verbose_name='Apertura de entrega de la copia física')
-    understanding_letter_physical_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de entrega de la copia física')
-    grant_report_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de rendición de becas')
-    reminder_days = models.JSONField(default=default_art_reminder_days, blank=True, verbose_name='Días de anticipación para recordatorios')
+    checkout_opens = models.DateTimeField(
+        null=True, blank=True, verbose_name='Apertura de checkout',
+        help_text='Desde cuándo los equipos pueden enviar el checkout. Vacía: cuando empieza el evento.',
+    )
+    checkout_deadline = models.DateTimeField(
+        null=True, blank=True, verbose_name='Cierre de checkout',
+        help_text='Último momento para enviar el checkout. Vacía: cuando termina el evento.',
+    )
+    understanding_letter_digital_deadline = models.DateTimeField(
+        null=True, blank=True, verbose_name='Cierre de declaración digital',
+        help_text='Último momento para subir la declaración firmada. Vacía: cierra cuando empieza el evento.',
+    )
+    understanding_letter_physical_deadline = models.DateTimeField(
+        null=True, blank=True, verbose_name='Cierre de entrega de la copia física',
+        help_text='Último momento para entregar la copia en papel. Vacía: cuando empieza el evento.',
+    )
+    grant_report_deadline = models.DateTimeField(
+        null=True, blank=True, verbose_name='Cierre de rendición de becas',
+        help_text='Último momento para rendir una beca aprobada. Vacía: sin cierre.',
+    )
+    reminder_days = models.JSONField(
+        default=default_art_reminder_days, blank=True, verbose_name='Días de anticipación para recordatorios',
+        help_text='Cuántos días antes de cada cierre se manda un recordatorio, por ejemplo [7, 3, 1]. '
+                  'Una lista vacía los desactiva.',
+    )
     reminder_email_enabled = models.BooleanField(default=True, verbose_name='Recordatorios por email')
     reminder_whatsapp_enabled = models.BooleanField(default=False, verbose_name='Recordatorios por WhatsApp')
-    early_entry_slots = models.PositiveIntegerField(default=0, verbose_name='Cupos de ingreso anticipado por instalación')
-    early_entry_from = models.DateTimeField(null=True, blank=True, verbose_name='Ingreso anticipado desde')
-    late_checkout_slots = models.PositiveIntegerField(default=0, verbose_name='Cupos de late checkout por instalación')
-    late_checkout_until = models.DateTimeField(null=True, blank=True, verbose_name='Late checkout hasta')
+    early_entry_slots = models.PositiveIntegerField(
+        default=0, verbose_name='Cupos de ingreso anticipado por instalación', help_text=TEAM_COPY_HELP,
+    )
+    early_entry_from = models.DateTimeField(
+        null=True, blank=True, verbose_name='Ingreso anticipado desde', help_text=TEAM_COPY_HELP,
+    )
+    late_checkout_slots = models.PositiveIntegerField(
+        default=0, verbose_name='Cupos de late checkout por instalación', help_text=TEAM_COPY_HELP,
+    )
+    late_checkout_until = models.DateTimeField(
+        null=True, blank=True, verbose_name='Late checkout hasta', help_text=TEAM_COPY_HELP,
+    )
 
     class Meta:
         verbose_name = 'Programa de Arte'
@@ -85,14 +146,6 @@ class ArtProgram(BaseModel):
             errors['registration_closes'] = 'El cierre no puede ser anterior a la apertura.'
         if self.checkout_opens and self.checkout_deadline and self.checkout_deadline < self.checkout_opens:
             errors['checkout_deadline'] = 'El cierre no puede ser anterior a la apertura.'
-        for label, opens, deadline in (
-            ('digital', self.understanding_letter_digital_opens, self.understanding_letter_digital_deadline),
-            ('física', self.understanding_letter_physical_opens, self.understanding_letter_physical_deadline),
-        ):
-            if opens and deadline and deadline < opens:
-                errors[f'understanding_letter_{"digital" if label == "digital" else "physical"}_deadline'] = (
-                    f'El cierre de la declaración {label} no puede ser anterior a la apertura.'
-                )
         if not isinstance(self.reminder_days, list) or any(not isinstance(day, int) or day < 0 for day in self.reminder_days):
             errors['reminder_days'] = 'Usá una lista de días enteros no negativos, por ejemplo [7, 3, 1].'
         if errors:

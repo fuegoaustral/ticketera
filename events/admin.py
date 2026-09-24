@@ -6,6 +6,8 @@ from django.urls import path
 from django.shortcuts import render
 from django.forms import ModelForm
 import csv
+
+from art.admin import ArtProgramInline
 from .models import (
     Event,
     EventTermsAndConditions,
@@ -40,6 +42,7 @@ class EventAdminForm(ModelForm):
 
 class EventAdmin(admin.ModelAdmin):
     form = EventAdminForm
+    inlines = [ArtProgramInline]
     filter_horizontal = ('admins', 'access_scanner', 'access_caja')  # Esto también ayuda con la interfaz
     list_display = (
         "name",
