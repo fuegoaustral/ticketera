@@ -1,0 +1,51 @@
+<style>
+    /* Línea de tiempo de pasos: un círculo por paso sobre una línea vertical. */
+    .steps-timeline { position: relative; margin: 0 0 2rem; padding-left: 2rem; }
+    .steps-timeline::before { content: ''; position: absolute; left: .55rem; top: .75rem; bottom: .75rem; width: 2px; background: #e3e7e9; }
+    .steps-item { position: relative; }
+    .steps-dot { position: absolute; left: -1.85rem; top: 1.2rem; width: .9rem; height: .9rem; border-radius: 50%; background: #fff; border: 2px solid #c3c9ce; }
+    .steps-item.is-open .steps-dot { top: 2.45rem; background: #289e6d; border-color: #289e6d; box-shadow: 0 0 0 4px rgba(40, 158, 109, .18); }
+    .steps-item.is-closed .steps-dot { background: #c3c9ce; }
+    .steps-item.is-closed, .steps-item.is-upcoming { border-bottom: 1px solid #eef0f1; }
+
+    .step-card { margin: 1rem 0 2rem; padding: 2rem; border: 1px solid #dee2e6; border-radius: .75rem; background: #fff; scroll-margin-top: 1.5rem; }
+    .step-card-head { margin-bottom: 1.75rem; }
+    .step-card-head h2 { margin: 0 0 .35rem; font-size: 1.5rem; }
+    .step-meta { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; margin: 0; color: #5c636a; font-size: .9rem; }
+    .step-status { display: inline-flex; align-items: baseline; gap: .4rem; font-weight: 600; }
+    .step-status.is-done { color: #176b4a; }
+    .step-status.is-todo { color: #7a4d00; }
+    .step-lead { max-width: 68ch; color: #5c636a; }
+    .step-group { margin: 0 0 2.25rem; padding: 0; border: 0; }
+    .step-group:last-child { margin-bottom: 0; }
+    .step-group > legend { float: none; width: 100%; margin-bottom: 1rem; padding-bottom: .5rem; border-bottom: 1px solid #eef0f1; font-size: 1rem; font-weight: 700; }
+
+    .step-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: .15rem 1rem; padding: .9rem 0; color: #5c636a; scroll-margin-top: 1.5rem; }
+    .step-row strong { color: #495057; font-weight: 600; }
+    .step-row small { display: block; width: 100%; font-size: .85rem; }
+    details.step-closed { display: block; }
+    details.step-closed > summary { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: .15rem 1rem; min-height: 44px; list-style: none; cursor: pointer; }
+    details.step-closed > summary::-webkit-details-marker { display: none; }
+    details.step-closed > summary:focus-visible { outline: 3px solid rgba(40, 158, 109, .45); outline-offset: 2px; }
+    .step-see { color: #176b4a; font-size: .9rem; font-weight: 600; }
+    details.step-closed[open] .step-see-open, details.step-closed:not([open]) .step-see-close { display: none; }
+    .step-closed-body { width: 100%; padding: .75rem 0 .5rem; color: #212529; }
+    .estafa-override { display: flex; align-items: baseline; gap: .5rem; padding: .75rem 1rem; margin-bottom: 1.25rem; border-left: 4px solid #6c757d; border-radius: .4rem; background: #f8f9fa; color: #343a40; }
+    .step-readonly { display: grid; grid-template-columns: 10rem minmax(0, 1fr); gap: .5rem 1rem; margin: 0 0 .75rem; }
+    .step-readonly dt { color: #5c636a; font-weight: 500; font-size: .875rem; }
+    .step-readonly dd { margin: 0; }
+
+    .next-step { margin-bottom: 2.5rem; padding: 1.5rem; border: 1px solid #f0d9a0; border-radius: .75rem; background: #fff8e6; }
+    .next-step-kicker { margin-bottom: .35rem; color: #7a4d00; font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+    .next-step .btn, .grant-box .btn { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; overflow-wrap: normal; }
+
+    @media (max-width: 767px) {
+        .steps-timeline { padding-left: 1.5rem; }
+        .steps-timeline::before { left: .35rem; }
+        .steps-dot { left: -1.5rem; }
+        .step-card { padding: 1.25rem 1rem; border-radius: .6rem; }
+        .step-card-head h2 { font-size: 1.3rem; }
+        .step-readonly { grid-template-columns: 1fr; gap: 0; }
+        .step-readonly dd { margin-bottom: .6rem; }
+    }
+</style>

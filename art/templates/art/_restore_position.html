@@ -49,6 +49,8 @@
         const jump = function (top) { window.scrollTo({ top: top, behavior: 'instant' }); };
         const invalid = document.querySelector('.alert-danger, .has-error');
         if (invalid) {
+            // Un #paso en la dirección haría saltar la página ahí y no al error.
+            if (location.hash) history.replaceState(null, '', location.pathname + location.search);
             const field = invalid.querySelector('input:not([type=hidden]):not(:disabled), select:not(:disabled), textarea:not(:disabled)');
             invalid.scrollIntoView({ block: 'center', behavior: 'instant' });
             (field || invalid).focus({ preventScroll: true });

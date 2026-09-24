@@ -138,6 +138,11 @@ class LoginFormTests(TestCase):
         self.assertContains(response, 'value="ana@example.com"')
         self.assertContains(response, 'autofocus')
 
+    def test_browser_can_remember_the_email(self):
+        for name in ('account_login', 'account_signup', 'account_reset_password'):
+            response = self.client.get(reverse(name))
+            self.assertContains(response, 'autocomplete="email"', msg_prefix=name)
+            self.assertNotContains(response, 'autocomplete="off"', msg_prefix=name)
 
 class ProfileNicknameTests(TestCase):
     def test_nickname_is_optional_and_saved_from_personal_information(self):

@@ -30,7 +30,7 @@
                         <span class="mx-3">o</span>
                         <div class="flex-grow-1 border-top"></div>
                     </div>
-                    <form method="post" action="{% url 'account_login' %}" autocomplete="off">
+                    <form method="post" action="{% url 'account_login' %}">
                         {% csrf_token %}
                         {% if request.GET.next %}
                             <input type="hidden" name="next" value="{{ request.GET.next }}">
@@ -46,7 +46,7 @@
                                    value="{{ form.login.value|default_if_none:'' }}"
                                    placeholder="Email"
                                    required
-                                   autocomplete="off">
+                                   autocomplete="email">
                             <input type="password"
                                    class="form-control"
                                    id="id_password"

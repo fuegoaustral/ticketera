@@ -1,0 +1,13 @@
+{% if photos %}
+<div class="row g-3">
+    {% for photo in photos %}
+    <div class="col-6 col-lg-4">
+        <figure class="gallery-card mb-0">
+            <a href="{{ photo.image.url }}" target="_blank" rel="noopener"><img src="{{ photo.image.url }}" alt="{{ photo.caption|default:photo.get_stage_display }}"></a>
+            <figcaption class="p-2 small"><strong>{{ photo.get_stage_display }}</strong>{% if photo.caption %}<br>{{ photo.caption }}{% endif %}{% if photo.publication_authorized %}<br><span class="text-success">Publicación autorizada</span>{% endif %}</figcaption>
+            {% if can_delete %}<form method="post" action="{% url 'artwork_photo_delete' artwork.pk photo.pk %}">{% csrf_token %}<button class="btn btn-sm btn-link text-danger p-2" type="submit" onclick="return confirm('¿Eliminar esta foto?')">Eliminar</button></form>{% endif %}
+        </figure>
+    </div>
+    {% endfor %}
+</div>
+{% else %}<p class="small text-muted mb-0">{{ empty }}</p>{% endif %}

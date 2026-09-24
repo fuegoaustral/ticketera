@@ -19,17 +19,18 @@ from utils.email import send_mail
 
 from .estafa import can_access_estafa, can_coordinate, estafa_events, estafa_members, is_estafa_member
 from .forms import (
-    ArtworkForm, ArtworkGrantItemForm, ArtworkTeamAddForm,
-    ArtworkCheckoutPhotoUploadForm, ArtworkPhotoUploadForm, ArtworkProviderForm, ArtworkProviderVehicleForm,
-    ArtworkContactForm, ArtworkGrantItemReviewForm, ArtworkReviewForm,
+    GALLERY_STAGES, ArtworkForm, ArtworkGrantForm, ArtworkGrantItemForm, ArtworkTeamAddForm,
+    ArtworkCheckoutPhotoUploadForm, ArtworkFileUploadForm, ArtworkPhotoUploadForm, ArtworkProviderForm, ArtworkTeamBenefitsForm,
+    ArtworkProviderVehicleForm, ArtworkContactForm, ArtworkGrantItemReviewForm, ArtworkReviewForm,
 )
 from .models import (
-    ArtProgram, Artwork, ArtworkGrantItem, ArtworkGrantItemPhoto,
+    ArtProgram, Artwork, ArtworkFile, ArtworkGrantItem, ArtworkGrantItemPhoto,
     ArtworkPhoto, ArtworkCheckoutPhoto, ArtworkProvider,
     ArtworkProviderVehicle,
 )
 from .review_sections import review_sections
 from .templatetags.art_format import person_label
+from .steps import CLOSED, OPEN, UPCOMING, artwork_steps, next_step
 
 
 def _base_context(event=None):
@@ -42,22 +43,19 @@ def _base_context(event=None):
     }
 
 
-def _checkpoints(program):
-    checkpoints = [
-        {'key': 'proposal', 'anchor': 'propuesta', 'label': 'Propuesta', 'deadline': program.proposal_deadline, 'state': program.checkpoint_state('proposal')},
-    ]
-    if program.grants_enabled:
-        checkpoints.append({'key': 'grant', 'anchor': 'beca', 'label': 'Beca', 'deadline': program.grant_deadline, 'state': program.checkpoint_state('grant')})
-    checkpoints += [
-        {'key': 'guide', 'anchor': 'placement', 'label': 'Desplegable', 'deadline': program.guide_deadline, 'state': program.checkpoint_state('guide')},
-        {'key': 'logistics', 'anchor': 'logistica', 'label': 'Ingreso y desarme', 'deadline': program.logistics_deadline, 'state': program.checkpoint_state('logistics')},
-        {'key': 'checkout', 'anchor': 'checkout', 'label': 'Checkout', 'deadline': program.checkout_deadline, 'state': program.checkpoint_state('checkout')},
-        {'key': 'understanding_letter_digital', 'anchor': 'carta-entendimiento', 'label': 'Declaración de entendimiento digital', 'deadline': program.understanding_letter_digital_deadline, 'state': program.checkpoint_state('understanding_letter_digital')},
-        {'key': 'understanding_letter_physical', 'anchor': 'carta-entendimiento', 'label': 'Declaración de entendimiento física', 'deadline': program.understanding_letter_physical_deadline, 'state': program.checkpoint_state('understanding_letter_physical')},
-    ]
-    if program.grants_enabled:
-        checkpoints.append({'key': 'grant_report', 'anchor': 'rendicion', 'label': 'Rendición', 'deadline': program.grant_report_deadline, 'state': program.checkpoint_state('grant_report')})
-    return checkpoints
+def _steps_context(artwork, program, user, form=None):
+    """Pasos en el orden de la línea de tiempo: lo cerrado arriba, lo abierto en el medio y lo que viene abajo."""
+    steps = artwork_steps(artwork, program, form=form)
+    order = {CLOSED: 0, OPEN: 1, UPCOMING: 2}
+    # ESTAFA puede editar fuera de fecha: ve cada paso completo, sin "Lo próximo".
+    manager = bool(artwork and artwork.can_manage(user))
+    editor = not artwork or artwork.can_edit(user)
+    return {
+        'steps': sorted(steps, key=lambda step: order[step.state]),
+        # En una instalación nueva hay un solo paso: "Lo próximo" no suma nada.
+        'next_step': next_step(steps) if artwork and editor and not manager else None,
+        'expand_all_steps': manager,
+    }
 
 
 def _accessible_artworks(user):
@@ -228,6 +226,20 @@ def _team_context(artwork, user, team_add_form=None):
     }
 
 
+def _benefits_form(artwork, data=None):
+    """Ingreso anticipado y late checkout por persona; sin equipo creado, no hay tabla."""
+    if not artwork.operations_group_id:
+        return None
+    members = list(artwork.team_members().select_related('user').order_by('user__first_name', 'user__last_name', 'user__email'))
+    members.sort(key=lambda member: member.user_id != artwork.owner_id)
+    ticket_holders = set(
+        NewTicket.objects.filter(
+            event=artwork.event, holder__in=[member.user for member in members], owner=F('holder'),
+        ).values_list('holder_id', flat=True)
+    )
+    return ArtworkTeamBenefitsForm(data, artwork=artwork, members=members, ticket_holders=ticket_holders, auto_id='benefits_%s')
+
+
 def _grant_context(artwork, inline_forms=None):
     inline_forms = inline_forms or {}
     budget = list(artwork.grant_items.filter(phase=ArtworkGrantItem.Phase.BUDGET).prefetch_related('photos'))
@@ -276,7 +288,12 @@ def _artwork_context(artwork, program, form, inline_forms=None):
         'form': form,
         'program': program,
         'artwork': artwork,
-        'checkpoints': _checkpoints(program),
+        **_steps_context(artwork, program, form.actor, form),
+        'artwork_files': artwork.files.all(),
+        'file_upload_form': inline_forms.get(('file-new', None)) or ArtworkFileUploadForm(auto_id='file-new_%s'),
+        'can_edit_files': _files_editable(artwork, form.actor),
+        'gallery_photos': artwork.photos.filter(stage__in=GALLERY_STAGES),
+        'can_edit_gallery': _gallery_editable(artwork, form.actor),
         'photo_upload_form': inline_forms.get(('photo-new', None)) or ArtworkPhotoUploadForm(auto_id='photo-new_%s'),
         'checkout_photo_upload_form': inline_forms.get(('checkout-photo-new', None)) or ArtworkCheckoutPhotoUploadForm(
             auto_id='checkout-photo-new_%s',
@@ -290,18 +307,15 @@ def _artwork_context(artwork, program, form, inline_forms=None):
         ),
         'can_manage': artwork.can_manage(form.actor),
         'can_edit_artwork': artwork.can_edit(form.actor) or artwork.can_manage(form.actor),
-        'can_edit_budget': _grant_item_editable(artwork, ArtworkGrantItem.Phase.BUDGET, form.actor),
-        'can_edit_expenses': _grant_item_editable(artwork, ArtworkGrantItem.Phase.EXPENSE, form.actor),
+        'grant_started': artwork.grant_status != Artwork.GrantStatus.NOT_REQUESTED,
+        'benefits_form': inline_forms.get(('benefits', None)) or _benefits_form(artwork),
         'can_edit_logistics': _logistics_editable(artwork, form.actor),
         'can_edit_checkout': _checkout_editable(artwork, form.actor),
-        'can_submit_grant': artwork.can_edit(form.actor) and program.is_current and program.checkpoint_state('grant') == 'open' and artwork.grant_status in (Artwork.GrantStatus.NOT_REQUESTED, Artwork.GrantStatus.INFO_REQUIRED),
-        'can_submit_report': artwork.can_edit(form.actor) and program.is_current and program.checkpoint_state('grant_report') == 'open' and artwork.grant_status in (Artwork.GrantStatus.APPROVED, Artwork.GrantStatus.PAID),
         'can_submit_checkout': _can_submit_checkout(artwork, program, form.actor),
     })
     # ESTAFA editando la instalación de otra persona: navega dentro de ESTAFA y auditlog registra quién guarda.
     if context['can_manage'] and not artwork.can_edit(form.actor):
         context.update(_estafa_context(form.actor, artwork.event), acting_as_estafa=True)
-    context.update(_grant_context(artwork, inline_forms))
     context.update(_team_context(artwork, form.actor, inline_forms.get(('team-add', None))))
     return context
 
@@ -334,6 +348,10 @@ def _review_context(artwork, form, user, inline_forms=None):
     }
 
 
+# Los formularios en línea que viven en la pantalla de la beca.
+GRANT_INLINE_KEYS = ('grant', 'grant-new', 'report-photo-new')
+
+
 def _inline_error_response(request, artwork, key, inline_form):
     if request.POST.get('return_to') == 'review' and artwork.can_manage(request.user):
         review_form = ArtworkReviewForm(instance=artwork, can_manage=artwork.can_manage(request.user))
@@ -342,6 +360,12 @@ def _inline_error_response(request, artwork, key, inline_form):
             _review_context(artwork, review_form, request.user, {key: inline_form}),
         )
     program = artwork.event.art_program
+    if key[0] in GRANT_INLINE_KEYS:
+        grant_form = ArtworkGrantForm(instance=artwork, program=program, actor=request.user)
+        return render(
+            request, 'art/grant.html',
+            _grant_page_context(artwork, program, grant_form, request.user, {key: inline_form}),
+        )
     artwork_form = ArtworkForm(
         instance=artwork, program=program, owner=artwork.owner, actor=request.user,
     )
@@ -361,11 +385,15 @@ def _checkout_redirect(request, artwork):
     return _artwork_redirect(artwork, 'checkout')
 
 
+def _grant_page_redirect(artwork, anchor):
+    return redirect(f"{reverse('artwork_grant', args=[artwork.pk])}#{anchor}")
+
+
 def _grant_redirect(request, artwork, phase):
     if request.POST.get('return_to') == 'review' and artwork.can_manage(request.user):
         anchor = 'admin-budget' if phase == ArtworkGrantItem.Phase.BUDGET else 'admin-expenses'
         return redirect(f"{reverse('artwork_review', args=[artwork.event.slug, artwork.pk])}#{anchor}")
-    return _artwork_redirect(artwork, 'beca' if phase == ArtworkGrantItem.Phase.BUDGET else 'rendicion')
+    return _grant_page_redirect(artwork, 'solicitud' if phase == ArtworkGrantItem.Phase.BUDGET else 'rendicion')
 
 
 @login_required
@@ -412,6 +440,8 @@ def artwork_create(request, event_slug):
             'La instalación quedó inscripta. Queda pendiente de aprobación por ESTAFA. '
             'Podés seguir modificándola libremente a medida que la instalación avance.',
         )
+        if request.POST.get('action') == 'beca' and program.grants_enabled:
+            return redirect('artwork_grant', artwork_id=artwork.pk)
         return redirect('artwork_edit', artwork_id=artwork.pk)
 
     context = _base_context(program.event)
@@ -420,8 +450,7 @@ def artwork_create(request, event_slug):
         'program': program,
         'artwork': None,
         'can_edit_artwork': True,
-        'checkpoints': _checkpoints(program),
-        'budget_total_ars': 0,
+        **_steps_context(None, program, request.user, form),
     })
     return render(request, 'art/form.html', context)
 
@@ -459,6 +488,8 @@ def _handle_artwork_edit(request, artwork):
             _submit_checkout(request, artwork, program)
             return _artwork_redirect(artwork, 'checkout')
         messages.success(request, 'Cambios guardados.')
+        if action == 'beca' and program.grants_enabled:
+            return redirect('artwork_grant', artwork_id=artwork.pk)
         return redirect('artwork_edit', artwork_id=artwork.pk)
 
     return render(request, 'art/form.html', _artwork_context(artwork, program, form))
@@ -491,6 +522,9 @@ def _submit_checkout(request, artwork, program):
 def _grant_item_editable(artwork, phase, user):
     if phase == ArtworkGrantItem.Phase.EXPENSE and artwork.grant_status == Artwork.GrantStatus.CLOSED:
         return False
+    block = 'grant' if phase == ArtworkGrantItem.Phase.BUDGET else 'grant_report'
+    if artwork.event.art_program.checkpoint_state(block) == 'upcoming':
+        return False
     if artwork.can_manage(user):
         return True
     if not artwork.can_edit(user):
@@ -508,9 +542,11 @@ def _grant_item_editable(artwork, phase, user):
 
 
 def _logistics_editable(artwork, user):
+    program = artwork.event.art_program
+    if program.checkpoint_state('logistics') == 'upcoming':
+        return False
     if artwork.can_manage(user):
         return True
-    program = artwork.event.art_program
     return (
         program.is_current and program.checkpoint_state('logistics') == 'open' and artwork.can_edit(user)
         and artwork.status != Artwork.Status.REJECTED
@@ -518,18 +554,100 @@ def _logistics_editable(artwork, user):
 
 
 def _checkout_editable(artwork, user):
+    program = artwork.event.art_program
+    if program.checkpoint_state('checkout') == 'upcoming':
+        return False
     if artwork.can_manage(user):
         return True
-    program = artwork.event.art_program
     return (
         program.is_current and program.checkpoint_state('checkout') == 'open' and artwork.can_edit(user)
         and artwork.status in (Artwork.Status.ACTIVE, Artwork.Status.CHECKOUT_SUBMITTED)
     )
 
 
+def _files_editable(artwork, user):
+    """Los archivos de la propuesta siguen el plazo de Detalles."""
+    program = artwork.event.art_program
+    if program.checkpoint_state('proposal') == 'upcoming':
+        return False
+    if artwork.can_manage(user):
+        return True
+    return (
+        program.is_current and program.checkpoint_state('proposal') == 'open' and artwork.can_edit(user)
+        and artwork.status != Artwork.Status.REJECTED
+    )
+
+
+def _gallery_editable(artwork, user):
+    """La galería de proceso y de la instalación terminada se habilita cuando empieza el evento."""
+    program = artwork.event.art_program
+    if program.checkpoint_state('gallery') == 'upcoming':
+        return False
+    if artwork.can_manage(user):
+        return True
+    return (
+        program.is_current and program.checkpoint_state('gallery') == 'open' and artwork.can_edit(user)
+        and artwork.status != Artwork.Status.REJECTED
+    )
+
+
 def _save_grant_item_images(item, images, user):
     for image in images:
         ArtworkGrantItemPhoto.objects.create(item=item, image=image, uploaded_by=user)
+
+
+def _grant_page_context(artwork, program, form, user, inline_forms=None):
+    inline_forms = inline_forms or {}
+    context = _base_context(artwork.event)
+    context.update({
+        'form': form,
+        'program': program,
+        'artwork': artwork,
+        'can_manage': artwork.can_manage(user),
+        'can_edit_budget': _grant_item_editable(artwork, ArtworkGrantItem.Phase.BUDGET, user),
+        'can_edit_expenses': _grant_item_editable(artwork, ArtworkGrantItem.Phase.EXPENSE, user),
+        'can_submit_grant': artwork.can_edit(user) and program.is_current and program.checkpoint_state('grant') == 'open' and artwork.grant_status in (Artwork.GrantStatus.NOT_REQUESTED, Artwork.GrantStatus.INFO_REQUIRED),
+        'can_submit_report': artwork.can_edit(user) and program.is_current and program.checkpoint_state('grant_report') == 'open' and artwork.grant_status in (Artwork.GrantStatus.APPROVED, Artwork.GrantStatus.PAID),
+        'report_opened': artwork.grant_status in (
+            Artwork.GrantStatus.APPROVED, Artwork.GrantStatus.PAID, Artwork.GrantStatus.REPORTED, Artwork.GrantStatus.CLOSED,
+        ),
+        'report_photos': artwork.photos.filter(stage=ArtworkPhoto.Stage.GRANT_REPORT),
+        'report_photo_upload_form': inline_forms.get(('report-photo-new', None)) or ArtworkPhotoUploadForm(
+            stages=(ArtworkPhoto.Stage.GRANT_REPORT,), auto_id='report-photo-new_%s',
+        ),
+    })
+    if context['can_manage'] and not artwork.can_edit(user):
+        context.update(_estafa_context(user, artwork.event), acting_as_estafa=True)
+    context.update(_grant_context(artwork, inline_forms))
+    return context
+
+
+@login_required
+def artwork_grant(request, artwork_id):
+    """La beca, fuera de la inscripción: solicitud con presupuesto y, si se aprueba, la rendición."""
+    if request.method == 'POST':
+        with transaction.atomic():
+            artwork = get_object_or_404(_accessible_artworks(request.user).select_for_update(), pk=artwork_id)
+            if not artwork.can_edit(request.user) and not artwork.can_manage(request.user):
+                raise Http404
+            return _handle_artwork_grant(request, artwork)
+    artwork = get_object_or_404(_accessible_artworks(request.user), pk=artwork_id)
+    return _handle_artwork_grant(request, artwork)
+
+
+def _handle_artwork_grant(request, artwork):
+    try:
+        program = artwork.event.art_program
+    except ArtProgram.DoesNotExist as exc:
+        raise Http404('El programa de Arte ya no está disponible.') from exc
+    if not program.grants_enabled and not artwork.can_manage(request.user):
+        raise Http404('Esta convocatoria no tiene becas.')
+    form = ArtworkGrantForm(request.POST or None, instance=artwork, program=program, actor=request.user)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, 'Cambios guardados.')
+        return redirect('artwork_grant', artwork_id=artwork.pk)
+    return render(request, 'art/grant.html', _grant_page_context(artwork, program, form, request.user))
 
 
 @login_required
@@ -539,7 +657,7 @@ def grant_item_create(request, artwork_id, phase):
     if phase not in ArtworkGrantItem.Phase.values or not _grant_item_editable(artwork, phase, request.user):
         return HttpResponseForbidden('Este bloque ya no se puede editar.')
     if request.method != 'POST':
-        return _artwork_redirect(artwork, 'beca' if phase == ArtworkGrantItem.Phase.BUDGET else 'rendicion')
+        return _grant_page_redirect(artwork, 'solicitud' if phase == ArtworkGrantItem.Phase.BUDGET else 'rendicion')
     with transaction.atomic():
         artwork = get_object_or_404(access.select_for_update(), pk=artwork_id)
         if not _grant_item_editable(artwork, phase, request.user):
@@ -565,7 +683,7 @@ def grant_item_edit(request, artwork_id, item_id):
     if not _grant_item_editable(artwork, item.phase, request.user):
         return HttpResponseForbidden('Este bloque ya no se puede editar.')
     if request.method != 'POST':
-        return _artwork_redirect(artwork, 'beca' if item.phase == ArtworkGrantItem.Phase.BUDGET else 'rendicion')
+        return _grant_page_redirect(artwork, 'solicitud' if item.phase == ArtworkGrantItem.Phase.BUDGET else 'rendicion')
     with transaction.atomic():
         artwork = get_object_or_404(access.select_for_update(), pk=artwork_id)
         item = get_object_or_404(ArtworkGrantItem.objects.select_for_update(), pk=item_id, artwork=artwork)
@@ -654,7 +772,7 @@ def grant_submit(request, artwork_id):
             return HttpResponseForbidden('La solicitud de beca ya fue presentada.')
         errors = []
         if not artwork.grant_requested:
-            errors.append('Marcá que querés solicitar una beca y guardá la instalación.')
+            errors.append('Marcá que querés solicitar una beca y guardá los cambios.')
         if not artwork.grant_justification:
             errors.append('Completá la justificación de la beca.')
         if not artwork.grant_items.filter(phase=ArtworkGrantItem.Phase.BUDGET).exists():
@@ -666,7 +784,7 @@ def grant_submit(request, artwork_id):
             artwork.grant_status = Artwork.GrantStatus.PENDING
             artwork.save(update_fields=['grant_status', 'updated_at'])
             messages.success(request, 'La solicitud de beca fue presentada para revisión.')
-    return _artwork_redirect(artwork, 'beca')
+    return _grant_page_redirect(artwork, 'solicitud')
 
 
 @login_required
@@ -697,22 +815,36 @@ def grant_report_submit(request, artwork_id):
             artwork.grant_status = Artwork.GrantStatus.REPORTED
             artwork.save(update_fields=['grant_status', 'updated_at'])
             messages.success(request, 'La rendición fue enviada para revisión.')
-    return _artwork_redirect(artwork, 'rendicion')
+    return _grant_page_redirect(artwork, 'rendicion')
+
+
+def _photo_redirect(artwork, stage):
+    if stage == ArtworkPhoto.Stage.GRANT_REPORT:
+        return _grant_page_redirect(artwork, 'rendicion')
+    return _artwork_redirect(artwork, 'galeria')
 
 
 @login_required
 def artwork_photo_upload(request, artwork_id):
+    """Fotos de la galería o, desde la pantalla de la beca, de la rendición."""
     access = _accessible_artworks(request.user)
     artwork = get_object_or_404(access, pk=artwork_id)
-    if not artwork.can_edit(request.user) and not artwork.can_manage(request.user):
-        return HttpResponseForbidden('La galería de esta instalación no se puede editar.')
+    stage = request.POST.get('stage')
     if request.method != 'POST':
-        return _artwork_redirect(artwork, 'galeria')
+        return _photo_redirect(artwork, stage)
+    for_report = stage == ArtworkPhoto.Stage.GRANT_REPORT
     with transaction.atomic():
         artwork = get_object_or_404(access.select_for_update(), pk=artwork_id)
-        if not artwork.can_edit(request.user) and not artwork.can_manage(request.user):
-            return HttpResponseForbidden('La galería de esta instalación no se puede editar.')
-        form = ArtworkPhotoUploadForm(request.POST, request.FILES, auto_id='photo-new_%s')
+        if for_report:
+            allowed = _grant_item_editable(artwork, ArtworkGrantItem.Phase.EXPENSE, request.user)
+            form = ArtworkPhotoUploadForm(
+                request.POST, request.FILES, stages=(ArtworkPhoto.Stage.GRANT_REPORT,), auto_id='report-photo-new_%s',
+            )
+        else:
+            allowed = _gallery_editable(artwork, request.user)
+            form = ArtworkPhotoUploadForm(request.POST, request.FILES, auto_id='photo-new_%s')
+        if not allowed:
+            return HttpResponseForbidden('Estas fotos no se pueden subir ahora.')
         if form.is_valid():
             images = form.cleaned_data['images']
             if artwork.photos.count() + len(images) > 100:
@@ -728,8 +860,8 @@ def artwork_photo_upload(request, artwork_id):
                         uploaded_by=request.user,
                     )
                 messages.success(request, f"Se subieron {len(images)} foto(s).")
-                return _artwork_redirect(artwork, 'galeria')
-    return _inline_error_response(request, artwork, ('photo-new', None), form)
+                return _photo_redirect(artwork, form.cleaned_data['stage'])
+    return _inline_error_response(request, artwork, ('report-photo-new' if for_report else 'photo-new', None), form)
 
 
 @login_required
@@ -749,10 +881,68 @@ def artwork_photo_delete(request, artwork_id, photo_id):
             return HttpResponseForbidden('La evidencia de una rendición presentada no se puede eliminar.')
         storage = photo.image.storage
         image_name = photo.image.name
+        stage = photo.stage
         photo.delete()
         transaction.on_commit(lambda: storage.delete(image_name))
-    messages.success(request, 'Foto eliminada de la galería.')
-    return _artwork_redirect(artwork, 'galeria')
+    messages.success(request, 'Foto eliminada.')
+    return _photo_redirect(artwork, stage)
+
+
+@login_required
+@require_POST
+def artwork_team_benefits(request, artwork_id):
+    """Guarda quién del equipo entra antes y quién se queda después."""
+    with transaction.atomic():
+        artwork = get_object_or_404(_accessible_artworks(request.user).select_for_update(), pk=artwork_id)
+        if not _logistics_editable(artwork, request.user):
+            return HttpResponseForbidden('El ingreso anticipado de esta instalación no se puede editar ahora.')
+        form = _benefits_form(artwork, request.POST)
+        if form is None:
+            return HttpResponseForbidden('La instalación todavía no tiene equipo.')
+        if not form.is_valid():
+            return _inline_error_response(request, artwork, ('benefits', None), form)
+        form.save()
+    messages.success(request, 'Ingreso anticipado y late checkout guardados.')
+    return _artwork_redirect(artwork, 'ingreso')
+
+
+@login_required
+@require_POST
+def artwork_file_upload(request, artwork_id):
+    """Archivos de la propuesta (imágenes o PDF), en Detalles."""
+    access = _accessible_artworks(request.user)
+    with transaction.atomic():
+        artwork = get_object_or_404(access.select_for_update(), pk=artwork_id)
+        if not _files_editable(artwork, request.user):
+            return HttpResponseForbidden('Los archivos de esta instalación ya no se pueden editar.')
+        form = ArtworkFileUploadForm(request.POST, request.FILES, auto_id='file-new_%s')
+        if form.is_valid():
+            uploads = form.cleaned_data['files']
+            if artwork.files.count() + len(uploads) > 30:
+                form.add_error('files', 'Cada instalación admite hasta 30 archivos.')
+            else:
+                for upload in uploads:
+                    ArtworkFile.objects.create(
+                        artwork=artwork, file=upload, name=upload.name[:255], uploaded_by=request.user,
+                    )
+                messages.success(request, f"Se subieron {len(uploads)} archivo(s).")
+                return _artwork_redirect(artwork, 'detalles')
+    return _inline_error_response(request, artwork, ('file-new', None), form)
+
+
+@login_required
+@require_POST
+def artwork_file_delete(request, artwork_id, file_id):
+    with transaction.atomic():
+        artwork = get_object_or_404(_accessible_artworks(request.user).select_for_update(), pk=artwork_id)
+        if not _files_editable(artwork, request.user):
+            return HttpResponseForbidden('Los archivos de esta instalación ya no se pueden editar.')
+        artwork_file = get_object_or_404(ArtworkFile.objects.select_for_update(), pk=file_id, artwork=artwork)
+        storage, name = artwork_file.file.storage, artwork_file.file.name
+        artwork_file.delete()
+        transaction.on_commit(lambda: storage.delete(name))
+    messages.success(request, 'Archivo eliminado.')
+    return _artwork_redirect(artwork, 'detalles')
 
 
 @login_required
@@ -873,7 +1063,7 @@ def artwork_provider_edit(request, artwork_id, provider_id=None):
         return HttpResponseForbidden('La logística de esta instalación ya no se puede editar.')
     provider = get_object_or_404(ArtworkProvider, artwork=artwork, pk=provider_id) if provider_id else ArtworkProvider(artwork=artwork, created_by=request.user)
     if request.method != 'POST':
-        return _artwork_redirect(artwork, 'logistica')
+        return _artwork_redirect(artwork, 'ingreso')
     form = ArtworkProviderForm(
         request.POST, instance=provider,
         auto_id=f'provider-{provider_id}_%s' if provider_id else 'provider-new_%s',
@@ -887,7 +1077,7 @@ def artwork_provider_edit(request, artwork_id, provider_id=None):
             form.instance.created_by = form.instance.created_by or request.user
             provider = form.save()
         messages.success(request, 'Proveedor guardado.')
-        return _artwork_redirect(artwork, 'logistica')
+        return _artwork_redirect(artwork, 'ingreso')
     return _inline_error_response(
         request, artwork, ('provider', provider.pk) if provider_id else ('provider-new', None), form,
     )
@@ -904,7 +1094,7 @@ def artwork_provider_delete(request, artwork_id, provider_id):
             return HttpResponseForbidden('Este proveedor no se puede eliminar.')
         provider.delete()
     messages.success(request, 'Proveedor y sus vehículos fueron eliminados.')
-    return _artwork_redirect(artwork, 'logistica')
+    return _artwork_redirect(artwork, 'ingreso')
 
 
 @login_required
@@ -916,7 +1106,7 @@ def artwork_vehicle_edit(request, artwork_id, provider_id, vehicle_id=None):
         return HttpResponseForbidden('La logística de esta instalación ya no se puede editar.')
     vehicle = get_object_or_404(ArtworkProviderVehicle, provider=provider, pk=vehicle_id) if vehicle_id else ArtworkProviderVehicle(provider=provider)
     if request.method != 'POST':
-        return _artwork_redirect(artwork, 'logistica')
+        return _artwork_redirect(artwork, 'ingreso')
     form = ArtworkProviderVehicleForm(
         request.POST, instance=vehicle,
         auto_id=f'vehicle-{vehicle_id}_%s' if vehicle_id else f'vehicle-{provider_id}-new_%s',
@@ -930,7 +1120,7 @@ def artwork_vehicle_edit(request, artwork_id, provider_id, vehicle_id=None):
             form.instance.provider = provider
             form.save()
         messages.success(request, 'Vehículo guardado.')
-        return _artwork_redirect(artwork, 'logistica')
+        return _artwork_redirect(artwork, 'ingreso')
     return _inline_error_response(
         request, artwork, ('vehicle', vehicle.pk) if vehicle_id else ('vehicle-new', provider.pk), form,
     )
@@ -948,7 +1138,7 @@ def artwork_vehicle_delete(request, artwork_id, provider_id, vehicle_id):
             return HttpResponseForbidden('Este vehículo no se puede eliminar.')
         vehicle.delete()
     messages.success(request, 'Vehículo eliminado.')
-    return _artwork_redirect(artwork, 'logistica')
+    return _artwork_redirect(artwork, 'ingreso')
 
 
 def _managed_event(request, event_slug):

@@ -17,7 +17,7 @@ ESTAFA_FIELDS = {
     'declaracion': (
         'checkin_arrived_at', 'checkin_art_at', 'checkin_placed',
         'checkin_placement_changed', 'checkin_placement_change_notes',
-        'understanding_letter', 'understanding_letter_physical_received',
+        'understanding_letter', 'understanding_letter_physical_received', 'understanding_letter_physical_received_at',
         'understanding_letter_physical_custodian', 'understanding_letter_physical_notes',
         'understanding_letter_physical_waiver', 'understanding_letter_physical_waiver_reason',
     ),
@@ -94,7 +94,7 @@ def review_sections(artwork, program, at=None):
     ))
     rows.append(('Responsable de seguridad', person_label(artwork.safety_responsible)))
     sections.append(Section(
-        'propuesta', 'Propuesta y seguridad', 'propuesta', status, summary,
+        'propuesta', 'Propuesta y seguridad', 'detalles', status, summary,
         _when(program, ('proposal',), program.proposal_deadline, at), missing, rows,
     ))
 
@@ -124,7 +124,7 @@ def review_sections(artwork, program, at=None):
     status, summary = _status(missing)
     placement = f'Ubicación: {artwork.assigned_location}' if artwork.assigned_location else 'Sin ubicación asignada'
     sections.append(Section(
-        'desplegable', 'Desplegable y placement', 'placement', status, f'{summary} · {placement}',
+        'desplegable', 'Desplegable y placement', 'desplegable', status, f'{summary} · {placement}',
         _when(program, ('guide',), program.guide_deadline, at), missing,
         _rows(artwork, ('public_title', 'public_description', 'preferred_location')),
         ESTAFA_FIELDS['desplegable'],
@@ -138,7 +138,7 @@ def review_sections(artwork, program, at=None):
     if providers:
         parts.append(f'{len(providers)} proveedor{"es" if len(providers) != 1 else ""}')
     sections.append(Section(
-        'logistica', 'Ingreso anticipado, proveedores y desarme', 'logistica', INFO,
+        'logistica', 'Ingreso anticipado, proveedores y desarme', 'ingreso', INFO,
         ' · '.join(parts) or 'Sin datos cargados', _when(program, ('logistics',), program.logistics_deadline, at),
         rows=providers,
     ))
@@ -152,7 +152,7 @@ def review_sections(artwork, program, at=None):
     status, summary = _status(missing)
     deadlines = [d for d in (program.understanding_letter_digital_deadline, program.understanding_letter_physical_deadline) if d]
     sections.append(Section(
-        'declaracion', 'Check-in y declaración de entendimiento', 'carta-entendimiento', status, summary,
+        'declaracion', 'Check-in y declaración de entendimiento', 'carta', status, summary,
         _when(program, ('understanding_letter_digital', 'understanding_letter_physical'), max(deadlines) if deadlines else None, at),
         missing, estafa_fields=ESTAFA_FIELDS['declaracion'],
     ))

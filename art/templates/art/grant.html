@@ -1,0 +1,130 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% load art_format %}
+
+{% block page_title %}Beca · {{ artwork.title|default:'Instalación sin título' }}{% endblock page_title %}
+
+{% block submenu %}{% if acting_as_estafa %}{% include 'art/_estafa_menu.html' %}{% else %}{{ block.super }}{% endif %}{% endblock submenu %}
+
+{% block truecontent %}
+<div class="container-fluid art-form-page">
+    <a class="small text-decoration-none" href="{% url 'artwork_edit' artwork.pk %}"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i> Volver a la instalación</a>
+    <header class="mt-3 mb-4">
+        <p class="text-uppercase text-muted small fw-semibold mb-2">{{ program.event.name }} · {{ artwork.title|default:'Instalación sin título' }}</p>
+        <h2 class="h3 mb-2">Beca</h2>
+        <p class="text-muted mb-0">La beca se pide aparte de la inscripción. Contá para qué la necesitás y armá el presupuesto. Si se aprueba, después rendís los gastos acá mismo.</p>
+    </header>
+
+    <div class="artwork-status mb-4">
+        <p class="d-flex flex-column flex-sm-row align-items-sm-center gap-2 mb-0"><span class="badge bg-light text-dark border">Beca · {{ artwork.get_grant_status_display }}</span></p>
+        {% if artwork.grant_decision_notes %}<div class="artwork-status-message mt-3"><strong>Devolución de ESTAFA</strong><br>{{ artwork.grant_decision_notes|linebreaksbr }}</div>{% endif %}
+        {% if artwork.grant_approved_amount_ars %}<p class="artwork-contact mt-3 mb-0"><strong>Monto aprobado:</strong> ARS {{ artwork.grant_approved_amount_ars|art_money }}{% if artwork.grant_paid_at %} · pagado el {{ artwork.grant_paid_at|date:'d/m/Y' }}{% endif %}</p>{% endif %}
+    </div>
+
+    <form id="grant-form" method="post" novalidate>
+        {% csrf_token %}
+        {{ form.expected_version }}
+    </form>
+    {% include 'art/_error_summary.html' %}
+
+    <ol class="steps-timeline list-unstyled" aria-label="Pasos de la beca">
+        <li class="steps-item is-open">
+            <span class="steps-dot" aria-hidden="true"></span>
+            <section class="step-card" id="solicitud" aria-labelledby="solicitud-title">
+                <header class="step-card-head">
+                    <h2 id="solicitud-title">1. Solicitud</h2>
+                    <p class="step-meta">{% if program.grant_deadline %}<span>Hasta el {{ program.grant_deadline|date:'d/m' }}</span>{% endif %}</p>
+                </header>
+                {% include 'art/_field.html' with field=form.grant_requested %}
+                {% include 'art/_field.html' with field=form.grant_justification %}
+
+                <fieldset class="step-group mt-4">
+                    <legend>Presupuesto</legend>
+                    <p class="form-text mt-0 mb-3">Cada monto conserva su moneda, fecha, fuente y cotización. Total convertido: <strong>ARS {{ budget_total_ars|art_money }}</strong></p>
+                    {% if can_edit_budget %}
+                    <details class="inline-editor inline-create mb-3"{% if budget_create_form.errors %} open{% endif %}>
+                        <summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar ítem</span></summary>
+                        <form method="post" action="{% url 'grant_item_create' artwork.pk 'budget' %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
+                            {% include 'art/_inline_fields.html' with inline_form=budget_create_form %}
+                            <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Agregar al presupuesto</button></div>
+                        </form>
+                    </details>
+                    {% endif %}
+                    {% include 'art/_grant_items.html' with items=budget_items can_edit=can_edit_budget total_ars=budget_total_ars %}
+                </fieldset>
+
+                {% if can_submit_grant %}
+                    {% if artwork.grant_requested and artwork.grant_justification and budget_items %}
+                    <form method="post" action="{% url 'grant_submit' artwork.pk %}">{% csrf_token %}<button class="btn btn-primary" type="submit">Presentar solicitud de beca</button></form>
+                    {% else %}
+                    <div class="alert alert-info mb-0"><strong>Antes de presentar:</strong> marcá “Quiero solicitar una beca”, contá para qué la necesitás, agregá al menos un ítem y guardá los cambios.</div>
+                    {% endif %}
+                {% endif %}
+            </section>
+        </li>
+
+        {% if report_opened %}
+        <li class="steps-item is-open">
+            <span class="steps-dot" aria-hidden="true"></span>
+            <section class="step-card" id="rendicion" aria-labelledby="rendicion-title">
+                <header class="step-card-head">
+                    <h2 id="rendicion-title">2. Rendición</h2>
+                    <p class="step-meta">{% if program.grant_report_deadline %}<span>Hasta el {{ program.grant_report_deadline|date:'d/m' }}</span>{% endif %}</p>
+                </header>
+                {% include 'art/_field.html' with field=form.grant_report %}
+
+                <fieldset class="step-group mt-4">
+                    <legend>Gastos</legend>
+                    <p class="form-text mt-0 mb-3">La fecha de cada gasto es la fecha real de pago. Total convertido: <strong>ARS {{ expense_total_ars|art_money }}</strong></p>
+                    {% if can_edit_expenses %}
+                    <details class="inline-editor inline-create mb-3"{% if expense_create_form.errors %} open{% endif %}>
+                        <summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar gasto</span></summary>
+                        <form method="post" action="{% url 'grant_item_create' artwork.pk 'expense' %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
+                            {% include 'art/_inline_fields.html' with inline_form=expense_create_form %}
+                            <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Agregar a la rendición</button></div>
+                        </form>
+                    </details>
+                    {% endif %}
+                    {% include 'art/_grant_items.html' with items=expense_items can_edit=can_edit_expenses total_ars=expense_total_ars %}
+                    {% if grant_over_budget %}<div class="alert alert-warning mt-3 mb-0"><strong>Revisá los montos:</strong> la rendición supera el monto aprobado de ARS {{ artwork.grant_approved_amount_ars|art_money }}.</div>{% endif %}
+                </fieldset>
+
+                <fieldset class="step-group">
+                    <legend>Fotos de la rendición</legend>
+                    <p class="form-text mt-0 mb-3">Subí al menos una foto de la instalación terminada o de lo que compraste. También cuentan las fotos de la instalación terminada de la galería.</p>
+                    {% if can_edit_expenses %}
+                    <details class="inline-editor inline-create mb-3"{% if report_photo_upload_form.errors %} open{% endif %}>
+                        <summary><i class="fas fa-camera" aria-hidden="true"></i><span>Subir fotos</span></summary>
+                        <form method="post" action="{% url 'artwork_photo_upload' artwork.pk %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
+                            {% include 'art/_inline_fields.html' with inline_form=report_photo_upload_form %}
+                            <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Subir fotos</button></div>
+                        </form>
+                    </details>
+                    {% endif %}
+                    {% include 'art/_gallery_photos.html' with photos=report_photos can_delete=can_edit_expenses empty='Todavía no hay fotos de la rendición.' %}
+                </fieldset>
+
+                {% if can_submit_report %}<form method="post" action="{% url 'grant_report_submit' artwork.pk %}">{% csrf_token %}<button class="btn btn-primary" type="submit">Enviar rendición</button></form>{% endif %}
+            </section>
+        </li>
+        {% else %}
+        <li class="steps-item is-upcoming">
+            <span class="steps-dot" aria-hidden="true"></span>
+            <div class="step-row" id="rendicion"><strong>2. Rendición</strong><span>Si la beca se aprueba</span><small>Contás cómo usaste la beca, cargás los gastos y subís fotos.</small></div>
+        </li>
+        {% endif %}
+    </ol>
+
+    {% if not form.is_read_only %}
+    <div class="save-bar d-flex justify-content-end gap-2 py-3" data-sticky-actions>
+        <button class="btn btn-primary" type="submit" form="grant-form">Guardar</button>
+    </div>
+    {% endif %}
+</div>
+
+{% include 'art/_form_styles.html' %}
+{% include 'art/_steps_styles.html' %}
+{% include 'art/_image_preview.html' %}
+{% include 'art/_money_inputs.html' %}
+{% include 'art/_messages.html' %}
+{% include 'art/_restore_position.html' %}
+{% endblock %}
