@@ -21,7 +21,6 @@ BLOCKS = {
         or artwork.grant_status in (artwork.GrantStatus.NOT_REQUESTED, artwork.GrantStatus.INFO_REQUIRED)
     )),
     'guide': ('Desplegable', lambda artwork: not artwork.public_title or not artwork.public_description),
-    'logistics': ('Ingreso y salida', lambda artwork: not artwork.arrival_date or not artwork.departure_date),
     'checkout': ('Checkout', lambda artwork: artwork.status == artwork.Status.ACTIVE),
     'grant_report': ('Rendición de beca', lambda artwork: artwork.grant_status in (
         artwork.GrantStatus.APPROVED, artwork.GrantStatus.PAID,

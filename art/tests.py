@@ -460,9 +460,9 @@ class ArtworkFlowTest(TestCase):
         photo = {'stage': ArtworkPhoto.Stage.PROCESS, 'images': self.image('armado.gif')}
         self.assertEqual(self.client.post(reverse('artwork_photo_upload', args=[artwork.pk]), photo).status_code, 403)
         form = self.artwork_form({
-            'title': 'Faro', 'arrival_date': '2030-01-01', 'expected_version': artwork.version,
+            'title': 'Faro', 'checkout_notes': 'Antes de tiempo', 'expected_version': artwork.version,
         }, artwork=artwork, actor=self.admin)
-        self.assertTrue(form.fields['arrival_date'].disabled)
+        self.assertTrue(form.fields['checkout_notes'].disabled)
         self.assertFalse(form.is_valid())
         # Un paso cerrado, en cambio, ESTAFA lo puede corregir.
         self.program.proposal_deadline = timezone.now() - timedelta(days=1)

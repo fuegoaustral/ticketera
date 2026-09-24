@@ -79,11 +79,6 @@ def _letter_deadline(program):
     return max(deadlines) if deadlines else None
 
 
-def _letter_opens(program):
-    opens = [d for d in (program.understanding_letter_digital_opens, program.understanding_letter_physical_opens) if d]
-    return min(opens) if opens else None
-
-
 def _missing(key, artwork):
     if key == 'detalles':
         missing = [label for name, label in (
@@ -148,7 +143,8 @@ def artwork_steps(artwork, program, at=None, form=None):
     steps = []
     for key, title, short, block, optional, about in STEPS:
         if block == 'understanding_letter':
-            state, deadline, opens = _letter_state(program, at), _letter_deadline(program), _letter_opens(program)
+            # La declaración no tiene apertura: sólo cierres.
+            state, deadline, opens = _letter_state(program, at), _letter_deadline(program), None
         elif block:
             state, deadline, opens = program.checkpoint_state(block, at), program.deadline_for(block), program.opens_at(block)
         else:

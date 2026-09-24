@@ -31,7 +31,6 @@ ARTWORK_BLOCK_FIELDS = {
         'safety_plan', 'safety_responsible_email', 'burns', 'burn_preferred_time', 'burn_company', 'files_url',
     ),
     'guide': ('public_title', 'public_description', 'preferred_location'),
-    'logistics': ('arrival_date', 'departure_date'),
     'checkout': ('checkout_team_responsible', 'checkout_notes'),
     'understanding_letter_digital': ('understanding_letter',),
 }
@@ -122,8 +121,6 @@ class ArtworkForm(InvalidFieldsMixin, forms.ModelForm):
             'safety_plan': forms.Textarea(attrs={'rows': 5}),
             'files_url': forms.URLInput(attrs={'placeholder': 'https://…'}),
             'public_description': forms.Textarea(attrs={'rows': 6}),
-            'arrival_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
-            'departure_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
             'checkout_notes': forms.Textarea(attrs={'rows': 5}),
         }
 
@@ -205,10 +202,6 @@ class ArtworkForm(InvalidFieldsMixin, forms.ModelForm):
         if not self.instance.pk and not self.program.registration_is_open(now):
             self.add_error(None, 'La inscripción de instalaciones está cerrada.')
 
-        arrival = cleaned.get('arrival_date')
-        departure = cleaned.get('departure_date')
-        if arrival and departure and departure < arrival:
-            self.add_error('departure_date', 'La salida no puede ser anterior al ingreso.')
 
         if self.instance.pk and self.is_bound:
             expected = cleaned.get('expected_version')

@@ -31,11 +31,11 @@
     </div>
 </fieldset>
 <fieldset class="step-group">
-    <legend>Quema</legend>
+    <legend>¿Se quema?</legend>
     {% include 'art/_field.html' with field=form.burns %}
     {% comment %}Sólo se muestra si la instalación se quema (sin JavaScript, siempre).{% endcomment %}
     <div id="burn-fields" data-reveal-when="{{ form.burns.id_for_label }}">
-        <p class="form-text mt-0 mb-3">ESTAFA se comunica con quienes organizan las quemas para coordinar el día y el horario. Contanos qué preferís.</p>
+        <p class="form-text mt-0 mb-3">ESTAFA se comunica con los Rangers, que organizan las quemas, para coordinar el día y el horario. Contanos qué preferís.</p>
         {% include 'art/_field.html' with field=form.burn_preferred_time %}
         {% include 'art/_field.html' with field=form.burn_company %}
     </div>
