@@ -204,6 +204,9 @@ def _artwork_context(artwork, program, form, inline_forms=None):
         'can_submit_report': artwork.can_edit(form.actor) and program.is_current and program.checkpoint_state('grant_report') == 'open' and artwork.grant_status in (Artwork.GrantStatus.APPROVED, Artwork.GrantStatus.PAID),
         'can_submit_checkout': _can_submit_checkout(artwork, program, form.actor),
     })
+    # ESTAFA editando la instalación de otra persona: navega dentro de ESTAFA y auditlog registra quién guarda.
+    if context['can_manage'] and not artwork.can_edit(form.actor):
+        context.update(_estafa_context(form.actor, artwork.event), acting_as_estafa=True)
     context.update(_grant_context(artwork, inline_forms))
     return context
 

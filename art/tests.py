@@ -4,6 +4,7 @@ from importlib import import_module
 from unittest.mock import patch
 
 from allauth.account.models import EmailAddress
+from auditlog.models import LogEntry
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -200,6 +201,41 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(artwork.title, 'Borrador')
         self.assertEqual(artwork.status, Artwork.Status.PENDING)
         self.assertEqual([str(message) for message in get_messages(response.wsgi_request)], ['Cambios guardados.'])
+
+    def test_estafa_edits_another_persons_artwork_from_within_estafa(self):
+        artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
+        artwork.collaborators.add(self.collaborator)
+        url = reverse('artwork_edit', args=[artwork.pk])
+        review_url = reverse('artwork_review', args=[self.event.slug, artwork.pk])
+        notice = 'Estás viendo la instalación de <strong>artista@example.com</strong> como ESTAFA.'
+
+        for user in (self.owner, self.collaborator):
+            self.client.force_login(user)
+            page = self.client.get(url)
+            self.assertNotContains(page, notice, html=False)
+            self.assertContains(page, 'Volver a Arte')
+            self.assertContains(page, 'ESTAFA está revisando tu inscripción.')
+
+        self.client.force_login(self.admin)
+        page = self.client.get(url)
+        self.assertContains(page, notice, html=False)
+        self.assertContains(page, f'href="{review_url}"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i> Volver a ESTAFA')
+        self.assertContains(page, 'Menú de ESTAFA')
+        self.assertNotContains(page, 'ESTAFA está revisando tu inscripción.')
+
+        response = self.client.post(url, {'title': 'Faro nuevo', 'expected_version': artwork.version, 'action': 'save'})
+        self.assertRedirects(response, url, fetch_redirect_response=False)
+        artwork.refresh_from_db()
+        self.assertEqual(artwork.title, 'Faro nuevo')
+        entry = LogEntry.objects.get_for_object(artwork).filter(action=LogEntry.Action.UPDATE).latest('timestamp')
+        self.assertEqual(entry.actor, self.admin)
+
+        # ESTAFA sólo coordina Fuego Austral; en otros eventos, sólo superusers.
+        self.event.has_volunteers = False
+        self.event.save(update_fields=['has_volunteers'])
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.client.force_login(User.objects.create_superuser(username='root', email='root@example.com', password='x'))
+        self.assertContains(self.client.get(url), notice, html=False)
 
     def test_save_confirmation_is_rendered_in_an_accessible_status_line(self):
         artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')

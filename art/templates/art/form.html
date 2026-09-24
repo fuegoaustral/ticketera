@@ -3,9 +3,20 @@
 
 {% block page_title %}{% if artwork %}{{ artwork.title|default:'Instalación sin título' }}{% else %}Nueva instalación{% endif %}{% endblock page_title %}
 
+{% block submenu %}{% if acting_as_estafa %}{% include 'art/_estafa_menu.html' %}{% else %}{{ block.super }}{% endif %}{% endblock submenu %}
+
 {% block truecontent %}
 <div class="container-fluid art-form-page">
+    {% if acting_as_estafa %}
+    <a class="small text-decoration-none" href="{% url 'artwork_review' artwork.event.slug artwork.pk %}"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i> Volver a ESTAFA</a>
+    <div class="estafa-notice d-flex flex-column flex-sm-row align-items-sm-center gap-2 mt-3" role="note">
+        <i class="fas fa-paintbrush d-none d-sm-block" aria-hidden="true"></i>
+        <p class="mb-0 flex-grow-1">Estás viendo la instalación de <strong>{{ artwork.owner.email|default:'una cuenta archivada' }}</strong> como ESTAFA. Lo que guardes queda registrado a tu nombre.</p>
+        <a class="btn btn-sm btn-outline-secondary text-nowrap" href="{% url 'artwork_review' artwork.event.slug artwork.pk %}">Abrir en ESTAFA</a>
+    </div>
+    {% else %}
     <a class="small text-decoration-none" href="{% url 'art_dashboard' %}"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i> Volver a Arte</a>
+    {% endif %}
     <header class="mt-3 mb-4">
         <p class="text-uppercase text-muted small fw-semibold mb-2">{{ program.event.name }}</p>
         <h2 class="h3 mb-2">Instalación de Arte</h2>
@@ -14,7 +25,7 @@
 
     {% if artwork %}
     <div class="artwork-status mb-4">
-        <p class="d-flex flex-column flex-sm-row align-items-sm-center gap-2 mb-0">{% include 'art/_status_badge.html' %}<span>{{ artwork.stage_hint }}</span></p>
+        <p class="d-flex flex-column flex-sm-row align-items-sm-center gap-2 mb-0">{% include 'art/_status_badge.html' %}{% if not acting_as_estafa %}<span>{{ artwork.stage_hint }}</span>{% endif %}</p>
         {% if artwork.review_feedback %}<div class="artwork-status-message mt-3"><strong>Mensaje de ESTAFA</strong><br>{{ artwork.review_feedback|linebreaksbr }}</div>{% endif %}
     </div>
     {% endif %}
@@ -281,7 +292,7 @@
 
         {% if program.is_current or can_manage %}
         <div class="save-bar d-flex flex-column flex-sm-row justify-content-between gap-2 py-3" data-sticky-actions>
-            {% if can_manage and artwork %}<a class="btn btn-outline-secondary" href="{% url 'artwork_review' artwork.event.slug artwork.pk %}">Abrir en ESTAFA</a>{% else %}<span></span>{% endif %}
+            {% if can_manage and artwork and not acting_as_estafa %}<a class="btn btn-outline-secondary" href="{% url 'artwork_review' artwork.event.slug artwork.pk %}">Abrir en ESTAFA</a>{% else %}<span></span>{% endif %}
             <button class="btn btn-primary" type="submit" form="artwork-form" name="action" value="save">Guardar</button>
         </div>
         {% else %}
@@ -292,6 +303,8 @@
 <style>
     .art-form-page { max-width: 920px; overflow-wrap: anywhere; }
     .art-form-page header p { max-width: 68ch; }
+    .estafa-notice { padding: .75rem 1rem; border: 1px solid #dee2e6; border-left: 4px solid #6c757d; border-radius: .5rem; background: #f8f9fa; }
+    .estafa-notice .btn { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
     .artwork-status { padding: 1rem; border: 1px solid #dee2e6; border-radius: .5rem; }
     .artwork-status .badge { align-self: flex-start; font-size: .8rem; padding: .45em .7em; }
     .artwork-status-message { padding-top: .75rem; border-top: 1px solid #dee2e6; max-width: 68ch; }
