@@ -21,7 +21,10 @@ from .models import (
 
 # Las fechas del programa agrupadas por paso, en el orden en que pasan.
 ART_PROGRAM_FIELDSETS = (
-    ('Convocatoria', {'fields': ('is_current',)}),
+    ('Convocatoria', {
+        'description': 'Las aperturas vacías dejan el paso sin habilitar; los cierres vacíos, sin cierre.',
+        'fields': ('is_current',),
+    }),
     ('Inscripción', {'fields': ('registration_opens', 'registration_closes')}),
     ('Detalles', {'fields': ('proposal_deadline',)}),
     ('Desplegable y placement', {
@@ -39,7 +42,7 @@ ART_PROGRAM_FIELDSETS = (
             'late_checkout_until', 'late_checkout_slots',
         ),
     }),
-    ('Galería y checkout', {'fields': ('gallery_deadline', 'checkout_opens', 'checkout_deadline')}),
+    ('Galería y checkout', {'fields': ('gallery_opens', 'gallery_deadline', 'checkout_opens', 'checkout_deadline')}),
     ('Becas', {
         'description': 'Las gestiona el equipo de becas.',
         'fields': ('grants_enabled', 'grant_opens', 'grant_deadline', 'grant_report_deadline'),

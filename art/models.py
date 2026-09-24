@@ -43,33 +43,34 @@ class ArtProgram(BaseModel):
     )
     registration_opens = models.DateTimeField(
         null=True, blank=True, verbose_name='Apertura de inscripción',
-        help_text='Desde cuándo se pueden inscribir instalaciones nuevas (botón «Nueva instalación»). Vacía: desde ya.',
+        help_text='Desde cuándo se pueden inscribir instalaciones nuevas (botón «Nueva instalación»). '
+                  'Vacía: la inscripción no se habilita.',
     )
     registration_closes = models.DateTimeField(
         null=True, blank=True, verbose_name='Cierre de inscripción',
         help_text='Hasta cuándo se pueden inscribir instalaciones nuevas. Las ya inscriptas se siguen completando '
-                  'según las fechas de cada paso. Vacía: sin cierre.',
+                  'según las fechas de cada paso. Vacía: no cierra.',
     )
     proposal_deadline = models.DateTimeField(
         null=True, blank=True, verbose_name='Cierre de detalles',
         help_text='Último momento para editar los detalles de la instalación: descripción, dimensiones, materiales y '
-                  'seguridad. Puede ser posterior al cierre de inscripción. Vacía: cierra cuando empieza el evento.',
+                  'seguridad. Puede ser posterior al cierre de inscripción. Vacía: no cierra.',
     )
     grants_enabled = models.BooleanField(
         default=False, verbose_name='Becas habilitadas', help_text='Muestra el paso de beca a los equipos.',
     )
     grant_opens = models.DateTimeField(
         null=True, blank=True, verbose_name='Apertura de becas',
-        help_text='Desde cuándo se puede pedir beca. Vacía: desde ya.',
+        help_text='Desde cuándo se puede pedir beca. Vacía: el paso no se habilita.',
     )
     grant_deadline = models.DateTimeField(
         null=True, blank=True, verbose_name='Cierre de becas',
-        help_text='Último momento para pedir beca y cargar el presupuesto. Vacía: sin cierre.',
+        help_text='Último momento para pedir beca y cargar el presupuesto. Vacía: no cierra.',
     )
     guide_deadline = models.DateTimeField(
         null=True, blank=True, verbose_name='Cierre de desplegable y placement',
         help_text='Último momento para editar el título y el texto para el público y la ubicación preferida. '
-                  'Vacía: cierra cuando empieza el evento.',
+                  'Vacía: no cierra.',
     )
     public_description_max_length = models.PositiveIntegerField(
         default=200,
@@ -84,31 +85,36 @@ class ArtProgram(BaseModel):
     logistics_deadline = models.DateTimeField(
         null=True, blank=True, verbose_name='Cierre de logística',
         help_text='Último momento para cargar ingreso anticipado, late checkout, proveedores y vehículos. '
-                  'Vacía: cierra cuando empieza el evento.',
+                  'Vacía: no cierra.',
+    )
+    gallery_opens = models.DateTimeField(
+        null=True, blank=True, verbose_name='Apertura de galería',
+        help_text='Desde cuándo los equipos pueden subir fotos del armado y de la instalación terminada. '
+                  'Vacía: el paso no se habilita.',
     )
     gallery_deadline = models.DateTimeField(
         null=True, blank=True, verbose_name='Cierre de galería',
-        help_text='La galería se habilita cuando empieza el evento. Sin fecha de cierre, cierra cuando termina.',
+        help_text='Último momento para subir fotos a la galería. Vacía: no cierra.',
     )
     checkout_opens = models.DateTimeField(
         null=True, blank=True, verbose_name='Apertura de checkout',
-        help_text='Desde cuándo los equipos pueden enviar el checkout. Vacía: cuando empieza el evento.',
+        help_text='Desde cuándo los equipos pueden enviar el checkout. Vacía: el paso no se habilita.',
     )
     checkout_deadline = models.DateTimeField(
         null=True, blank=True, verbose_name='Cierre de checkout',
-        help_text='Último momento para enviar el checkout. Vacía: cuando termina el evento.',
+        help_text='Último momento para enviar el checkout. Vacía: no cierra.',
     )
     understanding_letter_digital_deadline = models.DateTimeField(
         null=True, blank=True, verbose_name='Cierre de declaración digital',
-        help_text='Último momento para subir la declaración firmada. Vacía: cierra cuando empieza el evento.',
+        help_text='Último momento para subir la declaración firmada. Vacía: no cierra.',
     )
     understanding_letter_physical_deadline = models.DateTimeField(
         null=True, blank=True, verbose_name='Cierre de entrega de la copia física',
-        help_text='Último momento para entregar la copia en papel. Vacía: cuando empieza el evento.',
+        help_text='Último momento para entregar la copia en papel. Vacía: no cierra.',
     )
     grant_report_deadline = models.DateTimeField(
         null=True, blank=True, verbose_name='Cierre de rendición de becas',
-        help_text='Último momento para rendir una beca aprobada. Vacía: sin cierre.',
+        help_text='Último momento para rendir una beca aprobada. Vacía: no cierra.',
     )
     reminder_days = models.JSONField(
         default=default_art_reminder_days, blank=True, verbose_name='Días de anticipación para recordatorios',
@@ -137,66 +143,48 @@ class ArtProgram(BaseModel):
             models.UniqueConstraint(fields=['is_current'], condition=Q(is_current=True), name='unique_current_art_program'),
         ]
 
+    # Apertura y cierre de cada bloque: el cierre no puede ser anterior.
+    DATE_PAIRS = (
+        ('registration_opens', 'registration_closes'), ('grant_opens', 'grant_deadline'),
+        ('logistics_opens', 'logistics_deadline'), ('gallery_opens', 'gallery_deadline'),
+        ('checkout_opens', 'checkout_deadline'),
+    )
+
     def __str__(self):
         return f'Arte · {self.event.name}'
 
     def clean(self):
         errors = {}
-        if self.registration_opens and self.registration_closes and self.registration_closes < self.registration_opens:
-            errors['registration_closes'] = 'El cierre no puede ser anterior a la apertura.'
-        if self.checkout_opens and self.checkout_deadline and self.checkout_deadline < self.checkout_opens:
-            errors['checkout_deadline'] = 'El cierre no puede ser anterior a la apertura.'
+        for opens, closes in self.DATE_PAIRS:
+            if getattr(self, opens) and getattr(self, closes) and getattr(self, closes) < getattr(self, opens):
+                errors[closes] = 'El cierre no puede ser anterior a la apertura.'
         if not isinstance(self.reminder_days, list) or any(not isinstance(day, int) or day < 0 for day in self.reminder_days):
             errors['reminder_days'] = 'Usá una lista de días enteros no negativos, por ejemplo [7, 3, 1].'
         if errors:
             raise ValidationError(errors)
 
     def registration_is_open(self, at=None):
-        at = at or timezone.now()
-        return (
-            (not self.registration_opens or self.registration_opens <= at)
-            and (not self.registration_closes or at <= self.registration_closes)
-        )
-
-    @property
-    def checkout_opens_at(self):
-        """Sin fecha propia, el checkout se habilita cuando empieza el evento."""
-        return self.checkout_opens or self.event.start
+        return self.checkpoint_state('registration', at) == 'open'
 
     def checkout_is_open(self, at=None):
-        return (at or timezone.now()) >= self.checkout_opens_at
-
-    # Sin fecha de cierre propia, cada bloque cierra con el evento: lo previo cuando empieza
-    # y la galería y el checkout cuando termina.
-    DEADLINE_FALLBACK = {
-        'proposal': 'start', 'guide': 'start', 'logistics': 'start',
-        'understanding_letter_digital': 'start', 'understanding_letter_physical': 'start',
-        'gallery': 'end', 'checkout': 'end',
-    }
-
-    def deadline_for(self, block):
-        deadline = getattr(self, f'{block}_deadline', None)
-        if deadline:
-            return deadline
-        edge = self.DEADLINE_FALLBACK.get(block)
-        return getattr(self.event, edge) if edge else None
+        return self.checkpoint_state('checkout', at) != 'upcoming'
 
     def opens_at(self, block):
-        if block == 'checkout':
-            return self.checkout_opens_at
-        # La galería de proceso y de la instalación terminada se habilita cuando empieza el evento.
-        if block == 'gallery':
-            return self.event.start
         return getattr(self, f'{block}_opens', None)
 
+    def deadline_for(self, block):
+        return getattr(self, 'registration_closes' if block == 'registration' else f'{block}_deadline', None)
+
     def checkpoint_state(self, block, at=None):
+        """Los bloques con apertura no se habilitan hasta que ESTAFA pone la fecha. Sin cierre, no cierran.
+
+        Sólo usa fechas del programa: las del evento quedan para los bonos.
+        """
         at = at or timezone.now()
-        opens = self.opens_at(block)
-        # Ingreso anticipado y proveedores sólo se habilita cuando ESTAFA pone la fecha.
-        if block == 'logistics' and not opens:
-            return 'upcoming'
-        if opens and at < opens:
-            return 'upcoming'
+        if hasattr(self, f'{block}_opens'):
+            opens = self.opens_at(block)
+            if not opens or at < opens:
+                return 'upcoming'
         deadline = self.deadline_for(block)
         return 'closed' if deadline and at > deadline else 'open'
 

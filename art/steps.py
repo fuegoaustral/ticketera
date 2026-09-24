@@ -149,7 +149,7 @@ def artwork_steps(artwork, program, at=None, form=None):
             state, deadline, opens = program.checkpoint_state(block, at), program.deadline_for(block), program.opens_at(block)
         else:
             # El equipo se puede armar durante toda la edición.
-            state, deadline, opens = OPEN, program.event.end, None
+            state, deadline, opens = OPEN, None, None
         if key == 'detalles' and not artwork:
             state = OPEN
         if read_only:

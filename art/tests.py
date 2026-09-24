@@ -60,8 +60,8 @@ class ArtworkFlowTest(TestCase):
         )
         self.program = ArtProgram.objects.create(
             event=self.event, is_current=True, grants_enabled=True,
-            registration_closes=now - timedelta(days=1),
-            grant_deadline=now + timedelta(days=2),
+            registration_opens=now - timedelta(days=30), registration_closes=now - timedelta(days=1),
+            grant_opens=now - timedelta(days=30), grant_deadline=now + timedelta(days=2),
             proposal_deadline=now + timedelta(days=2),
             grant_report_deadline=now + timedelta(days=30),
         )
@@ -371,23 +371,33 @@ class ArtworkFlowTest(TestCase):
     def steps_by_key(self, artwork):
         return {step.key: step for step in artwork_steps(artwork, self.program)}
 
-    def test_steps_follow_the_program_dates_and_fall_back_to_the_event(self):
+    def test_steps_follow_only_the_program_dates(self):
         artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
+        # Las fechas del evento son para los bonos: aunque ya haya empezado, no cierran ni abren pasos.
+        self.event.start = timezone.now() - timedelta(hours=1)
+        self.event.save(update_fields=['start'])
         steps = self.steps_by_key(artwork)
         self.assertEqual(list(steps), ['detalles', 'equipo', 'desplegable', 'carta', 'ingreso', 'galeria', 'checkout'])
         self.assertEqual(steps['detalles'].state, 'open')
         self.assertEqual(steps['detalles'].missing, ['Descripción', 'Dimensiones', 'Materiales'])
-        # Sin cierre propio, el desplegable cierra cuando empieza el evento y lo dice.
-        self.assertEqual(steps['desplegable'].deadline, self.event.start)
-        self.assertTrue(steps['desplegable'].when.startswith('Abierto · hasta el '))
+        # Sin cierre, el paso queda abierto y no anuncia fecha.
+        self.assertIsNone(steps['desplegable'].deadline)
+        self.assertEqual(steps['desplegable'].when, 'Abierto')
+        self.assertEqual(steps['equipo'].when, 'Abierto')
+        self.assertEqual(steps['carta'].state, 'open')
         # Ingreso anticipado espera la fecha de ESTAFA y nunca la anuncia.
         self.assertEqual(steps['ingreso'].state, 'upcoming')
         self.assertEqual(steps['ingreso'].when, 'Te avisamos cuando se habilite')
         self.program.logistics_opens = timezone.now() + timedelta(days=3)
         self.program.save(update_fields=['logistics_opens'])
         self.assertEqual(self.steps_by_key(artwork)['ingreso'].when, 'Te avisamos cuando se habilite')
+        # Sin apertura, galería y checkout esperan la fecha de ESTAFA.
         self.assertEqual(steps['galeria'].state, 'upcoming')
+        self.assertEqual(steps['galeria'].when, 'Te avisamos cuando se habilite')
         self.assertEqual(steps['checkout'].state, 'upcoming')
+        self.program.guide_deadline = timezone.now() + timedelta(days=5)
+        self.program.save(update_fields=['guide_deadline'])
+        self.assertEqual(self.steps_by_key(artwork)['desplegable'].deadline, self.program.guide_deadline)
 
         self.program.proposal_deadline = timezone.now() - timedelta(days=1)
         self.program.save(update_fields=['proposal_deadline'])
@@ -485,9 +495,13 @@ class ArtworkFlowTest(TestCase):
 
         self.open_logistics()
         self.assertEqual(self.client.post(reverse('artwork_provider_create', args=[artwork.pk]), provider).status_code, 302)
-        # Cuando empieza el evento se abre la galería y cierra el ingreso anticipado.
+        # Que empiece el evento no abre la galería: la abre su fecha, como el cierre de logística.
         self.event.start = timezone.now() - timedelta(hours=1)
         self.event.save(update_fields=['start'])
+        photo['images'] = self.image('armado.gif')
+        self.assertEqual(self.client.post(reverse('artwork_photo_upload', args=[artwork.pk]), photo).status_code, 403)
+        self.program.logistics_deadline = self.program.gallery_opens = timezone.now() - timedelta(minutes=1)
+        self.program.save(update_fields=['logistics_deadline', 'gallery_opens'])
         self.assertEqual(self.client.post(reverse('artwork_provider_create', args=[artwork.pk]), provider).status_code, 403)
         photo['images'] = self.image('armado.gif')
         self.assertEqual(self.client.post(reverse('artwork_photo_upload', args=[artwork.pk]), photo).status_code, 302)
@@ -890,9 +904,8 @@ class ArtworkFlowTest(TestCase):
         self.assertTrue(artwork.can_edit(invited))
         self.client.force_login(invited)
 
-        # La galería se habilita cuando empieza el evento.
-        self.event.start = timezone.now() - timedelta(hours=1)
-        self.event.save(update_fields=['start'])
+        self.program.gallery_opens = timezone.now() - timedelta(hours=1)
+        self.program.save(update_fields=['gallery_opens'])
         image = self.image('obra.gif')
         response = self.client.post(reverse('artwork_photo_upload', args=[artwork.pk]), {
             'stage': ArtworkPhoto.Stage.PROCESS,
@@ -1031,6 +1044,39 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(self.program.checkpoint_state('grant'), 'open')
         self.program.grant_opens = timezone.now() + timedelta(days=1)
         self.assertEqual(self.program.checkpoint_state('grant'), 'upcoming')
+        self.program.grant_opens = None
+        self.assertEqual(self.program.checkpoint_state('grant'), 'upcoming')
+
+    def test_empty_openings_are_not_enabled_and_empty_closings_never_close(self):
+        program = ArtProgram(event=self.event)
+        for block in ('registration', 'grant', 'logistics', 'gallery', 'checkout'):
+            self.assertEqual(program.checkpoint_state(block), 'upcoming', block)
+        for block in ('proposal', 'guide', 'understanding_letter_digital', 'understanding_letter_physical', 'grant_report'):
+            self.assertEqual(program.checkpoint_state(block), 'open', block)
+        self.assertFalse(program.registration_is_open())
+        self.assertFalse(program.checkout_is_open())
+
+    def test_program_closings_cannot_come_before_their_openings(self):
+        now = timezone.now()
+        program = ArtProgram(event=self.event)
+        for opens, closes in ArtProgram.DATE_PAIRS:
+            setattr(program, opens, now)
+            setattr(program, closes, now - timedelta(days=1))
+        with self.assertRaises(ValidationError) as raised:
+            program.clean()
+        self.assertEqual(set(raised.exception.message_dict), {closes for _, closes in ArtProgram.DATE_PAIRS})
+
+    def test_dashboard_says_when_registration_opens(self):
+        self.client.force_login(self.owner)
+        self.assertContains(self.client.get(reverse('art_dashboard')), 'La inscripción de instalaciones cerró.')
+        self.program.registration_opens = timezone.now() + timedelta(days=3)
+        self.program.registration_closes = None
+        self.program.save(update_fields=['registration_opens', 'registration_closes'])
+        opens = timezone.localtime(self.program.registration_opens)
+        self.assertContains(self.client.get(reverse('art_dashboard')), f'La inscripción abre el {opens:%d/%m/%Y %H:%M}.')
+        self.program.registration_opens = None
+        self.program.save(update_fields=['registration_opens'])
+        self.assertContains(self.client.get(reverse('art_dashboard')), 'La inscripción todavía no abrió.')
 
     def test_admin_dashboard_filters_and_exports_by_estafa_contact(self):
         contact = User.objects.create_user(
@@ -1465,7 +1511,7 @@ class ArtworkFlowTest(TestCase):
             if name in ('title', 'proposal')
         ))
 
-    def test_checkout_opens_with_the_event_and_the_team_submits_it(self):
+    def test_checkout_opens_on_its_date_and_the_team_submits_it(self):
         artwork = Artwork.objects.create(
             event=self.event, owner=self.owner, title='Faro', proposal='Texto',
             status=Artwork.Status.ACTIVE, estafa_contact=self.collaborator,
@@ -1478,8 +1524,12 @@ class ArtworkFlowTest(TestCase):
         artwork.refresh_from_db()
         self.assertEqual(artwork.status, Artwork.Status.ACTIVE)
 
+        # Que empiece el evento no alcanza: el checkout abre con su fecha.
         self.event.start = timezone.now() - timedelta(hours=1)
         self.event.save(update_fields=['start'])
+        self.assertEqual(Artwork.objects.get(pk=artwork.pk).stage, Artwork.Status.ACTIVE)
+        self.program.checkout_opens = timezone.now() - timedelta(minutes=1)
+        self.program.save(update_fields=['checkout_opens'])
         artwork.refresh_from_db()
         pending.refresh_from_db()
         self.assertEqual(artwork.stage, Artwork.CHECKOUT_PENDING)

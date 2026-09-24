@@ -28,13 +28,15 @@ Solo el `ArtProgram` marcado como **convocatoria anual vigente** permite crear i
 3. ESTAFA asigna placement y registra el beneficio para la siguiente edición.
 4. La persona solicita la beca con un presupuesto por ítems. Cada ítem es ARS o USD; los USD guardan monto, cotización ARS/USD, fecha y fuente. El valor queda congelado para mantener trazabilidad histórica.
 5. Una beca aprobada se rinde con gastos por ítems, relato y al menos una foto final o de rendición. La fecha de cada gasto es la fecha real de pago.
-6. El checkout se habilita en la apertura de checkout del programa o, si no tiene fecha, cuando empieza el evento: las instalaciones aprobadas pasan a **Checkout pendiente**. El equipo sube fotos del estado final y envía el checkout (**Checkout enviado**); ESTAFA lo verifica en el predio (**Checkout verificado**).
+6. El checkout se habilita en la apertura de checkout del programa: las instalaciones aprobadas pasan a **Checkout pendiente**. El equipo sube fotos del estado final y envía el checkout (**Checkout enviado**); ESTAFA lo verifica en el predio (**Checkout verificado**).
 
 Los comprobantes contables no se adjuntan todavía: el almacenamiento de medios actual no ofrece el aislamiento privado necesario. La galería sí pide autorización explícita de publicación en cada carga.
 
 ## Checkpoints y recordatorios
 
-En `ArtProgram` se configuran apertura/cierre de inscripción y los cierres de propuesta, beca, desplegable, logística, checkout y rendición. Los campos vencidos quedan en lectura para participantes; ESTAFA conserva acceso administrativo.
+En `ArtProgram` se configuran la apertura y el cierre de inscripción, beca, logística, galería y checkout, y los cierres de propuesta, desplegable, declaración y rendición. Los campos vencidos quedan en lectura para participantes; ESTAFA conserva acceso administrativo.
+
+Los pasos sólo usan fechas del programa, con una regla única: una apertura vacía deja el paso sin habilitar ("Te avisamos cuando se habilite") y un cierre vacío, sin cierre. Los pasos sin apertura (detalles, equipo, desplegable, declaración) se abren al guardar la instalación. Las fechas del evento quedan para los bonos: si empezó la venta, si alguien tiene bono, la fecha máxima de ingreso anticipado y el límite de carga de ingresos anticipados del evento.
 
 `reminder_days` acepta una lista como `[7, 3, 1]`; una lista vacía desactiva los avisos por anticipación. Email y WhatsApp saliente se habilitan por separado. El comando diario existente es:
 
