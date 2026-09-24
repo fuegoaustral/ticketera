@@ -1,6 +1,6 @@
 <div class="mb-3{% if field.errors %} has-error{% endif %}{% if field.name == 'confirm_large_grant_amount' %} money-confirmation{% endif %}">
     {% if field.field.widget.input_type == 'checkbox' %}
-        <div class="form-check{% if field.name == 'uses_fire' %} form-switch fire-switch{% endif %}">
+        <div class="form-check{% if field.name == 'uses_fire' or field.name == 'uses_sound' or field.name == 'burns' %} form-switch fire-switch{% endif %}">
             {{ field }}
             <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
         </div>
@@ -10,5 +10,5 @@
     {% endif %}
     {% if field.field.widget.allow_multiple_selected %}<div class="image-selection-preview" data-image-selection-preview aria-live="polite"></div>{% endif %}
     {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
-    {% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+    {% if field.errors %}<div class="field-error" id="{{ field.id_for_label }}-error">{% for error in field.errors %}<p><i class="fas fa-circle-exclamation" aria-hidden="true"></i>{{ error }}</p>{% endfor %}</div>{% endif %}
 </div>

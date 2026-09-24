@@ -1,0 +1,23 @@
+{% comment %}Archivos de la propuesta: las imágenes con miniatura, los PDF con ícono. Se abren en otra pestaña.{% endcomment %}
+<ul class="artwork-files list-unstyled">
+    {% for artwork_file in artwork_files %}
+    <li>
+        <a class="artwork-file" href="{{ artwork_file.file.url }}" target="_blank" rel="noopener">
+            {% if artwork_file.is_image %}<img src="{{ artwork_file.file.url }}" alt="">{% else %}<span class="artwork-file-icon"><i class="fas fa-file-pdf" aria-hidden="true"></i></span>{% endif %}
+            <span class="artwork-file-name">{{ artwork_file.name }}<span class="visually-hidden"> (se abre en otra pestaña)</span></span>
+        </a>
+        {% if can_edit_files %}<form method="post" action="{% url 'artwork_file_delete' artwork.pk artwork_file.pk %}">{% csrf_token %}<button class="btn btn-link text-danger artwork-file-delete" type="submit" aria-label="Eliminar {{ artwork_file.name }}" onclick="return confirm('¿Eliminar este archivo?')">Eliminar</button></form>{% endif %}
+    </li>
+    {% endfor %}
+    {% if can_edit_files %}
+    <li>
+        <form class="artwork-file-upload" method="post" action="{% url 'artwork_file_upload' artwork.pk %}" enctype="multipart/form-data" novalidate data-autosubmit>{% csrf_token %}
+            <label class="artwork-file-add" for="{{ file_upload_form.files.id_for_label }}"><i class="fas fa-plus" aria-hidden="true"></i><span>Subir archivos</span></label>
+            {{ file_upload_form.files }}
+            <noscript><button class="btn btn-sm btn-primary mt-2" type="submit">Subir</button></noscript>
+        </form>
+    </li>
+    {% endif %}
+</ul>
+{% if file_upload_form.files.errors %}<div class="field-error mb-3" role="alert">{% for error in file_upload_form.files.errors %}<p><i class="fas fa-circle-exclamation" aria-hidden="true"></i>{{ error }}</p>{% endfor %}</div>{% endif %}
+{% if not artwork_files and not can_edit_files %}<p class="small text-muted">No se subieron archivos.</p>{% endif %}

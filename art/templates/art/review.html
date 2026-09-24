@@ -48,8 +48,8 @@
         <a href="#admin-budget">Presupuesto</a>
         <a href="#admin-expenses">Rendición</a>
         <a href="#checkout-report">Checkout</a>
-        <a href="{% url 'artwork_edit' artwork.pk %}#carta-entendimiento">Check-in y carta</a>
-        <a href="{% url 'artwork_edit' artwork.pk %}#propuesta">Propuesta y seguridad</a>
+        <a href="{% url 'artwork_edit' artwork.pk %}#carta">Carta de entendimiento</a>
+        <a href="{% url 'artwork_edit' artwork.pk %}#detalles">Detalles de la instalación</a>
     </nav>
     <div class="row g-3 mb-4">
         <div class="col-md-4"><div class="p-3 border rounded"><small class="text-muted">Presupuesto</small><br><strong>ARS {{ budget_total_ars|art_money }}</strong></div></div>

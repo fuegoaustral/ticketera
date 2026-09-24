@@ -24,7 +24,7 @@
                         <span class="mx-3">o</span>
                         <div class="flex-grow-1 border-top"></div>
                     </div>
-                    <form method="post" action="{% url 'account_signup' %}" autocomplete="off">
+                    <form method="post" action="{% url 'account_signup' %}">
                         {% csrf_token %}
                         <div class="form-group d-flex flex-column w-100 gap-3">
                             {% if form.errors %}
@@ -43,7 +43,7 @@
                                    name="email"
                                    placeholder="Email"
                                    required
-                                   autocomplete="off">
+                                   autocomplete="email">
                             <input type="password"
                                    class="form-control"
                                    id="id_password1"

@@ -1,0 +1,9 @@
+<fieldset class="step-group">
+    <legend>1. Carta firmada (digital)</legend>
+    <p class="form-text mt-0 mb-3">Descargá la carta, firmala y subí una foto o un PDF{% if program.understanding_letter_digital_deadline %} antes del {{ program.understanding_letter_digital_deadline|date:'d/m' }}{% endif %}.</p>
+    {% include 'art/_field.html' with field=form.understanding_letter %}
+</fieldset>
+<fieldset class="step-group">
+    <legend>2. Copia física</legend>
+    {% include 'art/_physical_copy.html' %}
+</fieldset>

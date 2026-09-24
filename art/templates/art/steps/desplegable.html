@@ -1,0 +1,7 @@
+<p class="step-lead">Lo que lee el público en el desplegable del evento, y dónde te gustaría ubicarte.</p>
+{% include 'art/_field.html' with field=form.public_title %}
+{% include 'art/_field.html' with field=form.public_description %}
+<div class="character-count text-end small text-muted" id="public-description-count" aria-live="polite"></div>
+{% include 'art/_field.html' with field=form.preferred_location %}
+<p class="form-text">ESTAFA te propone una ubicación según tus preferencias, el resto de las instalaciones y el mapa de la ciudad. Ya en la pampa, si querés moverte de la ubicación asignada, hablá con alguien de ESTAFA.</p>
+{% if artwork.assigned_location %}<div class="alert alert-success mb-0"><strong>Ubicación asignada:</strong> {{ artwork.assigned_location }}{% if artwork.placement_notes %}<br>{{ artwork.placement_notes|linebreaksbr }}{% endif %}</div>{% endif %}

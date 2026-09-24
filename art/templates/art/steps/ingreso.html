@@ -1,0 +1,4 @@
+<p class="step-lead">Quién del equipo entra antes y quién se queda después, y los proveedores y vehículos que entran al predio. Las personas se suman en <a href="#equipo">Equipo</a>.</p>
+{% if benefits_form %}{% include 'art/steps/_benefits.html' %}{% endif %}
+<div class="row"><div class="col-md-6">{% include 'art/_field.html' with field=form.arrival_date %}</div><div class="col-md-6">{% include 'art/_field.html' with field=form.departure_date %}</div></div>
+{% include 'art/steps/_providers.html' %}

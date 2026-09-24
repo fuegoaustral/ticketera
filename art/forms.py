@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from .estafa import estafa_members
 from .models import (
-    Artwork, ArtworkGrantItem,
+    Artwork, ArtworkFile, ArtworkGrantItem,
     ArtworkPhoto, ArtworkCheckoutPhoto, ArtworkProvider, ArtworkProviderVehicle,
 )
 
@@ -27,15 +27,25 @@ ARTWORK_BLOCK_FIELDS = {
     'proposal': (
         'title', 'proposal', 'dimensions', 'materials', 'technical_needs',
         'uses_sound', 'uses_fire', 'fire_details', 'extinguishing_plan', 'power_watts',
-        'safety_plan', 'safety_responsible_email',
+        'safety_plan', 'safety_responsible_email', 'burns', 'burn_preferred_time', 'burn_company', 'files_url',
     ),
-    'grant': ('grant_requested', 'grant_justification'),
     'guide': ('public_title', 'public_description', 'preferred_location'),
     'logistics': ('arrival_date', 'departure_date'),
     'checkout': ('checkout_team_responsible', 'checkout_notes'),
     'understanding_letter_digital': ('understanding_letter',),
+}
+
+# La beca se pide en su propia pantalla, con su propio formulario.
+GRANT_BLOCK_FIELDS = {
+    'grant': ('grant_requested', 'grant_justification'),
     'grant_report': ('grant_report',),
 }
+
+
+def _block_locked(program, block, is_manager):
+    """Nadie edita un bloque antes de que se habilite; después del cierre, sólo ESTAFA."""
+    state = program.checkpoint_state(block)
+    return state == 'upcoming' or (state == 'closed' and not is_manager)
 
 
 def _estafa_contacts(artwork):
@@ -58,6 +68,21 @@ class EstafaContactChoiceField(forms.ModelChoiceField):
         return user.get_full_name() or user.email
 
 
+class InvalidFieldsMixin:
+    """Marca en rojo cada campo con error y lo asocia a su mensaje para lectores de pantalla."""
+
+    def full_clean(self):
+        super().full_clean()
+        for name in self.errors:
+            if name not in self.fields:
+                continue
+            attrs = self.fields[name].widget.attrs
+            attrs['aria-invalid'] = 'true'
+            attrs['aria-describedby'] = f'{self[name].id_for_label}-error'
+            if 'is-invalid' not in attrs.get('class', ''):
+                attrs['class'] = f"{attrs.get('class', '')} is-invalid".strip()
+
+
 class ArtworkContactForm(forms.ModelForm):
     estafa_contact = EstafaContactChoiceField(
         queryset=User.objects.none(), required=False, empty_label='Sin contacto',
@@ -74,7 +99,7 @@ class ArtworkContactForm(forms.ModelForm):
         self.fields['estafa_contact'].queryset = _estafa_contacts(self.instance)
 
 
-class ArtworkForm(forms.ModelForm):
+class ArtworkForm(InvalidFieldsMixin, forms.ModelForm):
     BLOCK_FIELDS = ARTWORK_BLOCK_FIELDS
 
     safety_responsible_email = forms.EmailField(
@@ -94,12 +119,11 @@ class ArtworkForm(forms.ModelForm):
             'fire_details': forms.Textarea(attrs={'rows': 5}),
             'extinguishing_plan': forms.Textarea(attrs={'rows': 5}),
             'safety_plan': forms.Textarea(attrs={'rows': 5}),
-            'grant_justification': forms.Textarea(attrs={'rows': 6}),
+            'files_url': forms.URLInput(attrs={'placeholder': 'https://…'}),
             'public_description': forms.Textarea(attrs={'rows': 6}),
             'arrival_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
             'departure_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
             'checkout_notes': forms.Textarea(attrs={'rows': 5}),
-            'grant_report': forms.Textarea(attrs={'rows': 8}),
         }
 
     def __init__(self, *args, program, owner, actor=None, **kwargs):
@@ -114,6 +138,8 @@ class ArtworkForm(forms.ModelForm):
             field.widget.attrs.setdefault('class', 'form-check-input' if isinstance(field.widget, forms.CheckboxInput) else 'form-control')
             field.widget.attrs['form'] = 'artwork-form'
         self.fields['checkout_team_responsible'].widget.attrs['class'] = 'form-select'
+        self.fields['burn_company'].widget.attrs['class'] = 'form-select'
+        self.fields['burn_company'].choices = [('', 'Elegí una opción'), *Artwork.BurnCompany.choices]
         self.fields['safety_responsible_email'].widget.attrs.update({'class': 'form-control', 'placeholder': 'persona@ejemplo.com'})
         description_limit = program.public_description_max_length
         self.fields['public_description'].max_length = description_limit
@@ -135,40 +161,33 @@ class ArtworkForm(forms.ModelForm):
         self.fields['title'].required = True
         self.fields['title'].help_text = 'Podés cambiar el nombre cuando quieras.'
         self.fields['proposal'].required = False
-
-        if not program.grants_enabled:
-            for name in (*self.BLOCK_FIELDS['grant'], *self.BLOCK_FIELDS['grant_report']):
-                self.fields.pop(name)
-        elif not self.is_manager and self.instance.grant_status not in (
-            Artwork.GrantStatus.APPROVED, Artwork.GrantStatus.PAID,
-        ):
-            self.fields['grant_report'].disabled = True
-
-        if self.instance.grant_status not in (Artwork.GrantStatus.NOT_REQUESTED, Artwork.GrantStatus.INFO_REQUIRED):
-            for name in self.BLOCK_FIELDS['grant']:
-                if name in self.fields:
-                    self.fields[name].disabled = True
-
-        if self.instance.grant_status == Artwork.GrantStatus.CLOSED:
-            self.fields['grant_report'].disabled = True
+        self.fields['safety_plan'].label = 'Plan de seguridad'
+        self.fields['proposal'].help_text = (
+            'Esto lo lee ESTAFA para entender qué querés construir. Contalo con todo el detalle que puedas: '
+            'qué es, cómo se ve, cómo se arma y qué puede hacer la gente ahí. No es el texto para el público: '
+            'ese va en Desplegable.'
+        )
+        self.fields['proposal'].widget.attrs['placeholder'] = (
+            'Por ejemplo: una pata de conejo de madera de 3 m de alto, forrada en tela. De noche se ilumina desde adentro '
+            'con tiras LED. La gente puede tocarla y pedir un deseo. La armamos en dos días con cuatro personas.'
+        )
 
         checkout_locked = self.instance.status not in (Artwork.Status.ACTIVE, Artwork.Status.CHECKOUT_SUBMITTED)
         if self.instance.checkout_verified_at or (checkout_locked and not self.is_manager):
             for name in self.BLOCK_FIELDS['checkout']:
                 self.fields[name].disabled = True
 
-        if not self.is_manager:
-            if not program.is_current or self.instance.status == Artwork.Status.REJECTED:
-                for name, field in self.fields.items():
-                    if name != 'expected_version':
-                        field.disabled = True
-            for block, fields in self.BLOCK_FIELDS.items():
-                if block == 'proposal' and not self.instance.pk:
-                    continue
-                if program.checkpoint_state(block) != 'open':
-                    for name in fields:
-                        if name in self.fields:
-                            self.fields[name].disabled = True
+        if not self.is_manager and (not program.is_current or self.instance.status == Artwork.Status.REJECTED):
+            for name, field in self.fields.items():
+                if name != 'expected_version':
+                    field.disabled = True
+        for block, fields in self.BLOCK_FIELDS.items():
+            if block == 'proposal' and not self.instance.pk:
+                continue
+            if _block_locked(program, block, self.is_manager):
+                for name in fields:
+                    if name in self.fields:
+                        self.fields[name].disabled = True
 
     def clean_safety_responsible_email(self):
         email = self.cleaned_data['safety_responsible_email'].lower()
@@ -197,10 +216,9 @@ class ArtworkForm(forms.ModelForm):
                 self.add_error(None, 'Otra persona guardó cambios mientras editabas. Recargá la página antes de volver a guardar.')
 
             closed = []
-            if not self.is_manager:
-                for block, fields in self.BLOCK_FIELDS.items():
-                    if self.program.checkpoint_state(block) != 'open' and any(name in self.data for name in fields):
-                        closed.append(block)
+            for block, fields in self.BLOCK_FIELDS.items():
+                if _block_locked(self.program, block, self.is_manager) and any(name in self.data for name in fields):
+                    closed.append(block)
             if closed:
                 self.add_error(None, 'Una fecha límite venció mientras editabas. Recargá la página: no se guardó ningún cambio.')
 
@@ -220,7 +238,77 @@ class ArtworkForm(forms.ModelForm):
         return artwork
 
 
-class ArtworkGrantItemForm(forms.ModelForm):
+class ArtworkGrantForm(InvalidFieldsMixin, forms.ModelForm):
+    """Solicitud y rendición de la beca, en la pantalla de la beca."""
+
+    BLOCK_FIELDS = GRANT_BLOCK_FIELDS
+
+    expected_version = forms.IntegerField(widget=forms.HiddenInput, required=False)
+
+    class Meta:
+        model = Artwork
+        fields = [field for fields in GRANT_BLOCK_FIELDS.values() for field in fields]
+        widgets = {
+            'grant_justification': forms.Textarea(attrs={'rows': 6}),
+            'grant_report': forms.Textarea(attrs={'rows': 8}),
+        }
+
+    def __init__(self, *args, program, actor, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.program = program
+        self.actor = actor
+        self.is_manager = self.instance.can_manage(actor)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault('class', 'form-check-input' if isinstance(field.widget, forms.CheckboxInput) else 'form-control')
+            field.widget.attrs['form'] = 'grant-form'
+        self.fields['expected_version'].initial = self.instance.version
+
+        locked = set()
+        if self.instance.grant_status not in (Artwork.GrantStatus.NOT_REQUESTED, Artwork.GrantStatus.INFO_REQUIRED):
+            locked.update(self.BLOCK_FIELDS['grant'])
+        if self.instance.grant_status == Artwork.GrantStatus.CLOSED or (
+            not self.is_manager
+            and self.instance.grant_status not in (Artwork.GrantStatus.APPROVED, Artwork.GrantStatus.PAID)
+        ):
+            locked.add('grant_report')
+        if not self.is_manager and (
+            not self.instance.can_edit(actor) or not program.is_current
+            or self.instance.status == Artwork.Status.REJECTED
+        ):
+            locked.update(self.fields)
+        for block, fields in self.BLOCK_FIELDS.items():
+            if _block_locked(program, block, self.is_manager):
+                locked.update(fields)
+        for name in locked:
+            if name in self.fields and name != 'expected_version':
+                self.fields[name].disabled = True
+
+    @property
+    def is_read_only(self):
+        return all(field.disabled for name, field in self.fields.items() if name != 'expected_version')
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.is_bound:
+            current = Artwork.objects.filter(pk=self.instance.pk).values_list('version', flat=True).first()
+            if cleaned.get('expected_version') != current:
+                self.add_error(None, 'Otra persona guardó cambios mientras editabas. Recargá la página antes de volver a guardar.')
+            if any(
+                _block_locked(self.program, block, self.is_manager) and any(name in self.data for name in fields)
+                for block, fields in self.BLOCK_FIELDS.items()
+            ):
+                self.add_error(None, 'Una fecha límite venció mientras editabas. Recargá la página: no se guardó ningún cambio.')
+        return cleaned
+
+    def save(self, commit=True):
+        artwork = super().save(commit=False)
+        artwork.version += 1
+        if commit:
+            artwork.save()
+        return artwork
+
+
+class ArtworkGrantItemForm(InvalidFieldsMixin, forms.ModelForm):
     expected_updated_at = forms.CharField(widget=forms.HiddenInput, required=False)
     amount = LocalizedDecimalField(
         max_digits=14, decimal_places=2, min_value=Decimal('0.01'),
@@ -344,17 +432,67 @@ class MultipleImageField(forms.ImageField):
         return [clean_one(file, initial) for file in files if file]
 
 
-class ArtworkPhotoUploadForm(forms.Form):
+class MultipleFileField(forms.FileField):
+    widget = MultipleImageInput
+
+    def clean(self, data, initial=None):
+        files = data if isinstance(data, (list, tuple)) else [data]
+        if not any(files):
+            if self.required:
+                raise forms.ValidationError('Seleccioná al menos un archivo.')
+            return []
+        clean_one = super().clean
+        return [clean_one(file, initial) for file in files if file]
+
+
+class ArtworkFileUploadForm(InvalidFieldsMixin, forms.Form):
+    """Archivos de la propuesta: imágenes o PDF."""
+
+    ALLOWED_EXTENSIONS = (*ArtworkFile.IMAGE_EXTENSIONS, '.pdf')
+
+    files = MultipleFileField(label='Archivos')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['files'].widget.attrs.update({
+            'class': 'form-control', 'accept': 'image/*,application/pdf',
+        })
+
+    def clean_files(self):
+        files = self.cleaned_data['files']
+        if len(files) > 10:
+            raise forms.ValidationError('Podés subir hasta 10 archivos por vez.')
+        for upload in files:
+            if not upload.name.lower().endswith(self.ALLOWED_EXTENSIONS):
+                raise forms.ValidationError(f'“{upload.name}” no es una imagen ni un PDF.')
+            if upload.size > 20 * 1024 * 1024:
+                raise forms.ValidationError(f'“{upload.name}” pesa más de 20 MB.')
+        return files
+
+
+# La galería junta el proceso y la instalación terminada; la propuesta va en Detalles
+# y las fotos de rendición, en la pantalla de la beca.
+GALLERY_STAGES = (ArtworkPhoto.Stage.PROCESS, ArtworkPhoto.Stage.FINAL)
+
+
+class ArtworkPhotoUploadForm(InvalidFieldsMixin, forms.Form):
     images = MultipleImageField(label='Fotos')
-    stage = forms.ChoiceField(choices=ArtworkPhoto.Stage.choices, label='Etapa')
+    stage = forms.ChoiceField(
+        choices=[(stage.value, stage.label) for stage in GALLERY_STAGES], label='Etapa',
+    )
     caption = forms.CharField(required=False, widget=forms.Textarea(attrs={'rows': 4}), label='Descripción o crédito')
     publication_authorized = forms.BooleanField(
         required=False,
         label='Autorizo a Fuego Austral a publicar estas fotos en el archivo de la instalación',
     )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, stages=GALLERY_STAGES, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['stage'].choices = [(stage.value, stage.label) for stage in stages]
+        if len(stages) == 1:
+            # Una sola etapa posible (por ejemplo, las fotos de rendición): no hay nada para elegir.
+            self.fields['stage'].initial = stages[0].value
+            self.fields['stage'].widget = forms.HiddenInput()
         for field in self.fields.values():
             field.widget.attrs.setdefault('class', 'form-check-input' if isinstance(field.widget, forms.CheckboxInput) else ('form-select' if isinstance(field.widget, forms.Select) else 'form-control'))
         self.fields['images'].widget.attrs.update({'accept': 'image/*', 'data-image-preview': 'true'})
@@ -368,7 +506,7 @@ class ArtworkPhotoUploadForm(forms.Form):
         return images
 
 
-class ArtworkCheckoutPhotoUploadForm(forms.Form):
+class ArtworkCheckoutPhotoUploadForm(InvalidFieldsMixin, forms.Form):
     images = MultipleImageField(label='Fotos de checkout')
     category = forms.ChoiceField(choices=ArtworkCheckoutPhoto.Category.choices, label='Categoría')
     caption = forms.CharField(required=False, widget=forms.Textarea(attrs={'rows': 4}), label='Detalle')
@@ -386,6 +524,66 @@ class ArtworkCheckoutPhotoUploadForm(forms.Form):
         if any(image.size > 10 * 1024 * 1024 for image in images):
             raise forms.ValidationError('Cada foto puede pesar hasta 10 MB.')
         return images
+
+
+class ArtworkTeamBenefitsForm(InvalidFieldsMixin, forms.Form):
+    """Ingreso anticipado y late checkout de cada persona del equipo (GrupoMiembro), con las reglas de Mis grupos."""
+
+    def __init__(self, *args, artwork, members, ticket_holders, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.group = artwork.operations_group
+        self.event = artwork.event
+        self.members = members
+        limit = self.event.ingreso_anticipado_limite_carga
+        self.early_closed = bool(limit and timezone.now() > limit)
+        date_attrs = {'type': 'date', 'class': 'form-control'}
+        if self.group.ingreso_anticipado_desde:
+            date_attrs['min'] = timezone.localtime(self.group.ingreso_anticipado_desde).date().isoformat()
+        date_attrs['max'] = timezone.localtime(self.event.start).date().isoformat()
+        for member in members:
+            name = member.user.get_full_name() or member.user.email
+            member.has_ticket = member.user_id in ticket_holders
+            self.fields[f'early_{member.pk}'] = forms.DateField(
+                required=False, label=f'Ingreso anticipado de {name}', initial=member.ingreso_anticipado_fecha,
+                widget=forms.DateInput(attrs=dict(date_attrs), format='%Y-%m-%d'),
+                disabled=not member.has_ticket or self.early_closed,
+            )
+            self.fields[f'late_{member.pk}'] = forms.BooleanField(
+                required=False, label=f'Late checkout de {name}', initial=member.late_checkout,
+                widget=forms.CheckboxInput(attrs={'class': 'form-check-input', 'role': 'switch'}),
+                disabled=not member.has_ticket,
+            )
+            member.early_field = self[f'early_{member.pk}']
+            member.late_field = self[f'late_{member.pk}']
+
+    def clean(self):
+        cleaned = super().clean()
+        start = timezone.localtime(self.event.start).date()
+        desde = self.group.ingreso_anticipado_desde and timezone.localtime(self.group.ingreso_anticipado_desde).date()
+        early_count = late_count = 0
+        for member in self.members:
+            early = cleaned.get(f'early_{member.pk}')
+            if early and desde and early < desde:
+                self.add_error(f'early_{member.pk}', f'Elegí una fecha desde el {desde:%d/%m}.')
+            if early and early > start:
+                self.add_error(f'early_{member.pk}', f'Elegí una fecha hasta el {start:%d/%m}, cuando empieza el evento.')
+            early_count += bool(early)
+            late_count += bool(cleaned.get(f'late_{member.pk}'))
+        if early_count > self.group.ingreso_anticipado_amount:
+            self.add_error(None, f'Esta instalación tiene {self.group.ingreso_anticipado_amount} cupos de ingreso anticipado.')
+        if late_count > self.group.late_checkout_amount:
+            self.add_error(None, f'Esta instalación tiene {self.group.late_checkout_amount} cupos de late checkout.')
+        return cleaned
+
+    def save(self):
+        for member in self.members:
+            early_field, late_field = self.fields[f'early_{member.pk}'], self.fields[f'late_{member.pk}']
+            if not early_field.disabled:
+                member.ingreso_anticipado_fecha = self.cleaned_data[f'early_{member.pk}']
+                member.ingreso_anticipado = bool(member.ingreso_anticipado_fecha)
+            if not late_field.disabled:
+                member.late_checkout = self.cleaned_data[f'late_{member.pk}']
+            member.save()
 
 
 class ArtworkTeamAddForm(forms.Form):
@@ -424,7 +622,7 @@ class ArtworkTeamAddForm(forms.Form):
         return identifier
 
 
-class ArtworkProviderForm(forms.ModelForm):
+class ArtworkProviderForm(InvalidFieldsMixin, forms.ModelForm):
     class Meta:
         model = ArtworkProvider
         fields = (
@@ -473,7 +671,7 @@ class ArtworkProviderForm(forms.ModelForm):
         return cleaned
 
 
-class ArtworkProviderVehicleForm(forms.ModelForm):
+class ArtworkProviderVehicleForm(InvalidFieldsMixin, forms.ModelForm):
     class Meta:
         model = ArtworkProviderVehicle
         fields = (
@@ -491,7 +689,7 @@ class ArtworkProviderVehicleForm(forms.ModelForm):
         return self.cleaned_data['plate'].replace(' ', '').upper()
 
 
-class ArtworkReviewForm(forms.ModelForm):
+class ArtworkReviewForm(InvalidFieldsMixin, forms.ModelForm):
     expected_updated_at = forms.CharField(widget=forms.HiddenInput, required=False)
     grant_approved_amount_ars = LocalizedDecimalField(
         required=False, max_digits=14, decimal_places=2, min_value=Decimal('0.01'),
@@ -513,6 +711,7 @@ class ArtworkReviewForm(forms.ModelForm):
             'checkin_arrived_at', 'checkin_art_at', 'checkin_placed',
             'checkin_placement_changed', 'checkin_placement_change_notes',
             'understanding_letter', 'understanding_letter_physical_received',
+            'understanding_letter_physical_received_at',
             'understanding_letter_physical_custodian', 'understanding_letter_physical_notes',
             'understanding_letter_physical_waiver', 'understanding_letter_physical_waiver_reason',
             'grant_status', 'grant_approved_amount_ars',
@@ -532,6 +731,7 @@ class ArtworkReviewForm(forms.ModelForm):
             'checkout_verified_at': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
             'benefit_notes': forms.Textarea(attrs={'rows': 4}),
             'understanding_letter_physical_notes': forms.Textarea(attrs={'rows': 4}),
+            'understanding_letter_physical_received_at': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
         }
 
     def __init__(self, *args, can_manage=True, **kwargs):
@@ -541,7 +741,8 @@ class ArtworkReviewForm(forms.ModelForm):
                 'checkin_arrived_at', 'checkin_art_at', 'checkin_placed',
                 'checkin_placement_changed', 'checkin_placement_change_notes',
                 'checkout_verified_at', 'understanding_letter',
-                'understanding_letter_physical_received', 'understanding_letter_physical_custodian',
+                'understanding_letter_physical_received', 'understanding_letter_physical_received_at',
+                'understanding_letter_physical_custodian',
                 'understanding_letter_physical_notes', 'understanding_letter_physical_waiver',
                 'understanding_letter_physical_waiver_reason',
             }
@@ -573,7 +774,13 @@ class ArtworkReviewForm(forms.ModelForm):
             cleaned.get('understanding_letter_physical_custodian')
             or cleaned.get('understanding_letter_physical_notes')
         ):
-            self.add_error('understanding_letter_physical_notes', 'Indicá quién tiene la carta física o dónde está guardada.')
+            self.add_error('understanding_letter_physical_notes', 'Indicá quién tiene la copia física o dónde está guardada.')
+        if 'understanding_letter_physical_received_at' in self.fields:
+            # Al marcarla como recibida, la fecha es hoy salvo que ESTAFA indique otra.
+            if not cleaned.get('understanding_letter_physical_received'):
+                cleaned['understanding_letter_physical_received_at'] = None
+            elif not cleaned.get('understanding_letter_physical_received_at'):
+                cleaned['understanding_letter_physical_received_at'] = timezone.localdate()
         if cleaned.get('understanding_letter_physical_waiver') and not cleaned.get('understanding_letter_physical_waiver_reason'):
             self.add_error('understanding_letter_physical_waiver_reason', 'Indicá por qué corresponde la excepción por distancia a CABA.')
         return cleaned

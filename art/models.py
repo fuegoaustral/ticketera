@@ -44,13 +44,22 @@ class ArtProgram(BaseModel):
         validators=[MinValueValidator(1), MaxValueValidator(500)],
         verbose_name='Máximo de caracteres de la descripción del desplegable',
     )
+    logistics_opens = models.DateTimeField(
+        null=True, blank=True, verbose_name='Apertura de ingreso anticipado y proveedores',
+        help_text='Mientras esté vacía, el paso queda cerrado y los equipos ven “Te avisamos cuando se habilite”. '
+                  'La fecha nunca se les muestra antes de que se habilite.',
+    )
     logistics_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de logística')
+    gallery_deadline = models.DateTimeField(
+        null=True, blank=True, verbose_name='Cierre de galería',
+        help_text='La galería se habilita cuando empieza el evento. Sin fecha de cierre, cierra cuando termina.',
+    )
     checkout_opens = models.DateTimeField(null=True, blank=True, verbose_name='Apertura de checkout')
     checkout_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de checkout')
     understanding_letter_digital_opens = models.DateTimeField(null=True, blank=True, verbose_name='Apertura de carta digital')
     understanding_letter_digital_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de carta digital')
-    understanding_letter_physical_opens = models.DateTimeField(null=True, blank=True, verbose_name='Apertura de carta física')
-    understanding_letter_physical_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de carta física')
+    understanding_letter_physical_opens = models.DateTimeField(null=True, blank=True, verbose_name='Apertura de entrega de la copia física')
+    understanding_letter_physical_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de entrega de la copia física')
     grant_report_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Cierre de rendición de becas')
     reminder_days = models.JSONField(default=default_art_reminder_days, blank=True, verbose_name='Días de anticipación para recordatorios')
     reminder_email_enabled = models.BooleanField(default=True, verbose_name='Recordatorios por email')
@@ -104,12 +113,38 @@ class ArtProgram(BaseModel):
     def checkout_is_open(self, at=None):
         return (at or timezone.now()) >= self.checkout_opens_at
 
+    # Sin fecha de cierre propia, cada bloque cierra con el evento: lo previo cuando empieza
+    # y la galería y el checkout cuando termina.
+    DEADLINE_FALLBACK = {
+        'proposal': 'start', 'guide': 'start', 'logistics': 'start',
+        'understanding_letter_digital': 'start', 'understanding_letter_physical': 'start',
+        'gallery': 'end', 'checkout': 'end',
+    }
+
+    def deadline_for(self, block):
+        deadline = getattr(self, f'{block}_deadline', None)
+        if deadline:
+            return deadline
+        edge = self.DEADLINE_FALLBACK.get(block)
+        return getattr(self.event, edge) if edge else None
+
+    def opens_at(self, block):
+        if block == 'checkout':
+            return self.checkout_opens_at
+        # La galería de proceso y de la instalación terminada se habilita cuando empieza el evento.
+        if block == 'gallery':
+            return self.event.start
+        return getattr(self, f'{block}_opens', None)
+
     def checkpoint_state(self, block, at=None):
         at = at or timezone.now()
-        opens = self.checkout_opens_at if block == 'checkout' else getattr(self, f'{block}_opens', None)
+        opens = self.opens_at(block)
+        # Ingreso anticipado y proveedores sólo se habilita cuando ESTAFA pone la fecha.
+        if block == 'logistics' and not opens:
+            return 'upcoming'
         if opens and at < opens:
             return 'upcoming'
-        deadline = getattr(self, f'{block}_deadline')
+        deadline = self.deadline_for(block)
         return 'closed' if deadline and at > deadline else 'open'
 
 
@@ -172,6 +207,25 @@ class Artwork(BaseModel):
     uses_fire = models.BooleanField(default=False, verbose_name='La instalación utiliza fuego')
     fire_details = models.TextField(blank=True, verbose_name='Combustible, cantidad y funcionamiento del fuego')
     extinguishing_plan = models.TextField(blank=True, verbose_name='Plan y elementos de extinción')
+
+    class BurnCompany(models.TextChoices):
+        ALONE = 'alone', 'Sola'
+        SHARED = 'shared', 'Junto con otras instalaciones'
+        EITHER = 'either', 'Me da igual'
+
+    burns = models.BooleanField(default=False, verbose_name='La instalación se quema')
+    burn_preferred_time = models.CharField(
+        max_length=200, blank=True, verbose_name='¿Cuándo preferís quemarla?',
+        help_text='Por ejemplo: sábado a la noche, después de la quema principal.',
+    )
+    burn_company = models.CharField(
+        max_length=10, blank=True, choices=BurnCompany.choices,
+        verbose_name='¿La querés quemar sola o junto con otras instalaciones?',
+    )
+    files_url = models.URLField(
+        max_length=500, blank=True, verbose_name='Link a más archivos',
+        help_text='Una carpeta con más material, por ejemplo de Google Drive o Dropbox.',
+    )
     power_watts = models.PositiveIntegerField(null=True, blank=True, verbose_name='Potencia eléctrica máxima (W)')
     safety_contact = models.CharField(max_length=200, blank=True, verbose_name='Responsable de seguridad durante el evento')
     safety_responsible = models.ForeignKey(
@@ -223,20 +277,23 @@ class Artwork(BaseModel):
         blank=True, verbose_name='Carta de entendimiento digital',
     )
     understanding_letter_physical_received = models.BooleanField(
-        default=False, verbose_name='Carta física recibida',
+        default=False, verbose_name='Copia física recibida',
+    )
+    understanding_letter_physical_received_at = models.DateField(
+        null=True, blank=True, verbose_name='Fecha de recepción de la copia física',
     )
     understanding_letter_physical_custodian = models.CharField(
-        max_length=200, blank=True, verbose_name='Responsable de la carta física',
+        max_length=200, blank=True, verbose_name='Quién tiene la copia física',
     )
     understanding_letter_physical_notes = models.TextField(
-        blank=True, verbose_name='Ubicación o comentarios sobre la carta física',
+        blank=True, verbose_name='Ubicación o comentarios sobre la copia física',
     )
     understanding_letter_physical_waiver = models.BooleanField(
         default=False, verbose_name='Excepción de entrega previa por distancia a CABA',
         help_text='Autoriza no entregarla previamente en CABA; igualmente debe entregarse en el evento antes de empezar a construir.',
     )
     understanding_letter_physical_waiver_reason = models.TextField(
-        blank=True, verbose_name='Motivo de la excepción de carta física',
+        blank=True, verbose_name='Motivo de la excepción de la copia física',
     )
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING, verbose_name='Estado de la instalación')
     status_changed_at = models.DateTimeField(null=True, blank=True, verbose_name='Cambio de estado')
@@ -336,7 +393,7 @@ class Artwork(BaseModel):
             (self.understanding_letter_physical_custodian or '').strip()
             or (self.understanding_letter_physical_notes or '').strip()
         ):
-            errors['understanding_letter_physical_notes'] = 'Indicá quién tiene la carta física o dónde está guardada.'
+            errors['understanding_letter_physical_notes'] = 'Indicá quién tiene la copia física o dónde está guardada.'
         if errors:
             raise ValidationError(errors)
 
@@ -515,6 +572,29 @@ class ArtworkPhoto(BaseModel):
         return f'{self.get_stage_display()} · {self.artwork}'
 
 
+class ArtworkFile(BaseModel):
+    """Archivos de la propuesta: bocetos, planos o renders, en imagen o PDF."""
+
+    IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif')
+
+    artwork = models.ForeignKey(Artwork, on_delete=models.CASCADE, related_name='files')
+    file = models.FileField(upload_to='art/files', storage=private_art_storage, verbose_name='Archivo')
+    name = models.CharField(max_length=255, verbose_name='Nombre')
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        ordering = ['created_at']
+        verbose_name = 'Archivo de instalación'
+        verbose_name_plural = 'Archivos de instalaciones'
+
+    def __str__(self):
+        return f'{self.name} · {self.artwork}'
+
+    @property
+    def is_image(self):
+        return self.file.name.lower().endswith(self.IMAGE_EXTENSIONS)
+
+
 class ArtworkCheckoutPhoto(BaseModel):
     class Category(models.TextChoices):
         DIRT = 'dirt', 'M.U.G.R.E.'
@@ -546,4 +626,5 @@ auditlog.register(ArtworkGrantItemPhoto)
 auditlog.register(ArtworkProvider)
 auditlog.register(ArtworkProviderVehicle)
 auditlog.register(ArtworkPhoto)
+auditlog.register(ArtworkFile)
 auditlog.register(ArtworkCheckoutPhoto)

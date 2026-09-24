@@ -1,0 +1,41 @@
+{% comment %}Lo que se envió en un paso que ya cerró: sólo lectura.{% endcomment %}
+{% if step.key == 'detalles' %}
+<dl class="step-readonly">
+    <dt>Nombre</dt><dd>{{ artwork.title|default:'—' }}</dd>
+    <dt>Qué es</dt><dd>{{ artwork.proposal|default:'—'|linebreaksbr }}</dd>
+    <dt>Dimensiones</dt><dd>{{ artwork.dimensions|default:'—' }}</dd>
+    <dt>Materiales</dt><dd>{{ artwork.materials|default:'—'|linebreaksbr }}</dd>
+    {% if artwork.uses_fire %}<dt>Fuego</dt><dd>{{ artwork.fire_details|default:'—'|linebreaksbr }}</dd>{% endif %}
+    {% if artwork.burns %}<dt>Quema</dt><dd>{{ artwork.burn_preferred_time|default:'Sin preferencia de horario' }}{% if artwork.burn_company %} · {{ artwork.get_burn_company_display }}{% endif %}</dd>{% endif %}
+    {% if artwork.files_url %}<dt>Link a más archivos</dt><dd><a href="{{ artwork.files_url }}" target="_blank" rel="noopener">{{ artwork.files_url }}</a></dd>{% endif %}
+</dl>
+{% if artwork_files %}{% include 'art/_artwork_files.html' with can_edit_files=False %}{% endif %}
+{% elif step.key == 'equipo' %}
+<dl class="step-readonly">
+    <dt>Personas</dt><dd>{% for member in team_members %}{{ member.user.get_full_name|default:member.user.email }}{% if not forloop.last %} · {% endif %}{% endfor %}</dd>
+</dl>
+{% elif step.key == 'desplegable' %}
+<dl class="step-readonly">
+    <dt>Título</dt><dd>{{ artwork.public_title|default:'—' }}</dd>
+    <dt>Texto</dt><dd>{{ artwork.public_description|default:'—'|linebreaksbr }}</dd>
+    <dt>Ubicación preferida</dt><dd>{{ artwork.preferred_location|default:'—' }}</dd>
+    {% if artwork.assigned_location %}<dt>Ubicación asignada</dt><dd>{{ artwork.assigned_location }}</dd>{% endif %}
+</dl>
+{% elif step.key == 'carta' %}
+<dl class="step-readonly">
+    <dt>Carta digital</dt><dd>{% if artwork.understanding_letter %}<a href="{{ artwork.understanding_letter.url }}" target="_blank" rel="noopener">Ver la carta firmada</a>{% else %}No se subió{% endif %}</dd>
+</dl>
+{% include 'art/_physical_copy.html' %}
+{% elif step.key == 'ingreso' %}
+<dl class="step-readonly">
+    <dt>Proveedores</dt><dd>{% for provider in artwork_providers %}{{ provider.company_name }}{% if not forloop.last %} · {% endif %}{% empty %}Ninguno{% endfor %}</dd>
+</dl>
+{% elif step.key == 'galeria' %}
+{% include 'art/_gallery_photos.html' with photos=gallery_photos can_delete=False empty='No se subieron fotos.' %}
+{% elif step.key == 'checkout' %}
+<dl class="step-readonly">
+    <dt>Estado</dt><dd>{% if artwork.checkout_verified_at %}Verificado{% elif artwork.checkout_completed %}Enviado{% else %}No se envió{% endif %}</dd>
+    <dt>Fotos</dt><dd>{{ checkout_photos|length }}</dd>
+</dl>
+{% endif %}
+{% if artwork.estafa_contact and program.is_current %}<p class="form-text mb-0 mt-2">Si necesitás cambiar algo, escribile a {{ artwork.estafa_contact.get_full_name|default:'tu contacto de ESTAFA' }} (<a href="mailto:{{ artwork.estafa_contact.email }}">{{ artwork.estafa_contact.email }}</a>).</p>{% elif program.is_current %}<p class="form-text mb-0 mt-2">Si necesitás cambiar algo, escribile a ESTAFA.</p>{% endif %}
