@@ -1,4 +1,5 @@
-from datetime import timedelta
+import re
+from datetime import date, timedelta
 from decimal import Decimal
 from importlib import import_module
 from unittest.mock import patch
@@ -456,7 +457,182 @@ class ArtworkFlowTest(TestCase):
         self.program.save(update_fields=['proposal_deadline'])
         response = self.client.get(reverse('artwork_edit', args=[artwork.pk]))
         self.assertContains(response, 'Editar como ESTAFA', count=1)
+        self.assertContains(response, '<details class="step-estafa-edit">', html=False)
         self.assertContains(response, 'Este paso ya cerró para el equipo.')
+        self.assertContains(response, 'Ver lo que envió el equipo')
+
+    @staticmethod
+    def step_part(response, key, start='<div class="step-summary">', end=None):
+        """El HTML de un paso de la línea de tiempo, desde `start` hasta `end` (o el próximo paso)."""
+        html = response.content.decode()
+        begin = html.index(f'id="{key}"')
+        if end is None:
+            stop = min(index for index in (html.find('<li class="steps-item', begin), html.index('</ol>', begin)) if index > 0)
+        else:
+            stop = html.index(end, begin)
+        return html[html.index(start, begin):stop]
+
+    def close_every_step(self):
+        past = timezone.now() - timedelta(days=1)
+        for name in (
+            'proposal_deadline', 'guide_deadline', 'understanding_letter_digital_deadline',
+            'understanding_letter_physical_deadline', 'logistics_deadline', 'gallery_deadline', 'checkout_deadline',
+        ):
+            setattr(self.program, name, past)
+        for name in ('logistics_opens', 'gallery_opens', 'checkout_opens'):
+            setattr(self.program, name, past - timedelta(days=5))
+        self.program.save()
+
+    def test_closed_steps_read_as_text_and_estafa_switches_to_the_form(self):
+        artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro', proposal='Una torre de luz')
+        self.program.proposal_deadline = timezone.now() - timedelta(days=1)
+        self.program.save(update_fields=['proposal_deadline'])
+        url = reverse('artwork_edit', args=[artwork.pk])
+
+        # El equipo lee lo que envió: sin campos, sin "Editar como ESTAFA" y con a quién escribirle.
+        self.client.force_login(self.owner)
+        response = self.client.get(url)
+        summary = self.step_part(response, 'detalles')
+        self.assertIn('Una torre de luz', summary)
+        self.assertContains(response, 'Ver lo que enviaste')
+        self.assertContains(response, 'Si necesitás cambiar algo, escribile a ESTAFA.')
+        self.assertNotContains(response, 'name="title"')
+        self.assertNotContains(response, 'Editar como ESTAFA')
+
+        # ESTAFA: primero el texto y, debajo, el botón que lo cambia por el formulario.
+        self.client.force_login(User.objects.create_superuser(username='root', email='root@example.com', password='x'))
+        response = self.client.get(url)
+        html = response.content.decode()
+        closed = html.index('id="detalles"')
+        text, toggle, field = (html.index(part, closed) for part in ('Una torre de luz', 'Editar como ESTAFA', 'name="title"'))
+        self.assertLess(text, toggle)
+        self.assertLess(toggle, field)
+        self.assertContains(response, 'Volver al texto')
+        self.assertNotContains(response, 'Si necesitás cambiar algo')
+        title_input = re.search(r'<input[^>]*name="title"[^>]*>', html).group(0)
+        self.assertIn('form="artwork-form"', title_input)
+
+        # Guardar corrige el paso cerrado.
+        response = self.client.post(url, {'title': 'Faro nuevo', 'proposal': 'Una torre de luz', 'expected_version': artwork.version})
+        self.assertRedirects(response, url, fetch_redirect_response=False)
+        artwork.refresh_from_db()
+        self.assertEqual(artwork.title, 'Faro nuevo')
+
+        # Con errores, el texto muestra lo guardado y el paso queda abierto en el formulario.
+        response = self.client.post(url, {
+            'title': 'Faro sin guardar', 'proposal': 'Otra cosa', 'uses_fire': 'on', 'expected_version': artwork.version,
+        })
+        self.assertEqual(response.status_code, 200)
+        summary = self.step_part(response, 'detalles', end='<details class="step-estafa-edit"')
+        self.assertIn('Faro nuevo', summary)
+        self.assertIn('Una torre de luz', summary)
+        self.assertNotIn('Faro sin guardar', summary)
+        self.assertContains(response, '<details class="step-row step-closed" id="detalles" open>', html=False)
+        self.assertContains(response, '<details class="step-estafa-edit" open>', html=False)
+        self.assertContains(response, 'value="Faro sin guardar"')
+
+    @patch('art.views.send_mail')
+    def test_view_only_members_read_open_steps_as_text(self, send_mail):
+        artwork = self.team_artwork()
+        artwork.proposal, artwork.public_title = 'Una torre de luz', 'La torre'
+        artwork.save(update_fields=['proposal', 'public_title'])
+        self.client.post(reverse('artwork_team_add', args=[artwork.pk]), {'identifier': self.collaborator.email})
+        self.assertFalse(artwork.can_edit(self.collaborator))
+
+        self.client.force_login(self.collaborator)
+        response = self.client.get(reverse('artwork_edit', args=[artwork.pk]))
+        self.assertIn('Una torre de luz', self.step_part(response, 'detalles'))
+        self.assertIn('La torre', self.step_part(response, 'desplegable'))
+        self.assertNotContains(response, 'name="title"')
+        self.assertNotContains(response, 'name="public_title"')
+        self.assertIsNone(re.search(r'<(input|textarea|select)[^>]*disabled', response.content.decode()))
+        self.assertContains(response, 'Podés ver este paso. Para editarlo, pedile permiso a artista@example.com.')
+        self.assertNotContains(response, 'Editar como ESTAFA')
+
+        # Quien puede editar sigue viendo el formulario.
+        self.client.force_login(self.owner)
+        response = self.client.get(reverse('artwork_edit', args=[artwork.pk]))
+        self.assertContains(response, 'name="title"')
+        self.assertNotContains(response, 'Podés ver este paso')
+
+    @patch('art.views.send_mail')
+    def test_step_summaries_show_everything_the_team_completed(self, send_mail):
+        artwork = self.team_artwork()
+        self.client.post(reverse('artwork_team_add', args=[artwork.pk]), {'identifier': self.collaborator.email})
+        self.client.post(reverse('artwork_team_add', args=[artwork.pk]), {'identifier': self.stranger.email})
+        artwork.collaborators.add(self.collaborator)
+        self.give_ticket(self.owner)
+        verified_at = timezone.now() - timedelta(hours=3)
+        Artwork.objects.filter(pk=artwork.pk).update(
+            proposal='Una torre de luz', technical_needs='Dos enchufes', uses_sound=True, power_watts=1200,
+            uses_fire=True, fire_details='Antorchas de parafina', extinguishing_plan='Dos matafuegos',
+            safety_plan='Perímetro de 3 m', safety_responsible=self.collaborator,
+            burns=True, burn_preferred_time='Sábado a la noche', burn_company=Artwork.BurnCompany.SHARED,
+            files_url='https://example.com/carpeta',
+            assigned_location='Playa norte', placement_notes='Cerca del mar',
+            understanding_letter_physical_received=True, understanding_letter_physical_custodian='Juan Pérez',
+            checkout_completed=True, checkout_team_responsible=self.owner, checkout_notes='Dejamos todo limpio',
+            checkout_requested_at=verified_at - timedelta(hours=2), checkout_staff_notes='Quedaron clavos',
+            checkout_verified_at=verified_at, checkout_verified_by=self.admin, status=Artwork.Status.CHECKOUT_VERIFIED,
+        )
+        group = artwork.operations_group
+        group.ingreso_anticipado_amount = group.late_checkout_amount = 1
+        group.save(update_fields=['ingreso_anticipado_amount', 'late_checkout_amount'])
+        early_day = (timezone.localtime(self.event.start) - timedelta(days=2)).date()
+        group.miembros.filter(user=self.owner).update(ingreso_anticipado=True, ingreso_anticipado_fecha=early_day, late_checkout=True)
+        provider = ArtworkProvider.objects.create(
+            artwork=artwork, company_name='Grúas Sur', contact_first_name='Luz', contact_last_name='Ríos',
+            email='logistica@example.com', phone='+5491199999999', service_description='Traslado de estructura',
+            for_entry=True, for_exit=False,
+            early_entry_at=timezone.now() - timedelta(days=3), early_exit_at=timezone.now() - timedelta(days=3, hours=-8),
+        )
+        ArtworkProviderVehicle.objects.create(
+            provider=provider, plate='AB123CD', make_model='Ford F-4000', driver_name='Mario Gómez',
+            driver_document_number='20111222', notes='Entra con acoplado',
+        )
+        photo = ArtworkCheckoutPhoto.objects.create(artwork=artwork, image=self.image('limpio.gif'), caption='Sin restos')
+        self.close_every_step()
+
+        self.client.force_login(self.owner)
+        response = self.client.get(reverse('artwork_edit', args=[artwork.pk]))
+        detalles = self.step_part(response, 'detalles')
+        for text in (
+            'Faro', 'Una torre de luz', 'Dos enchufes', '1200 W', 'Antorchas de parafina', 'Dos matafuegos',
+            'Perímetro de 3 m', 'colab@example.com', 'Sábado a la noche', 'Junto con otras instalaciones',
+            'href="https://example.com/carpeta"', 'No se subieron archivos.',
+        ):
+            self.assertIn(text, detalles)
+        # Lo vacío no se oculta: una raya que se lee "Sin completar".
+        self.assertIn(
+            '<dt>Dimensiones</dt>\n<dd><span class="text-muted" aria-hidden="true">—</span><span class="visually-hidden">Sin completar</span>',
+            detalles,
+        )
+
+        # El equipo se edita toda la edición: quien sólo puede ver lo lee como texto.
+        self.client.force_login(self.stranger)
+        equipo = self.step_part(self.client.get(reverse('artwork_edit', args=[artwork.pk])), 'equipo')
+        for text in ('Responsable', 'Puede editar', 'Puede ver', 'otra@example.com', 'Todavía no tiene bono para este evento'):
+            self.assertIn(text, equipo)
+        self.assertNotIn('Quitar', equipo)
+
+        ingreso = self.step_part(response, 'ingreso')
+        for text in (
+            f'Ingreso anticipado: {early_day:%d/%m/%Y}', 'Late checkout: Sí', 'Late checkout: No',
+            'Grúas Sur', 'Luz Ríos', 'logistica@example.com', '+5491199999999', 'Traslado de estructura',
+            'AB123CD', 'Ford F-4000', 'Mario Gómez', '20111222', 'Entra con acoplado',
+        ):
+            self.assertIn(text, ingreso)
+        self.assertNotIn('Eliminar', ingreso)
+
+        checkout = self.step_part(response, 'checkout')
+        for text in ('artista@example.com', 'Dejamos todo limpio', photo.image.url, 'Sin restos', 'Verificado por ESTAFA',
+                     timezone.localtime(verified_at).strftime('%d/%m/%Y %H:%M')):
+            self.assertIn(text, checkout)
+        self.assertIn('ESTAFA recibió la copia física', self.step_part(response, 'carta'))
+
+        # Lo que es sólo de ESTAFA no llega al equipo.
+        for text in ('Playa norte', 'Cerca del mar', 'Quedaron clavos'):
+            self.assertNotContains(response, text)
 
     def test_nobody_edits_a_step_before_it_opens(self):
         artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro', status=Artwork.Status.ACTIVE)
@@ -957,12 +1133,12 @@ class ArtworkFlowTest(TestCase):
         def section(key):
             return {item.key: item for item in review_sections(artwork, self.program)}[key]
 
-        self.assertEqual(section('propuesta').status, MISSING)
-        self.assertEqual(section('propuesta').missing, ['Descripción', 'Dimensiones', 'Materiales'])
+        self.assertEqual(section('detalles').status, MISSING)
+        self.assertEqual(section('detalles').missing, ['Descripción', 'Dimensiones', 'Materiales'])
         artwork.proposal, artwork.dimensions, artwork.materials = 'Una torre', '3 × 3', 'Madera'
-        self.assertEqual(section('propuesta').status, COMPLETE)
+        self.assertEqual(section('detalles').status, COMPLETE)
         artwork.uses_fire = True
-        self.assertIn('Plan de extinción', section('propuesta').missing)
+        self.assertIn('Plan de extinción', section('detalles').missing)
 
         self.assertEqual(section('declaracion').missing, ['Declaración digital', 'Declaración física'])
         artwork.understanding_letter_physical_waiver = True
@@ -971,8 +1147,10 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(section('checkout').status, UPCOMING)
         artwork.status = Artwork.Status.CHECKOUT_VERIFIED
         self.assertEqual((section('checkout').status, section('checkout').summary), (COMPLETE, 'Verificado'))
+        # El orden de la línea de tiempo del equipo; el check-in va antes del checkout.
         self.assertEqual([item.key for item in review_sections(artwork, self.program)], [
-            'declaracion', 'propuesta', 'equipo', 'galeria', 'desplegable', 'logistica', 'checkout', 'beneficio',
+            'detalles', 'equipo', 'desplegable', 'declaracion', 'ingreso', 'late-checkout', 'proveedores',
+            'checkin', 'checkout', 'galeria',
         ])
 
     def test_review_page_shows_the_team_content_and_saves_estafa_fields(self):
@@ -988,12 +1166,43 @@ class ArtworkFlowTest(TestCase):
         self.assertNotContains(page, reverse('artwork_photo_upload', args=[artwork.pk]))
 
         response = self.client.post(url, {
-            'expected_updated_at': artwork.updated_at.isoformat(), 'assigned_location': 'Playa norte',
-            'benefit_status': artwork.benefit_status,
+            'expected_updated_at': artwork.updated_at.isoformat(), 'checkout_staff_notes': 'Quedaron clavos',
+            'assigned_location': 'Playa norte', 'benefit_status': artwork.benefit_status,
         })
         self.assertRedirects(response, url)
         artwork.refresh_from_db()
-        self.assertEqual(artwork.assigned_location, 'Playa norte')
+        self.assertEqual(artwork.checkout_staff_notes, 'Quedaron clavos')
+        # La ubicación asignada ya no se carga desde acá.
+        self.assertEqual(artwork.assigned_location, '')
+        self.assertContains(self.client.get(url), 'Quedaron clavos')
+
+    @patch('art.views.send_mail')
+    def test_review_page_reads_the_team_summaries(self, send_mail):
+        artwork = self.team_artwork()
+        Artwork.objects.filter(pk=artwork.pk).update(
+            burns=True, burn_preferred_time='Sábado a la noche', burn_company=Artwork.BurnCompany.ALONE,
+            files_url='https://example.com/carpeta', arrival_date=date(2031, 3, 7), departure_date=date(2031, 3, 19),
+            assigned_location='Playa norte',
+        )
+        artwork.files.create(file=self.image('boceto.gif'), name='boceto.gif')
+        early_day = (timezone.localtime(self.event.start) - timedelta(days=2)).date()
+        artwork.operations_group.miembros.filter(user=self.owner).update(ingreso_anticipado_fecha=early_day)
+        self.client.force_login(self.admin)
+        page = self.client.get(reverse('artwork_review', args=[self.event.slug, artwork.pk]))
+        for text in (
+            '<dt>Nombre</dt>\n<dd>Faro</dd>', 'Sábado a la noche', 'Sola', 'href="https://example.com/carpeta"', 'boceto.gif',
+            f'Ingreso anticipado: {early_day:%d/%m/%Y}', 'No subida', 'name="checkout_staff_notes"',
+            'name="understanding_letter_physical_waiver"',
+        ):
+            self.assertContains(page, text, html=False)
+        # Nada de lo que ya no carga nadie ni de lo que ESTAFA no edita desde acá.
+        for text in (
+            '07/03/2031', '19/03/2031', 'Playa norte', 'Ubicación asignada', 'name="assigned_location"',
+            'name="placement_notes"', 'name="understanding_letter"',
+        ):
+            self.assertNotContains(page, text, html=False)
+        # Los resúmenes usan títulos h4 dentro de cada sección.
+        self.assertContains(page, '<h4 class="summary-group-title">La idea</h4>', html=True)
 
     def test_event_admin_edits_the_art_program_by_step(self):
         from django.contrib import admin as django_admin

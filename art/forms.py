@@ -693,12 +693,11 @@ class ArtworkReviewForm(InvalidFieldsMixin, forms.ModelForm):
         fields = (
             'checkin_arrived_at', 'checkin_art_at', 'checkin_placed',
             'checkin_placement_changed', 'checkin_placement_change_notes',
-            'understanding_letter', 'understanding_letter_physical_received',
+            'understanding_letter_physical_received',
             'understanding_letter_physical_received_at',
             'understanding_letter_physical_custodian', 'understanding_letter_physical_notes',
             'understanding_letter_physical_waiver', 'understanding_letter_physical_waiver_reason',
-            'assigned_location', 'placement_notes', 'checkout_team_responsible',
-            'checkout_verified_at',
+            'checkout_team_responsible', 'checkout_verified_at', 'checkout_staff_notes',
             'benefit_status', 'benefit_notes',
         )
         widgets = {
@@ -706,12 +705,10 @@ class ArtworkReviewForm(InvalidFieldsMixin, forms.ModelForm):
             'checkin_art_at': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
             'checkin_placement_change_notes': forms.Textarea(attrs={'rows': 4}),
             'review_feedback': forms.Textarea(attrs={'rows': 5}),
-            'placement_notes': forms.Textarea(attrs={'rows': 5}),
             'checkout_verified_at': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
+            'checkout_staff_notes': forms.Textarea(attrs={'rows': 4}),
             'benefit_notes': forms.Textarea(attrs={'rows': 4}),
             'understanding_letter_physical_notes': forms.Textarea(attrs={'rows': 4}),
-            # Sin la casilla para borrar: el archivo actual se ve en la sección.
-            'understanding_letter': forms.FileInput,
             'understanding_letter_physical_received_at': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
         }
 
@@ -721,7 +718,7 @@ class ArtworkReviewForm(InvalidFieldsMixin, forms.ModelForm):
             allowed = {
                 'checkin_arrived_at', 'checkin_art_at', 'checkin_placed',
                 'checkin_placement_changed', 'checkin_placement_change_notes',
-                'checkout_verified_at', 'understanding_letter',
+                'checkout_verified_at', 'checkout_staff_notes',
                 'understanding_letter_physical_received', 'understanding_letter_physical_received_at',
                 'understanding_letter_physical_custodian',
                 'understanding_letter_physical_notes', 'understanding_letter_physical_waiver',

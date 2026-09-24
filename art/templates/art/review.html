@@ -57,8 +57,8 @@
                     <i class="fas fa-chevron-down review-section-chevron" aria-hidden="true"></i>
                 </summary>
                 <div class="review-section-body">
-                    {% if section.key == 'propuesta' or section.key == 'desplegable' %}{% include 'art/review/_rows.html' %}
-                    {% elif section.key != 'beneficio' %}{% with template_name='art/review/_'|add:section.key|add:'.html' %}{% include template_name %}{% endwith %}{% endif %}
+                    {% comment %}Lo que cargó el equipo, con los mismos resúmenes que ve el equipo en cada paso.{% endcomment %}
+                    {% if section.template %}<div class="review-summary">{% include section.template with artwork=summary_artwork estafa_view=True %}</div>{% endif %}
                     {% if section.fields %}
                     <div class="estafa-fields">
                         <h4 class="h6"><i class="fas fa-paintbrush me-1" aria-hidden="true"></i>Lo completa ESTAFA</h4>
@@ -143,6 +143,7 @@
     .inline-images .btn { position: absolute; top: 0; right: 0; padding: .15rem .3rem; }
     @media (max-width: 767px) { .inline-form-grid { grid-template-columns: 1fr; } .inline-form-wide { grid-column: auto; } }
 </style>
+{% include 'art/_summary_styles.html' %}
 {% include 'art/_image_preview.html' %}
 {% include 'art/_messages.html' %}
 {% include 'art/_restore_position.html' %}

@@ -30,10 +30,17 @@
     .step-see { color: #176b4a; font-size: .9rem; font-weight: 600; }
     details.step-closed[open] .step-see-open, details.step-closed:not([open]) .step-see-close { display: none; }
     .step-closed-body { width: 100%; padding: .75rem 0 .5rem; color: #212529; }
+    .step-readonly-note { display: flex; align-items: baseline; gap: .5rem; max-width: 68ch; margin: 1.25rem 0 0; color: #5c636a; font-size: .9rem; }
+    .step-closed-body > .step-readonly-note { margin-top: .5rem; }
+    /* Corregir un paso cerrado: el botón cambia el texto por el formulario, sin JavaScript. */
+    .step-estafa-edit { margin-top: .75rem; }
+    .step-estafa-edit > summary { display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; list-style: none; }
+    .step-estafa-edit > summary::-webkit-details-marker { display: none; }
+    .step-estafa-edit > summary:focus-visible { outline: 3px solid rgba(40, 158, 109, .45); outline-offset: 2px; }
+    .step-estafa-edit[open] > summary { margin-bottom: 1.25rem; }
+    .step-estafa-edit[open] .step-edit-open, .step-estafa-edit:not([open]) .step-edit-close { display: none; }
+    .step-closed-body:has(> .step-estafa-edit[open]) > .step-summary { display: none; }
     .estafa-override { display: flex; align-items: baseline; gap: .5rem; padding: .75rem 1rem; margin-bottom: 1.25rem; border-left: 4px solid #6c757d; border-radius: .4rem; background: #f8f9fa; color: #343a40; }
-    .step-readonly { display: grid; grid-template-columns: 10rem minmax(0, 1fr); gap: .5rem 1rem; margin: 0 0 .75rem; }
-    .step-readonly dt { color: #5c636a; font-weight: 500; font-size: .875rem; }
-    .step-readonly dd { margin: 0; }
 
     .next-step { margin-bottom: 2.5rem; padding: 1.5rem; border: 1px solid #f0d9a0; border-radius: .75rem; background: #fff8e6; }
     .next-step-kicker { margin-bottom: .35rem; color: #7a4d00; font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
@@ -45,7 +52,5 @@
         .steps-dot { left: -1.5rem; }
         .step-card { padding: 1.25rem 1rem; border-radius: .6rem; }
         .step-card-head h2 { font-size: 1.3rem; }
-        .step-readonly { grid-template-columns: 1fr; gap: 0; }
-        .step-readonly dd { margin-bottom: .6rem; }
     }
 </style>

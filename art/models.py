@@ -313,6 +313,10 @@ class Artwork(BaseModel):
     checkout_requested_at = models.DateTimeField(null=True, blank=True, verbose_name='Checkout solicitado')
     checkout_verified_at = models.DateTimeField(null=True, blank=True, verbose_name='Checkout verificado')
     checkout_verified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_artwork_checkouts')
+    checkout_staff_notes = models.TextField(
+        blank=True, verbose_name='Comentarios de ESTAFA',
+        help_text='Sólo los ve ESTAFA: el equipo de la instalación no los ve.',
+    )
     understanding_letter = models.FileField(
         upload_to='art/understanding_letters', storage=private_art_storage,
         blank=True, verbose_name='Declaración de entendimiento digital',

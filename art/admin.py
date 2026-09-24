@@ -236,7 +236,7 @@ class ArtworkAdmin(admin.ModelAdmin):
         ('Desplegable y placement', {'fields': ('public_title', 'public_description', 'preferred_location', 'assigned_location', 'placement_notes')}),
         ('Logística', {'fields': ('arrival_date', 'departure_date', 'crew', 'providers')}),
         ('Checkout, paso 1, equipo de la instalación', {'fields': ('checkout_completed', 'checkout_team_responsible', 'checkout_notes', 'checkout_requested_at')}),
-        ('Checkout, paso 2, ESTAFA', {'fields': ('checkout_verified_at', 'checkout_verified_by')}),
+        ('Checkout, paso 2, ESTAFA', {'fields': ('checkout_verified_at', 'checkout_verified_by', 'checkout_staff_notes')}),
         ('Seguimiento', {'fields': ('status', 'status_changed_at', 'status_changed_by', 'estafa_contact', 'review_feedback', 'benefit_status', 'benefit_notes', 'submitted_at', 'version', 'created_at', 'updated_at')}),
     )
     inlines = [ArtworkBudgetItemInline, ArtworkExpenseItemInline, ArtworkPhotoInline, ArtworkCheckoutPhotoInline, ArtworkProviderInline]

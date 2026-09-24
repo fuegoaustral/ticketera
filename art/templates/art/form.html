@@ -42,9 +42,10 @@
     {% if next_step %}{% include 'art/_next_step.html' %}{% endif %}
 
     {% comment %}
-    Línea de tiempo: arriba lo que ya cerró (una línea gris que se abre para ver lo enviado), en el medio
+    Línea de tiempo: arriba lo que ya cerró (una línea gris que se abre para leer lo enviado), en el medio
     lo que se puede completar hoy (tarjetas) y abajo lo que viene (una línea gris con su fecha).
-    ESTAFA ve lo mismo y puede corregir un paso cerrado. Lo que todavía no se habilitó no lo edita nadie.
+    Lo que no podés editar lo leés como texto. ESTAFA puede corregir un paso cerrado: debajo del texto,
+    "Editar como ESTAFA" cambia el texto por el formulario. Lo que todavía no se habilitó no lo edita nadie.
     {% endcomment %}
     <ol class="steps-timeline list-unstyled" aria-label="Pasos de la instalación">
         {% for step in steps %}
@@ -56,27 +57,34 @@
                     <h2 id="{{ step.key }}-title">{{ step.title }}</h2>
                     <p class="step-meta"><span>{{ step.when }}</span>{% include 'art/_step_status.html' %}</p>
                 </header>
+                {% if step.editable %}
                 {% include step.template %}
+                {% else %}
+                {% include 'art/steps/_summary.html' %}
+                {% if not can_edit_artwork %}<p class="step-readonly-note"><i class="fas fa-eye" aria-hidden="true"></i><span>Podés ver este paso. Para editarlo, pedile permiso a {{ artwork.owner.get_full_name|default:artwork.owner.email|default:'la persona responsable' }}.</span></p>{% endif %}
+                {% endif %}
             </section>
-        </li>
-        {% elif expand_all_steps and step.state == 'closed' %}
-        <li class="steps-item is-closed">
-            <span class="steps-dot" aria-hidden="true"></span>
-            {% comment %}Los campos se envían con "Guardar" aunque el paso esté plegado.{% endcomment %}
-            <details class="step-row step-closed" id="{{ step.key }}">
-                <summary><strong>{{ step.title }}</strong><span>{{ step.when }} · <span class="step-see"><span class="step-see-open">Editar como ESTAFA</span><span class="step-see-close">Ocultar</span></span></span></summary>
-                <div class="step-closed-body">
-                    <p class="estafa-override" role="note"><i class="fas fa-lock-open" aria-hidden="true"></i>Este paso ya cerró para el equipo. Como ESTAFA lo podés corregir igual.</p>
-                    {% include step.template %}
-                </div>
-            </details>
         </li>
         {% elif step.state == 'closed' %}
         <li class="steps-item is-closed">
             <span class="steps-dot" aria-hidden="true"></span>
-            <details class="step-row step-closed" id="{{ step.key }}">
-                <summary><strong>{{ step.title }}</strong><span>{{ step.when }} · <span class="step-see"><span class="step-see-open">Ver lo que enviaste</span><span class="step-see-close">Ocultar</span></span></span></summary>
-                <div class="step-closed-body">{% include 'art/steps/_summary.html' %}</div>
+            <details class="step-row step-closed" id="{{ step.key }}"{% if step.errors %} open{% endif %}>
+                <summary><strong>{{ step.title }}</strong><span>{{ step.when }} · <span class="step-see"><span class="step-see-open">{% if acting_as_estafa %}Ver lo que envió el equipo{% else %}Ver lo que enviaste{% endif %}</span><span class="step-see-close">Ocultar</span></span></span></summary>
+                <div class="step-closed-body">
+                    {% include 'art/steps/_summary.html' %}
+                    {% if expand_all_steps and step.editable %}
+                    {% comment %}Los campos se envían con "Guardar" aunque el formulario esté plegado.{% endcomment %}
+                    <details class="step-estafa-edit"{% if step.errors %} open{% endif %}>
+                        <summary class="btn btn-sm btn-outline-secondary"><i class="fas fa-lock-open" aria-hidden="true"></i><span class="step-edit-open">Editar como ESTAFA</span><span class="step-edit-close">Volver al texto</span></summary>
+                        <div class="step-estafa-form">
+                            <p class="estafa-override" role="note"><i class="fas fa-lock-open" aria-hidden="true"></i>Este paso ya cerró para el equipo. Como ESTAFA lo podés corregir igual.</p>
+                            {% include step.template %}
+                        </div>
+                    </details>
+                    {% elif not expand_all_steps and program.is_current %}
+                    <p class="step-readonly-note">{% if artwork.estafa_contact %}Si necesitás cambiar algo, escribile a {{ artwork.estafa_contact.get_full_name|default:'tu contacto de ESTAFA' }} (<a href="mailto:{{ artwork.estafa_contact.email }}">{{ artwork.estafa_contact.email }}</a>).{% else %}Si necesitás cambiar algo, escribile a ESTAFA.{% endif %}</p>
+                    {% endif %}
+                </div>
             </details>
         </li>
         {% else %}

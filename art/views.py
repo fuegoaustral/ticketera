@@ -43,9 +43,15 @@ def _base_context(event=None):
     }
 
 
-def _steps_context(artwork, program, user, form=None):
-    """Pasos en el orden de la línea de tiempo: lo cerrado arriba, lo abierto en el medio y lo que viene abajo."""
+def _steps_context(artwork, program, user, form=None, editable=None):
+    """Pasos en el orden de la línea de tiempo: lo cerrado arriba, lo abierto en el medio y lo que viene abajo.
+
+    `editable` dice qué pasos puede editar quien mira; el resto lo lee como texto.
+    """
     steps = artwork_steps(artwork, program, form=form)
+    if editable is not None:
+        for step in steps:
+            step.editable = editable.get(step.key, False)
     order = {CLOSED: 0, OPEN: 1, UPCOMING: 2}
     # ESTAFA puede editar fuera de fecha: ve cada paso completo, sin "Lo próximo".
     manager = bool(artwork and artwork.can_manage(user))
@@ -268,15 +274,45 @@ def _grant_context(artwork, inline_forms=None):
     }
 
 
+def _summary_context(artwork, form):
+    """Lo que leen los resúmenes de cada paso, en la instalación y en ESTAFA."""
+    providers = list(artwork.artwork_providers.prefetch_related('vehicles'))
+    for provider in providers:
+        provider.inline_vehicles = list(provider.vehicles.all())
+    return {
+        # Un formulario que volvió con errores dejó sus valores en la instalación: el texto muestra lo guardado.
+        'summary_artwork': Artwork.objects.get(pk=artwork.pk) if form.is_bound and form.errors else artwork,
+        'artwork_files': artwork.files.all(),
+        'gallery_photos': artwork.photos.filter(stage__in=GALLERY_STAGES),
+        'checkout_photos': artwork.checkout_photos.all(),
+        'artwork_providers': providers,
+    }
+
+
+def _editable_steps(form, permissions):
+    """Qué pasos puede editar quien mira: los que tienen algún campo habilitado o algo para subir o cargar."""
+    def fields_open(block):
+        return any(not form.fields[name].disabled for name in form.BLOCK_FIELDS[block] if name in form.fields)
+
+    return {
+        'detalles': fields_open('proposal') or permissions['can_edit_files'],
+        'equipo': permissions['can_edit_team'],
+        'desplegable': fields_open('guide'),
+        'carta': fields_open('understanding_letter_digital'),
+        'ingreso': permissions['can_edit_logistics'],
+        'galeria': permissions['can_edit_gallery'],
+        'checkout': fields_open('checkout') or permissions['can_edit_checkout'] or permissions['can_submit_checkout'],
+    }
+
+
 def _artwork_context(artwork, program, form, inline_forms=None):
     inline_forms = inline_forms or {}
     context = _base_context(artwork.event)
-    providers = list(artwork.artwork_providers.prefetch_related('vehicles'))
-    for provider in providers:
+    summary = _summary_context(artwork, form)
+    for provider in summary['artwork_providers']:
         provider.inline_form = inline_forms.get(('provider', provider.pk)) or ArtworkProviderForm(
             instance=provider, auto_id=f'provider-{provider.pk}_%s',
         )
-        provider.inline_vehicles = list(provider.vehicles.all())
         provider.vehicle_create_form = inline_forms.get(('vehicle-new', provider.pk)) or ArtworkProviderVehicleForm(
             instance=ArtworkProviderVehicle(provider=provider), auto_id=f'vehicle-{provider.pk}-new_%s',
         )
@@ -284,22 +320,27 @@ def _artwork_context(artwork, program, form, inline_forms=None):
             vehicle.inline_form = inline_forms.get(('vehicle', vehicle.pk)) or ArtworkProviderVehicleForm(
                 instance=vehicle, auto_id=f'vehicle-{vehicle.pk}_%s',
             )
+    providers = summary['artwork_providers']
+    permissions = {
+        'can_edit_files': _files_editable(artwork, form.actor),
+        'can_edit_gallery': _gallery_editable(artwork, form.actor),
+        'can_edit_logistics': _logistics_editable(artwork, form.actor),
+        'can_edit_checkout': _checkout_editable(artwork, form.actor),
+        'can_submit_checkout': _can_submit_checkout(artwork, program, form.actor),
+        'can_edit_team': _team_editable(artwork, form.actor),
+    }
+    context.update(summary)
+    context.update(permissions)
     context.update({
         'form': form,
         'program': program,
         'artwork': artwork,
-        **_steps_context(artwork, program, form.actor, form),
-        'artwork_files': artwork.files.all(),
+        **_steps_context(artwork, program, form.actor, form, _editable_steps(form, permissions)),
         'file_upload_form': inline_forms.get(('file-new', None)) or ArtworkFileUploadForm(auto_id='file-new_%s'),
-        'can_edit_files': _files_editable(artwork, form.actor),
-        'gallery_photos': artwork.photos.filter(stage__in=GALLERY_STAGES),
-        'can_edit_gallery': _gallery_editable(artwork, form.actor),
         'photo_upload_form': inline_forms.get(('photo-new', None)) or ArtworkPhotoUploadForm(auto_id='photo-new_%s'),
         'checkout_photo_upload_form': inline_forms.get(('checkout-photo-new', None)) or ArtworkCheckoutPhotoUploadForm(
             auto_id='checkout-photo-new_%s',
         ),
-        'checkout_photos': artwork.checkout_photos.all(),
-        'artwork_providers': providers,
         'entry_providers': [provider for provider in providers if provider.for_entry],
         'exit_providers': [provider for provider in providers if provider.for_exit],
         'provider_create_form': inline_forms.get(('provider-new', None)) or ArtworkProviderForm(
@@ -309,9 +350,6 @@ def _artwork_context(artwork, program, form, inline_forms=None):
         'can_edit_artwork': artwork.can_edit(form.actor) or artwork.can_manage(form.actor),
         'grant_started': artwork.grant_status != Artwork.GrantStatus.NOT_REQUESTED,
         'benefits_form': inline_forms.get(('benefits', None)) or _benefits_form(artwork),
-        'can_edit_logistics': _logistics_editable(artwork, form.actor),
-        'can_edit_checkout': _checkout_editable(artwork, form.actor),
-        'can_submit_checkout': _can_submit_checkout(artwork, program, form.actor),
     })
     # ESTAFA editando la instalación de otra persona: navega dentro de ESTAFA y auditlog registra quién guarda.
     if context['can_manage'] and not artwork.can_edit(form.actor):
@@ -338,13 +376,15 @@ def _review_context(artwork, form, user, inline_forms=None):
         )
     return {
         **_estafa_context(user, artwork.event),
+        # Lo que cargó el equipo se lee con los mismos resúmenes que ve el equipo.
+        **_summary_context(artwork, form),
+        'team_members': _team_context(artwork, user)['team_members'],
         'artwork': artwork, 'form': form, 'sections': sections,
         'contact_form': ArtworkContactForm(instance=artwork, auto_id='contact_%s'),
         'can_manage': artwork.can_manage(user),
         'checkout_photo_upload_form': inline_forms.get(('checkout-photo-new', None)) or ArtworkCheckoutPhotoUploadForm(
             auto_id='checkout-photo-new_%s',
         ),
-        'checkout_photos': artwork.checkout_photos.all(),
     }
 
 

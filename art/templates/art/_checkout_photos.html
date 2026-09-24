@@ -1,0 +1,14 @@
+{% comment %}Fotos del checkout por categoría. En ESTAFA (estafa_view), borrar vuelve a la revisión.{% endcomment %}
+{% if checkout_photos %}
+<div class="row g-3">
+    {% for photo in checkout_photos %}
+    <div class="col-6 col-lg-4">
+        <figure class="gallery-card mb-0">
+            <a href="{{ photo.image.url }}" target="_blank" rel="noopener"><img src="{{ photo.image.url }}" alt="{{ photo.caption|default:photo.get_category_display }}" loading="lazy"></a>
+            <figcaption class="p-2 small"><strong>{{ photo.get_category_display }}</strong>{% if photo.caption %}<br>{{ photo.caption }}{% endif %}</figcaption>
+            {% if can_delete %}<form method="post" action="{% url 'artwork_checkout_photo_delete' artwork.pk photo.pk %}">{% csrf_token %}{% if estafa_view %}<input type="hidden" name="return_to" value="review">{% endif %}<button class="btn btn-sm btn-link text-danger p-2" type="submit" onclick="return confirm('¿Eliminar esta foto?')">Eliminar</button></form>{% endif %}
+        </figure>
+    </div>
+    {% endfor %}
+</div>
+{% else %}<p class="small text-muted mb-0">{{ empty }}</p>{% endif %}

@@ -25,6 +25,10 @@ class Step:
     # Los pasos opcionales no muestran "Completo" ni "Te falta".
     optional: bool = False
     about: str = ''
+    # Campos con error en el formulario que no se guardó, aunque el paso esté cerrado.
+    errors: list = field(default_factory=list)
+    # Si quien mira puede editar el paso; si no, lo lee como texto. Lo decide la vista.
+    editable: bool = True
 
     @property
     def complete(self):
@@ -174,7 +178,7 @@ def artwork_steps(artwork, program, at=None, form=None):
             missing = []
         if state == OPEN:
             missing = list(dict.fromkeys(missing + errors.get(key, [])))
-        steps.append(Step(key, title, short, state, when, deadline, missing, optional, about))
+        steps.append(Step(key, title, short, state, when, deadline, missing, optional, about, errors.get(key, [])))
     return steps
 
 

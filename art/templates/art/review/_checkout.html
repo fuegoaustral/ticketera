@@ -1,24 +1,7 @@
-{% load art_format %}
-<dl class="review-rows">
-    <dt>Responsable del equipo</dt><dd>{% if artwork.checkout_team_responsible %}{{ artwork.checkout_team_responsible|person_name }}{% else %}{% include 'art/_dash.html' with label='Sin completar' %}{% endif %}</dd>
-    {% for label, value in section.rows %}<dt>{{ label|capfirst }}</dt><dd>{% if value %}{{ value|linebreaksbr }}{% else %}{% include 'art/_dash.html' with label='Sin completar' %}{% endif %}</dd>{% endfor %}
-</dl>
+{% comment %}El checkout como lo ve el equipo, más las fotos que ESTAFA puede borrar (antes de verificar) y agregar.{% endcomment %}
 <div id="checkout-report">
-    <h4 class="h6 mt-3">Fotos del checkout</h4>
-    {% if checkout_photos %}
-    <div class="review-photos">
-        {% for photo in checkout_photos %}
-        <figure>
-            <a href="{{ photo.image.url }}" target="_blank" rel="noopener"><img src="{{ photo.image.url }}" alt="{{ photo.caption|default:photo.get_category_display }}" loading="lazy"></a>
-            <figcaption>{{ photo.get_category_display }}{% if photo.caption %} · {{ photo.caption }}{% endif %}</figcaption>
-            {% if not artwork.checkout_verified_at %}<form method="post" action="{% url 'artwork_checkout_photo_delete' artwork.pk photo.pk %}">{% csrf_token %}<input type="hidden" name="return_to" value="review"><button class="btn btn-sm btn-link text-danger px-0" type="submit" onclick="return confirm('¿Eliminar esta foto?')">Eliminar</button></form>{% endif %}
-        </figure>
-        {% endfor %}
-    </div>
-    {% else %}
-    <p class="small text-muted">Todavía no hay fotos de checkout.</p>
-    {% endif %}
-    <details class="inline-editor inline-create mt-2"{% if checkout_photo_upload_form.errors %} open{% endif %}>
+    {% if artwork.checkout_verified_at %}{% include 'art/steps/summary/checkout.html' %}{% else %}{% include 'art/steps/summary/checkout.html' with can_delete_checkout_photos=True %}{% endif %}
+    <details class="inline-editor inline-create mt-3"{% if checkout_photo_upload_form.errors %} open{% endif %}>
         <summary><i class="fas fa-camera" aria-hidden="true"></i><span>Agregar fotos al reporte</span></summary>
         <form method="post" action="{% url 'artwork_checkout_photo_upload' artwork.pk %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
             <input type="hidden" name="return_to" value="review">

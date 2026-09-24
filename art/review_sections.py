@@ -1,43 +1,53 @@
-"""Las secciones de una instalación vistas por ESTAFA: estado, fecha y contenido para leer.
+"""Las secciones de una instalación vistas por ESTAFA: estado, fecha y qué se lee en cada una.
 
-Qué falta en cada sección sigue los mismos campos obligatorios que ve el equipo.
+Siguen el orden de la línea de tiempo del equipo. Qué falta en cada sección sale de los mismos
+campos obligatorios que ve el equipo (steps._missing) y el contenido se lee con los mismos
+resúmenes de cada paso (art/steps/summary/).
 """
 from dataclasses import dataclass, field
 
 from django.utils import timezone
 from django.utils.formats import date_format
 
-from .models import Artwork
-from .templatetags.art_format import person_label
+from .models import Artwork, ArtworkPhoto
+from .steps import _missing
 
 COMPLETE, MISSING, INFO, UPCOMING, ESTAFA_TURN = 'complete', 'missing', 'info', 'upcoming', 'estafa'
 
-# Campos que completa ESTAFA en cada sección.
+# Campos que completa ESTAFA en cada sección. La declaración digital la sube sólo el equipo.
 ESTAFA_FIELDS = {
     'declaracion': (
-        'checkin_arrived_at', 'checkin_art_at', 'checkin_placed',
-        'checkin_placement_changed', 'checkin_placement_change_notes',
-        'understanding_letter', 'understanding_letter_physical_received', 'understanding_letter_physical_received_at',
+        'understanding_letter_physical_received', 'understanding_letter_physical_received_at',
         'understanding_letter_physical_custodian', 'understanding_letter_physical_notes',
         'understanding_letter_physical_waiver', 'understanding_letter_physical_waiver_reason',
     ),
-    'desplegable': ('assigned_location', 'placement_notes'),
-    'checkout': ('checkout_team_responsible', 'checkout_verified_at'),
-    'beneficio': ('benefit_status', 'benefit_notes'),
+    'checkin': (
+        'checkin_arrived_at', 'checkin_art_at', 'checkin_placed',
+        'checkin_placement_changed', 'checkin_placement_change_notes',
+    ),
+    # El beneficio para la próxima edición se decide al cerrar: después de verificar el checkout.
+    'checkout': (
+        'checkout_team_responsible', 'checkout_verified_at', 'checkout_staff_notes',
+        'benefit_status', 'benefit_notes',
+    ),
 }
+
+SUMMARY = 'art/steps/summary/'
 
 
 @dataclass
 class Section:
     key: str
     title: str
+    # El paso de la instalación donde el equipo ve lo mismo ('' si no hay).
     anchor: str
     status: str
     summary: str
     when: str = ''
     missing: list = field(default_factory=list)
-    rows: list = field(default_factory=list)
     estafa_fields: tuple = ()
+    # Lo que cargó el equipo, para leer.
+    template: str = ''
 
 
 def _day(value):
@@ -53,97 +63,41 @@ def _when(program, blocks, deadline, at):
     return f'Cerró el {_day(deadline)}' if deadline else 'Cerrada'
 
 
-def _rows(artwork, names):
-    rows = []
-    for name in names:
-        model_field = Artwork._meta.get_field(name)
-        value = getattr(artwork, name)
-        if isinstance(value, bool):
-            value = 'Sí' if value else 'No'
-        elif hasattr(value, 'tzinfo'):
-            value = date_format(timezone.localtime(value), 'd/m/Y H:i') if value else value
-        elif model_field.choices:
-            value = getattr(artwork, f'get_{name}_display')()
-        rows.append((model_field.verbose_name, value))
-    return rows
-
-
 def _status(missing, complete_summary='Completo'):
     if missing:
         return MISSING, 'Pendiente: ' + ', '.join(label.lower() for label in missing)
     return COMPLETE, complete_summary
 
 
+def _count(number, singular, plural):
+    return f'{number} {singular if number == 1 else plural}'
+
+
 def review_sections(artwork, program, at=None):
     at = at or timezone.now()
     sections = []
 
-    # Propuesta y seguridad
-    missing = [label for name, label in (
-        ('proposal', 'Descripción'), ('dimensions', 'Dimensiones'), ('materials', 'Materiales'),
-    ) if not getattr(artwork, name)]
-    if artwork.uses_fire:
-        missing += [label for name, label in (
-            ('fire_details', 'Detalles del fuego'), ('extinguishing_plan', 'Plan de extinción'),
-            ('safety_responsible_id', 'Responsable de seguridad'),
-        ) if not getattr(artwork, name)]
+    # Detalles, con la seguridad y el fuego: los mismos campos y en el mismo orden que ve el equipo.
+    missing = _missing('detalles', artwork)
     status, summary = _status(missing)
-    rows = _rows(artwork, (
-        'proposal', 'dimensions', 'materials', 'technical_needs', 'power_watts', 'uses_sound',
-        'uses_fire', *(('fire_details', 'extinguishing_plan') if artwork.uses_fire else ()), 'safety_plan',
-    ))
-    rows.append(('Responsable de seguridad', person_label(artwork.safety_responsible)))
     sections.append(Section(
-        'propuesta', 'Propuesta y seguridad', 'detalles', status, summary,
-        _when(program, ('proposal',), program.proposal_deadline, at), missing, rows,
+        'detalles', 'Detalles de la instalación', 'detalles', status, summary,
+        _when(program, ('proposal',), program.proposal_deadline, at), missing, template=SUMMARY + 'detalles.html',
     ))
 
-    # Equipo de la instalación
     members = list(artwork.team_members())
-    editors = set(artwork.collaborators.values_list('pk', flat=True))
-    for member in members:
-        member.role = 'Responsable' if member.user_id == artwork.owner_id else ('Puede editar' if member.user_id in editors else 'Ve la instalación')
-    members.sort(key=lambda member: member.user_id != artwork.owner_id)
-    count = len(members)
     sections.append(Section(
-        'equipo', 'Equipo de la instalación', 'equipo', INFO,
-        f'{count} persona{"s" if count != 1 else ""}', 'Sin fecha límite', rows=members,
+        'equipo', 'Equipo', 'equipo', INFO, _count(len(members), 'persona', 'personas'), 'Sin fecha límite',
+        template=SUMMARY + 'equipo.html',
     ))
 
-    # Galería
-    photos = list(artwork.photos.all())
-    sections.append(Section(
-        'galeria', 'Galería', 'galeria', INFO,
-        f'{len(photos)} foto{"s" if len(photos) != 1 else ""}' if photos else 'Sin fotos', 'Opcional', rows=photos,
-    ))
-
-    # Desplegable y placement
-    missing = [label for name, label in (
-        ('public_title', 'Título para el público'), ('public_description', 'Texto para el público'),
-    ) if not getattr(artwork, name)]
+    missing = _missing('desplegable', artwork)
     status, summary = _status(missing)
-    placement = f'Ubicación: {artwork.assigned_location}' if artwork.assigned_location else 'Sin ubicación asignada'
     sections.append(Section(
-        'desplegable', 'Desplegable y placement', 'desplegable', status, f'{summary} · {placement}',
-        _when(program, ('guide',), program.guide_deadline, at), missing,
-        _rows(artwork, ('public_title', 'public_description', 'preferred_location')),
-        ESTAFA_FIELDS['desplegable'],
+        'desplegable', 'Desplegable y placement', 'desplegable', status, summary,
+        _when(program, ('guide',), program.guide_deadline, at), missing, template=SUMMARY + 'desplegable.html',
     ))
 
-    # Ingreso anticipado, proveedores y desarme
-    providers = list(artwork.artwork_providers.prefetch_related('vehicles'))
-    parts = []
-    if artwork.arrival_date:
-        parts.append(f'Ingreso {_day(artwork.arrival_date)}')
-    if providers:
-        parts.append(f'{len(providers)} proveedor{"es" if len(providers) != 1 else ""}')
-    sections.append(Section(
-        'logistica', 'Ingreso anticipado, proveedores y desarme', 'ingreso', INFO,
-        ' · '.join(parts) or 'Sin datos cargados', _when(program, ('logistics',), program.logistics_deadline, at),
-        rows=providers,
-    ))
-
-    # Check-in y declaración de entendimiento
     missing = []
     if not artwork.understanding_letter:
         missing.append('Declaración digital')
@@ -152,12 +106,43 @@ def review_sections(artwork, program, at=None):
     status, summary = _status(missing)
     deadlines = [d for d in (program.understanding_letter_digital_deadline, program.understanding_letter_physical_deadline) if d]
     sections.append(Section(
-        'declaracion', 'Check-in y declaración de entendimiento', 'carta', status, summary,
+        'declaracion', 'Declaración de entendimiento', 'carta', status, summary,
         _when(program, ('understanding_letter_digital', 'understanding_letter_physical'), max(deadlines) if deadlines else None, at),
-        missing, estafa_fields=ESTAFA_FIELDS['declaracion'],
+        missing, ESTAFA_FIELDS['declaracion'], SUMMARY + 'carta.html',
     ))
 
-    # Checkout
+    logistics_when = _when(program, ('logistics',), program.logistics_deadline, at)
+    group = artwork.operations_group if artwork.operations_group_id else None
+    early = sum(1 for member in members if member.ingreso_anticipado_fecha)
+    late = sum(1 for member in members if member.late_checkout)
+    sections.append(Section(
+        'ingreso', 'Ingreso anticipado', 'ingreso', INFO,
+        f'{early} de {group.ingreso_anticipado_amount} cupos' if group and group.ingreso_anticipado_amount else 'Sin cupos',
+        logistics_when, template=SUMMARY + '_early_entry.html',
+    ))
+    sections.append(Section(
+        'late-checkout', 'Late checkout', 'ingreso', INFO,
+        f'{late} de {group.late_checkout_amount} cupos' if group and group.late_checkout_amount else 'Sin cupos',
+        logistics_when, template=SUMMARY + '_late_checkout.html',
+    ))
+    providers = artwork.artwork_providers.count()
+    sections.append(Section(
+        'proveedores', 'Proveedores', 'ingreso', INFO,
+        _count(providers, 'proveedor', 'proveedores') if providers else 'Sin proveedores', logistics_when,
+        template=SUMMARY + '_providers.html',
+    ))
+
+    # Check-in en el predio: lo registra ESTAFA cuando llega la instalación.
+    if artwork.checkin_art_at:
+        status, summary = COMPLETE, f'Hecho el {date_format(timezone.localtime(artwork.checkin_art_at), "d/m H:i")}'
+    elif artwork.checkin_arrived_at:
+        status, summary = ESTAFA_TURN, 'Llegó · falta el check-in con Arte'
+    else:
+        status, summary = INFO, 'Sin registrar'
+    sections.append(Section(
+        'checkin', 'Check-in', '', status, summary, 'En el evento', estafa_fields=ESTAFA_FIELDS['checkin'],
+    ))
+
     stage = artwork.stage
     missing = []
     if stage == Artwork.CHECKOUT_PENDING:
@@ -171,16 +156,14 @@ def review_sections(artwork, program, at=None):
         status, summary = UPCOMING, 'Todavía no corresponde'
     sections.append(Section(
         'checkout', 'Checkout', 'checkout', status, summary,
-        _when(program, ('checkout',), program.checkout_deadline, at), missing,
-        _rows(artwork, ('checkout_notes', 'checkout_requested_at')),
-        ESTAFA_FIELDS['checkout'],
+        _when(program, ('checkout',), program.checkout_deadline, at), missing, ESTAFA_FIELDS['checkout'],
+        'art/review/_checkout.html',
     ))
 
-    # Beneficio para la próxima edición: lo decide ESTAFA.
+    # Galería: las fotos del armado y de la instalación terminada, como la ve el equipo.
+    photos = artwork.photos.filter(stage__in=(ArtworkPhoto.Stage.PROCESS, ArtworkPhoto.Stage.FINAL)).count()
     sections.append(Section(
-        'beneficio', 'Beneficio para la próxima edición', '', INFO, artwork.get_benefit_status_display(),
-        estafa_fields=ESTAFA_FIELDS['beneficio'],
+        'galeria', 'Galería', 'galeria', INFO, _count(photos, 'foto', 'fotos') if photos else 'Sin fotos', 'Opcional',
+        template=SUMMARY + 'galeria.html',
     ))
-    # El mismo orden que la página de la instalación.
-    order = ('declaracion', 'propuesta', 'equipo', 'galeria', 'desplegable', 'logistica', 'checkout', 'beneficio')
-    return sorted(sections, key=lambda section: order.index(section.key))
+    return sections
