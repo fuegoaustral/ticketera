@@ -853,8 +853,7 @@ def _managed_event(request, event_slug):
 
 
 def _filtered_artworks(event, params):
-    # Una instalación sin título es un borrador recién creado: todavía no hay nada que revisar.
-    artworks = event.artworks.exclude(title='').select_related('owner', 'safety_responsible').prefetch_related(
+    artworks = event.artworks.select_related('owner', 'safety_responsible').prefetch_related(
         'grant_items', 'checkout_photos', 'logistics_people', 'artwork_providers__vehicles',
     )
     query = params.get('q', '').strip()

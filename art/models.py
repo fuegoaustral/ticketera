@@ -282,8 +282,6 @@ class Artwork(BaseModel):
 
     @property
     def stage_hint(self):
-        if self.status == self.Status.PENDING and not self.title:
-            return 'Poné un nombre a la instalación y guardá para que ESTAFA pueda revisarla.'
         return self.STAGES[self.stage][1]
 
     def set_status(self, status, user):
