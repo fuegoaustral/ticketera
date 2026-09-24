@@ -317,6 +317,30 @@ class ArtworkFlowTest(TestCase):
             {titled.pk, with_photo.pk, edited.pk, with_collaborator.pk},
         )
 
+    def test_cleanup_migration_deletes_blank_pending_artworks(self):
+        from importlib import import_module
+
+        from django.apps import apps
+        cleanup = import_module('art.migrations.0006_delete_blank_artworks').delete_blank_artworks
+        # Borradores que 0003 no borró: se guardaron una vez y 0004 los pasó a pendientes.
+        saved_once = Artwork.objects.create(event=self.event, owner=self.owner, version=2)
+        grant_click = Artwork.objects.create(event=self.event, owner=self.owner, version=2, grant_requested=True)
+        titled = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
+        with_proposal = Artwork.objects.create(event=self.event, owner=self.owner, proposal='Una idea')
+        with_photo = Artwork.objects.create(event=self.event, owner=self.owner)
+        ArtworkPhoto.objects.create(artwork=with_photo, image=self.image('foto.gif'), stage=ArtworkPhoto.Stage.PROPOSAL)
+        with_collaborator = Artwork.objects.create(event=self.event, owner=self.owner)
+        with_collaborator.collaborators.add(self.collaborator)
+        rejected = Artwork.objects.create(event=self.event, owner=self.owner, status=Artwork.Status.REJECTED)
+
+        cleanup(apps, None)
+
+        self.assertFalse(Artwork.objects.filter(pk__in=[saved_once.pk, grant_click.pk]).exists())
+        self.assertEqual(
+            set(Artwork.objects.values_list('pk', flat=True)),
+            {titled.pk, with_proposal.pk, with_photo.pk, with_collaborator.pk, rejected.pk},
+        )
+
     def test_public_description_limit_is_configurable(self):
         self.program.public_description_max_length = 10
         self.program.save(update_fields=['public_description_max_length'])
@@ -985,7 +1009,7 @@ class ArtworkFlowTest(TestCase):
     def test_admin_list_puts_estafa_turn_first_and_filters_by_stage(self):
         for title, status in (
             ('Activa', Artwork.Status.ACTIVE), ('Enviada', Artwork.Status.CHECKOUT_SUBMITTED),
-            ('Pendiente', Artwork.Status.PENDING), ('Rechazada', Artwork.Status.REJECTED), ('', Artwork.Status.PENDING),
+            ('Pendiente', Artwork.Status.PENDING), ('Rechazada', Artwork.Status.REJECTED),
         ):
             Artwork.objects.create(event=self.event, owner=self.owner, title=title, status=status)
         self.client.force_login(self.admin)
