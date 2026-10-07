@@ -67,7 +67,7 @@ def direct_sales_existing_user(user, template_tickets, order_type, notes, reques
                 template.amount_used = template_ticket['amount']
                 template.save()
 
-        order.amount = emitted_tickets * ticket_type.price
+        order.amount = emitted_tickets * (ticket_type.price or 0)
         order.save()
 
         send_mail(
@@ -131,7 +131,7 @@ def direct_sales_new_user(destination_email, template_tickets, order_type, notes
                 template.amount_used = template_ticket['amount']
                 template.save()
 
-        order.amount = emitted_tickets * ticket_type.price
+        order.amount = emitted_tickets * (ticket_type.price or 0)
         order.save()
 
         send_mail(

@@ -74,6 +74,22 @@ class FreeTicketCheckoutTest(TestCase):
         self.assertEqual(order.amount, Decimal('1500.50'))
         self.assertEqual(order.status, Order.OrderStatus.PENDING)
 
+    @patch('tickets.views.checkout.mercadopago.SDK')
+    def test_blank_price_ticket_is_free(self, sdk):
+        self.ticket_type.price = None
+        self.ticket_type.save()
+
+        response = self.checkout('')
+
+        order = Order.objects.get(user=self.user)
+        self.assertRedirects(
+            response, reverse('checkout_payment_callback', kwargs={'order_key': order.key}),
+            fetch_redirect_response=False,
+        )
+        sdk.assert_not_called()
+        self.assertEqual(order.amount, 0)
+        self.assertEqual(order.status, Order.OrderStatus.CONFIRMED)
+
 
 class CurrentEventsTest(TestCase):
     def test_ended_events_are_not_current(self):

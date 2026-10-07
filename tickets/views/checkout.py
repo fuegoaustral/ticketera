@@ -149,10 +149,11 @@ def order_summary(request, event_slug=None):
     for ticket_type in ticket_types:
         field_name = f'ticket_{ticket_type.id}_quantity'
         quantity = ticket_selection.get(field_name, 0)
-        price = ticket_type.price
-        
-        # For free tickets (price = 0), use custom amount
-        if price == 0:
+        # price = 0 means "monto libre"; a blank price is a fixed $0 ticket
+        is_free_ticket = ticket_type.price == 0
+        price = ticket_type.price or 0
+
+        if is_free_ticket:
             custom_amount_field = f'ticket_{ticket_type.id}_custom_amount'
             custom_amount = Decimal(str(ticket_selection.get(custom_amount_field) or 0))
             subtotal = custom_amount * quantity
@@ -170,7 +171,7 @@ def order_summary(request, event_slug=None):
                 'price': effective_price,
                 'quantity': quantity,
                 'subtotal': subtotal,
-                'is_free_ticket': price == 0,
+                'is_free_ticket': is_free_ticket,
                 'original_price': price,
             })
             items.append({
