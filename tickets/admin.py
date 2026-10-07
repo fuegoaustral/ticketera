@@ -98,7 +98,7 @@ def admin_caja_view(request, event_id=None):
                         ticket_type_id = ticket.split('_')[2]
                         ticket_type = TicketType.objects.get(id=ticket_type_id)
                         quantity = form.cleaned_data[ticket]
-                        total_amount += ticket_type.price * quantity
+                        total_amount += (ticket_type.price or 0) * quantity
                         tickets_quantity.append({
                             'ticket_type': ticket_type,
                             'quantity': quantity

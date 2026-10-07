@@ -3271,7 +3271,7 @@ def caja_view(request, event_slug):
                                     )
                                     continue
                             
-                            total_amount += ticket_type.price * quantity
+                            total_amount += (ticket_type.price or 0) * quantity
                             ticket_data.append({
                                 'ticket_type': ticket_type,
                                 'quantity': quantity

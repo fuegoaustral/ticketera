@@ -131,7 +131,7 @@ class CheckoutTicketSelectionForm(forms.Form):
                     'id': ticket_type.id,
                     'name': ticket_type.name,
                     'description': ticket_type.description,
-                    'price': ticket_type.price,
+                    'price': ticket_type.price or 0,
                     'field_name': field_name,
                     'quantity': initial_value,  # Pass the initial value to the template
                     'ticket_count': ticket_type.ticket_count,
