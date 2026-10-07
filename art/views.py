@@ -34,7 +34,7 @@ from .steps import CLOSED, OPEN, UPCOMING, artwork_steps, next_step
 
 
 def _base_context(event=None):
-    active_events = Event.get_active_events().order_by('-is_main', 'name')
+    active_events = Event.get_current_events().order_by('-is_main', 'name')
     return {
         'event': event or Event.get_main_event(),
         'active_events': active_events,
