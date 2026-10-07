@@ -178,14 +178,12 @@ class CheckoutTicketSelectionForm(forms.Form):
         if all(cleaned_data.get(field, 0) == 0 for field in self.fields if field.startswith('ticket_') and field.endswith('_quantity')):
             raise ValidationError('Debe seleccionar al menos un ticket para continuar con la compra.')
 
-        # Validate custom amounts for free tickets
+        # Free tickets take an optional custom amount ($0 is allowed). Stored as a
+        # string because cleaned_data ends up in the JSON-serialized session.
         for ticket in self.ticket_data:
             if ticket['is_free_ticket']:
-                quantity = cleaned_data.get(f'ticket_{ticket["id"]}_quantity', 0)
-                custom_amount = cleaned_data.get(f'ticket_{ticket["id"]}_custom_amount', 0)
-                
-                if quantity > 0 and custom_amount <= 0:
-                    raise ValidationError(f'Debe ingresar un monto personalizado para {ticket["name"]}.')
+                field_name = f'ticket_{ticket["id"]}_custom_amount'
+                cleaned_data[field_name] = str(cleaned_data.get(field_name) or 0)
 
         return cleaned_data
 

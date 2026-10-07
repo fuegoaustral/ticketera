@@ -166,7 +166,7 @@ def show_past_events(request):
         past_tickets_by_event[event_key]['tickets'].append(ticket_dto)
 
     # Get events where user has tickets, prioritizing main event
-    user_events = Event.get_active_events().filter(
+    user_events = Event.get_current_events().filter(
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
     
@@ -375,7 +375,7 @@ def my_ticket_view(request, event_slug=None):
                     has_holder_tickets = True
             
             # Get events where user has tickets, prioritizing main event
-            user_events = Event.get_active_events().filter(
+            user_events = Event.get_current_events().filter(
                 newticket__holder=request.user
             ).distinct().order_by('-is_main', 'name')
             
@@ -424,7 +424,7 @@ def my_ticket_view(request, event_slug=None):
     # Priority: 1) Main event if user has tickets, 2) Any active event if user has tickets, 3) Past events
     
     # Get events where user has tickets, prioritizing main event
-    user_events = Event.get_active_events().filter(
+    user_events = Event.get_current_events().filter(
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
     
@@ -443,7 +443,7 @@ def my_ticket_view(request, event_slug=None):
     ).first() if main_event else None
 
     # Get events where user has tickets, prioritizing main event
-    user_events = Event.get_active_events().filter(
+    user_events = Event.get_current_events().filter(
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
     
@@ -545,7 +545,7 @@ def transferable_tickets_view(request, event_slug=None):
         )
 
     # Get events where user has tickets, prioritizing main event
-    user_events = Event.get_active_events().filter(
+    user_events = Event.get_current_events().filter(
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
     
@@ -902,7 +902,7 @@ def volunteering(request, event_slug=None):
         error_message = "Para anotarte como voluntario, debes tener un bono vinculado a tu nombre"
         
         # Get events where user has tickets, prioritizing main event
-        user_events = Event.get_active_events().filter(
+        user_events = Event.get_current_events().filter(
             newticket__holder=request.user
         ).distinct().order_by('-is_main', 'name')
         
@@ -940,7 +940,7 @@ def volunteering(request, event_slug=None):
         error_message = "Solo el dueño del bono puede registrarse como voluntario"
         
         # Get events where user has tickets, prioritizing main event
-        user_events = Event.get_active_events().filter(
+        user_events = Event.get_current_events().filter(
             newticket__holder=request.user
         ).distinct().order_by('-is_main', 'name')
         
@@ -980,7 +980,7 @@ def volunteering(request, event_slug=None):
         show_congrats = False
 
     # Get events where user has tickets, prioritizing main event
-    user_events = Event.get_active_events().filter(
+    user_events = Event.get_current_events().filter(
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
     
@@ -1026,7 +1026,7 @@ def my_orders_view(request):
     main_event = Event.get_main_event()
     
     # Get events where user has tickets, prioritizing main event
-    user_events = Event.get_active_events().filter(
+    user_events = Event.get_current_events().filter(
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
     
@@ -1066,7 +1066,7 @@ def my_orders_view(request):
 
 def _mi_fuego_sidebar_context(request):
     main_event = Event.get_main_event()
-    user_events = Event.get_active_events().filter(
+    user_events = Event.get_current_events().filter(
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
     my_ticket = NewTicket.objects.filter(
@@ -1499,7 +1499,7 @@ def my_events_view(request):
     main_event = Event.get_main_event()
     
     # Get events where user has tickets, prioritizing main event
-    user_events = Event.get_active_events().filter(
+    user_events = Event.get_current_events().filter(
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
     
@@ -1796,7 +1796,7 @@ def event_admin_view(request, event_slug):
     admin_events = get_admin_events_for_user(request.user)
     
     # Get events where user has tickets, prioritizing main event
-    user_events = Event.get_active_events().filter(
+    user_events = Event.get_current_events().filter(
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
     
@@ -2051,7 +2051,7 @@ def puerta_admin_view(request, event_slug):
     admin_events = get_admin_events_for_user(request.user)
     
     # Get events where user has tickets, prioritizing main event
-    user_events = Event.get_active_events().filter(
+    user_events = Event.get_current_events().filter(
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
     
@@ -2157,7 +2157,7 @@ def caja_config_view(request, event_slug):
     admin_events = get_admin_events_for_user(request.user)
     
     # Get events where user has tickets, prioritizing main event
-    user_events = Event.get_active_events().filter(
+    user_events = Event.get_current_events().filter(
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
     
@@ -2277,7 +2277,7 @@ def roles_management_view(request, event_slug):
     admin_events = get_admin_events_for_user(request.user)
     
     # Get events where user has tickets, prioritizing main event
-    user_events = Event.get_active_events().filter(
+    user_events = Event.get_current_events().filter(
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
     
@@ -2383,7 +2383,7 @@ def event_management_view(request, event_slug):
     admin_events = get_admin_events_for_user(request.user)
     
     # Get events where user has tickets, prioritizing main event
-    user_events = Event.get_active_events().filter(
+    user_events = Event.get_current_events().filter(
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
     
@@ -2667,7 +2667,7 @@ def scanner_events_view(request):
     main_event = Event.get_main_event()
     
     # Get events where user has tickets, prioritizing main event
-    user_events = Event.get_active_events().filter(
+    user_events = Event.get_current_events().filter(
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
     
@@ -2714,7 +2714,7 @@ def caja_events_view(request):
 
     main_event = Event.get_main_event()
 
-    user_events = Event.get_active_events().filter(
+    user_events = Event.get_current_events().filter(
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
 
@@ -2763,7 +2763,7 @@ def bonus_report_view(request, event_slug):
     admin_events = get_admin_events_for_user(request.user)
     
     # Get events where user has tickets, prioritizing main event
-    user_events = Event.get_active_events().filter(
+    user_events = Event.get_current_events().filter(
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
     
@@ -3134,7 +3134,7 @@ def caja_view(request, event_slug):
                 "main_event": Event.get_main_event(),
                 "admin_events": get_admin_events_for_user(request.user),
                 "current_admin_event": event,
-                "active_events": Event.get_active_events().filter(newticket__holder=request.user).distinct().order_by('-is_main', 'name'),
+                "active_events": Event.get_current_events().filter(newticket__holder=request.user).distinct().order_by('-is_main', 'name'),
                 "nav_primary": "events",
                 "nav_secondary": f"caja_{event.slug}",
                 "form": form,
@@ -3388,7 +3388,7 @@ def caja_view(request, event_slug):
     admin_events = get_admin_events_for_user(request.user)
     
     # Get events where user has tickets, prioritizing main event
-    user_events = Event.get_active_events().filter(
+    user_events = Event.get_current_events().filter(
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
     
@@ -3587,7 +3587,7 @@ def mis_grupos_view(request, event_slug=None):
     ).select_related('tipo').prefetch_related('miembros__user').order_by('tipo__nombre', 'nombre')
     
     # Get events where user has tickets, prioritizing main event
-    user_events = Event.get_active_events().filter(
+    user_events = Event.get_current_events().filter(
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
     
@@ -3824,7 +3824,7 @@ def grupo_manage_view(request, event_slug, grupo_id):
             return redirect('grupo_manage', event_slug=event_slug, grupo_id=grupo_id)
     
     # Get events where user has tickets, prioritizing main event
-    user_events = Event.get_active_events().filter(
+    user_events = Event.get_current_events().filter(
         newticket__holder=request.user
     ).distinct().order_by('-is_main', 'name')
     
