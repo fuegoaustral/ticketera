@@ -1,0 +1,13 @@
+{% load art_format %}
+<dl class="step-readonly">
+    {% include 'art/steps/summary/_row.html' with label='Responsable del equipo' value=artwork.checkout_team_responsible|person_name %}
+    {% include 'art/steps/summary/_row.html' with label='Notas' value=artwork.checkout_notes multiline=True %}
+    <dt>Checkout enviado</dt>
+    <dd>{% if artwork.checkout_requested_at %}{{ artwork.checkout_requested_at|date:'d/m/Y H:i' }}{% elif artwork.checkout_completed %}Sí{% else %}{% include 'art/_dash.html' with label='Sin enviar' %}{% endif %}</dd>
+    <dt>Verificado por ESTAFA</dt>
+    <dd>{% if artwork.checkout_verified_at %}{{ artwork.checkout_verified_at|date:'d/m/Y H:i' }}{% if artwork.checkout_verified_by %} · {{ artwork.checkout_verified_by|person_name }}{% endif %}{% else %}{% include 'art/_dash.html' with label='Sin verificar' %}{% endif %}</dd>
+</dl>
+<div class="summary-group">
+    {% include 'art/steps/summary/_group_title.html' with title='Fotos del espacio' %}
+    {% include 'art/_checkout_photos.html' with can_delete=can_delete_checkout_photos empty='No se subieron fotos.' %}
+</div>

@@ -1,0 +1,11 @@
+<p class="step-lead">Fotos del armado y de la instalación terminada. Es opcional. Podés elegir varias desde el teléfono.</p>
+{% if artwork and can_edit_gallery %}
+<details class="inline-editor inline-create mb-3"{% if photo_upload_form.errors %} open{% endif %}>
+    <summary><i class="fas fa-camera" aria-hidden="true"></i><span>Subir fotos</span></summary>
+    <form method="post" action="{% url 'artwork_photo_upload' artwork.pk %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
+        {% include 'art/_inline_fields.html' with inline_form=photo_upload_form %}
+        <div class="text-end"><button class="btn btn-sm btn-primary" type="submit">Subir fotos</button></div>
+    </form>
+</details>
+{% endif %}
+{% include 'art/_gallery_photos.html' with photos=gallery_photos can_delete=can_edit_artwork empty='Todavía no hay fotos.' %}

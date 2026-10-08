@@ -1,0 +1,10 @@
+<dl class="step-readonly">
+    <dt>Declaración firmada (digital)</dt>
+    <dd>{% if artwork.understanding_letter %}<a href="{{ artwork.understanding_letter.url }}" target="_blank" rel="noopener">Ver la declaración firmada<span class="visually-hidden"> (se abre en otra pestaña)</span></a>{% elif estafa_view %}No subida{% else %}{% include 'art/_dash.html' with label='Sin completar' %}{% endif %}</dd>
+    {% if estafa_view %}
+    <dt>Copia física</dt>
+    <dd>{% if artwork.understanding_letter_physical_received %}Recibida{% if artwork.understanding_letter_physical_received_at %} el {{ artwork.understanding_letter_physical_received_at|date:'d/m/Y' }}{% endif %}{% elif artwork.understanding_letter_physical_waiver %}Excepción por distancia a CABA: la entrega en el evento{% else %}No recibida{% endif %}</dd>
+    {% endif %}
+</dl>
+{% comment %}La copia física la marca ESTAFA; en ESTAFA se edita en los campos de abajo.{% endcomment %}
+{% if not estafa_view %}{% include 'art/_physical_copy.html' %}{% endif %}

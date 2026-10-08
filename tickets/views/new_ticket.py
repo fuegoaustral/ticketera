@@ -260,7 +260,7 @@ def unassign_ticket_check(request, ticket_key):
     ticket = get_object_or_404(NewTicket, key=ticket_key)
     if not (ticket.holder == request.user and ticket.owner == request.user):
         return JsonResponse({'error': 'No autorizado'}, status=403)
-    # Grupos del evento donde el usuario tiene ingreso anticipado o late checkout (y no es el líder)
+    # Equipos del evento donde el usuario tiene ingreso anticipado o late checkout (y no es el líder)
     memberships = GrupoMiembro.objects.filter(
         user=request.user,
         grupo__event=ticket.event
@@ -302,8 +302,8 @@ def unassign_ticket(request, ticket_key):
     if ticket.event.transfers_enabled_until < timezone.now():
         return HttpResponseBadRequest('')
 
-    # Remover al usuario de grupos de este evento donde tiene ingreso anticipado o late checkout
-    # (no se toca al líder del grupo)
+    # Sin bono no hay ingreso anticipado ni late checkout, pero la persona sigue en sus equipos
+    # (no se toca al líder del equipo)
     GrupoMiembro.objects.filter(
         user=request.user,
         grupo__event=ticket.event
@@ -311,7 +311,7 @@ def unassign_ticket(request, ticket_key):
         grupo__lider=request.user
     ).filter(
         Q(ingreso_anticipado=True) | Q(late_checkout=True)
-    ).delete()
+    ).update(ingreso_anticipado=False, ingreso_anticipado_fecha=None, late_checkout=False, updated_at=timezone.now())
 
     ticket.volunteer_ranger = None
     ticket.volunteer_transmutator = None

@@ -4,13 +4,14 @@ from datetime import timedelta
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
+from django.urls import reverse
 from django.utils import timezone
 
 from user_profile.forms import (
     MAX_EVENT_REQUEST_BANNER_BYTES,
     EventRequestForm,
 )
-from user_profile.models import SedeSubscription
+from user_profile.models import Profile, SedeSubscription
 from user_profile.services.sede_mercadopago import (
     _deactivate_stale_members,
     _reconcile_local_subscriptions_with_remote_detail_truth,
@@ -126,3 +127,40 @@ class EventRequestFormTests(TestCase):
             files={'header_image': SimpleUploadedFile('banner.gif', TINY_GIF, content_type='image/gif')},
         )
         self.assertTrue(form.is_valid(), form.errors)
+
+
+class LoginFormTests(TestCase):
+    def test_failed_login_keeps_the_email(self):
+        User.objects.create_user(username='ana', email='ana@example.com', password='correcta')
+        response = self.client.post(reverse('account_login'), {'login': 'ana@example.com', 'password': 'incorrecta'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Usuario o contraseña incorrectos.')
+        self.assertContains(response, 'value="ana@example.com"')
+        self.assertContains(response, 'autofocus')
+
+    def test_browser_can_remember_the_email(self):
+        for name in ('account_login', 'account_signup', 'account_reset_password'):
+            response = self.client.get(reverse(name))
+            self.assertContains(response, 'autocomplete="email"', msg_prefix=name)
+            self.assertNotContains(response, 'autocomplete="off"', msg_prefix=name)
+
+class ProfileNicknameTests(TestCase):
+    def test_nickname_is_optional_and_saved_from_personal_information(self):
+        profile = _make_profile('juana')
+        profile.profile_completion = Profile.COMPLETE
+        profile.save()
+        self.client.force_login(profile.user)
+        response = self.client.get(reverse('profile'))
+        self.assertContains(response, '¿Cómo te dicen?')
+
+        data = {
+            'update_profile': '1', 'first_name': 'Juana', 'last_name': 'Pérez',
+            'document_type': Profile.DNI, 'document_number': '30111222',
+        }
+        self.assertRedirects(self.client.post(reverse('profile'), data), reverse('profile'))
+        profile.refresh_from_db()
+        self.assertEqual(profile.nickname, '')
+
+        self.client.post(reverse('profile'), {**data, 'nickname': 'Juani'})
+        profile.refresh_from_db()
+        self.assertEqual(profile.nickname, 'Juani')

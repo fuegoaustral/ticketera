@@ -1,0 +1,7 @@
+{% comment %}
+Lo que se completó en un paso, como texto: un resumen por paso en art/steps/summary/.
+Después de un envío con errores, `summary_artwork` es lo guardado, no lo que volvió sin guardar.
+{% endcomment %}
+<div class="step-summary">
+    {% include 'art/steps/summary/'|add:step.key|add:'.html' with artwork=summary_artwork %}
+</div>

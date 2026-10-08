@@ -31,6 +31,7 @@ class Profile(BaseModel):
     document_type = models.CharField(max_length=10, choices=DOCUMENT_TYPE_CHOICES, default=DNI)
     document_number = models.CharField(max_length=50)
     phone = models.CharField(max_length=15, validators=[RegexValidator(r'^\+?1?\d{9,15}$')])
+    nickname = models.CharField('¿Cómo te dicen?', max_length=40, blank=True)
     profile_completion = models.CharField(max_length=15, choices=PROFILE_COMPLETION_CHOICES, default=NONE)
 
     def _primary_sede_subscription(self):

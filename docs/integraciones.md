@@ -18,7 +18,7 @@
 ## Google OAuth2 (`django-allauth`)
 
 - Provider `google` con scope `email`.
-- `GOOGLE_CLIENT_ID` y variable de secreto según settings (`GOOGLE_SECRET` en código; alinear con `.env`).
+- `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET`.
 
 ## Google Calendar (Espacio Zen)
 

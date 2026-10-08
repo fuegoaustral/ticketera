@@ -24,7 +24,7 @@ Valores sensibles **no** deben commitearse: usá `.env` local basado en [`env.ex
 | Variable | Uso |
 |----------|-----|
 | `GOOGLE_CLIENT_ID` | Client ID de la app OAuth en Google Cloud. |
-| `GOOGLE_CLIENT_SECRET` | En el template `env.example`; en [`deprepagos/settings.py`](../deprepagos/settings.py) `SOCIALACCOUNT_PROVIDERS` lee el secreto como `GOOGLE_SECRET`. Alinear nombre en `.env` con lo que espera el settings activo. |
+| `GOOGLE_CLIENT_SECRET` | Client secret de la app OAuth en Google Cloud. |
 
 ## MercadoPago
 
@@ -39,7 +39,7 @@ Valores sensibles **no** deben commitearse: usá `.env` local basado en [`env.ex
 
 | Variable | Uso |
 |----------|-----|
-| `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS` | SMTP (p. ej. Mailtrap en desarrollo). |
+| `EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS` | Email; local puede usar el backend de consola y producción SMTP. |
 
 ## Espacio Zen (Google Calendar API)
 

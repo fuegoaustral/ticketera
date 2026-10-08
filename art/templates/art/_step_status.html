@@ -1,0 +1,1 @@
+{% if step.complete %}<span class="step-status is-done"><i class="fas fa-circle-check" aria-hidden="true"></i>Completo</span>{% elif step.missing %}<span class="step-status is-todo"><i class="fas fa-circle-exclamation" aria-hidden="true"></i>{{ step.missing_count }}</span>{% endif %}

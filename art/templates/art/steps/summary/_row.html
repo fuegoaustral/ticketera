@@ -1,0 +1,6 @@
+{% comment %}
+Una fila de un resumen: la etiqueta y su valor, con saltos de línea si es `multiline`.
+Vacío no se oculta: muestra una raya que se lee como `empty` (por defecto, "Sin completar").
+{% endcomment %}
+<dt>{{ label }}</dt>
+<dd>{% if value is not None and value != '' %}{% if multiline %}{{ value|linebreaksbr }}{% else %}{{ value }}{% endif %}{% else %}{% include 'art/_dash.html' with label=empty|default:'Sin completar' %}{% endif %}</dd>

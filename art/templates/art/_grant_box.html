@@ -1,0 +1,25 @@
+{% comment %}
+La beca se pide en otra pantalla. Sin cambios sin guardar, el botón lleva directo. Si hay cambios,
+"Guardar primero" envía el formulario principal con action=beca: guarda y, si salió bien, lleva a la
+beca; con errores, queda acá mostrándolos. Sin JavaScript (o sin instalación guardada) siempre se
+guarda primero, que es lo seguro.
+{% endcomment %}
+<aside class="grant-box" aria-labelledby="grant-box-title"{% if artwork %} data-grant-box{% endif %}>
+    <i class="fas fa-hand-holding-dollar" aria-hidden="true"></i>
+    <div>
+        <strong id="grant-box-title">{% if grant_started %}Tu beca · {{ artwork.get_grant_status_display }}{% else %}¿Necesitás una beca?{% endif %}</strong>
+        {% if can_edit_artwork and program.is_current %}
+        <ol class="grant-box-steps" data-when-dirty>
+            <li>Guardá primero lo que cargaste.</li>
+            <li>Después {% if grant_started %}seguí con tu beca{% else %}pedí la beca{% endif %} en la pantalla siguiente.</li>
+        </ol>
+        {% if artwork %}<span class="grant-box-hint" data-when-clean hidden>{% if grant_started %}Seguila en su propia pantalla.{% else %}Se pide aparte, en su propia pantalla.{% endif %}</span>{% endif %}
+        {% endif %}
+    </div>
+    {% if can_edit_artwork and program.is_current %}
+    <button class="btn btn-outline-success" type="submit" form="artwork-form" name="action" value="beca" data-when-dirty>Guardar primero<i class="fas fa-arrow-right ms-2" aria-hidden="true"></i></button>
+    {% if artwork %}<a class="btn btn-outline-success" href="{% url 'artwork_grant' artwork.pk %}" data-when-clean hidden>{% if grant_started %}Ver mi beca{% else %}Pedir beca{% endif %}<i class="fas fa-arrow-right ms-2" aria-hidden="true"></i></a>{% endif %}
+    {% elif artwork %}
+    <a class="btn btn-outline-success" href="{% url 'artwork_grant' artwork.pk %}">Ver la beca<i class="fas fa-arrow-right ms-2" aria-hidden="true"></i></a>
+    {% endif %}
+</aside>

@@ -1,0 +1,14 @@
+{% comment %}
+Resumen de errores arriba del formulario: se ve (y recibe el foco) aunque el campo esté más abajo,
+y cada error lleva a su campo.
+{% endcomment %}
+{% if form.errors %}
+<div class="alert alert-danger error-summary" role="alert" tabindex="-1">
+    <p class="error-summary-title"><i class="fas fa-circle-exclamation me-2" aria-hidden="true"></i>{% if form.non_field_errors %}{{ form.non_field_errors|join:' ' }}{% else %}No se guardó. Revisá los campos marcados en rojo:{% endif %}</p>
+    {% with fields_with_errors=form.visible_fields %}
+    <ul class="mb-0">
+        {% for field in fields_with_errors %}{% if field.errors %}<li><a href="#{{ field.id_for_label }}">{{ field.label }}</a>: {{ field.errors|join:' ' }}</li>{% endif %}{% endfor %}
+    </ul>
+    {% endwith %}
+</div>
+{% endif %}

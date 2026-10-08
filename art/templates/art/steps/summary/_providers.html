@@ -1,0 +1,5 @@
+{% for provider in artwork_providers %}
+{% include 'art/_provider_card.html' with can_edit=False %}
+{% empty %}
+<p class="small text-muted mb-0">No se cargaron proveedores.</p>
+{% endfor %}

@@ -1,0 +1,15 @@
+{% load art_format %}
+{% comment %}Quién entra antes (`early`) y quién se queda después (`late`), por persona del equipo (GrupoMiembro).{% endcomment %}
+{% if artwork.operations_group_id %}
+{% with group=artwork.operations_group %}
+<p class="summary-note">{% if early %}Cupos de ingreso anticipado: {{ group.ingreso_anticipado_amount }}.{% endif %}{% if early and late %} {% endif %}{% if late %}Cupos de late checkout: {{ group.late_checkout_amount }}{% if group.late_checkout_hasta %}, hasta el {{ group.late_checkout_hasta|date:'d/m H:i' }}{% endif %}.{% endif %}</p>
+{% endwith %}
+<ul class="summary-people list-unstyled mb-0">
+    {% for member in team_members %}
+    <li>
+        <div class="summary-person"><strong>{{ member.user|person_name }}</strong></div>
+        <span class="summary-person-detail">{% if early %}<span>Ingreso anticipado: {{ member.ingreso_anticipado_fecha|date:'d/m/Y'|default:'No' }}</span>{% endif %}{% if late %}<span>Late checkout: {{ member.late_checkout|yesno:'Sí,No' }}</span>{% endif %}</span>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}<p class="small text-muted mb-0">Todavía no hay personas en el equipo.</p>{% endif %}

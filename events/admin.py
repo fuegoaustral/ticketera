@@ -6,6 +6,8 @@ from django.urls import path
 from django.shortcuts import render
 from django.forms import ModelForm
 import csv
+
+from art.admin import ArtProgramInline
 from .models import (
     Event,
     EventTermsAndConditions,
@@ -40,6 +42,7 @@ class EventAdminForm(ModelForm):
 
 class EventAdmin(admin.ModelAdmin):
     form = EventAdminForm
+    inlines = [ArtProgramInline]
     filter_horizontal = ('admins', 'access_scanner', 'access_caja')  # Esto también ayuda con la interfaz
     list_display = (
         "name",
@@ -497,7 +500,7 @@ class EventAdmin(admin.ModelAdmin):
         return render(request, 'admin/events/tickets_sold_report.html', context)
 
     def ingreso_anticipado_report_view(self, request):
-        """Reporte de ingreso anticipado por grupo"""
+        """Reporte de ingreso anticipado por equipo"""
         event_id = request.GET.get('event_id')
         events = Event.objects.all()
         
@@ -573,7 +576,7 @@ class EventAdmin(admin.ModelAdmin):
             
             writer = csv.writer(response)
             # Escribir encabezados en español
-            writer.writerow(['Grupo', 'Nombre', 'Apellido', 'Tipo Documento', 'Número Documento', 'Email', 'Teléfono', 'Fecha Desde'])
+            writer.writerow(['Equipo', 'Nombre', 'Apellido', 'Tipo Documento', 'Número Documento', 'Email', 'Teléfono', 'Fecha Desde'])
             
             for row in cursor.fetchall():
                 # Formatear la fecha si existe
@@ -660,14 +663,14 @@ class EventAdmin(admin.ModelAdmin):
             elements.append(no_data)
         else:
             # Preparar datos para la tabla
-            data = [['Grupo', 'Nombre', 'Apellido', 'Tipo Doc.', 'Número Doc.', 'Email', 'Teléfono', 'Fecha Desde']]
+            data = [['Equipo', 'Nombre', 'Apellido', 'Tipo Doc.', 'Número Doc.', 'Email', 'Teléfono', 'Fecha Desde']]
             
             for row in results:
                 fecha_str = ''
                 if row[7]:  # fecha_desde (ahora es el índice 7)
                     fecha_str = row[7].strftime('%d/%m/%Y %H:%M')
                 data.append([
-                    row[0] or '',  # grupo
+                    row[0] or '',  # equipo
                     row[1] or '',  # nombre
                     row[2] or '',  # apellido
                     row[3] or '',  # documento_tipo
@@ -717,7 +720,7 @@ class EventAdmin(admin.ModelAdmin):
         return response
 
     def late_checkout_report_view(self, request):
-        """Reporte de late checkout por grupo"""
+        """Reporte de late checkout por equipo"""
         event_id = request.GET.get('event_id')
         events = Event.objects.all()
         
@@ -789,7 +792,7 @@ class EventAdmin(admin.ModelAdmin):
             
             writer = csv.writer(response)
             # Escribir encabezados en español
-            writer.writerow(['Grupo', 'Nombre', 'Apellido', 'Tipo Documento', 'Número Documento', 'Fecha Hasta'])
+            writer.writerow(['Equipo', 'Nombre', 'Apellido', 'Tipo Documento', 'Número Documento', 'Fecha Hasta'])
             
             for row in cursor.fetchall():
                 # Formatear la fecha si existe
@@ -874,14 +877,14 @@ class EventAdmin(admin.ModelAdmin):
             elements.append(no_data)
         else:
             # Preparar datos para la tabla
-            data = [['Grupo', 'Nombre', 'Apellido', 'Tipo Doc.', 'Número Doc.', 'Fecha Hasta']]
+            data = [['Equipo', 'Nombre', 'Apellido', 'Tipo Doc.', 'Número Doc.', 'Fecha Hasta']]
             
             for row in results:
                 fecha_str = ''
                 if row[5]:  # fecha_hasta
                     fecha_str = row[5].strftime('%d/%m/%Y %H:%M')
                 data.append([
-                    row[0] or '',  # grupo
+                    row[0] or '',  # equipo
                     row[1] or '',  # nombre
                     row[2] or '',  # apellido
                     row[3] or '',  # documento_tipo

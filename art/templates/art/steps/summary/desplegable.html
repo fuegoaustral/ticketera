@@ -1,0 +1,6 @@
+{% comment %}La ubicación asignada y las notas de placement son de ESTAFA: no van en el resumen.{% endcomment %}
+<dl class="step-readonly">
+    {% include 'art/steps/summary/_row.html' with label='Título para el público' value=artwork.public_title %}
+    {% include 'art/steps/summary/_row.html' with label='Texto para el público' value=artwork.public_description multiline=True %}
+    {% include 'art/steps/summary/_row.html' with label='Ubicación preferida' value=artwork.preferred_location %}
+</dl>

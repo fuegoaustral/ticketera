@@ -5,7 +5,7 @@ from events.services.event_request_notify import notify_event_request_for_review
 
 
 class Command(BaseCommand):
-    help = 'Reenvía la notificación de revisión de una propuesta (Chatwoot/Slack/email).'
+    help = 'Reenvía la notificación de revisión de una propuesta (Chatwoot/Slack).'
 
     def add_arguments(self, parser):
         parser.add_argument('request_id', type=int, nargs='?', default=None)
@@ -48,8 +48,6 @@ class Command(BaseCommand):
                 channels.append(f'Chatwoot {event_request.chatwoot_conversation_id}')
             if result.slack:
                 channels.append(f'Slack {event_request.slack_channel}')
-            if result.email:
-                channels.append('email staff')
             if channels:
                 self.stdout.write(
                     self.style.SUCCESS(
