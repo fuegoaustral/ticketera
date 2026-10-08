@@ -1,6 +1,6 @@
 {% load form_filters %}
-{% comment %}Recibe og_event (título y descripción), og_text (si hay, reemplaza la descripción), og_img (la imagen) y og_size (si se informan sus medidas: leerlas abre el archivo).{% endcomment %}
-{% with og_image_url=og_img.url|absolute_uri og_title=og_event.title|default:og_event.name|striptags og_description=og_text|default:og_event.description %}
+{% comment %}Recibe og_event (título y descripción), og_heading y og_text (si hay, reemplazan el título y la descripción), og_img (la imagen) y og_size (si se informan sus medidas: leerlas abre el archivo).{% endcomment %}
+{% with og_image_url=og_img.url|absolute_uri og_title=og_heading|default:og_event.title|default:og_event.name|striptags og_description=og_text|default:og_event.description %}
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Fuego Austral">
     <meta property="og:title" content="{{ og_title }}">
