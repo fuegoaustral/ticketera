@@ -53,7 +53,7 @@ def send_art_reminders(event=None, context=None):
     """Cron diario: avisa según los días configurados para cada checkpoint incompleto."""
     today = timezone.localdate()
     sent = 0
-    programs = ArtProgram.objects.select_related('event').filter(is_current=True, event__active=True)
+    programs = ArtProgram.objects.select_related('event').filter(is_current=True)
     if isinstance(event, Event):
         programs = programs.filter(event=event)
     for program in programs:

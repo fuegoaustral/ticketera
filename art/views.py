@@ -469,7 +469,8 @@ def _names_sentence(names):
 
 @login_required
 def art_dashboard(request):
-    programs = ArtProgram.objects.select_related('event').filter(is_current=True, event__active=True)
+    # La convocatoria abre meses antes de que el evento se active para vender bonos: alcanza con que esté vigente.
+    programs = ArtProgram.objects.select_related('event').filter(is_current=True)
     artworks = (
         Artwork.objects.filter(
             Q(owner=request.user) | Q(collaborators=request.user) | Q(operations_group__miembros__user=request.user),
@@ -495,7 +496,6 @@ def artwork_create(request, event_slug):
     program = get_object_or_404(
         ArtProgram.objects.select_related('event'),
         event__slug=event_slug,
-        event__active=True,
         is_current=True,
     )
     if not program.registration_is_open():
