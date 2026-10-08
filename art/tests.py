@@ -358,6 +358,12 @@ class ArtworkFlowTest(TestCase):
         self.assertContains(login, '<meta property="og:description" content="La convocatoria de Arte de Fuego Austral">', html=False)
         self.client.force_login(self.owner)
         self.assertContains(self.client.get(reverse('art_dashboard')), f'og:image" content="{image}"')
+        # El texto para compartir de la convocatoria reemplaza la descripción del evento.
+        self.program.share_description = 'Sumá tu propuesta de Arte'
+        self.program.save(update_fields=['share_description'])
+        page = self.client.get(reverse('art_dashboard'))
+        self.assertContains(page, '<meta property="og:description" content="Sumá tu propuesta de Arte">', html=False)
+        self.assertNotContains(page, 'La convocatoria de Arte de Fuego Austral')
         # Fuera de Arte, la vista previa sigue siendo la del evento.
         self.client.logout()
         self.assertNotContains(self.client.get(settings.LOGIN_URL), 'art/programs/banner.jpg')
