@@ -29,7 +29,7 @@ def private_art_storage():
 
 
 # Se copia al equipo de cada instalación cuando se crea (ver _ensure_operations_group).
-TEAM_COPY_HELP = 'Se copia al equipo de cada instalación cuando se crea. Cambiarlo no modifica los equipos que ya existen.'
+TEAM_COPY_HELP = 'Se copia al equipo de cada propuesta de Arte cuando se crea. Cambiarlo no modifica los equipos que ya existen.'
 
 
 class ArtProgram(BaseModel):
@@ -38,22 +38,26 @@ class ArtProgram(BaseModel):
     event = models.OneToOneField(Event, on_delete=models.CASCADE, related_name='art_program', verbose_name='Evento')
     is_current = models.BooleanField(
         default=False, verbose_name='Convocatoria anual vigente',
-        help_text='La única convocatoria que acepta instalaciones nuevas y que los equipos pueden editar. '
+        help_text='La única convocatoria que acepta propuestas de Arte nuevas y que los equipos pueden editar. '
                   'Las demás quedan como histórico, en modo consulta.',
+    )
+    image = models.ImageField(
+        upload_to='art/programs', blank=True, verbose_name='Imagen',
+        help_text='Se muestra arriba de todo en Mi Fuego → Arte mientras la convocatoria está vigente. Ideal: apaisada, 1600 × 400 px.',
     )
     registration_opens = models.DateTimeField(
         null=True, blank=True, verbose_name='Apertura de inscripción',
-        help_text='Desde cuándo se pueden inscribir instalaciones nuevas (botón «Nueva instalación»). '
+        help_text='Desde cuándo se pueden inscribir propuestas de Arte nuevas (botón «Nueva propuesta de Arte»). '
                   'Vacía: la inscripción no se habilita.',
     )
     registration_closes = models.DateTimeField(
         null=True, blank=True, verbose_name='Cierre de inscripción',
-        help_text='Hasta cuándo se pueden inscribir instalaciones nuevas. Las ya inscriptas se siguen completando '
+        help_text='Hasta cuándo se pueden inscribir propuestas de Arte nuevas. Las ya inscriptas se siguen completando '
                   'según las fechas de cada paso. Vacía: no cierra.',
     )
     proposal_deadline = models.DateTimeField(
         null=True, blank=True, verbose_name='Cierre de detalles',
-        help_text='Último momento para editar los detalles de la instalación: descripción, dimensiones, materiales y '
+        help_text='Último momento para editar los detalles de la propuesta: descripción, dimensiones, materiales y '
                   'seguridad. Puede ser posterior al cierre de inscripción. Vacía: no cierra.',
     )
     grants_enabled = models.BooleanField(
@@ -68,14 +72,14 @@ class ArtProgram(BaseModel):
         help_text='Último momento para pedir beca y cargar el presupuesto. Vacía: no cierra.',
     )
     guide_deadline = models.DateTimeField(
-        null=True, blank=True, verbose_name='Cierre de desplegable y placement',
+        null=True, blank=True, verbose_name='Cierre de folleto y placement',
         help_text='Último momento para editar el título y el texto para el público y la ubicación preferida. '
                   'Vacía: no cierra.',
     )
     public_description_max_length = models.PositiveIntegerField(
         default=200,
         validators=[MinValueValidator(1), MaxValueValidator(500)],
-        verbose_name='Máximo de caracteres de la descripción del desplegable',
+        verbose_name='Máximo de caracteres de la descripción del folleto',
     )
     logistics_opens = models.DateTimeField(
         null=True, blank=True, verbose_name='Apertura de logística',
@@ -124,13 +128,13 @@ class ArtProgram(BaseModel):
     reminder_email_enabled = models.BooleanField(default=True, verbose_name='Recordatorios por email')
     reminder_whatsapp_enabled = models.BooleanField(default=False, verbose_name='Recordatorios por WhatsApp')
     early_entry_slots = models.PositiveIntegerField(
-        default=0, verbose_name='Cupos de ingreso anticipado por instalación', help_text=TEAM_COPY_HELP,
+        default=0, verbose_name='Cupos de ingreso anticipado por propuesta de Arte', help_text=TEAM_COPY_HELP,
     )
     early_entry_from = models.DateTimeField(
         null=True, blank=True, verbose_name='Ingreso anticipado desde', help_text=TEAM_COPY_HELP,
     )
     late_checkout_slots = models.PositiveIntegerField(
-        default=0, verbose_name='Cupos de late checkout por instalación', help_text=TEAM_COPY_HELP,
+        default=0, verbose_name='Cupos de late checkout por propuesta de Arte', help_text=TEAM_COPY_HELP,
     )
     late_checkout_until = models.DateTimeField(
         null=True, blank=True, verbose_name='Late checkout hasta', help_text=TEAM_COPY_HELP,
@@ -191,8 +195,8 @@ class ArtProgram(BaseModel):
 
 class Artwork(BaseModel):
     class Kind(models.TextChoices):
-        PLANNED = 'planned', 'Instalación inscripta'
-        POPUP = 'popup', 'Instalación espontánea (popup)'
+        PLANNED = 'planned', 'Propuesta inscripta'
+        POPUP = 'popup', 'Propuesta espontánea (popup)'
 
     class GrantStatus(models.TextChoices):
         NOT_REQUESTED = 'none', 'No solicitada'
@@ -216,11 +220,11 @@ class Artwork(BaseModel):
     CHECKOUT_PENDING = 'checkout_pending'
     STAGES = {
         Status.PENDING: ('Inscripción pendiente', 'ESTAFA está revisando tu inscripción. Podés seguir editándola mientras tanto.'),
-        Status.ACTIVE: ('Inscripción aprobada', 'Tu instalación está confirmada. Completá cada sección antes de su cierre.'),
+        Status.ACTIVE: ('Inscripción aprobada', 'Tu propuesta de Arte está confirmada. Completá cada sección antes de su cierre.'),
         CHECKOUT_PENDING: ('Checkout pendiente', 'Cuando retires la instalación y limpies el espacio, completá el checkout y envialo.'),
         Status.CHECKOUT_SUBMITTED: ('Checkout enviado', 'El equipo de Arte va a verificar el retiro y la limpieza.'),
         Status.CHECKOUT_VERIFIED: ('Checkout verificado', '¡Gracias por tu instalación!'),
-        Status.REJECTED: ('Rechazada', 'ESTAFA no aceptó esta instalación para esta edición.'),
+        Status.REJECTED: ('Rechazada', 'ESTAFA no aceptó esta propuesta de Arte para esta edición.'),
     }
 
     class BenefitStatus(models.TextChoices):
@@ -238,7 +242,7 @@ class Artwork(BaseModel):
     )
     kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.PLANNED, verbose_name='Modalidad')
 
-    title = models.CharField(max_length=120, blank=True, verbose_name='Nombre de la instalación')
+    title = models.CharField(max_length=120, blank=True, verbose_name='Nombre de la propuesta')
     proposal = models.TextField(blank=True, verbose_name='Descripción de la propuesta')
     dimensions = models.CharField(max_length=200, blank=True, verbose_name='Dimensiones')
     materials = models.TextField(blank=True, verbose_name='Materiales')
@@ -251,7 +255,7 @@ class Artwork(BaseModel):
 
     class BurnCompany(models.TextChoices):
         ALONE = 'alone', 'Sola'
-        SHARED = 'shared', 'Junto con otras instalaciones'
+        SHARED = 'shared', 'Junto con otras obras'
         EITHER = 'either', 'Me da igual'
 
     burns = models.BooleanField(default=False, verbose_name='La instalación se quema')
@@ -261,13 +265,16 @@ class Artwork(BaseModel):
     )
     burn_company = models.CharField(
         max_length=10, blank=True, choices=BurnCompany.choices,
-        verbose_name='¿La querés quemar sola o junto con otras instalaciones?',
+        verbose_name='¿Preferirías quemarla sola o junto con otras obras?',
     )
     files_url = models.URLField(
         max_length=500, blank=True, verbose_name='Link a más archivos',
         help_text='Una carpeta con más material, por ejemplo de Google Drive o Dropbox.',
     )
-    power_watts = models.PositiveIntegerField(null=True, blank=True, verbose_name='Potencia eléctrica máxima (W)')
+    sound_power = models.CharField(
+        max_length=100, blank=True, verbose_name='Potencia eléctrica máxima en watts y/o decibeles',
+        help_text='Aclará la unidad. Por ejemplo: 1200 W, o 100 dB.',
+    )
     safety_contact = models.CharField(max_length=200, blank=True, verbose_name='Responsable de seguridad durante el evento')
     safety_responsible = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True,
@@ -283,8 +290,8 @@ class Artwork(BaseModel):
     grant_paid_at = models.DateField(null=True, blank=True, verbose_name='Fecha de pago de la beca')
     grant_payment_reference = models.CharField(max_length=200, blank=True, verbose_name='Referencia del pago')
 
-    public_title = models.CharField(max_length=80, blank=True, verbose_name='Título para el desplegable')
-    public_description = models.CharField(max_length=500, blank=True, verbose_name='Descripción para el desplegable')
+    public_title = models.CharField(max_length=80, blank=True, verbose_name='Título para el folleto')
+    public_description = models.CharField(max_length=500, blank=True, verbose_name='Descripción para el folleto')
     preferred_location = models.CharField(max_length=200, blank=True, verbose_name='Ubicación preferida')
     assigned_location = models.CharField(max_length=200, blank=True, verbose_name='Ubicación asignada')
     placement_notes = models.TextField(blank=True, verbose_name='Notas de placement')
@@ -307,7 +314,7 @@ class Artwork(BaseModel):
     checkout_completed = models.BooleanField(default=False, verbose_name='Solicito verificar el retiro y limpieza')
     checkout_team_responsible = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='team_checkout_artworks', verbose_name='Responsable del equipo de la instalación',
+        related_name='team_checkout_artworks', verbose_name='Responsable del equipo de la propuesta',
     )
     checkout_notes = models.TextField(blank=True, verbose_name='Notas de checkout')
     checkout_requested_at = models.DateTimeField(null=True, blank=True, verbose_name='Checkout solicitado')
@@ -315,7 +322,7 @@ class Artwork(BaseModel):
     checkout_verified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_artwork_checkouts')
     checkout_staff_notes = models.TextField(
         blank=True, verbose_name='Comentarios de ESTAFA',
-        help_text='Sólo los ve ESTAFA: el equipo de la instalación no los ve.',
+        help_text='Sólo los ve ESTAFA: el equipo de la propuesta no los ve.',
     )
     understanding_letter = models.FileField(
         upload_to='art/understanding_letters', storage=private_art_storage,
@@ -340,7 +347,7 @@ class Artwork(BaseModel):
     understanding_letter_physical_waiver_reason = models.TextField(
         blank=True, verbose_name='Motivo de la excepción de la copia física',
     )
-    status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING, verbose_name='Estado de la instalación')
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING, verbose_name='Estado de la propuesta')
     status_changed_at = models.DateTimeField(null=True, blank=True, verbose_name='Cambio de estado')
     status_changed_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True,
@@ -350,7 +357,7 @@ class Artwork(BaseModel):
         User, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='estafa_contact_artworks', verbose_name='Contacto de ESTAFA',
     )
-    review_feedback = models.TextField(blank=True, verbose_name='Mensaje de ESTAFA al equipo de la instalación')
+    review_feedback = models.TextField(blank=True, verbose_name='Mensaje de ESTAFA al equipo de la propuesta')
     benefit_status = models.CharField(max_length=10, choices=BenefitStatus.choices, default=BenefitStatus.NOT_EVALUATED, verbose_name='Beneficio para la próxima edición')
     benefit_notes = models.TextField(blank=True, verbose_name='Notas del beneficio')
     version = models.PositiveIntegerField(default=1, editable=False)
@@ -358,11 +365,11 @@ class Artwork(BaseModel):
 
     class Meta:
         ordering = ['-updated_at']
-        verbose_name = 'Instalación de Arte'
-        verbose_name_plural = 'Instalaciones de Arte'
+        verbose_name = 'Propuesta de Arte'
+        verbose_name_plural = 'Propuestas de Arte'
 
     def __str__(self):
-        return f'{self.title or "Instalación sin título"} · {self.event.name}'
+        return f'{self.title or "Propuesta de Arte sin título"} · {self.event.name}'
 
     def can_edit(self, user):
         return user == self.owner or self.collaborators.filter(pk=user.pk).exists()
@@ -425,7 +432,7 @@ class Artwork(BaseModel):
             if description_limit and description_changed and len(self.public_description) > description_limit:
                 errors['public_description'] = f'La descripción puede tener hasta {description_limit} caracteres.'
         if self.checkout_verified_at and not self.checkout_completed:
-            errors['checkout_verified_at'] = 'El equipo de la instalación debe solicitar el checkout antes de verificarlo.'
+            errors['checkout_verified_at'] = 'El equipo de la propuesta debe solicitar el checkout antes de verificarlo.'
         if self.understanding_letter_physical_waiver and not self.understanding_letter_physical_waiver_reason:
             errors['understanding_letter_physical_waiver_reason'] = 'Indicá por qué corresponde la excepción por distancia a CABA.'
         if self.checkin_art_at and not self.checkin_arrived_at:
@@ -629,8 +636,8 @@ class ArtworkFile(BaseModel):
 
     class Meta:
         ordering = ['created_at']
-        verbose_name = 'Archivo de instalación'
-        verbose_name_plural = 'Archivos de instalaciones'
+        verbose_name = 'Archivo de propuesta de Arte'
+        verbose_name_plural = 'Archivos de propuestas de Arte'
 
     def __str__(self):
         return f'{self.name} · {self.artwork}'
@@ -641,17 +648,8 @@ class ArtworkFile(BaseModel):
 
 
 class ArtworkCheckoutPhoto(BaseModel):
-    class Category(models.TextChoices):
-        DIRT = 'dirt', 'M.U.G.R.E.'
-        ENVIRONMENTAL_DAMAGE = 'environmental_damage', 'Daño ambiental'
-        ARTWORK_PARTS = 'artwork_parts', 'Partes de la instalación'
-        BURN_REMAINS = 'burn_remains', 'Restos de quema'
-        CLEANUP = 'cleanup', 'Limpieza y estado final'
-        OTHER = 'other', 'Otro'
-
     artwork = models.ForeignKey(Artwork, on_delete=models.CASCADE, related_name='checkout_photos')
     image = models.ImageField(upload_to='art/checkout', storage=private_art_storage)
-    category = models.CharField(max_length=20, choices=Category.choices, default=Category.OTHER, verbose_name='Categoría')
     caption = models.TextField(blank=True, verbose_name='Detalle')
     uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
 
@@ -661,7 +659,7 @@ class ArtworkCheckoutPhoto(BaseModel):
         verbose_name_plural = 'Fotos de checkout de instalaciones'
 
     def __str__(self):
-        return f'{self.get_category_display()} · {self.artwork}'
+        return f'Foto de checkout · {self.artwork}'
 
 
 auditlog.register(ArtProgram)

@@ -27,7 +27,7 @@ from .models import (
     ArtworkProviderVehicle,
 )
 from events.models import Event
-from tickets.models import NewTicket, Order, TicketType
+from tickets.models import NewTicket, Order, OrderTicket, TicketType
 from teams.models import Team, TeamMembership
 from user_profile.models import Profile
 
@@ -200,7 +200,7 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'Instalación ajena')
         self.assertNotContains(response, 'Instalaciones para revisar')
-        self.assertContains(response, 'Todavía no tenés instalaciones.')
+        self.assertContains(response, 'Todavía no tenés propuestas de Arte.')
 
     def test_primary_fields_are_associated_with_artwork_form(self):
         form = self.artwork_form({})
@@ -226,7 +226,7 @@ class ArtworkFlowTest(TestCase):
             response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Podés cambiar el nombre cuando quieras.')
-        self.assertContains(response, 'Guardá la instalación para subir archivos.')
+        self.assertContains(response, 'Guardá la propuesta para subir archivos.')
         self.assertFalse(Artwork.objects.exists())
 
         response = self.client.post(url, {'title': '', 'action': 'save'})
@@ -261,7 +261,7 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(artwork.title, 'Borrador')
         self.assertEqual(artwork.status, Artwork.Status.PENDING)
         self.assertEqual([str(message) for message in get_messages(response.wsgi_request)], [
-            'La instalación quedó inscripta. Queda pendiente de aprobación por ESTAFA. '
+            'La propuesta de Arte quedó inscripta. Queda pendiente de aprobación por ESTAFA. '
             'Podés seguir modificándola libremente a medida que la instalación avance.',
         ])
 
@@ -272,7 +272,7 @@ class ArtworkFlowTest(TestCase):
             'title': 'Borrador', 'expected_version': artwork.version, 'action': 'save',
         })
 
-        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('art_dashboard'))
         artwork.refresh_from_db()
         self.assertEqual(artwork.title, 'Borrador')
         self.assertEqual(artwork.status, Artwork.Status.PENDING)
@@ -283,7 +283,7 @@ class ArtworkFlowTest(TestCase):
         artwork.collaborators.add(self.collaborator)
         url = reverse('artwork_edit', args=[artwork.pk])
         review_url = reverse('artwork_review', args=[self.event.slug, artwork.pk])
-        notice = 'Estás viendo la instalación de <strong>artista@example.com</strong> como ESTAFA.'
+        notice = 'Estás viendo la propuesta de Arte de <strong>artista@example.com</strong> como ESTAFA.'
 
         for user in (self.owner, self.collaborator):
             self.client.force_login(user)
@@ -300,7 +300,7 @@ class ArtworkFlowTest(TestCase):
         self.assertNotContains(page, 'ESTAFA está revisando tu inscripción.')
 
         response = self.client.post(url, {'title': 'Faro nuevo', 'expected_version': artwork.version, 'action': 'save'})
-        self.assertRedirects(response, url, fetch_redirect_response=False)
+        self.assertRedirects(response, review_url, fetch_redirect_response=False)
         artwork.refresh_from_db()
         self.assertEqual(artwork.title, 'Faro nuevo')
         entry = LogEntry.objects.get_for_object(artwork).filter(action=LogEntry.Action.UPDATE).latest('timestamp')
@@ -337,6 +337,27 @@ class ArtworkFlowTest(TestCase):
         self.assertTrue(response.context['form'].has_error('extinguishing_plan'))
         artwork.refresh_from_db()
         self.assertFalse(artwork.uses_fire)
+
+    def test_program_image_shows_on_the_art_home(self):
+        self.client.force_login(self.owner)
+        url = reverse('art_dashboard')
+        self.assertNotContains(self.client.get(url), 'art-program-image" src')
+        self.program.image.name = 'art/programs/banner.jpg'
+        self.program.save(update_fields=['image'])
+        self.assertContains(self.client.get(url), 'class="art-program-image mb-4" src="/media/art/programs/banner.jpg"')
+
+    def test_sound_power_needs_its_unit(self):
+        artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
+        self.client.force_login(self.owner)
+        url = reverse('artwork_edit', args=[artwork.pk])
+        response = self.client.post(url, {'title': 'Faro', 'uses_sound': 'on', 'sound_power': '1200', 'expected_version': artwork.version})
+        self.assertContains(response, 'Aclará la unidad: watts (W) o decibeles (dB).')
+        for value in ('1200W', '1,2 kW', '100 dB', '1200 watts y 100 decibeles'):
+            artwork.refresh_from_db()
+            response = self.client.post(url, {'title': 'Faro', 'uses_sound': 'on', 'sound_power': value, 'expected_version': artwork.version})
+            self.assertEqual(response.status_code, 302, value)
+            artwork.refresh_from_db()
+            self.assertEqual(artwork.sound_power, value)
 
     def test_creation_can_include_safety_budget_gallery_and_team(self):
         self.program.registration_closes = timezone.now() + timedelta(days=1)
@@ -419,7 +440,7 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(response.status_code, 302)
         artwork.refresh_from_db()
         self.assertTrue(artwork.burns)
-        self.assertEqual(self.steps_by_key(artwork)['detalles'].missing, ['Cuándo preferís quemarla', 'Si la quemás sola o con otras'])
+        self.assertEqual(self.steps_by_key(artwork)['detalles'].missing, ['Cuándo preferís quemarla', 'Si preferirías quemarla sola o con otras obras'])
         response = self.client.post(reverse('artwork_edit', args=[artwork.pk]), {
             'title': 'Faro', 'proposal': 'Una pata', 'dimensions': '3 m', 'materials': 'Madera',
             'burns': 'on', 'burn_preferred_time': 'Sábado a la noche', 'burn_company': Artwork.BurnCompany.SHARED,
@@ -440,7 +461,7 @@ class ArtworkFlowTest(TestCase):
         self.client.force_login(self.owner)
         response = self.client.get(reverse('artwork_edit', args=[artwork.pk]))
         self.assertContains(response, 'Lo próximo')
-        self.assertContains(response, 'Completá Detalles de la instalación')
+        self.assertContains(response, 'Completá Detalles de la propuesta')
         self.assertContains(response, '<section class="step-card" id="detalles"', html=False)
         self.assertContains(response, 'Te avisamos cuando se habilite')
         self.assertNotContains(response, 'Agregar proveedor')
@@ -514,7 +535,7 @@ class ArtworkFlowTest(TestCase):
 
         # Guardar corrige el paso cerrado.
         response = self.client.post(url, {'title': 'Faro nuevo', 'proposal': 'Una torre de luz', 'expected_version': artwork.version})
-        self.assertRedirects(response, url, fetch_redirect_response=False)
+        self.assertRedirects(response, reverse('artwork_review', args=[self.event.slug, artwork.pk]), fetch_redirect_response=False)
         artwork.refresh_from_db()
         self.assertEqual(artwork.title, 'Faro nuevo')
 
@@ -564,7 +585,7 @@ class ArtworkFlowTest(TestCase):
         self.give_ticket(self.owner)
         verified_at = timezone.now() - timedelta(hours=3)
         Artwork.objects.filter(pk=artwork.pk).update(
-            proposal='Una torre de luz', technical_needs='Dos enchufes', uses_sound=True, power_watts=1200,
+            proposal='Una torre de luz', technical_needs='Dos enchufes', uses_sound=True, sound_power='1200 W',
             uses_fire=True, fire_details='Antorchas de parafina', extinguishing_plan='Dos matafuegos',
             safety_plan='Perímetro de 3 m', safety_responsible=self.collaborator,
             burns=True, burn_preferred_time='Sábado a la noche', burn_company=Artwork.BurnCompany.SHARED,
@@ -598,7 +619,7 @@ class ArtworkFlowTest(TestCase):
         detalles = self.step_part(response, 'detalles')
         for text in (
             'Faro', 'Una torre de luz', 'Dos enchufes', '1200 W', 'Antorchas de parafina', 'Dos matafuegos',
-            'Perímetro de 3 m', 'colab@example.com', 'Sábado a la noche', 'Junto con otras instalaciones',
+            'Perímetro de 3 m', 'colab@example.com', 'Sábado a la noche', 'Junto con otras obras',
             'href="https://example.com/carpeta"', 'No se subieron archivos.',
         ):
             self.assertIn(text, detalles)
@@ -729,7 +750,7 @@ class ArtworkFlowTest(TestCase):
         self.client.force_login(self.owner)
         response = self.client.get(reverse('artwork_create', args=[self.event.slug]))
         self.assertContains(response, 'Faltan 4 campos')
-        self.assertNotContains(response, 'Completo')
+        self.assertNotContains(response, 'fa-circle-check" aria-hidden="true"></i>Completo</span>')
 
         # Lo guardado está completo, pero el nombre se borró y volvió con error.
         artwork = Artwork.objects.create(
@@ -742,7 +763,7 @@ class ArtworkFlowTest(TestCase):
         })
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Falta 1 campo')
-        self.assertContains(response, '<a href="#id_title">Nombre de la instalación</a>', html=True)
+        self.assertContains(response, '<a href="#id_title">Nombre de la propuesta</a>', html=True)
 
     def test_errors_are_summarized_and_marked_on_the_field(self):
         artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
@@ -850,7 +871,7 @@ class ArtworkFlowTest(TestCase):
         self.assertTrue(artwork.is_team_member(self.stranger))
 
         duplicate = self.client.post(reverse('artwork_team_add', args=[artwork.pk]), {'identifier': self.collaborator.email})
-        self.assertContains(duplicate, 'Esa persona ya es parte del equipo de la instalación.')
+        self.assertContains(duplicate, 'Esa persona ya es parte del equipo de la propuesta.')
         missing = self.client.post(reverse('artwork_team_add', args=[artwork.pk]), {'identifier': 'nadie@example.com'})
         self.assertContains(missing, 'No encontramos una cuenta con ese email o DNI.')
         self.assertContains(missing, 'aria-invalid="true"')
@@ -860,7 +881,7 @@ class ArtworkFlowTest(TestCase):
         self.assertContains(self.client.get(reverse('art_dashboard')), 'Faro')
         page = self.client.get(reverse('artwork_edit', args=[artwork.pk]))
         self.assertContains(page, 'Puede ver')
-        self.assertContains(page, 'podés ver la instalación. Para editarla, pedile permiso')
+        self.assertContains(page, 'podés ver la propuesta. Para editarla, pedile permiso')
         self.assertNotContains(page, reverse('artwork_team_add', args=[artwork.pk]))
         self.assertTrue(page.context['form'].fields['title'].disabled)
         # Solo ver no es lo mismo que una sección cerrada: sin insignias, sin Guardar, sin cargas.
@@ -907,23 +928,46 @@ class ArtworkFlowTest(TestCase):
         self.assertFalse(artwork.is_team_member(self.collaborator))
         self.assertFalse(artwork.can_edit(self.collaborator))
 
-    def test_team_flags_missing_tickets_once_sales_start(self):
+    def test_team_ticket_warning_follows_the_sale(self):
         artwork = self.team_artwork()
         self.client.post(reverse('artwork_team_add', args=[artwork.pk]), {'identifier': self.collaborator.email})
-        page = self.client.get(reverse('artwork_edit', args=[artwork.pk]))
-        self.assertNotContains(page, 'bono para este evento')
+        url = reverse('artwork_edit', args=[artwork.pk])
+        self.assertNotContains(self.client.get(url), 'class="team-ticket-warning"')
 
-        TicketType.objects.create(
-            event=self.event, name='Futura', price=Decimal('10.00'), ticket_count=10,
-            date_from=timezone.now() + timedelta(days=1),
-        )
-        self.assertNotContains(self.client.get(reverse('artwork_edit', args=[artwork.pk])), 'bono para este evento')
+        # Venta planificada: avisa cuándo abre, sin link.
+        opens = timezone.localtime() + timedelta(days=3)
+        future = TicketType.objects.create(event=self.event, name='Futura', price=Decimal('10.00'), ticket_count=10, date_from=opens)
+        page = self.client.get(url)
+        self.assertContains(page, f"Todavía no tenés tu bono. La venta abre el {opens.day} de")
+        self.assertContains(page, f"Todavía no tiene bono. La venta abre el {opens.day} de")
+        self.assertNotContains(page, 'Conseguí tu bono')
 
-        self.give_ticket(self.collaborator)
-        page = self.client.get(reverse('artwork_edit', args=[artwork.pk]))
+        # Venta abierta.
+        general = self.give_ticket(self.collaborator).ticket_type
+        page = self.client.get(url)
         self.assertContains(page, 'Todavía no tenés tu bono para este evento')
         self.assertContains(page, reverse('event_home', args=[self.event.slug]))
-        self.assertNotContains(page, 'Todavía no tiene bono para este evento')
+        self.assertNotContains(page, 'Todavía no tiene bono')
+
+        # Agotado: sólo queda la transferencia.
+        future.delete()
+        self.event.max_tickets = 1
+        self.event.save(update_fields=['max_tickets'])
+        order = Order.objects.create(
+            first_name='A', last_name='B', email='x@example.com', phone='1111111111', dni='30111223',
+            amount=Decimal('10.00'), event=self.event, status=Order.OrderStatus.CONFIRMED,
+        )
+        OrderTicket.objects.create(order=order, ticket_type=general, quantity=1)
+        page = self.client.get(url)
+        self.assertContains(page, 'Ya no quedan bonos a la venta. Para participar, pedile a alguien que te transfiera el suyo')
+        self.assertNotContains(page, 'Conseguí tu bono')
+
+        # Pasó la fecha de transferencias.
+        self.event.transfers_enabled_until = timezone.now() - timedelta(days=1)
+        self.event.save(update_fields=['transfers_enabled_until'])
+        self.assertContains(self.client.get(url), 'No tenés bono para este evento, así que no vas a poder participar del equipo.')
+        self.client.force_login(self.collaborator)
+        self.assertContains(self.client.get(url), 'No tiene bono, así que no va a participar del equipo.')
 
     def test_joining_a_group_needs_no_ticket_but_early_entry_does(self):
         from events.models import GrupoMiembro
@@ -1213,7 +1257,7 @@ class ArtworkFlowTest(TestCase):
         superuser = User.objects.create_superuser(username='root', email='root@example.com', password='x')
         self.client.force_login(superuser)
         page = self.client.get(reverse('admin:events_event_change', args=[self.event.pk]))
-        for title in ('Inscripción', 'Detalles', 'Desplegable y placement', 'Declaración de entendimiento',
+        for title in ('Inscripción', 'Detalles', 'Folleto y placement', 'Declaración de entendimiento',
                       'Logística', 'Galería y checkout', 'Becas', 'Recordatorios'):
             self.assertContains(page, f'<h2>{title}</h2>', html=True)
         self.assertContains(page, 'Puede ser posterior al cierre de inscripción')
@@ -1277,7 +1321,7 @@ class ArtworkFlowTest(TestCase):
 
     def test_dashboard_says_when_registration_opens(self):
         self.client.force_login(self.owner)
-        self.assertContains(self.client.get(reverse('art_dashboard')), 'La inscripción de instalaciones cerró.')
+        self.assertContains(self.client.get(reverse('art_dashboard')), 'La inscripción de propuestas de Arte cerró.')
         self.program.registration_opens = timezone.now() + timedelta(days=3)
         self.program.registration_closes = None
         self.program.save(update_fields=['registration_opens', 'registration_closes'])
@@ -1286,6 +1330,18 @@ class ArtworkFlowTest(TestCase):
         self.program.registration_opens = None
         self.program.save(update_fields=['registration_opens'])
         self.assertContains(self.client.get(reverse('art_dashboard')), 'La inscripción todavía no abrió.')
+
+    def test_dashboard_lists_estafa_members_to_contact(self):
+        self.client.force_login(self.owner)
+        page = self.client.get(reverse('art_dashboard'))
+        # Sin apodo ni nombre no se muestra: los emails no se publican.
+        self.assertNotContains(page, self.admin.email)
+        self.admin.first_name, self.admin.last_name = 'Coordi', 'Nadora'
+        self.admin.save(update_fields=['first_name', 'last_name'])
+        page = self.client.get(reverse('art_dashboard'))
+        self.assertContains(page, 'ESTAFA es el Equipo y Servicios de Tareas de Arte de Fuego Austral: Coordi Nadora.')
+        self.assertNotContains(page, self.admin.email)
+        self.assertContains(page, 'Chateá con nosotros')
 
     def test_admin_dashboard_filters_and_exports_by_estafa_contact(self):
         contact = User.objects.create_user(
@@ -1520,13 +1576,12 @@ class ArtworkFlowTest(TestCase):
         self.program.checkout_opens = timezone.now() - timedelta(hours=1)
         self.program.save(update_fields=['checkout_opens'])
         response = self.client.post(reverse('artwork_checkout_photo_upload', args=[artwork.pk]), {
-            'category': ArtworkCheckoutPhoto.Category.BURN_REMAINS,
             'caption': 'Revisar cenizas junto al acceso.',
             'images': self.image('checkout.gif'),
         })
         self.assertEqual(response.status_code, 302)
         evidence = artwork.checkout_photos.get()
-        self.assertEqual(evidence.category, ArtworkCheckoutPhoto.Category.BURN_REMAINS)
+        self.assertEqual(evidence.caption, 'Revisar cenizas junto al acceso.')
 
         self.client.force_login(self.owner)
         artwork.checkout_verified_at = timezone.now()
@@ -1754,7 +1809,7 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(artwork.checkout_notes, 'Quedó limpio.')
         self.assertEqual(artwork.status, Artwork.Status.ACTIVE)
 
-        ArtworkCheckoutPhoto.objects.create(artwork=artwork, image=self.image('final.gif'), category=ArtworkCheckoutPhoto.Category.CLEANUP)
+        ArtworkCheckoutPhoto.objects.create(artwork=artwork, image=self.image('final.gif'))
         with patch('art.views.send_mail') as send_mail, self.captureOnCommitCallbacks(execute=True):
             self.client.post(edit_url, {'title': 'Faro', 'checkout_notes': 'Quedó limpio.', 'expected_version': artwork.version, 'action': 'checkout'})
         artwork.refresh_from_db()

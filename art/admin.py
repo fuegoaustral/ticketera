@@ -23,12 +23,12 @@ from .models import (
 ART_PROGRAM_FIELDSETS = (
     ('Convocatoria', {
         'description': 'Las aperturas vacías dejan el paso sin habilitar; los cierres vacíos, sin cierre.',
-        'fields': ('is_current',),
+        'fields': ('is_current', 'image'),
     }),
     ('Inscripción', {'fields': ('registration_opens', 'registration_closes')}),
     ('Detalles', {'fields': ('proposal_deadline',)}),
-    ('Desplegable y placement', {
-        'description': 'Es la información que le pasamos al equipo de diseño del desplegable.',
+    ('Folleto y placement', {
+        'description': 'Es la información que le pasamos al equipo de diseño del folleto.',
         'fields': ('guide_deadline', 'public_description_max_length'),
     }),
     ('Declaración de entendimiento', {'fields': (
@@ -229,13 +229,13 @@ class ArtworkAdmin(admin.ModelAdmin):
     autocomplete_fields = ('owner', 'collaborators', 'operations_group', 'checkout_team_responsible', 'checkin_art_by', 'estafa_contact', 'checkout_verified_by', 'safety_responsible')
     readonly_fields = ('submitted_at', 'status_changed_at', 'status_changed_by', 'checkin_art_by', 'checkout_requested_at', 'checkout_verified_by', 'created_at', 'updated_at', 'version')
     fieldsets = (
-        ('Instalación', {'fields': ('event', 'owner', 'collaborators', 'operations_group', 'kind', 'title')}),
+        ('Propuesta de Arte', {'fields': ('event', 'owner', 'collaborators', 'operations_group', 'kind', 'title')}),
         ('Check-in de instalación', {'fields': ('checkin_arrived_at', 'checkin_art_at', 'checkin_art_by', 'checkin_placed', 'checkin_placement_changed', 'checkin_placement_change_notes', 'understanding_letter', 'understanding_letter_physical_received', 'understanding_letter_physical_custodian', 'understanding_letter_physical_notes', 'understanding_letter_physical_waiver', 'understanding_letter_physical_waiver_reason')}),
-        ('Propuesta y seguridad', {'fields': ('proposal', 'dimensions', 'materials', 'technical_needs', 'uses_sound', 'safety_plan', 'uses_fire', 'fire_details', 'extinguishing_plan', 'power_watts', 'safety_contact', 'safety_responsible', 'burns', 'burn_preferred_time', 'burn_company', 'files_url')}),
+        ('Propuesta y seguridad', {'fields': ('proposal', 'dimensions', 'materials', 'technical_needs', 'uses_sound', 'safety_plan', 'uses_fire', 'fire_details', 'extinguishing_plan', 'sound_power', 'safety_contact', 'safety_responsible', 'burns', 'burn_preferred_time', 'burn_company', 'files_url')}),
         ('Beca', {'fields': ('grant_requested', 'grant_justification', 'grant_status', 'grant_approved_amount_ars', 'confirm_large_grant_amount', 'grant_decision_notes', 'grant_paid_at', 'grant_payment_reference', 'grant_report')}),
-        ('Desplegable y placement', {'fields': ('public_title', 'public_description', 'preferred_location', 'assigned_location', 'placement_notes')}),
+        ('Folleto y placement', {'fields': ('public_title', 'public_description', 'preferred_location', 'assigned_location', 'placement_notes')}),
         ('Logística', {'fields': ('arrival_date', 'departure_date', 'crew', 'providers')}),
-        ('Checkout, paso 1, equipo de la instalación', {'fields': ('checkout_completed', 'checkout_team_responsible', 'checkout_notes', 'checkout_requested_at')}),
+        ('Checkout, paso 1, equipo de la propuesta', {'fields': ('checkout_completed', 'checkout_team_responsible', 'checkout_notes', 'checkout_requested_at')}),
         ('Checkout, paso 2, ESTAFA', {'fields': ('checkout_verified_at', 'checkout_verified_by', 'checkout_staff_notes')}),
         ('Seguimiento', {'fields': ('status', 'status_changed_at', 'status_changed_by', 'estafa_contact', 'review_feedback', 'benefit_status', 'benefit_notes', 'submitted_at', 'version', 'created_at', 'updated_at')}),
     )

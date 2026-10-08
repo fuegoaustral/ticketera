@@ -1,22 +1,12 @@
 {% extends 'mi_fuego/my_tickets/index.html' %}
+{% load art_format %}
 
 {% block page_title %}Arte{% endblock page_title %}
 
 {% block truecontent %}
 <div class="container-fluid art-home">
-    <header class="art-hero mb-5">
-        <p class="text-uppercase text-muted small fw-semibold mb-2">Fuego Austral</p>
-        <h2 class="h3 mb-2">Tus instalaciones, en un solo lugar</h2>
-        <p class="text-muted mb-0">Propuesta, beca, galería, equipo, ingreso, salida y checkout del evento anual.</p>
-    </header>
-
-    <section class="mb-5" aria-labelledby="new-artwork-title">
-        <div class="d-flex justify-content-between align-items-end gap-3 mb-3">
-            <div>
-                <h3 class="h4 mb-1" id="new-artwork-title">Inscripciones</h3>
-                <p class="text-muted mb-0">Una instalación planificada o espontánea comienza con el mismo formulario.</p>
-            </div>
-        </div>
+    {% for program in programs %}{% if program.image %}<img class="art-program-image mb-4" src="{{ program.image.url }}" alt="">{% endif %}{% endfor %}
+    <section class="mb-5" aria-label="Inscripciones">
         {% for program in programs %}
             <div class="program-row d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 py-3">
                 <div>
@@ -25,7 +15,7 @@
                         {% if program.registration_is_open %}
                             Inscripción abierta{% if program.registration_closes %} hasta el {{ program.registration_closes|date:'d/m/Y H:i' }}{% endif %}.
                         {% elif program.registration_closes and program.registration_closes < now %}
-                            La inscripción de instalaciones cerró.
+                            La inscripción de propuestas de Arte cerró.
                         {% elif program.registration_opens %}
                             La inscripción abre el {{ program.registration_opens|date:'d/m/Y H:i' }}.
                         {% else %}
@@ -35,7 +25,7 @@
                 </div>
                 {% if program.registration_is_open %}
                 <a class="btn btn-primary text-nowrap" href="{% url 'artwork_create' program.event.slug %}">
-                    <i class="fas fa-plus me-2" aria-hidden="true"></i>Nueva instalación
+                    <i class="fas fa-plus me-2" aria-hidden="true"></i>Nueva propuesta de Arte
                 </a>
                 {% endif %}
             </div>
@@ -45,13 +35,13 @@
     </section>
 
     <section aria-labelledby="artworks-title">
-        <h3 class="h4 mb-3" id="artworks-title">Mis instalaciones</h3>
+        <h3 class="h4 mb-3" id="artworks-title">Mis propuestas de Arte</h3>
         {% if artworks %}
             <div class="artwork-list">
                 {% for artwork in artworks %}
                     <a class="artwork-row" href="{% url 'artwork_edit' artwork.pk %}">
                         <div class="artwork-row-title d-flex align-items-center gap-2 flex-wrap">
-                            <h4 class="h5 mb-0">{{ artwork.title|default:'Instalación sin título' }}</h4>
+                            <h4 class="h5 mb-0">{{ artwork.title|default:'Propuesta de Arte sin título' }}</h4>
                             {% include 'art/_status_badge.html' %}
                             {% if artwork.kind == 'popup' %}<span class="badge bg-light text-dark border">Espontánea</span>{% endif %}
                         </div>
@@ -66,22 +56,24 @@
             </div>
         {% else %}
             <div class="empty-art py-4 px-3 text-center">
-                <p class="mb-0 text-muted">Todavía no tenés instalaciones. Cuando crees una o te sumen a un equipo, va a aparecer acá.</p>
+                <p class="mb-0 text-muted">Todavía no tenés propuestas de Arte. Cuando crees una o te sumen a un equipo, va a aparecer acá.</p>
             </div>
         {% endif %}
     </section>
 
+    {% if estafa_team %}
+    <section class="estafa-team mt-5" aria-labelledby="estafa-team-title">
+        <h3 class="h4 mb-2" id="estafa-team-title">ESTAFA</h3>
+        <p class="mb-2">ESTAFA es el Equipo y Servicios de Tareas de Arte de Fuego Austral: {{ estafa_team }}.</p>
+        <p class="mb-2">Si tenés alguna duda, chateá con nosotros.</p>
+        <button class="btn btn-outline-primary" type="button" onclick="window.$chatwoot && window.$chatwoot.toggle('open')"><i class="fas fa-comments me-2" aria-hidden="true"></i>Chateá con nosotros</button>
+    </section>
+    {% endif %}
 </div>
 
 <style>
     .art-home { max-width: 960px; }
-    .art-hero {
-        padding: 1.5rem;
-        border: 1px solid oklch(90% .03 160);
-        border-radius: .5rem;
-        background: oklch(97% .015 160);
-    }
-    .art-home header p { max-width: 68ch; }
+    .art-program-image { display: block; width: 100%; max-height: 260px; border-radius: .5rem; object-fit: cover; }
     .program-row { border-bottom: 1px solid #dee2e6; }
     .program-row:first-of-type { border-top: 1px solid #dee2e6; }
     .artwork-list { display: grid; gap: .75rem; }

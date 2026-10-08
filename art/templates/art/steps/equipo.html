@@ -19,7 +19,7 @@
         <div class="team-member-person">
             <strong>{{ name }}</strong>{% if member.is_self %} <span class="text-muted">(vos)</span>{% endif %}
             {% if name != member.user.email %}<small class="d-block text-muted">{% if full_name %}{{ full_name }} · {% endif %}{{ member.user.email }}</small>{% endif %}
-            {% if member.missing_ticket %}<small class="team-ticket-warning"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i>{% if member.is_self %}<span>Todavía no tenés tu bono para este evento · <a href="{{ tickets_path }}">Conseguí tu bono</a></span>{% else %}<span>Todavía no tiene bono para este evento</span>{% endif %}</small>{% endif %}
+            {% if member.missing_ticket %}{% include "art/steps/_ticket_warning.html" with own=member.is_self link=True %}{% endif %}
         </div>
         <div class="team-member-access">
             {% if member.is_leader %}<span class="team-role">Responsable</span>
@@ -42,4 +42,4 @@
     {% endwith %}
     {% endfor %}
 </ul>
-{% else %}<p class="small text-muted mb-0">Guardá la instalación para sumar personas.</p>{% endif %}
+{% else %}<p class="small text-muted mb-0">Guardá la propuesta para sumar personas.</p>{% endif %}

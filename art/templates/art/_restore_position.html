@@ -47,12 +47,20 @@
         } catch (error) { return; }
 
         const jump = function (top) { window.scrollTo({ top: top, behavior: 'instant' }); };
-        const invalid = document.querySelector('.alert-danger, .has-error');
+        const invalid = document.querySelector('.alert-danger, .has-error, .field-error');
         if (invalid) {
             // Un #paso en la dirección haría saltar la página ahí y no al error.
             if (location.hash) history.replaceState(null, '', location.pathname + location.search);
-            const field = invalid.querySelector('input:not([type=hidden]):not(:disabled), select:not(:disabled), textarea:not(:disabled)');
-            invalid.scrollIntoView({ block: 'center', behavior: 'instant' });
+            const container = invalid.closest('form') || invalid;
+            const field = container.querySelector('.is-invalid, [aria-invalid=true]')
+                || container.querySelector('input:not([type=hidden]):not(:disabled), select:not(:disabled), textarea:not(:disabled)');
+            // An inline form that fails re-renders the same page at its own action URL: stay where the
+            // person was, and only move if the error ended up off screen.
+            if (saved) jump(saved.scroll);
+            const box = invalid.getBoundingClientRect();
+            if (!saved || box.top < 0 || box.bottom > window.innerHeight) {
+                invalid.scrollIntoView({ block: 'center', behavior: 'instant' });
+            }
             (field || invalid).focus({ preventScroll: true });
             return;
         }

@@ -56,7 +56,6 @@
     .inline-images { display: flex; flex-wrap: wrap; gap: .5rem; }
     .inline-images > span { position: relative; }
     .inline-images img { width: 88px; height: 66px; object-fit: cover; border-radius: .3rem; }
-    .inline-images .btn { position: absolute; top: 0; right: 0; padding: .15rem .3rem; }
     .operation-lists section { height: 100%; padding: .85rem; border: 1px solid #dee2e6; border-radius: .45rem; }
     .operation-lists li { display: grid; grid-template-columns: 1fr auto; gap: .1rem 1rem; padding: .55rem 0; border-top: 1px solid #dee2e6; }
     .operation-lists li:first-child { border-top: 0; }
@@ -68,11 +67,15 @@
     .provider-operation-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 .75rem; }
     .provider-operation.is-disabled { opacity: .58; }
     .save-bar { position: sticky; bottom: 0; z-index: 2; background: #fafbfa; border-top: 1px solid #dee2e6; }
-    .artwork-file-delete { min-height: 44px; padding: 0; font-size: .85rem; }
     .artwork-file-add { align-content: center; gap: .25rem; border: 1px dashed #8fb8a3; color: #176b4a; font-size: .85rem; font-weight: 600; cursor: pointer; }
     .artwork-file-add:hover { background: #f4f8f6; }
     .artwork-file-upload input[type="file"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
     .artwork-file-upload:focus-within .artwork-file-add { outline: 3px solid rgba(40, 158, 109, .45); outline-offset: 2px; }
+    /* El estilo global fija alto y padding a todos los inputs; Firefox deja el botón flotando. */
+    .art-form-page input.form-control[type="file"] { height: auto; min-height: 52px; padding: .8rem 1rem !important; line-height: 1.5; cursor: pointer; }
+    .art-form-page input.form-control[type="file"]::file-selector-button { margin: -.8rem 1rem -.8rem -1rem; padding: .8rem 1.1rem; border: 0; border-right: 1px solid #c8d9d0; border-radius: 0; background: #edf6f1; color: #176b4a; font-weight: 600; cursor: pointer; transition: background-color .15s ease-out; }
+    .art-form-page input.form-control[type="file"]:hover:not(:disabled)::file-selector-button { background: #dcefe5; }
+    .certified-note { display: flex; align-items: baseline; gap: .5rem; max-width: 36rem; margin-bottom: .75rem; padding: .65rem .9rem; border-radius: .45rem; background: #fff6e0; color: #7a4a00; }
     .physical-copy { display: flex; gap: .85rem; max-width: 36rem; padding: 1rem 1.1rem; border-radius: .5rem; }
     .physical-copy > i { margin-top: .2rem; font-size: 1.1rem; }
     .physical-copy p { margin-top: .2rem; color: #5c636a; }

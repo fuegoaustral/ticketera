@@ -4,9 +4,9 @@
     <li>
         <a class="artwork-file" href="{{ artwork_file.file.url }}" target="_blank" rel="noopener">
             {% if artwork_file.is_image %}<img src="{{ artwork_file.file.url }}" alt="">{% else %}<span class="artwork-file-icon"><i class="fas fa-file-pdf" aria-hidden="true"></i></span>{% endif %}
-            <span class="artwork-file-name">{{ artwork_file.name }}<span class="visually-hidden"> (se abre en otra pestaña)</span></span>
+            <span class="artwork-file-name" title="{{ artwork_file.name }}">{{ artwork_file.name }}<span class="visually-hidden"> (se abre en otra pestaña)</span></span>
         </a>
-        {% if can_edit_files %}<form method="post" action="{% url 'artwork_file_delete' artwork.pk artwork_file.pk %}">{% csrf_token %}<button class="btn btn-link text-danger artwork-file-delete" type="submit" aria-label="Eliminar {{ artwork_file.name }}" onclick="return confirm('¿Eliminar este archivo?')">Eliminar</button></form>{% endif %}
+        {% if can_edit_files %}<form class="artwork-file-delete" method="post" action="{% url 'artwork_file_delete' artwork.pk artwork_file.pk %}">{% csrf_token %}<button type="submit" title="Eliminar archivo" aria-label="Eliminar {{ artwork_file.name }}" onclick="return confirm('¿Eliminar este archivo?')"><i class="fas fa-trash" aria-hidden="true"></i></button></form>{% endif %}
     </li>
     {% endfor %}
     {% if can_edit_files %}

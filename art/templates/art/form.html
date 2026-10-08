@@ -1,7 +1,7 @@
 {% extends 'mi_fuego/my_tickets/index.html' %}
 {% load art_format %}
 
-{% block page_title %}{% if artwork %}{{ artwork.title|default:'Instalación sin título' }}{% else %}Nueva instalación{% endif %}{% endblock page_title %}
+{% block page_title %}{% if artwork %}{{ artwork.title|default:'Propuesta de Arte sin título' }}{% else %}Nueva propuesta de Arte{% endif %}{% endblock page_title %}
 
 {% block submenu %}{% if acting_as_estafa %}{% include 'art/_estafa_menu.html' %}{% else %}{{ block.super }}{% endif %}{% endblock submenu %}
 
@@ -11,7 +11,7 @@
     <a class="small text-decoration-none" href="{% url 'artwork_review' artwork.event.slug artwork.pk %}"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i> Volver a ESTAFA</a>
     <div class="estafa-notice d-flex flex-column flex-sm-row align-items-sm-center gap-2 mt-3" role="note">
         <i class="fas fa-paintbrush d-none d-sm-block" aria-hidden="true"></i>
-        <p class="mb-0 flex-grow-1">Estás viendo la instalación de <strong>{{ artwork.owner.email|default:'una cuenta archivada' }}</strong> como ESTAFA. Lo que guardes queda registrado a tu nombre.</p>
+        <p class="mb-0 flex-grow-1">Estás viendo la propuesta de Arte de <strong>{{ artwork.owner.email|default:'una cuenta archivada' }}</strong> como ESTAFA. Lo que guardes queda registrado a tu nombre.</p>
         <a class="btn btn-sm btn-outline-secondary text-nowrap" href="{% url 'artwork_review' artwork.event.slug artwork.pk %}">Abrir en ESTAFA</a>
     </div>
     {% else %}
@@ -19,8 +19,8 @@
     {% endif %}
     <header class="mt-3 mb-4">
         <p class="text-uppercase text-muted small fw-semibold mb-2">{{ program.event.name }}</p>
-        <h2 class="h3 mb-2">Instalación de Arte</h2>
-        <p class="text-muted mb-0">{% if can_edit_artwork %}Completá y modificá cada sección antes de su fecha límite.<br>No te olvides de “Guardar” cuando termines de editar.{% else %}Sos parte del equipo y podés ver la instalación. Para editarla, pedile permiso a {{ artwork.owner.get_full_name|default:artwork.owner.email|default:'la persona responsable' }}.{% endif %}</p>
+        <h2 class="h3 mb-2">Propuesta de Arte</h2>
+        <p class="text-muted mb-0">{% if can_edit_artwork %}Completá y modificá cada sección antes de su fecha límite.<br>No te olvides de “Guardar” cuando termines de editar.{% else %}Sos parte del equipo y podés ver la propuesta. Para editarla, pedile permiso a {{ artwork.owner.get_full_name|default:artwork.owner.email|default:'la persona responsable' }}.{% endif %}</p>
     </header>
 
     {% if artwork %}
@@ -47,7 +47,7 @@
     Lo que no podés editar lo leés como texto. ESTAFA puede corregir un paso cerrado: debajo del texto,
     "Editar como ESTAFA" cambia el texto por el formulario. Lo que todavía no se habilitó no lo edita nadie.
     {% endcomment %}
-    <ol class="steps-timeline list-unstyled" aria-label="Pasos de la instalación">
+    <ol class="steps-timeline list-unstyled" aria-label="Pasos de la propuesta">
         {% for step in steps %}
         {% if step.state == 'open' %}
         <li class="steps-item is-open">
@@ -55,9 +55,10 @@
             <section class="step-card" id="{{ step.key }}" aria-labelledby="{{ step.key }}-title">
                 <header class="step-card-head">
                     <h2 id="{{ step.key }}-title">{{ step.title }}</h2>
-                    <p class="step-meta"><span>{{ step.when }}</span>{% include 'art/_step_status.html' %}</p>
+                    <p class="step-meta"><span>{{ step.when }}</span><span data-step-status="{{ step.key }}">{% include 'art/_step_status.html' %}</span></p>
                 </header>
                 {% if step.editable %}
+                {% if step.live_fields %}{{ step.live_fields|json_script:step.live_fields_id }}{% endif %}
                 {% include step.template %}
                 {% else %}
                 {% include 'art/steps/_summary.html' %}
@@ -162,6 +163,42 @@
         const sync = function () { block.hidden = !toggle.checked; };
         toggle.addEventListener('change', sync);
         sync();
+    });
+
+    // Lo que falta de cada paso se recuenta mientras se escribe, con las mismas reglas que al guardar.
+    const artworkForm = document.getElementById('artwork-form');
+    const joinLabels = function (labels) {
+        return labels.length > 1 ? labels.slice(0, -1).join(', ') + ' y ' + labels[labels.length - 1] : labels.join('');
+    };
+    document.querySelectorAll('[data-step-status]').forEach(function (status) {
+        const rulesScript = document.getElementById(status.dataset.stepStatus + '-live-fields');
+        if (!rulesScript || !artworkForm) return;
+        const rules = JSON.parse(rulesScript.textContent);
+        const nextStep = document.querySelector('[data-next-step="' + status.dataset.stepStatus + '"]');
+        const filled = function (name) {
+            const field = artworkForm.elements[name];
+            return !field || Boolean((field.value || '').trim());
+        };
+        const active = function (name) {
+            const toggle = artworkForm.elements[name];
+            return !toggle || toggle.checked;
+        };
+        const render = function () {
+            const missing = rules
+                .filter(function (rule) { return (!rule.when || active(rule.when)) && !filled(rule.name); })
+                .map(function (rule) { return rule.label; });
+            const count = missing.length;
+            status.innerHTML = count
+                ? '<span class="step-status is-todo"><i class="fas fa-circle-exclamation" aria-hidden="true"></i>' + (count === 1 ? 'Falta 1 campo' : 'Faltan ' + count + ' campos') + '<\/span>'
+                : '<span class="step-status is-done"><i class="fas fa-circle-check" aria-hidden="true"></i>Completo<\/span>';
+            if (nextStep) {
+                nextStep.hidden = !count;
+                nextStep.querySelector('[data-next-missing]').textContent = joinLabels(missing.map(function (label) { return label.toLowerCase(); }));
+            }
+        };
+        const onEdit = function (event) { if (event.target.form === artworkForm) render(); };
+        document.addEventListener('input', onEdit);
+        document.addEventListener('change', onEdit);
     });
 
     // Beca: con cambios sin guardar, primero se guarda; si no, el botón lleva directo.
