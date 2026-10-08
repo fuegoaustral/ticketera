@@ -1319,6 +1319,23 @@ class ArtworkFlowTest(TestCase):
             program.clean()
         self.assertEqual(set(raised.exception.message_dict), {closes for _, closes in ArtProgram.DATE_PAIRS})
 
+    def test_current_program_works_before_its_event_is_active(self):
+        self.open_registration()
+        self.event.active = False
+        self.event.save(update_fields=['active'])
+        self.client.force_login(self.owner)
+        dashboard = self.client.get(reverse('art_dashboard'))
+        self.assertContains(dashboard, reverse('artwork_create', args=[self.event.slug]))
+        self.assertNotContains(dashboard, 'Todavía no hay una convocatoria de Arte activa.')
+        response = self.client.post(reverse('artwork_create', args=[self.event.slug]), {'title': 'Faro'})
+        artwork = Artwork.objects.get(owner=self.owner)
+        self.assertRedirects(response, reverse('artwork_edit', args=[artwork.pk]))
+
+        self.program.is_current = False
+        self.program.save(update_fields=['is_current'])
+        self.assertContains(self.client.get(reverse('art_dashboard')), 'Todavía no hay una convocatoria de Arte activa.')
+        self.assertEqual(self.client.get(reverse('artwork_create', args=[self.event.slug])).status_code, 404)
+
     def test_dashboard_says_when_registration_opens(self):
         self.client.force_login(self.owner)
         self.assertContains(self.client.get(reverse('art_dashboard')), 'La inscripción de propuestas de Arte cerró.')
