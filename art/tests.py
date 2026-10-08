@@ -360,8 +360,11 @@ class ArtworkFlowTest(TestCase):
         self.assertContains(self.client.get(reverse('art_dashboard')), f'og:image" content="{image}"')
         # El texto para compartir de la convocatoria reemplaza la descripción del evento.
         self.program.share_description = 'Sumá tu propuesta de Arte'
-        self.program.save(update_fields=['share_description'])
+        self.program.share_title = 'Convocatoria de Arte 2027'
+        self.program.save(update_fields=['share_description', 'share_title'])
         page = self.client.get(reverse('art_dashboard'))
+        self.assertContains(page, '<meta property="og:title" content="Convocatoria de Arte 2027">', html=False)
+        self.assertContains(page, '<meta name="twitter:title" content="Convocatoria de Arte 2027">', html=False)
         self.assertContains(page, '<meta property="og:description" content="Sumá tu propuesta de Arte">', html=False)
         self.assertNotContains(page, 'La convocatoria de Arte de Fuego Austral')
         # Fuera de Arte, la vista previa sigue siendo la del evento.
