@@ -1,6 +1,6 @@
 {% comment %}En Mi Fuego → Arte, la imagen de la convocatoria y el texto de su evento; en el resto, el evento de la página.{% endcomment %}
 {% if og_art_program and og_art_program.image or og_art_program.event.header_image %}
-    {% include 'tickets/partials/_og_tags.html' with og_event=og_art_program.event og_img=og_art_program.image|default:og_art_program.event.header_image %}
+    {% include 'tickets/partials/_og_tags.html' with og_event=og_art_program.event og_text=og_art_program.share_description og_img=og_art_program.image|default:og_art_program.event.header_image %}
 {% elif event and event.header_image %}
     {% include 'tickets/partials/_og_tags.html' with og_event=event og_img=event.header_image og_size=True %}
 {% endif %}

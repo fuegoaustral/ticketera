@@ -23,7 +23,7 @@ from .models import (
 ART_PROGRAM_FIELDSETS = (
     ('Convocatoria', {
         'description': 'Las aperturas vacías dejan el paso sin habilitar; los cierres vacíos, sin cierre.',
-        'fields': ('is_current', 'image'),
+        'fields': ('is_current', 'image', 'share_description'),
     }),
     ('Inscripción', {'fields': ('registration_opens', 'registration_closes')}),
     ('Detalles', {'fields': ('proposal_deadline',)}),
