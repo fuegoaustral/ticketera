@@ -1,3 +1,4 @@
+import re
 from decimal import Decimal
 
 from django import forms
@@ -8,9 +9,12 @@ from django.utils import timezone
 from .estafa import estafa_members
 from .models import (
     Artwork, ArtworkFile, ArtworkGrantItem,
-    ArtworkPhoto, ArtworkCheckoutPhoto, ArtworkProvider, ArtworkProviderVehicle,
+    ArtworkPhoto, ArtworkProvider, ArtworkProviderVehicle,
 )
 from .templatetags.art_format import person_label
+
+# La potencia del sonido se escribe con su unidad: «1200 W», «1,2 kW», «100 dB», «100 decibeles».
+SOUND_UNIT = re.compile(r'\d.*?(?<![a-z])(k?w|watts?|db|decibel(es)?)\b', re.IGNORECASE)
 
 
 class LocalizedDecimalField(forms.DecimalField):
@@ -27,7 +31,7 @@ class LocalizedDecimalField(forms.DecimalField):
 ARTWORK_BLOCK_FIELDS = {
     'proposal': (
         'title', 'proposal', 'dimensions', 'materials', 'technical_needs',
-        'uses_sound', 'uses_fire', 'fire_details', 'extinguishing_plan', 'power_watts',
+        'uses_sound', 'uses_fire', 'fire_details', 'extinguishing_plan', 'sound_power',
         'safety_plan', 'safety_responsible_email', 'burns', 'burn_preferred_time', 'burn_company', 'files_url',
     ),
     'guide': ('public_title', 'public_description', 'preferred_location'),
@@ -120,6 +124,7 @@ class ArtworkForm(InvalidFieldsMixin, forms.ModelForm):
             'extinguishing_plan': forms.Textarea(attrs={'rows': 5}),
             'safety_plan': forms.Textarea(attrs={'rows': 5}),
             'files_url': forms.URLInput(attrs={'placeholder': 'https://…'}),
+            'sound_power': forms.TextInput(attrs={'placeholder': '1200 W'}),
             'public_description': forms.Textarea(attrs={'rows': 6}),
             'checkout_notes': forms.Textarea(attrs={'rows': 5}),
         }
@@ -163,7 +168,7 @@ class ArtworkForm(InvalidFieldsMixin, forms.ModelForm):
         self.fields['proposal'].help_text = (
             'Esto lo lee ESTAFA para entender qué querés construir. Contalo con todo el detalle que puedas: '
             'qué es, cómo se ve, cómo se arma y qué puede hacer la gente ahí. No es el texto para el público: '
-            'ese va en Desplegable.'
+            'ese va en Folleto.'
         )
         self.fields['proposal'].widget.attrs['placeholder'] = (
             'Por ejemplo: una pata de conejo de madera de 3 m de alto, forrada en tela. De noche se ilumina desde adentro '
@@ -200,7 +205,7 @@ class ArtworkForm(InvalidFieldsMixin, forms.ModelForm):
         cleaned = super().clean()
         now = timezone.now()
         if not self.instance.pk and not self.program.registration_is_open(now):
-            self.add_error(None, 'La inscripción de instalaciones está cerrada.')
+            self.add_error(None, 'La inscripción de propuestas de Arte está cerrada.')
 
 
         if self.instance.pk and self.is_bound:
@@ -220,6 +225,9 @@ class ArtworkForm(InvalidFieldsMixin, forms.ModelForm):
             for field in ('fire_details', 'extinguishing_plan', 'safety_responsible_email'):
                 if not cleaned.get(field) and not self.fields[field].disabled:
                     self.add_error(field, 'Completá este campo para una instalación que utiliza fuego.')
+        sound_power = cleaned.get('sound_power')
+        if cleaned.get('uses_sound') and sound_power and not SOUND_UNIT.search(sound_power):
+            self.add_error('sound_power', 'Aclará la unidad: watts (W) o decibeles (dB).')
         return cleaned
 
     def save(self, commit=True):
@@ -502,7 +510,6 @@ class ArtworkPhotoUploadForm(InvalidFieldsMixin, forms.Form):
 
 class ArtworkCheckoutPhotoUploadForm(InvalidFieldsMixin, forms.Form):
     images = MultipleImageField(label='Fotos de checkout')
-    category = forms.ChoiceField(choices=ArtworkCheckoutPhoto.Category.choices, label='Categoría')
     caption = forms.CharField(required=False, widget=forms.Textarea(attrs={'rows': 4}), label='Detalle')
 
     def __init__(self, *args, **kwargs):
@@ -564,9 +571,9 @@ class ArtworkTeamBenefitsForm(InvalidFieldsMixin, forms.Form):
             early_count += bool(early)
             late_count += bool(cleaned.get(f'late_{member.pk}'))
         if early_count > self.group.ingreso_anticipado_amount:
-            self.add_error(None, f'Esta instalación tiene {self.group.ingreso_anticipado_amount} cupos de ingreso anticipado.')
+            self.add_error(None, f'Esta propuesta tiene {self.group.ingreso_anticipado_amount} cupos de ingreso anticipado.')
         if late_count > self.group.late_checkout_amount:
-            self.add_error(None, f'Esta instalación tiene {self.group.late_checkout_amount} cupos de late checkout.')
+            self.add_error(None, f'Esta propuesta tiene {self.group.late_checkout_amount} cupos de late checkout.')
         return cleaned
 
     def save(self):
@@ -611,7 +618,7 @@ class ArtworkTeamAddForm(forms.Form):
                 'No encontramos una cuenta con ese email o DNI. Pedile que se registre en Fuego Austral y volvé a sumarla.'
             )
         if self.artwork.is_team_member(user):
-            raise forms.ValidationError('Esa persona ya es parte del equipo de la instalación.')
+            raise forms.ValidationError('Esa persona ya es parte del equipo de la propuesta.')
         self.user = user
         return identifier
 
@@ -743,9 +750,9 @@ class ArtworkReviewForm(InvalidFieldsMixin, forms.ModelForm):
         if self.instance.pk and self.is_bound:
             expected = cleaned.get('expected_updated_at')
             if not expected or expected != self.instance.updated_at.isoformat():
-                self.add_error(None, 'Otra coordinación modificó esta instalación. Recargá la página antes de guardar.')
+                self.add_error(None, 'Otra coordinación modificó esta propuesta. Recargá la página antes de guardar.')
         if cleaned.get('checkout_verified_at') and not self.instance.checkout_completed:
-            self.add_error('checkout_verified_at', 'Esperá la solicitud de checkout del equipo de la instalación.')
+            self.add_error('checkout_verified_at', 'Esperá la solicitud de checkout del equipo de la propuesta.')
         if cleaned.get('understanding_letter_physical_received') and not (
             cleaned.get('understanding_letter_physical_custodian')
             or cleaned.get('understanding_letter_physical_notes')

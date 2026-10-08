@@ -15,7 +15,7 @@
     {% include 'art/_field.html' with field=form.uses_sound %}
     {% comment %}Sólo se muestra si la instalación usa sonido amplificado (sin JavaScript, siempre).{% endcomment %}
     <div id="sound-fields" data-reveal-when="{{ form.uses_sound.id_for_label }}">
-        {% include 'art/_field.html' with field=form.power_watts %}
+        {% include 'art/_field.html' with field=form.sound_power %}
     </div>
 </fieldset>
 <fieldset class="step-group">
@@ -46,7 +46,7 @@
     {% if artwork %}
         {% include 'art/_artwork_files.html' %}
     {% else %}
-        <p class="small text-muted">Guardá la instalación para subir archivos.</p>
+        <p class="small text-muted">Guardá la propuesta para subir archivos.</p>
     {% endif %}
     {% include 'art/_field.html' with field=form.files_url %}
 </fieldset>

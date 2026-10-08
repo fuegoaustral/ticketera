@@ -8,30 +8,30 @@
     <p class="text-muted">Todavía no hay programas de Arte para coordinar.</p>
     {% else %}
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
-        <div><p class="text-uppercase text-muted small fw-semibold mb-1">{{ event.name }}</p><h2 class="h3 mb-1">Instalaciones</h2><p class="text-muted mb-0">Inscripción, seguimiento y checkout de cada instalación.</p></div>
+        <div><p class="text-uppercase text-muted small fw-semibold mb-1">{{ event.name }}</p><h2 class="h3 mb-1">Propuestas de Arte</h2><p class="text-muted mb-0">Inscripción, seguimiento y checkout de cada propuesta.</p></div>
         <a class="btn btn-outline-primary" href="{% url 'art_admin_export' event.slug %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"><i class="fas fa-download me-1" aria-hidden="true"></i> Exportar CSV</a>
     </div>
 
     {% if assigned_artworks %}
     <section class="assigned mb-4" aria-labelledby="assigned-title">
         <h3 class="h5 mb-2" id="assigned-title">Asignadas a vos <span class="text-muted fw-normal">· {{ assigned_artworks|length }}</span></h3>
-        <p class="small text-muted mb-2">Instalaciones donde sos contacto de ESTAFA.</p>
+        <p class="small text-muted mb-2">Propuestas de Arte donde sos contacto de ESTAFA.</p>
         <div class="assigned-list">
             {% for artwork in assigned_artworks %}
             <a class="assigned-row d-flex justify-content-between align-items-center gap-3" href="{% url 'artwork_review' event.slug artwork.pk %}">
-                <span><strong>{{ artwork.title|default:'Instalación sin título' }}</strong> <span class="text-muted">· {{ artwork.stage_label }}</span></span>
+                <span><strong>{{ artwork.title|default:'Propuesta de Arte sin título' }}</strong> <span class="text-muted">· {{ artwork.stage_label }}</span></span>
                 <span class="text-primary fw-semibold text-nowrap">Revisar <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i></span>
             </a>
             {% endfor %}
         </div>
     </section>
-    <h3 class="h5 mb-3">Todas las instalaciones</h3>
+    <h3 class="h5 mb-3">Todas las propuestas de Arte</h3>
     {% endif %}
 
-    <form method="get" class="art-filters mb-3" aria-label="Filtros de instalaciones">
+    <form method="get" class="art-filters mb-3" aria-label="Filtros de propuestas">
         <div class="filter-search">
             <label for="art-filter-q">Buscar</label>
-            <input class="form-control" id="art-filter-q" type="search" name="q" value="{{ request.GET.q }}" placeholder="Instalación, persona o email">
+            <input class="form-control" id="art-filter-q" type="search" name="q" value="{{ request.GET.q }}" placeholder="Propuesta, persona o email">
         </div>
         <div>
             <label for="art-filter-status">Estado</label>
@@ -58,18 +58,18 @@
     <p class="small text-muted mb-2" aria-live="polite">{{ artworks|length }} instalaci{{ artworks|length|pluralize:"ón,ones" }}</p>
     <div class="table-responsive art-table-wrap">
         <table class="table table-sm align-middle art-table">
-            <thead><tr><th>Instalación</th><th>Estado</th><th>Contacto</th><th>Declaración</th><th>Checkout</th><th><span class="visually-hidden">Abrir</span></th></tr></thead>
+            <thead><tr><th>Propuesta de Arte</th><th>Estado</th><th>Contacto</th><th>Declaración</th><th>Checkout</th><th><span class="visually-hidden">Abrir</span></th></tr></thead>
             <tbody>
             {% for artwork in artworks %}{% with stage=artwork.stage %}
                 <tr>
-                    <td><a class="art-row-link stretched-link" href="{% url 'artwork_review' event.slug artwork.pk %}">{{ artwork.title|default:'Instalación sin título' }}</a><br><small class="text-muted">{% if artwork.owner %}{{ artwork.owner|person_name }}{% else %}Cuenta archivada{% endif %}</small></td>
+                    <td><a class="art-row-link stretched-link" href="{% url 'artwork_review' event.slug artwork.pk %}">{{ artwork.title|default:'Propuesta de Arte sin título' }}</a><br><small class="text-muted">{% if artwork.owner %}{{ artwork.owner|person_name }}{% else %}Cuenta archivada{% endif %}</small></td>
                     <td>{% include 'art/_status_badge.html' %}</td>
                     <td>{% with contact=artwork.estafa_contact %}{% if contact %}{{ contact|person_name }}{% with full_name=contact|person_full_name %}{% if full_name %}<br><small class="text-muted">{{ full_name }}</small>{% endif %}{% endwith %}{% else %}<span class="text-muted">Sin contacto</span>{% endif %}{% endwith %}</td>
                     <td>{% if artwork.understanding_letter and artwork.understanding_letter_physical_received %}Digital · física{% elif artwork.understanding_letter %}Digital{% elif artwork.understanding_letter_physical_received %}Física{% else %}{% include 'art/_dash.html' with label='Sin declaración' %}{% endif %}</td>
                     <td>{% if stage == 'checkout_pending' or stage == 'checkout' or stage == 'verified' %}{% if stage == 'verified' %}Verificado{% elif stage == 'checkout' %}Enviado{% else %}Pendiente{% endif %}{% with photos=artwork.checkout_photos.all|length %}{% if photos %}<br><small class="text-muted">{{ photos }} foto{{ photos|pluralize }}</small>{% endif %}{% endwith %}{% else %}{% include 'art/_dash.html' with label='Checkout todavía no habilitado' %}{% endif %}</td>
                     <td class="text-end text-muted"><i class="fas fa-chevron-right" aria-hidden="true"></i></td>
                 </tr>
-            {% endwith %}{% empty %}<tr><td colspan="7" class="text-center text-muted py-5">No hay instalaciones que coincidan con estos filtros.</td></tr>{% endfor %}
+            {% endwith %}{% empty %}<tr><td colspan="7" class="text-center text-muted py-5">No hay propuestas que coincidan con estos filtros.</td></tr>{% endfor %}
             </tbody>
         </table>
     </div>

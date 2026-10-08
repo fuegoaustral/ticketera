@@ -42,20 +42,29 @@ class Step:
         return f"{'Falta' if count == 1 else 'Faltan'} {count} {unit}{'' if count == 1 else 's'}"
 
     @property
+    def live_fields(self):
+        """Las reglas de FIELD_CHECKS para recontar en pantalla, con los nombres del formulario."""
+        return [{'name': name, 'label': label, 'when': when} for _, name, label, when in FIELD_CHECKS.get(self.key, ())]
+
+    @property
+    def live_fields_id(self):
+        return f'{self.key}-live-fields'
+
+    @property
     def template(self):
         return f'art/steps/{self.key}.html'
 
 
 # key, título, título corto, bloque de fechas del programa (None: sin fechas), opcional, qué se hace
 STEPS = (
-    ('detalles', 'Detalles de la instalación', 'Detalles', 'proposal', False,
+    ('detalles', 'Detalles de la propuesta', 'Detalles', 'proposal', False,
      'Contás qué vas a hacer, con qué materiales y cómo la vas a cuidar.'),
     ('equipo', 'Equipo', 'Equipo', None, True,
      'Sumás a quienes hacen la instalación con vos.'),
-    ('desplegable', 'Desplegable y placement', 'Desplegable', 'guide', False,
+    ('desplegable', 'Folleto y placement', 'Folleto', 'guide', False,
      'Escribís el texto que lee el público y elegís dónde te gustaría ubicarte.'),
     ('carta', 'Declaración de entendimiento', 'Declaración', 'understanding_letter', False,
-     'Firmás la declaración, subís una foto o un PDF y entregás la copia física.'),
+     'Firmás la declaración, certificás la firma, subís una foto o un PDF y entregás la copia física.'),
     ('ingreso', 'Ingreso anticipado, late checkout y proveedores', 'Ingreso y proveedores', 'logistics', True,
      'Cargás quién entra antes y quién se queda después, y qué proveedores y vehículos vienen.'),
     ('galeria', 'Galería', 'Galería', 'gallery', True,
@@ -83,25 +92,33 @@ def _letter_deadline(program):
     return max(deadlines) if deadlines else None
 
 
+# Los campos del formulario principal que cuentan como pendientes: (atributo, campo del formulario,
+# etiqueta, interruptor del que dependen). La pantalla los recuenta mientras se escribe con estas mismas reglas.
+FIELD_CHECKS = {
+    'detalles': (
+        ('title', 'title', 'Nombre', None),
+        ('proposal', 'proposal', 'Descripción', None),
+        ('dimensions', 'dimensions', 'Dimensiones', None),
+        ('materials', 'materials', 'Materiales', None),
+        ('fire_details', 'fire_details', 'Detalles del fuego', 'uses_fire'),
+        ('extinguishing_plan', 'extinguishing_plan', 'Plan de extinción', 'uses_fire'),
+        ('safety_responsible_id', 'safety_responsible_email', 'Responsable de seguridad', 'uses_fire'),
+        ('burn_preferred_time', 'burn_preferred_time', 'Cuándo preferís quemarla', 'burns'),
+        ('burn_company', 'burn_company', 'Si preferirías quemarla sola o con otras obras', 'burns'),
+    ),
+    'desplegable': (
+        ('public_title', 'public_title', 'Título para el público', None),
+        ('public_description', 'public_description', 'Texto para el público', None),
+    ),
+}
+
+
 def _missing(key, artwork):
-    if key == 'detalles':
-        missing = [label for name, label in (
-            ('title', 'Nombre'), ('proposal', 'Descripción'), ('dimensions', 'Dimensiones'), ('materials', 'Materiales'),
-        ) if not getattr(artwork, name)]
-        if artwork.uses_fire:
-            missing += [label for name, label in (
-                ('fire_details', 'Detalles del fuego'), ('extinguishing_plan', 'Plan de extinción'),
-                ('safety_responsible_id', 'Responsable de seguridad'),
-            ) if not getattr(artwork, name)]
-        if artwork.burns:
-            missing += [label for name, label in (
-                ('burn_preferred_time', 'Cuándo preferís quemarla'), ('burn_company', 'Si la quemás sola o con otras'),
-            ) if not getattr(artwork, name)]
-        return missing
-    if key == 'desplegable':
-        return [label for name, label in (
-            ('public_title', 'Título para el público'), ('public_description', 'Texto para el público'),
-        ) if not getattr(artwork, name)]
+    if key in FIELD_CHECKS:
+        return [
+            label for attr, _, label, when in FIELD_CHECKS[key]
+            if (not when or getattr(artwork, when)) and not getattr(artwork, attr)
+        ]
     if key == 'carta':
         missing = []
         if not artwork.understanding_letter:

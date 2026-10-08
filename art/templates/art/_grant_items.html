@@ -42,7 +42,7 @@
                         {% if item.photos.all %}
                         <div class="inline-images mb-3">
                             {% for photo in item.photos.all %}
-                            <span><a href="{{ photo.image.url }}" target="_blank" rel="noopener"><img src="{{ photo.image.url }}" alt="Imagen de {{ item.concept }}"></a><button class="btn btn-sm btn-danger" type="submit" formaction="{% url 'grant_item_photo_delete' artwork.pk item.pk photo.pk %}" title="Eliminar imagen" aria-label="Eliminar imagen de {{ item.concept }}" onclick="return confirm('¿Eliminar esta imagen?')"><i class="fas fa-trash" aria-hidden="true"></i></button></span>
+                            <span><a href="{{ photo.image.url }}" target="_blank" rel="noopener"><img src="{{ photo.image.url }}" alt="Imagen de {{ item.concept }}"></a><span class="artwork-file-delete"><button type="submit" formaction="{% url 'grant_item_photo_delete' artwork.pk item.pk photo.pk %}" title="Eliminar imagen" aria-label="Eliminar imagen de {{ item.concept }}" onclick="return confirm('¿Eliminar esta imagen?')"><i class="fas fa-trash" aria-hidden="true"></i></button></span></span>
                             {% endfor %}
                         </div>
                         {% endif %}

@@ -19,7 +19,7 @@
     {% include 'art/steps/summary/_group_title.html' with title='Sonido' %}
     <dl class="step-readonly">
         {% include 'art/steps/summary/_row.html' with label='Sonido amplificado' value=artwork.uses_sound|yesno:'Sí,No' %}
-        {% if artwork.uses_sound %}{% if artwork.power_watts is not None %}{% include 'art/steps/summary/_row.html' with label='Potencia eléctrica máxima' value=artwork.power_watts|stringformat:'s'|add:' W' %}{% else %}{% include 'art/steps/summary/_row.html' with label='Potencia eléctrica máxima' value='' %}{% endif %}{% endif %}
+        {% if artwork.uses_sound %}{% include 'art/steps/summary/_row.html' with label='Potencia máxima' value=artwork.sound_power %}{% endif %}
     </dl>
 </div>
 <div class="summary-group">

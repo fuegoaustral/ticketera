@@ -20,7 +20,7 @@ BLOCKS = {
         or not artwork.grant_items.filter(phase=ArtworkGrantItem.Phase.BUDGET).exists()
         or artwork.grant_status in (artwork.GrantStatus.NOT_REQUESTED, artwork.GrantStatus.INFO_REQUIRED)
     )),
-    'guide': ('Desplegable', lambda artwork: not artwork.public_title or not artwork.public_description),
+    'guide': ('Folleto', lambda artwork: not artwork.public_title or not artwork.public_description),
     'checkout': ('Checkout', lambda artwork: artwork.status == artwork.Status.ACTIVE),
     'grant_report': ('Rendición de beca', lambda artwork: artwork.grant_status in (
         artwork.GrantStatus.APPROVED, artwork.GrantStatus.PAID,

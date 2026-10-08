@@ -81,7 +81,7 @@ def review_sections(artwork, program, at=None):
     missing = _missing('detalles', artwork)
     status, summary = _status(missing)
     sections.append(Section(
-        'detalles', 'Detalles de la instalación', 'detalles', status, summary,
+        'detalles', 'Detalles de la propuesta', 'detalles', status, summary,
         _when(program, ('proposal',), program.proposal_deadline, at), missing, template=SUMMARY + 'detalles.html',
     ))
 
@@ -94,7 +94,7 @@ def review_sections(artwork, program, at=None):
     missing = _missing('desplegable', artwork)
     status, summary = _status(missing)
     sections.append(Section(
-        'desplegable', 'Desplegable y placement', 'desplegable', status, summary,
+        'desplegable', 'Folleto y placement', 'desplegable', status, summary,
         _when(program, ('guide',), program.guide_deadline, at), missing, template=SUMMARY + 'desplegable.html',
     ))
 

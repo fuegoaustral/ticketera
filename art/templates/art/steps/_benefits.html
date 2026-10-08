@@ -3,7 +3,7 @@
 <fieldset class="step-group" id="ingreso-personas">
     <legend>Quién entra antes y quién se queda después</legend>
     {% if not group.ingreso_anticipado_amount and not group.late_checkout_amount %}
-    <p class="form-text mt-0 mb-0">Esta instalación todavía no tiene cupos de ingreso anticipado ni de late checkout. Los asigna ESTAFA.</p>
+    <p class="form-text mt-0 mb-0">Esta propuesta todavía no tiene cupos de ingreso anticipado ni de late checkout. Los asigna ESTAFA.</p>
     {% else %}
     <p class="form-text mt-0 mb-3">Elegí entre las personas del equipo. Cupos: {{ group.ingreso_anticipado_amount }} de ingreso anticipado y {{ group.late_checkout_amount }} de late checkout{% if group.late_checkout_hasta %} (hasta el {{ group.late_checkout_hasta|date:'d/m H:i' }}){% endif %}. Para entrar antes o quedarse después, cada persona necesita su bono.</p>
     {% if benefits_form.early_closed %}<p class="form-text mb-3">La carga de ingresos anticipados cerró el {{ artwork.event.ingreso_anticipado_limite_carga|date:'d/m/Y' }}.</p>{% endif %}
