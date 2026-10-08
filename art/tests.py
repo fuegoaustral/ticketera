@@ -1372,7 +1372,7 @@ class ArtworkFlowTest(TestCase):
         self.admin.first_name, self.admin.last_name = 'Coordi', 'Nadora'
         self.admin.save(update_fields=['first_name', 'last_name'])
         page = self.client.get(reverse('art_dashboard'))
-        self.assertContains(page, 'ESTAFA es el Equipo y Servicios de Tareas de Arte de Fuego Austral: Coordi Nadora.')
+        self.assertContains(page, 'ESTAFA es el Equipo de Servicios y Tareas de Arte Fuego Austral: Coordi Nadora.')
         self.assertNotContains(page, self.admin.email)
         self.assertContains(page, 'Chateá con nosotros')
 
