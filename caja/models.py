@@ -30,8 +30,6 @@ class EventProduct(BaseModel):
         if self.ticket_type_id:
             if self.ticket_type.event_id != self.event_id:
                 raise ValidationError('El tipo de bono debe pertenecer al mismo evento.')
-            if not self.ticket_type.show_in_caja:
-                raise ValidationError('El tipo de bono debe tener "Mostrar en Caja" activado.')
         else:
             if not self.name:
                 raise ValidationError('Los productos genéricos requieren un nombre.')
