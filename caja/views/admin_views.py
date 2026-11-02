@@ -194,7 +194,9 @@ def caja_edit_view(request, event_slug, caja_id):
         .order_by('name', 'id')
     )
     generic_products = [p for p in active_products if p.ticket_type_id is None]
-    ticket_products = [p for p in active_products if p.ticket_type_id is not None]
+    ticket_products = [
+        p for p in active_products if p.ticket_type_id is not None and p.ticket_type.show_in_caja
+    ]
     inactive_generic_products = list(
         EventProduct.objects.filter(
             event=event,

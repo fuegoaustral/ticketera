@@ -185,3 +185,35 @@ class CurrentEventsTest(TestCase):
                              end=now - timedelta(days=4), **common)
 
         self.assertEqual(list(Event.get_current_events()), [upcoming])
+
+
+class TicketTypeCajaProductTest(TestCase):
+    """Creating a ticket type auto-creates its caja EventProduct (stock ledger)."""
+
+    def setUp(self):
+        now = timezone.now()
+        self.event = Event.objects.create(
+            name='Gualicho', slug='gualicho', active=True,
+            start=now + timedelta(days=20), end=now + timedelta(days=24),
+            transfers_enabled_until=now + timedelta(days=10), header_image='events/heros/no-image.jpg',
+            title='Gualicho', description='Evento', max_tickets=100,
+        )
+
+    def test_direct_type_hidden_from_caja_with_unlimited_count(self):
+        from caja.stock import available_for_ticket_type
+
+        ticket_type = TicketType.objects.create(
+            event=self.event, name='Bono dirigido', price=200000,
+            is_direct_type=True, show_in_caja=False, ticket_count=None,
+        )
+        self.assertTrue(hasattr(ticket_type, 'event_product'))
+        self.assertIsNone(available_for_ticket_type(ticket_type))
+
+    def test_limited_count_is_recorded(self):
+        from caja.models import EventProductStockRecord
+
+        ticket_type = TicketType.objects.create(
+            event=self.event, name='General', price=1000, ticket_count=10,
+        )
+        record = EventProductStockRecord.objects.get(event_product=ticket_type.event_product)
+        self.assertEqual(record.delta, 10)
