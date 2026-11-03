@@ -385,6 +385,55 @@ class DirectTicketTemplateTest(TestCase):
         self.assertNotIn('name="user_email"', html)
         self.assertIn("document.documentElement.dataset.theme = 'light'", html)
 
+    @patch('utils.direct_sales.send_mail')
+    def test_partial_assignments_keep_every_order_and_show_tickets(self, _send_mail):
+        template = self.template('laura@hotmail.com', amount=5)
+        self.assign(template, 2)
+        self.assign(template, 1)
+        orders = list(template.orders.order_by('created_at'))
+        self.assertEqual(len(orders), 2)
+        self.assertEqual([o.new_tickets.count() for o in orders], [2, 1])
+        html = self.client.get(reverse('admin_direct_tickets_view')).content.decode()
+        self.assertIn('Ver (3)', html)
+        for order in orders:
+            self.assertIn(reverse('admin:tickets_order_change', args=[order.id]), html)
+            for ticket in order.new_tickets.all():
+                self.assertIn(reverse('admin:tickets_newticket_change', args=[ticket.id]), html)
+        self.assertIn('<strong>Asignados:</strong> 3', html)
+
+    @patch('utils.direct_sales.send_mail')
+    def test_order_admin_lists_filters_and_shows_direct_tickets(self, _send_mail):
+        superuser = User.objects.create_superuser(username='root', email='root@example.com', password='x')
+        self.client.force_login(superuser)
+        template = self.template('laura@hotmail.com', amount=2)
+        self.assign(template, 2)
+        order = template.orders.get()
+        other_event = Event.objects.create(
+            name='Otro', slug='otro', start=timezone.now() - timedelta(days=400),
+            end=timezone.now() - timedelta(days=396), transfers_enabled_until=timezone.now() - timedelta(days=410),
+            header_image='events/heros/no-image.jpg',
+            title='Otro', description='x', max_tickets=10,
+        )
+        other = Order.objects.create(first_name='Otra', last_name='Persona', email='otra@example.com', phone='1',
+                                     dni='1', amount=0, event=other_event)
+
+        changelist = reverse('admin:tickets_order_changelist')
+        html = self.client.get(changelist).content.decode()
+        self.assertIn('2 × Bono dirigido', html)
+        self.assertIn('otra@example.com', html)
+
+        for params in ({'event': self.event.id}, {'event': self.event.id, 'ticket_type': self.ticket_type.id},
+                       {'origen': 'dirigido'}):
+            response = self.client.get(changelist, params)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual([o.id for o in response.context['cl'].result_list], [order.id], params)
+        response = self.client.get(changelist, {'origen': 'online'})
+        self.assertEqual([o.id for o in response.context['cl'].result_list], [other.id])
+
+        html = self.client.get(reverse('admin:tickets_order_change', args=[order.id])).content.decode()
+        self.assertIn(template.name, html)
+        self.assertIn('Bonos emitidos', html)
+
 
 class AdminCajaTest(TestCase):
     """/admin/caja/: búsqueda de cuentas y emisión a la cuenta elegida."""

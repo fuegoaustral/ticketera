@@ -597,8 +597,10 @@ class DirectTicketTemplate(BaseModel):
     status = models.CharField(max_length=20, choices=DirectTicketTemplateStatus.choices,
                               default=DirectTicketTemplateStatus.AVAILABLE)
     amount_used = models.PositiveIntegerField(null=True, blank=True)
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, null=True, blank=True)
-
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, null=True, blank=True,
+                              help_text="Última orden generada (ver `orders` para todas)")
+    orders = models.ManyToManyField(Order, related_name='direct_ticket_templates', blank=True,
+                                    help_text="Todas las órdenes generadas al asignar este bono dirigido")
 
     class Meta:
         verbose_name = "Bono dirigido"
