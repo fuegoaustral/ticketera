@@ -4,13 +4,40 @@
     Transferencia de Bono<br/>
 {% endblock %}
 {% block content %}
-    <p>
-        Te han enviado {{ ticket_count }}
-        {% if ticket_count > 1 %}bonos{% else %}bono{% endif %}
-        de Fuego Austral. Podés verlo{% if ticket_count > 1 %}s{% endif %} entrando en el siguiente enlace:
-    </p>
+    {% if ticket_links %}
+        <p>
+            Te han enviado {{ ticket_count }}
+            {% if ticket_count > 1 %}bonos{% else %}bono{% endif %}
+            para <b>{{ event.name|safe }}</b>. Ya {% if ticket_count > 1 %}están{% else %}está{% endif %} en tu cuenta:
+            no hace falta imprimir nada, el bono vale por la cuenta a la que está vinculado.
+        </p>
 
-    {% include 'emails/partials/btn.html' with label='Mis Bonos' href='/mi-fuego/mis-bonos' domain=domain %}
+        {% for link in ticket_links %}
+            <p style="margin-bottom: 4px;">
+                <b>{{ link.ticket.ticket_type.name }}</b> · #{{ link.short_key }}
+                {% if link.is_mine %}(vinculado a tu nombre){% endif %}
+            </p>
+            {% include 'emails/partials/btn.html' with label='Ver bono' href=link.view_path %}
+            {% if link.transfer_path %}
+                {% include 'emails/partials/btn.html' with label='Transferir' href=link.transfer_path %}
+            {% endif %}
+        {% endfor %}
+
+        {% if ticket_count > 1 %}
+            <p>
+                Cada asistente necesita su bono en su propia cuenta: transferí los que sean para otras personas
+                antes del {{ event.transfers_enabled_until|date:'d/m' }} a las {{ event.transfers_enabled_until|date:'H:i' }}.
+            </p>
+        {% endif %}
+    {% else %}
+        <p>
+            Te han enviado {{ ticket_count }}
+            {% if ticket_count > 1 %}bonos{% else %}bono{% endif %}
+            de Fuego Austral. Podés verlo{% if ticket_count > 1 %}s{% endif %} entrando en el siguiente enlace:
+        </p>
+
+        {% include 'emails/partials/btn.html' with label='Mis Bonos' href='/mi-fuego/mis-bonos' domain=domain %}
+    {% endif %}
 
     <p>
         Cualquier problema que tengas con tu{% if ticket_count > 1 %}s bonos{% else %} bono{% endif %}, podés escribirnos a
