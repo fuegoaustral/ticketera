@@ -1,4 +1,5 @@
 import json
+import re
 import uuid
 from urllib.parse import urlencode
 
@@ -9,7 +10,8 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import permission_required
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, Q, Value
+from django.db.models.functions import Replace
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
@@ -67,133 +69,250 @@ def email_has_account(request):
     return HttpResponse(status=405)
 
 
+CAJA_SEARCH_LIMIT = 15
+
+
+def _caja_user_payload(user, tickets_in_event=0):
+    profile = user.profile
+    emails = sorted({a.email for a in user.emailaddress_set.all()} | ({user.email} if user.email else set()))
+    return {
+        'id': user.id,
+        'first_name': user.first_name,
+        'last_name': user.last_name,
+        'nickname': profile.nickname,
+        'email': user.email,
+        'emails': emails,
+        'document_type': profile.document_type,
+        'document_number': profile.document_number,
+        'phone': profile.phone,
+        'profile_complete': profile.profile_completion == Profile.COMPLETE,
+        'tickets_in_event': tickets_in_event,
+    }
+
+
+def search_caja_users(query, event=None, limit=CAJA_SEARCH_LIMIT):
+    """Busca cuentas por nombre, apellido, apodo, email (principal o secundario), documento o teléfono.
+
+    Cada palabra de la búsqueda tiene que matchear algún campo (así "laura 1000" encuentra a Laura con DNI 1000...).
+    Los puntos y espacios de DNI/teléfono se ignoran.
+    """
+    terms = query.split()
+    if not terms:
+        return []
+    users = User.objects.annotate(
+        doc_clean=Replace(Replace('profile__document_number', Value('.'), Value('')), Value(' '), Value('')),
+    )
+    for term in terms:
+        digits = re.sub(r'[\s.\-+()]', '', term)
+        condition = (
+            Q(first_name__icontains=term)
+            | Q(last_name__icontains=term)
+            | Q(profile__nickname__icontains=term)
+            | Q(email__icontains=term)
+            | Q(emailaddress__email__icontains=term)
+        )
+        if digits.isdigit() and len(digits) >= 3:
+            condition |= Q(doc_clean__icontains=digits) | Q(profile__phone__icontains=digits)
+        else:
+            condition |= Q(profile__document_number__icontains=term)
+        users = users.filter(condition)
+
+    ids = list(users.order_by('first_name', 'last_name').values_list('id', flat=True).distinct()[:limit])
+    found = User.objects.filter(id__in=ids).select_related('profile').prefetch_related('emailaddress_set')
+    counts = _tickets_in_event_by_user(event, ids)
+    by_id = {u.id: u for u in found}
+    return [_caja_user_payload(by_id[i], counts.get(i, 0)) for i in ids if i in by_id]
+
+
+def _tickets_in_event_by_user(event, user_ids):
+    """Cantidad de bonos del evento que cada usuario tiene (como dueño o titular)."""
+    if event is None or not user_ids:
+        return {}
+    counts = {}
+    rows = NewTicket.objects.filter(event=event).filter(
+        Q(owner_id__in=user_ids) | Q(holder_id__in=user_ids)
+    ).values_list('owner_id', 'holder_id')
+    for owner_id, holder_id in rows:
+        for user_id in {owner_id, holder_id} & set(user_ids):
+            counts[user_id] = counts.get(user_id, 0) + 1
+    return counts
+
+
+def _find_user_by_any_email(email):
+    email = (email or '').strip().lower()
+    if not email:
+        return None
+    user = User.objects.filter(email__iexact=email).first()
+    if user is None:
+        address = EmailAddress.objects.filter(email__iexact=email).select_related('user').first()
+        user = address.user if address else None
+    return user
+
+
+@staff_member_required
+@permission_required("tickets.can_sell_tickets")
+def admin_caja_user_search(request):
+    query = request.GET.get('q', '').strip()
+    if len(query) < 2:
+        return JsonResponse({'results': []})
+    event = Event.objects.filter(id=request.GET.get('event')).first() if request.GET.get('event') else None
+    return JsonResponse({'results': search_caja_users(query, event)})
+
+
+def _caja_event(request):
+    event_id = request.POST.get('event_id') or request.GET.get('event')
+    if event_id:
+        event = Event.objects.filter(id=event_id).first()
+        if event:
+            return event
+    return Event.get_main_event()
+
+
 @staff_member_required
 @permission_required("tickets.can_sell_tickets")
 def admin_caja_view(request, event_id=None):
-    events = Event.objects.all()
-    if event_id:
-        default_event = Event.objects.get(id=event_id)
-    else:
-        default_event = Event.get_main_event()
-    ticket_types = TicketType.objects.filter(event_id=default_event.id) if default_event else None
+    events = Event.objects.order_by('-start')
+    default_event = Event.objects.filter(id=event_id).first() if event_id else _caja_event(request)
 
     form = TicketPurchaseForm(event=default_event)
+    selected_user = None
 
     if request.method == 'POST':
-        selected_event_id = request.POST.get('event')
-        action = request.POST.get('action')
+        data = request.POST.copy()
+        user_id = data.get('user_id')
+        if user_id:
+            selected_user = User.objects.filter(id=user_id).select_related('profile').first()
+            if selected_user is None:
+                messages.error(request, 'La cuenta elegida no existe.')
+                return redirect(f"{reverse('admin_caja_view')}?event={default_event.id}")
+            # Los datos personales salen de la cuenta, no del formulario.
+            data.update({
+                'email': selected_user.email,
+                'first_name': selected_user.first_name,
+                'last_name': selected_user.last_name,
+                'document_type': selected_user.profile.document_type,
+                'document_number': selected_user.profile.document_number,
+                'phone': selected_user.profile.phone,
+            })
+        form = TicketPurchaseForm(data, event=default_event)
 
-        print(action)
-        if action == "event" and selected_event_id:
-            ticket_types = TicketType.objects.filter(event_id=selected_event_id)
-            default_event = Event.objects.get(id=selected_event_id)
-            form = TicketPurchaseForm(request.POST, event=default_event)
-        elif action == "order":
-            form = TicketPurchaseForm(request.POST, event=default_event)
-            if form.is_valid():
-                total_amount = 0
-                tickets_quantity = []
+        if selected_user and selected_user.profile.profile_completion != Profile.COMPLETE:
+            form.add_error(None, f'La cuenta {selected_user.email} todavía no completó su perfil.')
+        if not selected_user and form.is_valid() and _find_user_by_any_email(form.cleaned_data['email']):
+            form.add_error('email', 'Ya existe una cuenta con ese email: buscala y elegila.')
 
-                for ticket in form.cleaned_data:
-                    if ticket.startswith('ticket_quantity_'):
-                        ticket_type_id = ticket.split('_')[2]
-                        ticket_type = TicketType.objects.get(id=ticket_type_id)
-                        quantity = form.cleaned_data[ticket]
-                        total_amount += (ticket_type.price or 0) * quantity
-                        tickets_quantity.append({
-                            'ticket_type': ticket_type,
-                            'quantity': quantity
-                        })
+        if form.is_valid():
+            total_amount = 0
+            tickets_quantity = []
 
-                user = User.objects.filter(email=form.cleaned_data['email']).first()
-                new_user = False
-                with transaction.atomic():
-                    if not user:
-                        new_user = True
-                        user = User.objects.create_user(
-                            username=str(uuid.uuid4()),
-                            email=form.cleaned_data['email'].lower(),
-                            first_name=form.cleaned_data['first_name'],
-                            last_name=form.cleaned_data['last_name'],
-                        )
-                        user.profile.phone = form.cleaned_data['phone']
-                        user.profile.document_type = form.cleaned_data['document_type']
-                        user.profile.document_number = form.cleaned_data['document_number']
-                        user.profile.profile_completion = 'COMPLETE'
-                        user.save()
+            for ticket in form.cleaned_data:
+                if ticket.startswith('ticket_quantity_'):
+                    ticket_type_id = ticket.split('_')[2]
+                    ticket_type = TicketType.objects.get(id=ticket_type_id)
+                    quantity = form.cleaned_data[ticket] or 0
+                    total_amount += (ticket_type.price or 0) * quantity
+                    tickets_quantity.append({
+                        'ticket_type': ticket_type,
+                        'quantity': quantity
+                    })
 
-                        EmailAddress.objects.create(
-                            user=user,
-                            email=form.cleaned_data['email'].lower(),
-                            verified=True,
-                            primary=True
-                        )
-
-                        reset_form = ResetPasswordForm(data={'email': user.email.lower()})
-
-                        if reset_form.is_valid():
-                            reset_form.save(
-                                subject_template_name='account/email/password_reset_subject.txt',
-                                email_template_name='account/email/password_reset_email.html',
-                                from_email=settings.DEFAULT_FROM_EMAIL,
-                                request=None,  # Not needed in this context
-                                use_https=False,  # Use True if your site uses HTTPS
-                                html_email_template_name=None,
-                                extra_email_context=None
-                            )
-
-                    order = Order(
-                        first_name=user.first_name,
-                        last_name=user.last_name,
-                        email=user.email.lower(),
-                        phone=user.profile.phone,
-                        dni=user.profile.document_number,
-                        amount=total_amount,
-                        status=Order.OrderStatus.CONFIRMED,
-                        event=default_event,
-                        user=user,
-                        order_type=form.cleaned_data['order_type'],
-                        donation_art=0,
-                        donation_venue=0,
-                        donation_grant=0,
-                        notes=form.cleaned_data['notes'],
-                        generated_by_admin_user=request.user
+            user = selected_user
+            new_user = False
+            with transaction.atomic():
+                if not user:
+                    new_user = True
+                    user = User.objects.create_user(
+                        username=str(uuid.uuid4()),
+                        email=form.cleaned_data['email'].lower(),
+                        first_name=form.cleaned_data['first_name'],
+                        last_name=form.cleaned_data['last_name'],
                     )
-                    order.save()
+                    user.profile.phone = form.cleaned_data['phone']
+                    user.profile.document_type = form.cleaned_data['document_type']
+                    user.profile.document_number = form.cleaned_data['document_number']
+                    user.profile.profile_completion = 'COMPLETE'
+                    user.save()
 
-                    order_tickets = [
-                        OrderTicket(
-                            order=order,
-                            ticket_type=ticket_type,
-                            quantity=quantity
+                    EmailAddress.objects.create(
+                        user=user,
+                        email=form.cleaned_data['email'].lower(),
+                        verified=True,
+                        primary=True
+                    )
+
+                    reset_form = ResetPasswordForm(data={'email': user.email.lower()})
+
+                    if reset_form.is_valid():
+                        reset_form.save(
+                            subject_template_name='account/email/password_reset_subject.txt',
+                            email_template_name='account/email/password_reset_email.html',
+                            from_email=settings.DEFAULT_FROM_EMAIL,
+                            request=None,  # Not needed in this context
+                            use_https=False,  # Use True if your site uses HTTPS
+                            html_email_template_name=None,
+                            extra_email_context=None
                         )
-                        for ticket_quantity in tickets_quantity
-                        if (ticket_type := ticket_quantity['ticket_type']) and (
-                            quantity := ticket_quantity['quantity']) > 0
-                    ]
-                    if order_tickets:
-                        OrderTicket.objects.bulk_create(order_tickets)
 
+                order = Order(
+                    first_name=user.first_name,
+                    last_name=user.last_name,
+                    email=user.email.lower(),
+                    phone=user.profile.phone,
+                    dni=user.profile.document_number,
+                    amount=total_amount,
+                    status=Order.OrderStatus.CONFIRMED,
+                    event=default_event,
+                    user=user,
+                    order_type=form.cleaned_data['order_type'],
+                    donation_art=0,
+                    donation_venue=0,
+                    donation_grant=0,
+                    notes=form.cleaned_data['notes'],
+                    generated_by_admin_user=request.user
+                )
+                order.save()
 
-                    mint_tickets(order)
-                    Order.objects.get(key=order.key).send_confirmation_email()
+                order_tickets = [
+                    OrderTicket(
+                        order=order,
+                        ticket_type=ticket_type,
+                        quantity=quantity
+                    )
+                    for ticket_quantity in tickets_quantity
+                    if (ticket_type := ticket_quantity['ticket_type']) and (
+                        quantity := ticket_quantity['quantity']) > 0
+                ]
+                if order_tickets:
+                    OrderTicket.objects.bulk_create(order_tickets)
 
-                    # Build the base URL
-                    base_url = reverse('admin_caja_order_view', args=[order.key])
+                mint_tickets(order)
+                Order.objects.get(key=order.key).send_confirmation_email()
 
-                    # Define query parameters
-                    query_params = {'new_user': new_user}
+            url = f"{reverse('admin_caja_order_view', args=[order.key])}?{urlencode({'new_user': new_user})}"
+            return redirect(url)
 
-                    # Construct the full URL with query parameters
-                    url = f"{base_url}?{urlencode(query_params)}"
-
-                    return redirect(url)
+    ticket_types = list(
+        TicketType.objects.filter(event_id=default_event.id).order_by('cardinality', 'price', 'name')
+        if default_event else []
+    )
+    for ticket_type in ticket_types:
+        try:
+            ticket_type.selected_quantity = max(0, int(request.POST.get(f'ticket_quantity_{ticket_type.id}', 0)))
+        except ValueError:
+            ticket_type.selected_quantity = 0
+    selected_user_json = None
+    if selected_user:
+        selected_user_json = _caja_user_payload(
+            selected_user, _tickets_in_event_by_user(default_event, [selected_user.id]).get(selected_user.id, 0),
+        )
 
     context = {
         'events': events,
         'default_event': default_event,
         'ticket_types': ticket_types,
         'form': form,
+        'selected_user_json': selected_user_json,
+        'search_url': reverse('admin_caja_user_search'),
     }
     return render(request, 'admin/admin_caja.html', context)
 
