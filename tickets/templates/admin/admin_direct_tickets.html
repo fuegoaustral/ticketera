@@ -23,7 +23,7 @@
         }
 
         .table-wrapper {
-            max-height: 400px;
+            max-height: 70vh;
             overflow-y: auto;
             border: 1px solid #ddd;
             margin-bottom: 20px;
@@ -96,6 +96,56 @@
 
         .tickets-table tbody tr.hidden {
             display: none;
+        }
+
+        .totals {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+
+        .btn-toggle-assigned {
+            background: none;
+            border: 1px solid #417690;
+            color: #417690;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .tickets-table tbody tr.assigned-row > td {
+            background: #f4f8fa;
+            padding: 8px 16px 12px;
+        }
+
+        .assigned-order {
+            margin-bottom: 8px;
+        }
+
+        .assigned-order-header {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .assigned-tickets {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        .assigned-tickets th, .assigned-tickets td {
+            padding: 3px 6px;
+            border-bottom: 1px solid #e3e3e3;
+            text-align: left;
+            font-size: 11px;
+        }
+
+        .assigned-tickets th {
+            background: #e8eef1;
+            color: #333;
         }
 
         .status-badge, .origin-badge {
@@ -222,6 +272,11 @@
         </form>
 
         {% if default_event %}
+            <div class="totals">
+                <span><strong>Cupos:</strong> {{ totals.amount }}</span>
+                <span><strong>Asignados:</strong> {{ totals.used }}</span>
+                <span><strong>Disponibles:</strong> {{ totals.available }}</span>
+            </div>
             <div class="filter-box">
                 <input type="text" 
                        id="ticket-filter" 
@@ -242,6 +297,7 @@
                             <th>Used</th>
                             <th>Status</th>
                             <th>Cuenta</th>
+                            <th>Asignados</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -290,6 +346,15 @@
                                     <span class="account-ok" title="{{ ticket.assign_user.email }}">{{ ticket.assign_user.first_name }} {{ ticket.assign_user.last_name }}</span>
                                 {% endif %}
                             </td>
+                            <td>
+                                {% if ticket.assigned_orders %}
+                                    <button type="button" class="btn-toggle-assigned" data-id="{{ ticket.id }}">
+                                        Ver ({{ ticket.amount_used|default:0 }})
+                                    </button>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
                             <td class="assign-cell">
                                 {% if ticket.available > 0 %}
                                     {% if ticket.assign_user and ticket.assign_user.profile.profile_completion == 'COMPLETE' %}
@@ -312,9 +377,51 @@
                                 {% endif %}
                             </td>
                         </tr>
+                        {% if ticket.assigned_orders %}
+                            <tr class="assigned-row hidden" id="assigned-{{ ticket.id }}">
+                                <td style="display: none;"></td>
+                                <td colspan="9">
+                                    {% for order in ticket.assigned_orders %}
+                                        <div class="assigned-order">
+                                            <div class="assigned-order-header">
+                                                <a href="{% url 'admin:tickets_order_change' order.id %}">Orden #{{ order.id }}</a>
+                                                · {{ order.created_at|date:"d/m/Y H:i" }}
+                                                · {{ order.first_name }} {{ order.last_name }} ({{ order.email }})
+                                                {% if order.generated_by_admin_user %}· asignó {{ order.generated_by_admin_user.get_full_name|default:order.generated_by_admin_user.email }}{% endif %}
+                                                · {{ order.new_tickets.all|length }} bono{{ order.new_tickets.all|length|pluralize }}
+                                            </div>
+                                            {% if order.new_tickets.all %}
+                                                <table class="assigned-tickets">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Bono</th>
+                                                            <th>Tipo</th>
+                                                            <th>Titular</th>
+                                                            <th>Dueño</th>
+                                                            <th>Usado</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for new_ticket in order.new_tickets.all %}
+                                                            <tr>
+                                                                <td><a href="{% url 'admin:tickets_newticket_change' new_ticket.id %}">{{ new_ticket.key|stringformat:"s"|slice:":8" }}…</a></td>
+                                                                <td>{{ new_ticket.ticket_type.name }}</td>
+                                                                <td>{% if new_ticket.holder %}{{ new_ticket.holder.first_name }} {{ new_ticket.holder.last_name }} ({{ new_ticket.holder.email }}){% else %}<em>Pendiente de aceptar</em>{% endif %}</td>
+                                                                <td>{% if new_ticket.owner %}{{ new_ticket.owner.first_name }} {{ new_ticket.owner.last_name }}{% else %}-{% endif %}</td>
+                                                                <td>{% if new_ticket.is_used %}Sí{% if new_ticket.used_at %} ({{ new_ticket.used_at|date:"d/m H:i" }}){% endif %}{% else %}No{% endif %}</td>
+                                                            </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                </td>
+                            </tr>
+                        {% endif %}
                     {% empty %}
                         <tr>
-                            <td colspan="8" style="text-align: center; padding: 20px;">
+                            <td colspan="9" style="text-align: center; padding: 20px;">
                                 No hay bonos dirigidos para este evento.
                             </td>
                         </tr>
@@ -361,10 +468,21 @@
                         row.classList.remove('hidden');
                     } else {
                         row.classList.add('hidden');
+                        const assignedRow = document.getElementById(`assigned-${row.getAttribute('data-id')}`);
+                        if (assignedRow) {
+                            assignedRow.classList.add('hidden');
+                        }
                     }
                 });
             });
         }
+
+        // Ver los bonos ya asignados de cada dirigido
+        document.querySelectorAll('.btn-toggle-assigned').forEach(function(button) {
+            button.addEventListener('click', function() {
+                document.getElementById(`assigned-${this.getAttribute('data-id')}`).classList.toggle('hidden');
+            });
+        });
 
         // Asignar con un clic (parte o totalidad)
         const assignForm = document.getElementById('assign-form');

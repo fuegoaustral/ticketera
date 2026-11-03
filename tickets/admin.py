@@ -10,11 +10,12 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import permission_required
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.db.models import Count, Q, Value
+from django.db.models import Count, Prefetch, Q, Value
 from django.db.models.functions import Replace
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
+from django.utils.html import format_html, format_html_join
 from import_export import resources, fields
 from import_export.admin import ImportExportModelAdmin, ExportActionMixin, ExportMixin
 
@@ -344,14 +345,24 @@ def admin_direct_tickets_view(request, event_id=None):
             messages.error(request, error)
             return redirect('admin_direct_tickets_view')
 
-    direct_tickets = list(direct_tickets.order_by('name'))
+    direct_tickets = list(direct_tickets.order_by('name').prefetch_related(
+        Prefetch('orders', queryset=Order.objects.select_related('generated_by_admin_user').order_by('created_at')),
+        Prefetch('orders__new_tickets', queryset=NewTicket.objects.select_related('holder', 'owner', 'ticket_type')),
+    ))
     _attach_direct_ticket_users(direct_tickets)
+    for template in direct_tickets:
+        template.assigned_orders = list(template.orders.all())
 
     context = {
         'events': events,
         'default_event': default_event,
         'direct_tickets': direct_tickets,
         'ticket_type': ticket_type,
+        'totals': {
+            'amount': sum(t.amount for t in direct_tickets),
+            'used': sum(t.amount_used or 0 for t in direct_tickets),
+            'available': sum(max(t.available, 0) for t in direct_tickets),
+        },
     }
     return render(request, 'admin/admin_direct_tickets.html', context)
 
@@ -481,9 +492,18 @@ def admin_caja_order_view(request, order_key):
     })
 
 
-class NewTicketInline(admin.StackedInline):
-    model = NewTicket
-    extra = 0
+class EventListFilter(admin.SimpleListFilter):
+    """Filtro por evento, del más nuevo al más viejo."""
+    title = 'evento'
+    parameter_name = 'event'
+
+    def lookups(self, request, model_admin):
+        return [(e.id, e.name) for e in Event.objects.order_by('-start')]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(event_id=self.value())
+        return queryset
 
 
 class DirectTicketTemplateImportResource(resources.ModelResource):
@@ -513,10 +533,27 @@ class DirectTicketTemplateExportResource(DirectTicketTemplateImportResource):
 @admin.register(DirectTicketTemplate)
 class DirectTicketTemplateAdmin(ImportExportModelAdmin, ExportActionMixin):
     resource_classes = [DirectTicketTemplateImportResource]
-    list_display = ['origin', 'name', 'amount', 'email', 'status', 'event']
+    list_display = ['origin', 'name', 'amount', 'amount_used', 'email', 'status', 'event', 'orders_display']
     list_display_links = ['name']
-    list_filter = ['event__name', 'origin', 'status']
+    list_filter = [EventListFilter, 'origin', 'status']
+    list_select_related = ['event']
     search_fields = ['event__name', 'name', 'email']
+    exclude = ['orders']
+    raw_id_fields = ['order']
+    readonly_fields = ['orders_display']
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related('orders')
+
+    @admin.display(description='Órdenes generadas')
+    def orders_display(self, template):
+        orders = sorted(template.orders.all(), key=lambda o: o.created_at)
+        if not orders:
+            return '-'
+        return format_html_join(
+            ', ', '<a href="{}">#{}</a>',
+            ((reverse('admin:tickets_order_change', args=[o.pk]), o.pk) for o in orders),
+        )
 
     def get_import_resource_kwargs(self, request, *args, **kwargs):
         kwargs = super().get_resource_kwargs(request, *args, **kwargs)
@@ -576,12 +613,6 @@ class NewTicketAdmin(admin.ModelAdmin):
     )
 
 
-class NewTicketInline(admin.StackedInline):
-    model = NewTicket
-    extra = 0
-    readonly_fields = ['key']
-
-
 class OrderResource(resources.ModelResource):
 
     tickets_count = fields.Field(attribute='tickets_count')
@@ -615,17 +646,174 @@ class OrderResource(resources.ModelResource):
         ]
 
 
+class NewTicketInline(admin.TabularInline):
+    model = NewTicket
+    extra = 0
+    verbose_name = 'Bono emitido'
+    verbose_name_plural = 'Bonos emitidos'
+    fields = ['ticket_link', 'ticket_type', 'owner', 'holder', 'is_used', 'used_at']
+    readonly_fields = fields
+    can_delete = False
+    show_change_link = False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('ticket_type', 'owner', 'holder')
+
+    @admin.display(description='Bono')
+    def ticket_link(self, ticket):
+        url = reverse('admin:tickets_newticket_change', args=[ticket.pk])
+        return format_html('<a href="{}">{}…</a>', url, str(ticket.key)[:8])
+
+
+class OrderTicketInline(admin.TabularInline):
+    model = OrderTicket
+    extra = 0
+    verbose_name = 'Tipo de bono comprado'
+    verbose_name_plural = 'Tipos de bono comprados'
+    fields = ['ticket_type', 'quantity']
+    readonly_fields = fields
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+class OrderTicketTypeListFilter(admin.SimpleListFilter):
+    """Tipo de bono emitido en la orden; si hay un evento elegido, solo muestra los tipos de ese evento."""
+    title = 'tipo de bono'
+    parameter_name = 'ticket_type'
+
+    def lookups(self, request, model_admin):
+        ticket_types = TicketType.objects.select_related('event').order_by('-event__start', 'cardinality', 'name')
+        event_id = request.GET.get(EventListFilter.parameter_name)
+        if event_id:
+            return [(t.id, t.name) for t in ticket_types.filter(event_id=event_id)]
+        return [(t.id, f'{t.name} ({t.event.name})') for t in ticket_types]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(
+                Q(new_tickets__ticket_type_id=self.value()) | Q(order_tickets__ticket_type_id=self.value())
+            ).distinct()
+        return queryset
+
+
+class GeneratedByAdminListFilter(admin.SimpleListFilter):
+    title = 'origen'
+    parameter_name = 'origen'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('online', 'Compra en la web'),
+            ('admin', 'Generada por admin (caja / dirigidos)'),
+            ('dirigido', 'Bono dirigido'),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value() == 'online':
+            return queryset.filter(generated_by_admin_user__isnull=True)
+        if self.value() == 'admin':
+            return queryset.filter(generated_by_admin_user__isnull=False)
+        if self.value() == 'dirigido':
+            return queryset.filter(direct_ticket_templates__isnull=False).distinct()
+        return queryset
+
+
 class OrderAdmin(ExportActionMixin, ExportMixin, admin.ModelAdmin):
     resource_classes = [OrderResource]
-    list_display = ['id', 'first_name', 'last_name', 'email', 'phone', 'dni', 'amount', 'status', 'event', 'order_type', 'created_at', 'donation_art', 'donation_venue', 'donation_grant']
-    list_filter = ['event', 'status', 'order_type']
-    search_fields = ['key', 'first_name', 'last_name', 'email', 'phone', 'dni']
-    inlines = [NewTicketInline]
-    readonly_fields = ['key']
+    list_display = [
+        'id', 'created_at', 'event', 'buyer', 'tickets_summary', 'amount', 'status_badge', 'order_type',
+        'generated_by_admin_user',
+    ]
+    list_display_links = ['id', 'buyer']
+    list_filter = [
+        EventListFilter, OrderTicketTypeListFilter, 'status', 'order_type', GeneratedByAdminListFilter,
+        'created_at',
+    ]
+    list_select_related = ['event', 'generated_by_admin_user']
+    list_per_page = 50
+    date_hierarchy = 'created_at'
+    ordering = ['-created_at']
+    search_fields = ['=id', 'key', 'first_name', 'last_name', 'email', 'phone', 'dni', 'user__email', 'notes']
+    search_help_text = 'Buscá por número de orden, key, nombre, email, teléfono, DNI o notas.'
+    inlines = [NewTicketInline, OrderTicketInline]
+    raw_id_fields = ['user', 'coupon', 'generated_by_admin_user']
+    readonly_fields = ['key', 'tickets_summary', 'direct_ticket_templates_display', 'created_at', 'updated_at']
+    fieldsets = (
+        ('Orden', {
+            'fields': (
+                ('event', 'status'),
+                ('order_type', 'amount', 'net_received_amount'),
+                'tickets_summary',
+                'direct_ticket_templates_display',
+                'notes',
+                ('generated_by_admin_user', 'coupon'),
+                ('created_at', 'updated_at'),
+                'key',
+            ),
+        }),
+        ('Comprador', {
+            'fields': (('first_name', 'last_name'), ('email', 'phone', 'dni'), 'user'),
+        }),
+        ('Donaciones', {
+            'fields': (('donation_art', 'donation_venue', 'donation_grant'),),
+            'classes': ('collapse',),
+        }),
+        ('Pago (datos crudos)', {
+            'fields': ('response', 'processor_callback'),
+            'classes': ('collapse',),
+        }),
+    )
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(
-            tickets_count=Count('new_tickets')
+            tickets_count=Count('new_tickets', distinct=True)
+        ).prefetch_related('new_tickets__ticket_type', 'order_tickets__ticket_type')
+
+    @admin.display(description='Comprador', ordering='last_name')
+    def buyer(self, order):
+        name = f'{order.first_name} {order.last_name}'.strip() or '(sin nombre)'
+        return format_html('{}<br><small style="color: var(--body-quiet-color)">{}</small>', name, order.email)
+
+    @admin.display(description='Bonos', ordering='tickets_count')
+    def tickets_summary(self, order):
+        """Bonos emitidos por tipo, ej. "2 × General · 1 × Menor". Si no se emitieron, lo comprado."""
+        counts = {}
+        for ticket in order.new_tickets.all():
+            counts[ticket.ticket_type.name] = counts.get(ticket.ticket_type.name, 0) + 1
+        if counts:
+            return ' · '.join(f'{qty} × {name}' for name, qty in counts.items())
+        bought = [f'{ot.quantity} × {ot.ticket_type.name}' for ot in order.order_tickets.all() if ot.quantity]
+        if bought:
+            return format_html('<span title="Comprados, todavía sin emitir">{} (sin emitir)</span>', ' · '.join(bought))
+        return '-'
+
+    @admin.display(description='Estado', ordering='status')
+    def status_badge(self, order):
+        colors = {
+            Order.OrderStatus.CONFIRMED: '#2e7d32',
+            Order.OrderStatus.PENDING: '#b26a00',
+            Order.OrderStatus.PROCESSING: '#1565c0',
+            Order.OrderStatus.ERROR: '#c62828',
+            Order.OrderStatus.REFUNDED: '#6a1b9a',
+        }
+        return format_html(
+            '<span style="color: {}; font-weight: bold">{}</span>',
+            colors.get(order.status, 'inherit'), order.get_status_display(),
+        )
+
+    @admin.display(description='Bonos dirigidos')
+    def direct_ticket_templates_display(self, order):
+        templates = order.direct_ticket_templates.all()
+        if not templates:
+            return '-'
+        return format_html_join(
+            format_html('<br>'), '<a href="{}">{}</a> ({})',
+            ((reverse('admin:tickets_directtickettemplate_change', args=[t.pk]), t.name, t.get_origin_display())
+             for t in templates),
         )
 
 
