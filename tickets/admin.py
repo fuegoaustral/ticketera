@@ -217,7 +217,9 @@ def admin_direct_tickets_view(request, event_id=None):
             direct_tickets = DirectTicketTemplate.objects.filter(event_id=default_event.id)
             ticket_type = TicketType.objects.filter(event_id=default_event.id, is_direct_type=True).first()
         elif action == 'assign':
-            new_order_id, error = _assign_direct_ticket_template(request.POST.get('template_id'), request.user)
+            new_order_id, error = _assign_direct_ticket_template(
+                request.POST.get('template_id'), request.POST.get('quantity'), request.user,
+            )
             if new_order_id:
                 return redirect('admin_direct_tickets_congrats_view', new_order_id=new_order_id)
             messages.error(request, error)
@@ -236,7 +238,7 @@ def admin_direct_tickets_view(request, event_id=None):
 
 
 def _attach_direct_ticket_users(templates):
-    """Agrega `assign_user` a cada bono dirigido: la cuenta de su email (principal o secundario), o None."""
+    """Agrega a cada bono dirigido `assign_user` (la cuenta de su email, principal o secundario, o None) y `available`."""
     emails = {t.email.strip().lower() for t in templates if t.email}
     users_by_email = {}
     if emails:
@@ -246,16 +248,30 @@ def _attach_direct_ticket_users(templates):
             users_by_email.setdefault(address.email.lower(), address.user)
     for template in templates:
         template.assign_user = users_by_email.get((template.email or '').strip().lower())
+        template.available = template.amount - (template.amount_used or 0)
 
 
-def _assign_direct_ticket_template(template_id, request_user):
-    """Asigna todos los bonos de un dirigido a la cuenta de su email. Devuelve (order_id, None) o (None, error)."""
+def _assign_direct_ticket_template(template_id, quantity, request_user):
+    """Asigna `quantity` bonos (parte o totalidad) de un dirigido a la cuenta de su email.
+
+    Devuelve (order_id, None) o (None, error).
+    """
+    try:
+        quantity = int(quantity)
+    except (TypeError, ValueError):
+        return None, 'La cantidad tiene que ser un número.'
+    if quantity < 1:
+        return None, 'La cantidad tiene que ser al menos 1.'
+
     with transaction.atomic():
         template = DirectTicketTemplate.objects.select_for_update().filter(id=template_id).first()
         if template is None:
             return None, 'El bono dirigido no existe.'
-        if template.status != DirectTicketTemplateStatus.AVAILABLE:
-            return None, f'"{template.name}" ya fue asignado.'
+        available = template.amount - (template.amount_used or 0)
+        if available <= 0:
+            return None, f'"{template.name}" ya no tiene bonos disponibles.'
+        if quantity > available:
+            return None, f'"{template.name}": la cantidad excede el máximo disponible ({available}).'
 
         user = template.get_user()
         if user is None:
@@ -269,7 +285,7 @@ def _assign_direct_ticket_template(template_id, request_user):
                 'id': template.id,
                 'name': template.name,
                 'origin': template.origin,
-                'amount': template.amount,
+                'amount': quantity,
                 'event_id': template.event_id,
             }],
             Order.OrderType.OTHER,

@@ -303,7 +303,7 @@ class DirectTicketTemplateTest(TestCase):
     @patch('utils.direct_sales.send_mail')
     def test_assign_by_click_via_secondary_email(self, _send_mail):
         template = self.template('laura@gmail.com', amount=3)
-        response = self.client.post(reverse('admin_direct_tickets_view'), {'action': 'assign', 'template_id': template.id})
+        response = self.client.post(reverse('admin_direct_tickets_view'), {'action': 'assign', 'template_id': template.id, 'quantity': template.amount})
         template.refresh_from_db()
         self.assertRedirects(response, reverse('admin_direct_tickets_congrats_view', args=[template.order_id]),
                              fetch_redirect_response=False)
@@ -313,20 +313,51 @@ class DirectTicketTemplateTest(TestCase):
         self.assertEqual(template.order.order_type, Order.OrderType.OTHER)
         self.assertEqual(NewTicket.objects.filter(order=template.order, holder=self.laura).count(), 3)
 
+    def assign(self, template, quantity):
+        return self.client.post(reverse('admin_direct_tickets_view'),
+                                {'action': 'assign', 'template_id': template.id, 'quantity': quantity})
+
     @patch('utils.direct_sales.send_mail')
     def test_assign_twice_does_not_duplicate(self, _send_mail):
         template = self.template('laura@hotmail.com', amount=2)
-        url = reverse('admin_direct_tickets_view')
-        self.client.post(url, {'action': 'assign', 'template_id': template.id})
-        self.client.post(url, {'action': 'assign', 'template_id': template.id})
+        self.assign(template, 2)
+        self.assign(template, 2)
         self.assertEqual(NewTicket.objects.filter(holder=self.laura).count(), 2)
+
+    @patch('utils.direct_sales.send_mail')
+    def test_partial_assignments_accumulate(self, _send_mail):
+        template = self.template('laura@hotmail.com', amount=15)
+        self.assign(template, 5)
+        template.refresh_from_db()
+        self.assertEqual(template.amount_used, 5)
+        self.assign(template, 3)
+        template.refresh_from_db()
+        self.assertEqual(template.amount_used, 8)
+        self.assertEqual(NewTicket.objects.filter(holder=self.laura).count(), 8)
+        html = self.client.get(reverse('admin_direct_tickets_view')).content.decode()
+        self.assertIn('max="7" value="7"', html)
+
+    @patch('utils.direct_sales.send_mail')
+    def test_assign_more_than_available_is_rejected(self, _send_mail):
+        template = self.template('laura@hotmail.com', amount=4)
+        self.assign(template, 3)
+        for quantity in (2, 0, -1, 'abc'):
+            self.assign(template, quantity)
+        template.refresh_from_db()
+        self.assertEqual(template.amount_used, 3)
+        self.assign(template, 1)
+        template.refresh_from_db()
+        self.assertEqual(template.amount_used, 4)
+        self.assertEqual(NewTicket.objects.filter(holder=self.laura).count(), 4)
+        html = self.client.get(reverse('admin_direct_tickets_view')).content.decode()
+        self.assertNotIn('btn-assign', html.split('<tbody', 1)[1].split('</tbody>', 1)[0])
 
     @patch('utils.direct_sales.send_mail')
     def test_assign_without_account_is_blocked(self, _send_mail):
         template = self.DirectTicketTemplate.objects.create(  # dirigido viejo, creado antes de la validación
             origin='ARTE', name='ARTE - Viejo', amount=1, email='nadie@example.com', event=self.event,
         )
-        response = self.client.post(reverse('admin_direct_tickets_view'), {'action': 'assign', 'template_id': template.id})
+        response = self.client.post(reverse('admin_direct_tickets_view'), {'action': 'assign', 'template_id': template.id, 'quantity': template.amount})
         self.assertRedirects(response, reverse('admin_direct_tickets_view'), fetch_redirect_response=False)
         template.refresh_from_db()
         self.assertEqual(template.status, 'AVAILABLE')
@@ -338,7 +369,7 @@ class DirectTicketTemplateTest(TestCase):
         self.laura.profile.profile_completion = Profile.NONE
         self.laura.profile.save()
         template = self.template('laura@hotmail.com')
-        self.client.post(reverse('admin_direct_tickets_view'), {'action': 'assign', 'template_id': template.id})
+        self.client.post(reverse('admin_direct_tickets_view'), {'action': 'assign', 'template_id': template.id, 'quantity': template.amount})
         template.refresh_from_db()
         self.assertEqual(template.status, 'AVAILABLE')
 

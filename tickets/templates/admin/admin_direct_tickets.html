@@ -75,6 +75,18 @@
             font-weight: bold;
         }
 
+        .assign-cell {
+            white-space: nowrap;
+        }
+
+        .assign-quantity {
+            width: 52px;
+            padding: 3px 4px;
+            font-size: 11px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
         .btn-assign {
             padding: 4px 10px;
             font-size: 11px;
@@ -278,17 +290,25 @@
                                     <span class="account-ok" title="{{ ticket.assign_user.email }}">{{ ticket.assign_user.first_name }} {{ ticket.assign_user.last_name }}</span>
                                 {% endif %}
                             </td>
-                            <td>
-                                {% if ticket.status == 'AVAILABLE' %}
-                                    <button type="button"
-                                            class="btn btn-primary btn-assign"
-                                            data-id="{{ ticket.id }}"
-                                            data-name="{{ ticket.name }}"
-                                            data-amount="{{ ticket.amount }}"
-                                            data-user="{{ ticket.assign_user.email|default:'' }}"
-                                            {% if not ticket.assign_user or ticket.assign_user.profile.profile_completion != 'COMPLETE' %}disabled{% endif %}>
-                                        Asignar
-                                    </button>
+                            <td class="assign-cell">
+                                {% if ticket.available > 0 %}
+                                    {% if ticket.assign_user and ticket.assign_user.profile.profile_completion == 'COMPLETE' %}
+                                        <input type="number"
+                                               class="assign-quantity"
+                                               id="assign-quantity-{{ ticket.id }}"
+                                               min="1" max="{{ ticket.available }}" value="{{ ticket.available }}"
+                                               title="Cantidad a asignar (máximo {{ ticket.available }})">
+                                        <button type="button"
+                                                class="btn btn-primary btn-assign"
+                                                data-id="{{ ticket.id }}"
+                                                data-name="{{ ticket.name }}"
+                                                data-available="{{ ticket.available }}"
+                                                data-user="{{ ticket.assign_user.email }}">
+                                            Asignar
+                                        </button>
+                                    {% else %}
+                                        <button type="button" class="btn btn-primary btn-assign" disabled>Asignar</button>
+                                    {% endif %}
                                 {% endif %}
                             </td>
                         </tr>
@@ -307,6 +327,7 @@
                 {% csrf_token %}
                 <input type="hidden" name="action" value="assign"/>
                 <input type="hidden" name="template_id" id="assign-template-id"/>
+                <input type="hidden" name="quantity" id="assign-quantity"/>
             </form>
         {% else %}
             <div style="padding: 20px; text-align: center;">
@@ -345,17 +366,27 @@
             });
         }
 
-        // Asignar con un clic
+        // Asignar con un clic (parte o totalidad)
         const assignForm = document.getElementById('assign-form');
-        document.querySelectorAll('.btn-assign').forEach(function(button) {
+        document.querySelectorAll('.btn-assign[data-id]').forEach(function(button) {
             button.addEventListener('click', function() {
-                const amount = this.getAttribute('data-amount');
-                const message = `¿Asignar ${amount} bono${amount === '1' ? '' : 's'} de "${this.getAttribute('data-name')}" a ${this.getAttribute('data-user')}?`;
+                const id = this.getAttribute('data-id');
+                const available = parseInt(this.getAttribute('data-available'), 10);
+                const quantityInput = document.getElementById(`assign-quantity-${id}`);
+                const quantity = parseInt(quantityInput.value, 10);
+                if (!quantity || quantity < 1 || quantity > available) {
+                    alert(`La cantidad tiene que estar entre 1 y ${available}.`);
+                    quantityInput.focus();
+                    return;
+                }
+                const partial = quantity < available ? ` (de ${available} disponibles)` : '';
+                const message = `¿Asignar ${quantity} bono${quantity === 1 ? '' : 's'}${partial} de "${this.getAttribute('data-name')}" a ${this.getAttribute('data-user')}?`;
                 if (!confirm(message)) {
                     return;
                 }
                 document.querySelectorAll('.btn-assign').forEach(b => b.disabled = true);
-                document.getElementById('assign-template-id').value = this.getAttribute('data-id');
+                document.getElementById('assign-template-id').value = id;
+                document.getElementById('assign-quantity').value = quantity;
                 assignForm.submit();
             });
         });
