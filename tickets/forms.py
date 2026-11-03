@@ -285,8 +285,10 @@ class TicketPurchaseForm(BaseTicketForm):
         for field in ticket_fields:
             ticket_id = field.split('_')[-1]
             ticket = TicketType.objects.get(id=ticket_id)
-            ticket_quantity = cleaned_data.get(field, 0)
-            if 0 < ticket.ticket_count < ticket_quantity:
+            ticket_quantity = cleaned_data.get(field) or 0
+            if ticket_quantity < 0:
+                raise ValidationError(f'La cantidad de {ticket.name} no puede ser negativa.')
+            if ticket.ticket_count is not None and 0 < ticket.ticket_count < ticket_quantity:
                 raise ValidationError(f'No hay suficientes tickets de tipo {ticket.name}.')
             total_tickets += ticket_quantity
 

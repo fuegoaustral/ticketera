@@ -384,3 +384,100 @@ class DirectTicketTemplateTest(TestCase):
         self.assertEqual(html.count('btn-assign"'), 2)
         self.assertNotIn('name="user_email"', html)
         self.assertIn("document.documentElement.dataset.theme = 'light'", html)
+
+
+class AdminCajaTest(TestCase):
+    """/admin/caja/: búsqueda de cuentas y emisión a la cuenta elegida."""
+
+    def setUp(self):
+        from allauth.account.models import EmailAddress
+
+        now = timezone.now()
+        Event.objects.update(is_main=False, active=False)
+        self.event = Event.objects.create(
+            name='Gualicho', slug='gualicho', active=True, is_main=True,
+            start=now + timedelta(days=20), end=now + timedelta(days=24),
+            transfers_enabled_until=now + timedelta(days=10), header_image='events/heros/no-image.jpg',
+            title='Gualicho', description='Evento', max_tickets=100,
+        )
+        self.ticket_type = TicketType.objects.create(event=self.event, name='General', price=1000, ticket_count=None)
+        self.laura = User.objects.create_user(
+            username='laura', email='laura@hotmail.com', first_name='Laura', last_name='Chávez',
+        )
+        self.laura.profile.document_number = '30.456.789'
+        self.laura.profile.phone = '+5491155554444'
+        self.laura.profile.nickname = 'Lau'
+        self.laura.profile.profile_completion = Profile.COMPLETE
+        self.laura.profile.save()
+        EmailAddress.objects.create(user=self.laura, email='laura@hotmail.com', verified=True, primary=True)
+        EmailAddress.objects.create(user=self.laura, email='lau.secundario@gmail.com', verified=True, primary=False)
+        self.pedro = User.objects.create_user(username='pedro', email='pedro@example.com', first_name='Pedro', last_name='Laurenti')
+
+        self.staff = User.objects.create_user(username='staff', email='staff@example.com', is_staff=True)
+        self.staff.user_permissions.add(Permission.objects.get(codename='can_sell_tickets'))
+        self.client.force_login(self.staff)
+
+    def search(self, q):
+        resp = self.client.get(reverse('admin_caja_user_search'), {'q': q, 'event': self.event.id})
+        self.assertEqual(resp.status_code, 200)
+        return resp.json()['results']
+
+    def test_search_by_each_field(self):
+        for q in ['laura', 'CHÁVEZ', 'lau.secundario', 'hotmail', '30456789', '30.456', '5555444', 'Lau']:
+            ids = [r['id'] for r in self.search(q)]
+            self.assertIn(self.laura.id, ids, q)
+
+    def test_search_combines_terms(self):
+        self.assertEqual({r['id'] for r in self.search('lau')}, {self.laura.id, self.pedro.id})
+        self.assertEqual([r['id'] for r in self.search('lau 30456')], [self.laura.id])
+
+    def test_search_reports_profile_and_tickets(self):
+        order = Order.objects.create(
+            first_name='Laura', last_name='Chávez', email='laura@hotmail.com', phone='1', dni='1',
+            amount=0, status=Order.OrderStatus.CONFIRMED, event=self.event, user=self.laura,
+        )
+        NewTicket.objects.create(event=self.event, ticket_type=self.ticket_type, order=order, owner=self.laura, holder=self.laura)
+        results = {r['id']: r for r in self.search('lau')}
+        self.assertTrue(results[self.laura.id]['profile_complete'])
+        self.assertEqual(results[self.laura.id]['tickets_in_event'], 1)
+        self.assertIn('lau.secundario@gmail.com', results[self.laura.id]['emails'])
+        self.assertFalse(results[self.pedro.id]['profile_complete'])
+
+    @patch('tickets.models.Order.send_confirmation_email')
+    def test_emit_to_selected_user_does_not_create_account(self, _send):
+        users_before = User.objects.count()
+        resp = self.client.post(reverse('admin_caja_view'), {
+            'action': 'order', 'event_id': self.event.id, 'user_id': self.laura.id,
+            'order_type': Order.OrderType.CASH_ONSITE, f'ticket_quantity_{self.ticket_type.id}': 2,
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(User.objects.count(), users_before)
+        order = Order.objects.get(user=self.laura)
+        self.assertEqual(order.event, self.event)
+        self.assertEqual(order.amount, 2000)
+        self.assertEqual(NewTicket.objects.filter(order=order).count(), 2)
+
+    def test_emit_rejects_incomplete_profile(self):
+        resp = self.client.post(reverse('admin_caja_view'), {
+            'action': 'order', 'event_id': self.event.id, 'user_id': self.pedro.id,
+            'order_type': Order.OrderType.CASH_ONSITE, f'ticket_quantity_{self.ticket_type.id}': 1,
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(Order.objects.filter(user=self.pedro).exists())
+
+    def test_new_user_with_existing_secondary_email_is_rejected(self):
+        users_before = User.objects.count()
+        resp = self.client.post(reverse('admin_caja_view'), {
+            'action': 'order', 'event_id': self.event.id, 'email': 'lau.secundario@gmail.com',
+            'first_name': 'Laura', 'last_name': 'X', 'document_type': 'DNI', 'document_number': '1',
+            'phone': '+5491100000000', 'order_type': Order.OrderType.CASH_ONSITE,
+            f'ticket_quantity_{self.ticket_type.id}': 1,
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Ya existe una cuenta con ese email')
+        self.assertEqual(User.objects.count(), users_before)
+
+    def test_page_renders(self):
+        resp = self.client.get(reverse('admin_caja_view'), {'event': self.event.id})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'user-search')
