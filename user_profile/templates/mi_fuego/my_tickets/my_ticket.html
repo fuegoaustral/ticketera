@@ -790,6 +790,22 @@
             currentTicketKey = ticketId;
         }
 
+        // Links directos desde el mail: ?bono=<key> lleva a ese bono, &transferir=1 abre el modal de transferencia.
+        document.addEventListener('DOMContentLoaded', function () {
+            const params = new URLSearchParams(window.location.search);
+            const bonoKey = params.get('bono');
+            if (!bonoKey) return;
+            const card = document.querySelector(`.card[data-ticket-key="${CSS.escape(bonoKey)}"]`);
+            if (!card) return;
+            card.scrollIntoView({behavior: 'smooth', block: 'center'});
+            card.style.boxShadow = '0 0 0 3px #f0ad4e';
+            setTimeout(() => { card.style.boxShadow = ''; }, 4000);
+            if (params.get('transferir') === '1') {
+                const transferButton = card.querySelector('button[data-bs-target="#transferModal"]');
+                if (transferButton) transferButton.click();
+            }
+        });
+
         let pendingUnassignTicketKey = null;
 
         function doUnassignTicket(ticketKey) {
