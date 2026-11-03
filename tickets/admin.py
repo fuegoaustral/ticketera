@@ -4,7 +4,7 @@ from urllib.parse import urlencode
 
 from allauth.account.forms import ResetPasswordForm
 from allauth.account.models import EmailAddress
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import permission_required
 from django.contrib.auth.models import User
@@ -18,6 +18,7 @@ from import_export.admin import ImportExportModelAdmin, ExportActionMixin, Expor
 
 from deprepagos import settings
 from events.models import Event
+from user_profile.models import Profile
 from utils.direct_sales import direct_sales_existing_user, direct_sales_new_user
 from .forms import TicketPurchaseForm
 from .models import TicketType, Order, OrderTicket, NewTicket, NewTicketTransfer, DirectTicketTemplate, \
@@ -215,36 +216,17 @@ def admin_direct_tickets_view(request, event_id=None):
             default_event = Event.objects.get(id=selected_event_id)
             direct_tickets = DirectTicketTemplate.objects.filter(event_id=default_event.id)
             ticket_type = TicketType.objects.filter(event_id=default_event.id, is_direct_type=True).first()
-        elif action == 'redeem':
-            # Procesar redención de bonos
-            template_id = request.POST.get('template_id')
-            quantity = int(request.POST.get('quantity', 0))
-            user_email = request.POST.get('user_email', '').lower()
-            notes = request.POST.get('notes', '')
-            order_type = request.POST.get('order_type', 'CASH_ONSITE')
-            
-            if template_id and quantity > 0 and user_email:
-                template = DirectTicketTemplate.objects.get(id=template_id)
-                available = template.amount - (template.amount_used or 0)
-                if quantity > available:
-                    return HttpResponse(f'La cantidad excede el máximo disponible ({available} bonos disponibles)', status=400)
-                
-                user = User.objects.filter(email=user_email).first()
-                
-                template_tickets = [{
-                    'id': template.id,
-                    'name': template.name,
-                    'origin': template.origin,
-                    'amount': quantity,
-                    'event_id': template.event.id
-                }]
-                
-                if user:
-                    new_order_id = direct_sales_existing_user(user, template_tickets, order_type, notes, request.user)
-                else:
-                    new_order_id = direct_sales_new_user(user_email, template_tickets, order_type, notes, request.user)
-                
+        elif action == 'assign':
+            new_order_id, error = _assign_direct_ticket_template(
+                request.POST.get('template_id'), request.POST.get('quantity'), request.user,
+            )
+            if new_order_id:
                 return redirect('admin_direct_tickets_congrats_view', new_order_id=new_order_id)
+            messages.error(request, error)
+            return redirect('admin_direct_tickets_view')
+
+    direct_tickets = list(direct_tickets.order_by('name'))
+    _attach_direct_ticket_users(direct_tickets)
 
     context = {
         'events': events,
@@ -253,6 +235,64 @@ def admin_direct_tickets_view(request, event_id=None):
         'ticket_type': ticket_type,
     }
     return render(request, 'admin/admin_direct_tickets.html', context)
+
+
+def _attach_direct_ticket_users(templates):
+    """Agrega a cada bono dirigido `assign_user` (la cuenta de su email, principal o secundario, o None) y `available`."""
+    emails = {t.email.strip().lower() for t in templates if t.email}
+    users_by_email = {}
+    if emails:
+        for user in User.objects.filter(email__in=emails).select_related('profile'):
+            users_by_email[user.email.lower()] = user
+        for address in EmailAddress.objects.filter(email__in=emails).select_related('user__profile'):
+            users_by_email.setdefault(address.email.lower(), address.user)
+    for template in templates:
+        template.assign_user = users_by_email.get((template.email or '').strip().lower())
+        template.available = template.amount - (template.amount_used or 0)
+
+
+def _assign_direct_ticket_template(template_id, quantity, request_user):
+    """Asigna `quantity` bonos (parte o totalidad) de un dirigido a la cuenta de su email.
+
+    Devuelve (order_id, None) o (None, error).
+    """
+    try:
+        quantity = int(quantity)
+    except (TypeError, ValueError):
+        return None, 'La cantidad tiene que ser un número.'
+    if quantity < 1:
+        return None, 'La cantidad tiene que ser al menos 1.'
+
+    with transaction.atomic():
+        template = DirectTicketTemplate.objects.select_for_update().filter(id=template_id).first()
+        if template is None:
+            return None, 'El bono dirigido no existe.'
+        available = template.amount - (template.amount_used or 0)
+        if available <= 0:
+            return None, f'"{template.name}" ya no tiene bonos disponibles.'
+        if quantity > available:
+            return None, f'"{template.name}": la cantidad excede el máximo disponible ({available}).'
+
+        user = template.get_user()
+        if user is None:
+            return None, f'"{template.name}": no existe ninguna cuenta con el email {template.email or "(vacío)"}.'
+        if user.profile.profile_completion != Profile.COMPLETE:
+            return None, f'"{template.name}": la cuenta {user.email} todavía no completó su perfil.'
+
+        new_order_id = direct_sales_existing_user(
+            user,
+            [{
+                'id': template.id,
+                'name': template.name,
+                'origin': template.origin,
+                'amount': quantity,
+                'event_id': template.event_id,
+            }],
+            Order.OrderType.OTHER,
+            f'Bono dirigido: {template.name}',
+            request_user,
+        )
+    return new_order_id, None
 
 
 @staff_member_required
@@ -334,13 +374,15 @@ class DirectTicketTemplateImportResource(resources.ModelResource):
         fields = ['origin', 'name', 'amount', 'email']
         exclude = ('id')
         force_init_instance = True
+        # Corre DirectTicketTemplate.clean(): rechaza filas cuyo email no tiene cuenta.
+        clean_model_instances = True
 
     def __init__(self, *args, event=None, **kwargs):
         super().__init__(*args, **kwargs)
-        if event:
-            self.event = event
+        self.event = event
 
-    def before_save_instance(self, instance, row, **kwargs):
+    def after_init_instance(self, instance, new, row, **kwargs):
+        # Se asigna antes de validar, para que full_clean() no falle por evento vacío.
         instance.event = self.event
 
 

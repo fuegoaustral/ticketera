@@ -2,6 +2,7 @@
 {% load static %}
 
 {% block extrahead %}
+    {{ block.super }}
     <style>
         .container {
             max-width: 1200px;
@@ -56,16 +57,41 @@
             font-size: 11px;
         }
 
-        .tickets-table tbody tr {
-            cursor: pointer;
-        }
-
         .tickets-table tbody tr:hover {
             background-color: #f5f5f5;
         }
 
-        .tickets-table tbody tr.selected {
-            background-color: #e3f2fd;
+        .account-ok {
+            color: #2e7d32;
+        }
+
+        .account-warning {
+            color: #b26a00;
+            font-weight: bold;
+        }
+
+        .account-missing {
+            color: #c62828;
+            font-weight: bold;
+        }
+
+        .assign-cell {
+            white-space: nowrap;
+        }
+
+        .assign-quantity {
+            width: 52px;
+            padding: 3px 4px;
+            font-size: 11px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .btn-assign {
+            padding: 4px 10px;
+            font-size: 11px;
+            margin-top: 0;
+            white-space: nowrap;
         }
 
         .tickets-table tbody tr.hidden {
@@ -215,6 +241,8 @@
                             <th>Amount</th>
                             <th>Used</th>
                             <th>Status</th>
+                            <th>Cuenta</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody id="tickets-tbody">
@@ -253,10 +281,40 @@
                                     {{ ticket.get_status_display }}
                                 </span>
                             </td>
+                            <td style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                {% if not ticket.assign_user %}
+                                    <span class="account-missing" title="No hay ninguna cuenta con este email">Sin cuenta</span>
+                                {% elif ticket.assign_user.profile.profile_completion != 'COMPLETE' %}
+                                    <span class="account-warning" title="{{ ticket.assign_user.email }}">Perfil incompleto</span>
+                                {% else %}
+                                    <span class="account-ok" title="{{ ticket.assign_user.email }}">{{ ticket.assign_user.first_name }} {{ ticket.assign_user.last_name }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="assign-cell">
+                                {% if ticket.available > 0 %}
+                                    {% if ticket.assign_user and ticket.assign_user.profile.profile_completion == 'COMPLETE' %}
+                                        <input type="number"
+                                               class="assign-quantity"
+                                               id="assign-quantity-{{ ticket.id }}"
+                                               min="1" max="{{ ticket.available }}" value="{{ ticket.available }}"
+                                               title="Cantidad a asignar (máximo {{ ticket.available }})">
+                                        <button type="button"
+                                                class="btn btn-primary btn-assign"
+                                                data-id="{{ ticket.id }}"
+                                                data-name="{{ ticket.name }}"
+                                                data-available="{{ ticket.available }}"
+                                                data-user="{{ ticket.assign_user.email }}">
+                                            Asignar
+                                        </button>
+                                    {% else %}
+                                        <button type="button" class="btn btn-primary btn-assign" disabled>Asignar</button>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="6" style="text-align: center; padding: 20px;">
+                            <td colspan="8" style="text-align: center; padding: 20px;">
                                 No hay bonos dirigidos para este evento.
                             </td>
                         </tr>
@@ -265,62 +323,12 @@
                 </table>
             </div>
 
-            <!-- Formulario de redención -->
-            <div id="redemption-form" class="redemption-form">
-                <h2>Redimir Bono Dirigido</h2>
-                <form method="post" id="redeem-form">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="redeem"/>
-                    <input type="hidden" name="template_id" id="template_id"/>
-                    
-                    <div class="form-group">
-                        <label>Bono seleccionado:</label>
-                        <div id="selected-ticket-info" style="padding: 10px; background-color: #f5f5f5; border-radius: 4px;"></div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="user_email">Email del usuario:</label>
-                        <input type="email" name="user_email" id="user_email" required readonly/>
-                        <button type="button" id="check-user-btn" class="btn btn-primary" style="margin-top: 5px;">Buscar Usuario</button>
-                    </div>
-
-                    <div id="user-info" class="user-info" style="display: none;">
-                        <p><strong>Usuario encontrado:</strong></p>
-                        <p><strong>Nombre:</strong> <span id="user-name"></span></p>
-                        <p><strong>DNI:</strong> <span id="user-dni"></span></p>
-                        <p><strong>Emails asociados:</strong></p>
-                        <ul id="user-emails" style="margin: 5px 0; padding-left: 20px;"></ul>
-                    </div>
-
-                    <div id="user-not-found" style="display: none; padding: 10px; background-color: #fff3cd; border-radius: 4px; margin-top: 10px;">
-                        <p>Usuario no encontrado. Por favor ingrese el email de un usuario de la ticketera.</p>
-                        <input type="email" id="manual-email" placeholder="Email del usuario" style="width: 100%; margin-top: 10px;"/>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="quantity">Cantidad de bonos a redimir:</label>
-                        <input type="number" name="quantity" id="quantity" min="1" required/>
-                        <small id="max-quantity-info" style="display: block; margin-top: 5px; color: #666;"></small>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="order_type">Tipo de orden:</label>
-                        <select name="order_type" id="order_type" required>
-                            <option value="CASH_ONSITE">Compra en efectivo</option>
-                            <option value="LOCAL_TRANSFER">Transferencia local</option>
-                            <option value="INTERNATIONAL_TRANSFER">Transferencia internacional</option>
-                            <option value="OTHER">Otros</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="notes">Notas:</label>
-                        <textarea name="notes" id="notes" rows="3"></textarea>
-                    </div>
-
-                    <button type="submit" class="btn btn-primary" id="redeem-btn" disabled>Redimir Bonos</button>
-                </form>
-            </div>
+            <form method="post" id="assign-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="assign"/>
+                <input type="hidden" name="template_id" id="assign-template-id"/>
+                <input type="hidden" name="quantity" id="assign-quantity"/>
+            </form>
         {% else %}
             <div style="padding: 20px; text-align: center;">
                 <p>Por favor selecciona un evento para ver los bonos dirigidos.</p>
@@ -331,24 +339,12 @@
     <script>
         const filterInput = document.getElementById('ticket-filter');
         const ticketRows = document.querySelectorAll('.ticket-row');
-        const redemptionForm = document.getElementById('redemption-form');
-        const selectedTicketInfo = document.getElementById('selected-ticket-info');
-        const templateIdInput = document.getElementById('template_id');
-        const userEmailInput = document.getElementById('user_email');
-        const checkUserBtn = document.getElementById('check-user-btn');
-        const userInfo = document.getElementById('user-info');
-        const userNotFound = document.getElementById('user-not-found');
-        const manualEmailInput = document.getElementById('manual-email');
-        const quantityInput = document.getElementById('quantity');
-        const maxQuantityInfo = document.getElementById('max-quantity-info');
-        const redeemBtn = document.getElementById('redeem-btn');
-        let selectedTicket = null;
 
         // Filtro de búsqueda
         if (filterInput) {
             filterInput.addEventListener('input', function() {
                 const filterValue = this.value.toLowerCase().trim();
-                
+
                 ticketRows.forEach(function(row) {
                     const searchableText = [
                         row.getAttribute('data-id'),
@@ -360,7 +356,7 @@
                         row.getAttribute('data-status'),
                         row.getAttribute('data-event')
                     ].join(' ').toLowerCase();
-                    
+
                     if (filterValue === '' || searchableText.includes(filterValue)) {
                         row.classList.remove('hidden');
                     } else {
@@ -370,140 +366,29 @@
             });
         }
 
-        // Selección de bono
-        ticketRows.forEach(function(row) {
-            row.addEventListener('click', function() {
-                // Remover selección anterior
-                ticketRows.forEach(r => r.classList.remove('selected'));
-                
-                // Seleccionar nueva fila
-                this.classList.add('selected');
-                
-                // Obtener datos del bono
-                selectedTicket = {
-                    id: this.getAttribute('data-id'),
-                    origin: this.getAttribute('data-origin'),
-                    name: this.getAttribute('data-name'),
-                    email: this.getAttribute('data-email'),
-                    amount: parseInt(this.getAttribute('data-amount')),
-                    amountUsed: parseInt(this.getAttribute('data-amount-used')),
-                    available: parseInt(this.getAttribute('data-amount')) - parseInt(this.getAttribute('data-amount-used'))
-                };
-
-                // Mostrar formulario
-                selectedTicketInfo.innerHTML = `
-                    <strong>${selectedTicket.name}</strong><br>
-                    Origin: ${selectedTicket.origin}<br>
-                    Email asociado: ${selectedTicket.email || 'No tiene email'}<br>
-                    Disponible: ${selectedTicket.available} bonos
-                `;
-                
-                templateIdInput.value = selectedTicket.id;
-                userEmailInput.value = selectedTicket.email || '';
-                quantityInput.max = selectedTicket.available;
-                quantityInput.value = '';
-                maxQuantityInfo.textContent = `Máximo disponible: ${selectedTicket.available} bonos`;
-                
-                // Resetear formulario
-                userInfo.style.display = 'none';
-                userNotFound.style.display = 'none';
-                manualEmailInput.value = '';
-                redeemBtn.disabled = true;
-                
-                redemptionForm.classList.add('active');
-            });
-        });
-
-        // Buscar usuario
-        if (checkUserBtn) {
-            checkUserBtn.addEventListener('click', async function() {
-                const email = userEmailInput.value.toLowerCase().trim();
-                
-                if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                    alert('Por favor ingrese un email válido');
+        // Asignar con un clic (parte o totalidad)
+        const assignForm = document.getElementById('assign-form');
+        document.querySelectorAll('.btn-assign[data-id]').forEach(function(button) {
+            button.addEventListener('click', function() {
+                const id = this.getAttribute('data-id');
+                const available = parseInt(this.getAttribute('data-available'), 10);
+                const quantityInput = document.getElementById(`assign-quantity-${id}`);
+                const quantity = parseInt(quantityInput.value, 10);
+                if (!quantity || quantity < 1 || quantity > available) {
+                    alert(`La cantidad tiene que estar entre 1 y ${available}.`);
+                    quantityInput.focus();
                     return;
                 }
-
-                try {
-                    const response = await fetch('/admin/caja/email-has-account/', {
-                        method: 'POST',
-                        body: JSON.stringify({email}),
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': '{{ csrf_token }}',
-                        }
-                    });
-
-                    if (response.status === 200) {
-                        const data = await response.json();
-                        document.getElementById('user-name').textContent = `${data.first_name} ${data.last_name}`;
-                        document.getElementById('user-dni').textContent = `${data.document_type || 'DNI'}: ${data.document_number}`;
-                        
-                        // Display all emails
-                        const emailsList = document.getElementById('user-emails');
-                        emailsList.innerHTML = '';
-                        if (data.emails && data.emails.length > 0) {
-                            data.emails.forEach(function(email) {
-                                const li = document.createElement('li');
-                                li.textContent = email;
-                                emailsList.appendChild(li);
-                            });
-                        } else {
-                            const li = document.createElement('li');
-                            li.textContent = email; // Fallback to searched email
-                            emailsList.appendChild(li);
-                        }
-                        
-                        userInfo.style.display = 'block';
-                        userNotFound.style.display = 'none';
-                        manualEmailInput.value = '';
-                        redeemBtn.disabled = false;
-                    } else if (response.status === 204) {
-                        userInfo.style.display = 'none';
-                        userNotFound.style.display = 'block';
-                        manualEmailInput.value = email;
-                        manualEmailInput.addEventListener('input', function() {
-                            userEmailInput.value = this.value;
-                        });
-                        redeemBtn.disabled = false;
-                    } else if (response.status === 206) {
-                        alert('El email ingresado tiene una cuenta pero no tiene los datos completos. Debe completar el perfil antes de continuar');
-                        redeemBtn.disabled = true;
-                    }
-                } catch (e) {
-                    console.error(e);
-                    alert('Error al buscar usuario');
+                const partial = quantity < available ? ` (de ${available} disponibles)` : '';
+                const message = `¿Asignar ${quantity} bono${quantity === 1 ? '' : 's'}${partial} de "${this.getAttribute('data-name')}" a ${this.getAttribute('data-user')}?`;
+                if (!confirm(message)) {
+                    return;
                 }
+                document.querySelectorAll('.btn-assign').forEach(b => b.disabled = true);
+                document.getElementById('assign-template-id').value = id;
+                document.getElementById('assign-quantity').value = quantity;
+                assignForm.submit();
             });
-        }
-
-        // Validar cantidad
-        if (quantityInput) {
-            quantityInput.addEventListener('input', function() {
-                const quantity = parseInt(this.value) || 0;
-                const max = parseInt(this.max) || 0;
-                
-                if (quantity > max) {
-                    alert(`No puedes redimir más de ${max} bonos`);
-                    this.value = max;
-                }
-                
-                if (quantity > 0 && userEmailInput.value) {
-                    redeemBtn.disabled = false;
-                } else {
-                    redeemBtn.disabled = true;
-                }
-            });
-        }
-
-        // Validar email manual
-        if (manualEmailInput) {
-            manualEmailInput.addEventListener('input', function() {
-                userEmailInput.value = this.value;
-                if (this.value && quantityInput.value > 0) {
-                    redeemBtn.disabled = false;
-                }
-            });
-        }
+        });
     </script>
 {% endblock %}

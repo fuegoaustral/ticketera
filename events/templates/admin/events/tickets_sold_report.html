@@ -87,23 +87,20 @@
         color: var(--link-fg, #007cba);
     }
     
-    /* Dark theme compatibility */
-    @media (prefers-color-scheme: dark) {
-        .results th {
-            background-color: #2b2b2b;
-            color: #fff;
-        }
-        
-        /* Removed hover effect for better readability */
-        
-        .results th,
-        .results td {
-            border-bottom-color: #555;
-        }
-        
-        .results strong {
-            color: #4fc3f7;
-        }
+    /* Dark theme compatibility: el admin está forzado a modo claro (ver admin/base.html),
+       así que esto solo aplica si alguna vez se habilita data-theme="dark". */
+    html[data-theme="dark"] .results th {
+        background-color: #2b2b2b;
+        color: #fff;
+    }
+
+    html[data-theme="dark"] .results th,
+    html[data-theme="dark"] .results td {
+        border-bottom-color: #555;
+    }
+
+    html[data-theme="dark"] .results strong {
+        color: #4fc3f7;
     }
     
 </style>
