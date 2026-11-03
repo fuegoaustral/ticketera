@@ -3,7 +3,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include, re_path
 
-from tickets.admin import admin_caja_view, email_has_account, admin_caja_order_view, admin_direct_tickets_view, \
+from tickets.admin import admin_caja_view, admin_caja_user_search, email_has_account, admin_caja_order_view, admin_direct_tickets_view, \
     admin_direct_tickets_buyer_view, admin_direct_tickets_congrats_view
 from user_profile.admin_sede import admin_sede_home_view
 from user_profile.admin_sede_members import admin_sede_members_view, admin_sede_multiple_active_view
@@ -28,6 +28,7 @@ urlpatterns = [
 
     path('admin/caja/order/<str:order_key>/', admin_caja_order_view, name='admin_caja_order_view'),
     path('admin/caja/email-has-account/', email_has_account, name='email_has_account'),
+    path('admin/caja/buscar-usuarios/', admin_caja_user_search, name='admin_caja_user_search'),
 
     path('admin/direct_tickets/', admin_direct_tickets_view, name='admin_direct_tickets_view'),
     path('admin/direct_tickets/buyer/', admin_direct_tickets_buyer_view, name='admin_direct_tickets_buyer_view'),
