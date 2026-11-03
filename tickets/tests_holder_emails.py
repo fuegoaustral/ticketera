@@ -11,6 +11,12 @@ from tickets.views.send_holder_tickets_email import run_send_holder_tickets_emai
 from user_profile.models import Profile
 
 
+
+def _html(message):
+    # templated_email puede mandar el HTML como alternativa o directo en body (EmailMessage).
+    alternatives = getattr(message, 'alternatives', None)
+    return alternatives[0][0] if alternatives else message.body
+
 class HolderTicketsEmailTest(TestCase):
     """Eventos con cuenta obligatoria (FA, Abracadabra): sin PDF, links directos y transferir."""
 
@@ -46,7 +52,7 @@ class HolderTicketsEmailTest(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         message = mail.outbox[0]
         self.assertEqual(message.attachments, [])
-        html = message.alternatives[0][0] if message.alternatives else message.body
+        html = _html(message)
         base = '/mi-fuego/mis-bonos/fuego-austral/'
         self.assertIn(f'{base}?bono={self.mine.key}', html)
         self.assertIn(f'{base}?bono={self.guest.key}', html)
@@ -60,7 +66,7 @@ class HolderTicketsEmailTest(TestCase):
 
         run_send_holder_tickets_email(self.event, holder_user_id=self.user.id)
 
-        html = mail.outbox[0].alternatives[0][0] if mail.outbox[0].alternatives else mail.outbox[0].body
+        html = _html(mail.outbox[0])
         self.assertIn(f'?bono={self.guest.key}', html)
         self.assertNotIn('transferir=1', html)
 
