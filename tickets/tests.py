@@ -217,3 +217,139 @@ class TicketTypeCajaProductTest(TestCase):
         )
         record = EventProductStockRecord.objects.get(event_product=ticket_type.event_product)
         self.assertEqual(record.delta, 10)
+
+
+class DirectTicketTemplateTest(TestCase):
+    """Bonos dirigidos: solo para cuentas existentes, asignados con un clic."""
+
+    def setUp(self):
+        from allauth.account.models import EmailAddress
+        from tickets.models import DirectTicketTemplate
+
+        self.DirectTicketTemplate = DirectTicketTemplate
+        now = timezone.now()
+        Event.objects.update(is_main=False, active=False)
+        self.event = Event.objects.create(
+            name='Gualicho', slug='gualicho', active=True, is_main=True,
+            start=now + timedelta(days=20), end=now + timedelta(days=24),
+            transfers_enabled_until=now + timedelta(days=10), header_image='events/heros/no-image.jpg',
+            title='Gualicho', description='Evento', max_tickets=100,
+        )
+        self.ticket_type = TicketType.objects.create(
+            event=self.event, name='Bono dirigido', price=0,
+            is_direct_type=True, show_in_caja=False, ticket_count=None,
+        )
+        self.laura = User.objects.create_user(
+            username='laura', email='laura@hotmail.com', first_name='Laura', last_name='Ch',
+        )
+        self.laura.profile.document_number = '10000002'
+        self.laura.profile.phone = '+5491100000002'
+        self.laura.profile.profile_completion = Profile.COMPLETE
+        self.laura.profile.save()
+        EmailAddress.objects.create(user=self.laura, email='laura@gmail.com', verified=True, primary=False)
+
+        self.staff = User.objects.create_user(username='staff', email='staff@example.com', is_staff=True)
+        self.staff.user_permissions.add(Permission.objects.get(codename='can_sell_tickets'))
+        self.client.force_login(self.staff)
+
+    def template(self, email, amount=3):
+        return self.DirectTicketTemplate.objects.create(
+            origin='CAMP', name=f'CAMP - Test - {email}', amount=amount, email=email, event=self.event,
+        )
+
+    def test_clean_rejects_email_without_account(self):
+        from django.core.exceptions import ValidationError
+
+        template = self.DirectTicketTemplate(origin='CAMP', name='x', amount=1, email='nadie@example.com', event=self.event)
+        with self.assertRaises(ValidationError) as ctx:
+            template.full_clean()
+        self.assertIn('email', ctx.exception.message_dict)
+
+    def test_clean_rejects_blank_email(self):
+        from django.core.exceptions import ValidationError
+
+        template = self.DirectTicketTemplate(origin='CAMP', name='x', amount=1, email='', event=self.event)
+        with self.assertRaises(ValidationError):
+            template.full_clean()
+
+    def test_clean_accepts_primary_and_secondary_email(self):
+        for email in ('Laura@Hotmail.com', 'laura@gmail.com'):
+            template = self.DirectTicketTemplate(origin='CAMP', name='x', amount=1, email=email, event=self.event)
+            template.full_clean()
+            self.assertEqual(template.get_user(), self.laura)
+
+    def test_import_rejects_rows_without_account(self):
+        import tablib
+        from tickets.admin import DirectTicketTemplateImportResource
+
+        dataset = tablib.Dataset(headers=['origin', 'name', 'amount', 'email'])
+        dataset.append(['CAMP', 'CAMP - Ok', 2, 'laura@gmail.com'])
+        dataset.append(['ARTE', 'ARTE - Sin cuenta', 1, 'nadie@example.com'])
+        result = DirectTicketTemplateImportResource(event=self.event).import_data(dataset, dry_run=False)
+        self.assertTrue(result.has_validation_errors())
+        self.assertEqual([row.number for row in result.invalid_rows], [2])
+        self.assertFalse(self.DirectTicketTemplate.objects.filter(name='ARTE - Sin cuenta').exists())
+
+    def test_import_sets_event(self):
+        import tablib
+        from tickets.admin import DirectTicketTemplateImportResource
+
+        dataset = tablib.Dataset(headers=['origin', 'name', 'amount', 'email'])
+        dataset.append(['VOLUNTARIOS', 'Vol - Ranger - Laura', 1, 'laura@hotmail.com'])
+        result = DirectTicketTemplateImportResource(event=self.event).import_data(dataset, dry_run=False)
+        self.assertFalse(result.has_errors() or result.has_validation_errors())
+        self.assertEqual(self.DirectTicketTemplate.objects.get(name='Vol - Ranger - Laura').event, self.event)
+
+    @patch('utils.direct_sales.send_mail')
+    def test_assign_by_click_via_secondary_email(self, _send_mail):
+        template = self.template('laura@gmail.com', amount=3)
+        response = self.client.post(reverse('admin_direct_tickets_view'), {'action': 'assign', 'template_id': template.id})
+        template.refresh_from_db()
+        self.assertRedirects(response, reverse('admin_direct_tickets_congrats_view', args=[template.order_id]),
+                             fetch_redirect_response=False)
+        self.assertEqual(template.status, 'ASSIGNED')
+        self.assertEqual(template.amount_used, 3)
+        self.assertEqual(template.order.user, self.laura)
+        self.assertEqual(template.order.order_type, Order.OrderType.OTHER)
+        self.assertEqual(NewTicket.objects.filter(order=template.order, holder=self.laura).count(), 3)
+
+    @patch('utils.direct_sales.send_mail')
+    def test_assign_twice_does_not_duplicate(self, _send_mail):
+        template = self.template('laura@hotmail.com', amount=2)
+        url = reverse('admin_direct_tickets_view')
+        self.client.post(url, {'action': 'assign', 'template_id': template.id})
+        self.client.post(url, {'action': 'assign', 'template_id': template.id})
+        self.assertEqual(NewTicket.objects.filter(holder=self.laura).count(), 2)
+
+    @patch('utils.direct_sales.send_mail')
+    def test_assign_without_account_is_blocked(self, _send_mail):
+        template = self.DirectTicketTemplate.objects.create(  # dirigido viejo, creado antes de la validación
+            origin='ARTE', name='ARTE - Viejo', amount=1, email='nadie@example.com', event=self.event,
+        )
+        response = self.client.post(reverse('admin_direct_tickets_view'), {'action': 'assign', 'template_id': template.id})
+        self.assertRedirects(response, reverse('admin_direct_tickets_view'), fetch_redirect_response=False)
+        template.refresh_from_db()
+        self.assertEqual(template.status, 'AVAILABLE')
+        self.assertFalse(Order.objects.filter(email='nadie@example.com').exists())
+        _send_mail.assert_not_called()
+
+    @patch('utils.direct_sales.send_mail')
+    def test_assign_with_incomplete_profile_is_blocked(self, _send_mail):
+        self.laura.profile.profile_completion = Profile.NONE
+        self.laura.profile.save()
+        template = self.template('laura@hotmail.com')
+        self.client.post(reverse('admin_direct_tickets_view'), {'action': 'assign', 'template_id': template.id})
+        template.refresh_from_db()
+        self.assertEqual(template.status, 'AVAILABLE')
+
+    def test_list_shows_account_status_and_assign_button(self):
+        self.template('laura@gmail.com')
+        self.DirectTicketTemplate.objects.create(
+            origin='ARTE', name='ARTE - Viejo', amount=1, email='nadie@example.com', event=self.event,
+        )
+        html = self.client.get(reverse('admin_direct_tickets_view')).content.decode()
+        self.assertIn('Laura Ch', html)
+        self.assertIn('Sin cuenta', html)
+        self.assertEqual(html.count('btn-assign"'), 2)
+        self.assertNotIn('name="user_email"', html)
+        self.assertIn("document.documentElement.dataset.theme = 'light'", html)

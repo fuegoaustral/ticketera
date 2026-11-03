@@ -11,6 +11,7 @@ from auditlog.registry import auditlog
 from django.utils import timezone
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models, transaction
 from django.db.models import Count, Sum, Q, F
@@ -569,6 +570,20 @@ class DirectTicketTemplateStatus(models.TextChoices):
     ASSIGNED = 'ASSIGNED', 'Asignados'
 
 
+def find_user_by_email(email):
+    """Busca un usuario por su email principal o por cualquiera de sus emails de allauth."""
+    from allauth.account.models import EmailAddress
+
+    email = (email or '').strip()
+    if not email:
+        return None
+    user = User.objects.filter(email__iexact=email).first()
+    if user:
+        return user
+    email_address = EmailAddress.objects.filter(email__iexact=email).select_related('user').first()
+    return email_address.user if email_address else None
+
+
 class DirectTicketTemplate(BaseModel):
     origin = models.CharField(
         max_length=20,
@@ -594,6 +609,18 @@ class DirectTicketTemplate(BaseModel):
 
     def __str__(self):
         return f"{self.name} ({self.origin}) - {self.amount}"
+
+    def clean(self):
+        super().clean()
+        if self.email:
+            self.email = self.email.strip().lower()
+        if not self.email:
+            raise ValidationError({'email': 'El email es obligatorio: el bono se asigna a la cuenta con ese email.'})
+        if not find_user_by_email(self.email):
+            raise ValidationError({'email': f'No existe ninguna cuenta con el email {self.email}.'})
+
+    def get_user(self):
+        return find_user_by_email(self.email)
 
 
 auditlog.register(Coupon)
