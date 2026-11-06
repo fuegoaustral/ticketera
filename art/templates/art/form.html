@@ -20,7 +20,7 @@
     <header class="mt-3 mb-4">
         <p class="text-uppercase text-muted small fw-semibold mb-2">{{ program.event.name }}</p>
         <h2 class="h3 mb-2">Propuesta de Arte</h2>
-        <p class="text-muted mb-0">{% if can_edit_artwork %}Completá y modificá cada sección antes de su fecha límite.<br>No te olvides de “Guardar” cuando termines de editar.{% else %}Sos parte del equipo y podés ver la propuesta. Para editarla, pedile permiso a {{ artwork.owner.get_full_name|default:artwork.owner.email|default:'la persona responsable' }}.{% endif %}</p>
+        <p class="text-muted mb-0">{% if can_edit_artwork %}Cada sección tiene una fecha límite. Después de esa fecha no vas a poder cargarla ni modificarla.<br>No te olvides de “Guardar” cuando termines de editar.{% else %}Sos parte del equipo y podés ver la propuesta. Para editarla, pedile permiso a {{ artwork.owner.get_full_name|default:artwork.owner.email|default:'la persona responsable' }}.{% endif %}</p>
     </header>
 
     {% if artwork %}
@@ -33,7 +33,8 @@
 
     {% if not program.is_current %}<div class="alert alert-info">Esta edición es histórica. La información se conserva en modo consulta.</div>{% endif %}
 
-    <form id="artwork-form" method="post" enctype="multipart/form-data" novalidate>
+    {% comment %}La dirección va explícita: si un formulario en línea (equipo, fotos, archivos) vuelve con error, la página queda en su URL y "Guardar" tiene que seguir yendo a la propuesta.{% endcomment %}
+    <form id="artwork-form" method="post" action="{% if artwork %}{% url 'artwork_edit' artwork.pk %}{% else %}{% url 'artwork_create' program.event.slug %}{% endif %}" enctype="multipart/form-data" novalidate>
         {% csrf_token %}
         {{ form.expected_version }}
     </form>
@@ -101,7 +102,7 @@
 
         {% if not can_edit_artwork %}
         {% elif program.is_current or can_manage %}
-        <div class="save-bar d-flex flex-column flex-sm-row justify-content-between gap-2 py-3" data-sticky-actions>
+        <div class="save-bar d-flex justify-content-between align-items-center gap-2 py-3" data-sticky-actions>
             {% if can_manage and artwork and not acting_as_estafa %}<a class="btn btn-outline-secondary" href="{% url 'artwork_review' artwork.event.slug artwork.pk %}">Abrir en ESTAFA</a>{% else %}<span></span>{% endif %}
             <button class="btn btn-primary" type="submit" form="artwork-form" name="action" value="save">Guardar</button>
         </div>
@@ -165,56 +166,113 @@
         sync();
     });
 
-    // Lo que falta de cada paso se recuenta mientras se escribe, con las mismas reglas que al guardar.
+    // Cambios sin guardar en la propuesta. La beca muestra "Guardar primero", los pasos editados dicen
+    // "falta guardar" y, al recargar, salir o enviar otro formulario de la página (equipo, fotos, archivos,
+    // eliminar), el navegador avisa que se pierden. Enviar la propuesta misma no avisa.
     const artworkForm = document.getElementById('artwork-form');
+    const grantBox = document.querySelector('[data-grant-box]');
+    const dirtyListeners = [];
+    // Si volvió con errores, lo cargado todavía no se guardó.
+    const dirtyAtLoad = Boolean(document.querySelector('.error-summary'));
+    const editedSteps = new Set();
+    let artworkDirty = false;
+    const stepIsUnsaved = function (stepCard) {
+        return artworkDirty && (dirtyAtLoad || editedSteps.has(stepCard));
+    };
+    const setDirty = function (dirty) {
+        artworkDirty = dirty;
+        if (!dirty) editedSteps.clear();
+        if (grantBox) {
+            grantBox.querySelectorAll('[data-when-dirty]').forEach(function (element) { element.hidden = !dirty; });
+            grantBox.querySelectorAll('[data-when-clean]').forEach(function (element) { element.hidden = dirty; });
+        }
+    };
+    const updateDirty = function (dirty) {
+        setDirty(dirty);
+        dirtyListeners.forEach(function (listener) { listener(); });
+    };
+    if (artworkForm) {
+        const markDirty = function (event) {
+            if (event.target.form !== artworkForm) return;
+            const stepCard = event.target.closest('.step-card');
+            if (stepCard) editedSteps.add(stepCard);
+            updateDirty(true);
+        };
+        document.addEventListener('input', markDirty);
+        document.addEventListener('change', markDirty);
+        artworkForm.addEventListener('submit', function () { updateDirty(false); });
+        window.addEventListener('beforeunload', function (event) {
+            if (!artworkDirty) return;
+            event.preventDefault();
+            event.returnValue = '';
+        });
+    }
+
+    // Lo que falta de cada paso se recuenta mientras se escribe, con las mismas reglas que al guardar
+    // (FIELD_CHECKS en art/steps.py, que llegan en el JSON de cada paso). Un paso editado y sin guardar
+    // suma "falta guardar" a su estado.
     const joinLabels = function (labels) {
         return labels.length > 1 ? labels.slice(0, -1).join(', ') + ' y ' + labels[labels.length - 1] : labels.join('');
     };
     document.querySelectorAll('[data-step-status]').forEach(function (status) {
+        const stepCard = status.closest('.step-card');
+        if (!stepCard || !artworkForm) return;
         const rulesScript = document.getElementById(status.dataset.stepStatus + '-live-fields');
-        if (!rulesScript || !artworkForm) return;
-        const rules = JSON.parse(rulesScript.textContent);
+        const live = rulesScript && JSON.parse(rulesScript.textContent);
+        const savedHTML = status.innerHTML;
         const nextStep = document.querySelector('[data-next-step="' + status.dataset.stepStatus + '"]');
-        const filled = function (name) {
-            const field = artworkForm.elements[name];
-            return !field || Boolean((field.value || '').trim());
+        // Sin el campo en pantalla vale lo guardado. Un archivo cuenta si se eligió uno nuevo o si ya
+        // había uno y no se marcó para borrar; un interruptor, si está activo.
+        const filled = function (rule) {
+            const field = artworkForm.elements[rule.name];
+            if (!field) return rule.saved;
+            if (field.type === 'file') {
+                const clear = artworkForm.elements[rule.name + '-clear'];
+                return field.files.length > 0 || (rule.saved && !(clear && clear.checked));
+            }
+            if (field.type === 'checkbox') return field.checked;
+            return Boolean((field.value || '').trim());
         };
         const active = function (name) {
             const toggle = artworkForm.elements[name];
             return !toggle || toggle.checked;
         };
-        const render = function () {
-            const missing = rules
-                .filter(function (rule) { return (!rule.when || active(rule.when)) && !filled(rule.name); })
-                .map(function (rule) { return rule.label; });
+        const statusHTML = function (missing) {
             const count = missing.length;
-            status.innerHTML = count
-                ? '<span class="step-status is-todo"><i class="fas fa-circle-exclamation" aria-hidden="true"></i>' + (count === 1 ? 'Falta 1 campo' : 'Faltan ' + count + ' campos') + '<\/span>'
+            const unit = live.unit + (count === 1 ? '' : 's');
+            return count
+                ? '<span class="step-status is-todo"><i class="fas fa-circle-exclamation" aria-hidden="true"></i>' + (count === 1 ? 'Falta' : 'Faltan') + ' ' + count + ' ' + unit + '<\/span>'
                 : '<span class="step-status is-done"><i class="fas fa-circle-check" aria-hidden="true"></i>Completo<\/span>';
-            if (nextStep) {
-                nextStep.hidden = !count;
+        };
+        const render = function () {
+            let missing = null;
+            if (live) {
+                missing = live.rules
+                    .filter(function (rule) { return (!rule.when || active(rule.when)) && !filled(rule); })
+                    .map(function (rule) { return rule.label; })
+                    .concat(live.fixed);
+                status.innerHTML = statusHTML(missing);
+            } else {
+                status.innerHTML = savedHTML;
+            }
+            if (stepIsUnsaved(stepCard)) {
+                const badge = status.querySelector('.step-status');
+                if (badge) {
+                    badge.append(' · falta guardar');
+                } else {
+                    status.innerHTML = '<span class="step-status is-todo"><i class="fas fa-floppy-disk" aria-hidden="true"></i>Falta guardar<\/span>';
+                }
+            }
+            if (nextStep && missing) {
+                nextStep.hidden = !missing.length;
                 nextStep.querySelector('[data-next-missing]').textContent = joinLabels(missing.map(function (label) { return label.toLowerCase(); }));
             }
         };
-        const onEdit = function (event) { if (event.target.form === artworkForm) render(); };
-        document.addEventListener('input', onEdit);
-        document.addEventListener('change', onEdit);
+        // Recuenta al cambiar si hay algo sin guardar, que también llega con cada edición.
+        dirtyListeners.push(render);
     });
-
-    // Beca: con cambios sin guardar, primero se guarda; si no, el botón lleva directo.
-    const grantBox = document.querySelector('[data-grant-box]');
-    if (grantBox) {
-        const mainForm = document.getElementById('artwork-form');
-        const setDirty = function (dirty) {
-            grantBox.querySelectorAll('[data-when-dirty]').forEach(function (element) { element.hidden = !dirty; });
-            grantBox.querySelectorAll('[data-when-clean]').forEach(function (element) { element.hidden = dirty; });
-        };
-        // Si volvió con errores, lo cargado todavía no se guardó.
-        setDirty(Boolean(document.querySelector('.error-summary')));
-        const markDirty = function (event) { if (event.target.form === mainForm) setDirty(true); };
-        document.addEventListener('input', markDirty);
-        document.addEventListener('change', markDirty);
-    }
+    // Al cargar sólo se ajusta la beca; los pasos se recuentan recién con la primera edición.
+    setDirty(dirtyAtLoad);
 
     // Elegir archivos ya los sube: no hace falta otro botón.
     document.querySelectorAll('form[data-autosubmit]').forEach(function (form) {

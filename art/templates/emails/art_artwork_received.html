@@ -1,0 +1,8 @@
+{% extends "emails/base.html" %}
+{% block subject %}Recibimos tu Propuesta de Arte «{{ artwork.title|default:"sin título"|safe }}»{% endblock %}
+{% block title %}Recibimos tu inscripción{% endblock %}
+{% block content %}
+<p>Recibimos la inscripción de <strong>{{ artwork.title|default:"tu Propuesta de Arte" }}</strong> para {{ artwork.event.name }}.</p>
+<p>ESTAFA la va a revisar y te vamos a avisar por email cuando haya novedades. Mientras tanto, podés seguir editándola cuando quieras.</p>
+{% include "emails/partials/btn.html" with href=artwork_path label="Ver propuesta de Arte" %}
+{% endblock %}

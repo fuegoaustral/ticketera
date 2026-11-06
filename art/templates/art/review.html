@@ -70,7 +70,7 @@
             </details>
             {% endfor %}
         </div>
-        <form class="review-save" id="{{ form.FORM_ID }}" method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}
+        <form class="review-save" id="{{ form.FORM_ID }}" method="post" action="{% url 'artwork_review' artwork.event.slug artwork.pk %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
             {% for field in form.hidden_fields %}{{ field }}{% endfor %}
             <small class="text-muted">Guarda lo que completa ESTAFA en todas las secciones.</small>
             <button class="btn btn-primary" type="submit">Guardar cambios</button>

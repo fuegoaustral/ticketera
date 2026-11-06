@@ -9,6 +9,7 @@
     {% include 'art/_field.html' with field=form.dimensions %}
     {% include 'art/_field.html' with field=form.materials %}
     {% include 'art/_field.html' with field=form.technical_needs %}
+    {% include 'art/_field.html' with field=form.transport_plan %}
 </fieldset>
 <fieldset class="step-group">
     <legend>Sonido</legend>
@@ -39,6 +40,16 @@
         {% include 'art/_field.html' with field=form.burn_preferred_time %}
         {% include 'art/_field.html' with field=form.burn_company %}
     </div>
+</fieldset>
+<fieldset class="step-group">
+    <legend>Camp soporte</legend>
+    {% include 'art/_field.html' with field=form.wants_support_camp %}
+</fieldset>
+<fieldset class="step-group">
+    <legend>Movilidad (MAD)</legend>
+    <p class="form-text mt-0 mb-3">Si respondés que sí a alguna, MAD se va a poner en contacto con vos.</p>
+    {% include 'art/_field.html' with field=form.needs_mad_assistance %}
+    {% include 'art/_field.html' with field=form.has_own_mobility %}
 </fieldset>
 <fieldset class="step-group">
     <legend>Archivos</legend>

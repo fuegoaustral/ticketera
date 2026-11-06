@@ -110,11 +110,27 @@ def _send_status_email(artwork):
             context={
                 'artwork': artwork,
                 'approved': artwork.status == Artwork.Status.ACTIVE,
+                'reopened': artwork.status == Artwork.Status.PENDING,
+                'checkout_verified': artwork.status == Artwork.Status.CHECKOUT_VERIFIED,
                 'artwork_path': reverse('artwork_edit', args=[artwork.pk]),
             },
         )
     except Exception:
         logging.exception('No se pudo avisar el cambio de estado de la instalación %s', artwork.pk)
+
+
+def _send_artwork_received_email(artwork):
+    """Confirma a quien inscribe que la propuesta nueva llegó; solo al crearla."""
+    if not artwork.owner or not artwork.owner.email:
+        return
+    try:
+        send_mail(
+            template_name='art_artwork_received',
+            recipient_list=[artwork.owner.email],
+            context={'artwork': artwork, 'artwork_path': reverse('artwork_edit', args=[artwork.pk])},
+        )
+    except Exception:
+        logging.exception('No se pudo confirmar la inscripción de la instalación %s', artwork.pk)
 
 
 def _team_emails(artwork):
@@ -512,6 +528,7 @@ def artwork_create(request, event_slug):
             form.instance.submitted_at = timezone.now()
             artwork = form.save()
             _ensure_operations_group(artwork, program)
+            transaction.on_commit(lambda: _send_artwork_received_email(artwork))
         messages.success(
             request,
             'La propuesta de Arte quedó inscripta. Queda pendiente de aprobación por ESTAFA. '
@@ -1332,6 +1349,7 @@ def artwork_review(request, event_slug, artwork_id):
                     artwork.checkout_verified_by = request.user
                     if artwork.status != Artwork.Status.CHECKOUT_VERIFIED:
                         artwork.set_status(Artwork.Status.CHECKOUT_VERIFIED, request.user)
+                        transaction.on_commit(lambda: _send_status_email(artwork))
                 elif was_verified:
                     artwork.checkout_verified_by = None
                     if artwork.status == Artwork.Status.CHECKOUT_VERIFIED:
@@ -1399,13 +1417,12 @@ def artwork_status(request, event_slug, artwork_id):
         artwork.save(update_fields=['status', 'status_changed_at', 'status_changed_by', 'review_feedback', 'updated_at'])
         if status == Artwork.Status.ACTIVE:
             _ensure_operations_group(artwork, event.art_program)
-        if status != Artwork.Status.PENDING:
-            transaction.on_commit(lambda: _send_status_email(artwork))
+        transaction.on_commit(lambda: _send_status_email(artwork))
     title = artwork.title or 'Propuesta de Arte sin título'
     messages.success(request, {
         Artwork.Status.ACTIVE: f'Aprobaste «{title}». Le avisamos al equipo por email.',
         Artwork.Status.REJECTED: f'Rechazaste «{title}». Le avisamos al equipo por email.',
-        Artwork.Status.PENDING: f'«{title}» volvió a inscripción pendiente.',
+        Artwork.Status.PENDING: f'«{title}» volvió a inscripción pendiente. Le avisamos al equipo por email.',
     }[status])
     return redirect(next_url)
 
@@ -1421,6 +1438,7 @@ def art_admin_export(request, event_slug):
     writer = csv.writer(response)
     writer.writerow([
         'Propuesta de Arte', 'Modalidad', 'Responsable', 'Responsable (nombre)', 'Estado', 'Contacto de ESTAFA', 'Responsable de seguridad',
+        'Asistencia de MAD', 'Movilidad propia (art car)',
         'Título público', 'Descripción pública',
         'Declaración de entendimiento digital', 'Declaración de entendimiento física', 'Personas del equipo',
         'Proveedores', 'Vehículos', 'Fotos checkout', 'Checkout', 'Actualizada',
@@ -1435,6 +1453,8 @@ def art_admin_export(request, event_slug):
             artwork.stage_label,
             artwork.estafa_contact.email if artwork.estafa_contact else '',
             artwork.safety_responsible.email if artwork.safety_responsible else '',
+            'Sí' if artwork.needs_mad_assistance else 'No',
+            'Sí' if artwork.has_own_mobility else 'No',
             artwork.public_title,
             artwork.public_description,
             artwork.understanding_letter.name if artwork.understanding_letter else '',
