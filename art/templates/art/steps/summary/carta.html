@@ -1,4 +1,6 @@
 <dl class="step-readonly">
+    <dt>Responsabilidad sobre daños a terceros</dt>
+    <dd>{% if artwork.third_party_liability_accepted %}Sí, la asume{% elif estafa_view %}No{% else %}{% include 'art/_dash.html' with label='Sin completar' %}{% endif %}</dd>
     <dt>Declaración firmada (digital)</dt>
     <dd>{% if artwork.understanding_letter %}<a href="{{ artwork.understanding_letter.url }}" target="_blank" rel="noopener">Ver la declaración firmada<span class="visually-hidden"> (se abre en otra pestaña)</span></a>{% elif estafa_view %}No subida{% else %}{% include 'art/_dash.html' with label='Sin completar' %}{% endif %}</dd>
     {% if estafa_view %}

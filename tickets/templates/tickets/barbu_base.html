@@ -33,7 +33,7 @@
             (function (d, t) {
                 window.chatwootSettings = {
                     locale: 'es', // Language to be set
-                    "type":"expanded_bubble"
+                    type: 'standard' // Round chat bubble, also on phones
                 };
                 const BASE_URL = "https://app.chatwoot.com";
                 const g = d.createElement(t), s = d.getElementsByTagName(t)[0];
@@ -51,36 +51,78 @@
             })(document, "script");
 
 
+            {% url 'art_dashboard' as art_url %}
             window.addEventListener("chatwoot:ready", function () {
                 console.log("Chatwoot is ready to use");
                 $chatwoot.setUser('{{ user.username }}', {
                     email: '{{ user.email }}',
-                    name: '[{{ENV }}] - {{ user.first_name }} {{ user.last_name }}',
+                    name: '[{{ENV }}] - {% if art_url in request.path %}Arte - {% endif %}{{ user.first_name }} {{ user.last_name }}',
                     phone_number: '{{ user.profile.phone }}',
                     identifier_hash: '{{ CHATWOOT_IDENTIFIER_HASH }}'
                 });
             });
-
-            // Lift the chat bubble above sticky bottom action bars (marked with data-sticky-actions).
-            document.addEventListener("DOMContentLoaded", function () {
-                const bars = document.querySelectorAll("[data-sticky-actions]");
-                if (!bars.length || !("ResizeObserver" in window)) return;
-                const update = function () {
-                    const height = Math.max.apply(null, Array.from(bars, function (bar) { return bar.offsetHeight; }));
-                    document.documentElement.style.setProperty("--sticky-actions-height", height + "px");
-                };
-                const observer = new ResizeObserver(update);
-                bars.forEach(function (bar) { observer.observe(bar); });
+            {% if art_url in request.path %}
+            // Chats from the art pages also get the "arte" label (the label must exist in Chatwoot).
+            window.addEventListener("chatwoot:on-message", function () {
+                $chatwoot.setLabel('arte');
             });
+            {% endif %}
+
+            // Keep the chat bubble from covering content or buttons.
+            // - A sticky bottom action bar (data-sticky-actions) that reaches the bubble's corner makes room for it:
+            //   the bar leaves its right side free and the bubble sits there, centered in the bar, right of its buttons.
+            // - Otherwise the bubble stays in the corner and rests above the footer once the footer scrolls in
+            //   (the footer has links under it); the footer leaves room above it so the last content can scroll clear.
+            (function () {
+                const root = document.documentElement;
+                const EDGE = 20, GAP = 16;
+                let frame = 0;
+                const bubble = function () { return document.querySelector(".woot-widget-bubble:not(.woot--close)"); };
+                const update = function () {
+                    frame = 0;
+                    const launcher = bubble();
+                    if (!launcher) return;
+                    const size = launcher.offsetHeight || 64;
+                    const viewportHeight = window.innerHeight;
+                    const bar = document.querySelector("[data-sticky-actions]");
+                    const rect = bar && bar.offsetParent ? bar.getBoundingClientRect() : null;
+                    const inBar = Boolean(rect) && rect.right > root.clientWidth - EDGE - size;
+                    if (bar) bar.classList.toggle("chat-bubble-room", inBar);
+                    let bottom = EDGE, right = EDGE;
+                    if (inBar) {
+                        right = Math.max(0, root.clientWidth - rect.right);
+                        bottom = viewportHeight - rect.bottom + Math.max(0, (rect.height - size) / 2);
+                    } else {
+                        const footer = document.querySelector("body > footer");
+                        if (footer) bottom = Math.max(EDGE, viewportHeight - footer.getBoundingClientRect().top + GAP);
+                    }
+                    root.style.setProperty("--chat-bubble-bottom", Math.round(bottom) + "px");
+                    root.style.setProperty("--chat-bubble-right", Math.round(right) + "px");
+                    root.style.setProperty("--chat-bubble-size", size + "px");
+                };
+                const schedule = function () { if (!frame) frame = requestAnimationFrame(update); };
+                window.addEventListener("scroll", schedule, { passive: true });
+                window.addEventListener("resize", schedule);
+                window.addEventListener("chatwoot:ready", schedule);
+                document.addEventListener("DOMContentLoaded", function () {
+                    // The bubble shows up when Chatwoot loads; bars change height with their content.
+                    new MutationObserver(function () { if (bubble()) schedule(); }).observe(document.body, { childList: true });
+                    if ("ResizeObserver" in window) {
+                        document.querySelectorAll("[data-sticky-actions]").forEach(function (bar) { new ResizeObserver(schedule).observe(bar); });
+                    }
+                    schedule();
+                });
+            })();
 
       </script>
       <style>
-        .woot-widget-bubble { bottom: calc(var(--sticky-actions-height, 0px) + 20px) !important; }
-        .woot-widget-bubble.woot-widget--expanded { bottom: calc(var(--sticky-actions-height, 0px) + 24px) !important; }
+        .woot-widget-bubble { bottom: var(--chat-bubble-bottom, 20px) !important; right: var(--chat-bubble-right, 20px) !important; }
+        body > footer { margin-top: calc(var(--chat-bubble-size, 64px) + 2rem) !important; }
+        [data-sticky-actions].chat-bubble-room { flex-wrap: wrap; padding-right: calc(var(--chat-bubble-size, 64px) + 8px); }
         @media only screen and (min-width: 667px) {
           .woot-widget-holder:not(.has-unread-view) {
-            bottom: calc(var(--sticky-actions-height, 0px) + 104px) !important;
-            max-height: min(640px, calc(100% - var(--sticky-actions-height, 0px) - 124px)) !important;
+            bottom: calc(var(--chat-bubble-bottom, 20px) + 84px) !important;
+            max-height: min(640px, calc(100% - var(--chat-bubble-bottom, 20px) - 104px)) !important;
           }
         }
       </style>

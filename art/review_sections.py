@@ -99,6 +99,8 @@ def review_sections(artwork, program, at=None):
     ))
 
     missing = []
+    if not artwork.third_party_liability_accepted:
+        missing.append('Responsabilidad sobre daños a terceros')
     if not artwork.understanding_letter:
         missing.append('Declaración digital')
     if not artwork.understanding_letter_physical_received and not artwork.understanding_letter_physical_waiver:

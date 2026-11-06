@@ -13,6 +13,7 @@
         {% include 'art/steps/summary/_row.html' with label='Dimensiones' value=artwork.dimensions %}
         {% include 'art/steps/summary/_row.html' with label='Materiales' value=artwork.materials multiline=True %}
         {% include 'art/steps/summary/_row.html' with label='Necesidades técnicas y energía' value=artwork.technical_needs multiline=True %}
+        {% include 'art/steps/summary/_row.html' with label='Traslado hasta Tandil' value=artwork.transport_plan multiline=True %}
     </dl>
 </div>
 <div class="summary-group">
@@ -42,6 +43,19 @@
         {% include 'art/steps/summary/_row.html' with label='Cuándo prefiere quemarla' value=artwork.burn_preferred_time %}
         {% include 'art/steps/summary/_row.html' with label='Sola o con otras' value=artwork.get_burn_company_display %}
         {% endif %}
+    </dl>
+</div>
+<div class="summary-group">
+    {% include 'art/steps/summary/_group_title.html' with title='Camp soporte' %}
+    <dl class="step-readonly">
+        {% include 'art/steps/summary/_row.html' with label='Quiere camp soporte' value=artwork.wants_support_camp|yesno:'Sí,No' %}
+    </dl>
+</div>
+<div class="summary-group">
+    {% include 'art/steps/summary/_group_title.html' with title='Movilidad (MAD)' %}
+    <dl class="step-readonly">
+        {% include 'art/steps/summary/_row.html' with label='Necesita asistencia de MAD' value=artwork.needs_mad_assistance|yesno:'Sí,No' %}
+        {% include 'art/steps/summary/_row.html' with label='Movilidad propia (art car)' value=artwork.has_own_mobility|yesno:'Sí,No' %}
     </dl>
 </div>
 <div class="summary-group">

@@ -38,13 +38,31 @@ class Step:
     def missing_count(self):
         """'Falta 1 campo' / 'Faltan 3 pasos': Declaración y Checkout son pasos a hacer, el resto son campos."""
         count = len(self.missing)
-        unit = 'paso' if self.key in ('carta', 'checkout') else 'campo'
-        return f"{'Falta' if count == 1 else 'Faltan'} {count} {unit}{'' if count == 1 else 's'}"
+        return f"{'Falta' if count == 1 else 'Faltan'} {count} {self.unit}{'' if count == 1 else 's'}"
+
+    @property
+    def unit(self):
+        return 'paso' if self.key in ('carta', 'checkout') else 'campo'
 
     @property
     def live_fields(self):
-        """Las reglas de FIELD_CHECKS para recontar en pantalla, con los nombres del formulario."""
-        return [{'name': name, 'label': label, 'when': when} for _, name, label, when in FIELD_CHECKS.get(self.key, ())]
+        """Lo que la pantalla necesita para recontar mientras se escribe, con las reglas de FIELD_CHECKS.
+
+        `saved`: si lo guardado ya lo tiene (un archivo subido no vuelve en el campo). `fixed`: lo que
+        falta y no se carga en este formulario (la copia física, otros errores): queda como llegó.
+        """
+        checks = FIELD_CHECKS.get(self.key)
+        if not checks:
+            return None
+        labels = {label for _, _, label, _ in checks}
+        return {
+            'unit': self.unit,
+            'rules': [
+                {'name': name, 'label': label, 'when': when, 'saved': label not in self.missing}
+                for _, name, label, when in checks
+            ],
+            'fixed': [label for label in self.missing if label not in labels],
+        }
 
     @property
     def live_fields_id(self):
@@ -110,27 +128,26 @@ FIELD_CHECKS = {
         ('public_title', 'public_title', 'Título para el público', None),
         ('public_description', 'public_description', 'Texto para el público', None),
     ),
+    # La copia física la marca ESTAFA: no está en el formulario y se suma aparte en _missing.
+    'carta': (
+        ('third_party_liability_accepted', 'third_party_liability_accepted', 'Aceptar la responsabilidad sobre daños a terceros', None),
+        ('understanding_letter', 'understanding_letter', 'Subir la declaración firmada', None),
+    ),
 }
 
 
 def _missing(key, artwork):
-    if key in FIELD_CHECKS:
-        return [
-            label for attr, _, label, when in FIELD_CHECKS[key]
-            if (not when or getattr(artwork, when)) and not getattr(artwork, attr)
-        ]
-    if key == 'carta':
-        missing = []
-        if not artwork.understanding_letter:
-            missing.append('Subir la declaración firmada')
-        if not artwork.understanding_letter_physical_received and not artwork.understanding_letter_physical_waiver:
-            missing.append('Entregar la copia física')
-        return missing
     if key == 'checkout':
         if artwork.checkout_completed or artwork.status != Artwork.Status.ACTIVE:
             return []
         return ['Fotos del espacio'] if not artwork.checkout_photos.exists() else ['Enviar el checkout']
-    return []
+    missing = [
+        label for attr, _, label, when in FIELD_CHECKS.get(key, ())
+        if (not when or getattr(artwork, when)) and not getattr(artwork, attr)
+    ]
+    if key == 'carta' and not artwork.understanding_letter_physical_received and not artwork.understanding_letter_physical_waiver:
+        missing.append('Entregar la copia física')
+    return missing
 
 
 # Qué paso muestra cada bloque de campos del formulario principal.
@@ -146,9 +163,12 @@ def _error_labels(form):
     if not form or not form.is_bound:
         return labels
     for block, names in form.BLOCK_FIELDS.items():
+        step = BLOCK_STEPS.get(block)
+        # Con la misma etiqueta que FIELD_CHECKS, para no contar dos veces un campo que ya falta.
+        check_labels = {name: label for _, name, label, _ in FIELD_CHECKS.get(step, ())}
         for name in names:
             if name in form.errors and name in form.fields:
-                labels.setdefault(BLOCK_STEPS.get(block), []).append(form.fields[name].label)
+                labels.setdefault(step, []).append(check_labels.get(name, form.fields[name].label))
     return labels
 
 

@@ -20,7 +20,7 @@
         {% if artwork.grant_approved_amount_ars %}<p class="artwork-contact mt-3 mb-0"><strong>Monto aprobado:</strong> ARS {{ artwork.grant_approved_amount_ars|art_money }}{% if artwork.grant_paid_at %} · pagado el {{ artwork.grant_paid_at|date:'d/m/Y' }}{% endif %}</p>{% endif %}
     </div>
 
-    <form id="grant-form" method="post" novalidate>
+    <form id="grant-form" method="post" action="{% url 'artwork_grant' artwork.pk %}" novalidate>
         {% csrf_token %}
         {{ form.expected_version }}
     </form>

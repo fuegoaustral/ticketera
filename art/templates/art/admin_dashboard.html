@@ -19,7 +19,7 @@
         <div class="assigned-list">
             {% for artwork in assigned_artworks %}
             <a class="assigned-row d-flex justify-content-between align-items-center gap-3" href="{% url 'artwork_review' event.slug artwork.pk %}">
-                <span><strong>{{ artwork.title|default:'Propuesta de Arte sin título' }}</strong> <span class="text-muted">· {{ artwork.stage_label }}</span></span>
+                <span class="assigned-main"><strong>{{ artwork.title|default:'Propuesta de Arte sin título' }}</strong> <span class="text-muted">· {{ artwork.stage_label }}</span>{% if artwork.proposal %}<span class="art-desc">{{ artwork.proposal|truncatechars:160 }}</span>{% endif %}</span>
                 <span class="text-primary fw-semibold text-nowrap">Revisar <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i></span>
             </a>
             {% endfor %}
@@ -58,18 +58,18 @@
     <p class="small text-muted mb-2" aria-live="polite">{{ artworks|length }} instalaci{{ artworks|length|pluralize:"ón,ones" }}</p>
     <div class="table-responsive art-table-wrap">
         <table class="table table-sm align-middle art-table">
-            <thead><tr><th>Propuesta de Arte</th><th>Estado</th><th>Contacto</th><th>Declaración</th><th>Checkout</th><th><span class="visually-hidden">Abrir</span></th></tr></thead>
+            <thead><tr><th>Propuesta de Arte</th><th>Estado</th><th>Contacto</th><th>Declaración</th><th><span class="visually-hidden">Camp soporte, beca y coordinación con otros equipos</span></th><th><span class="visually-hidden">Abrir</span></th></tr></thead>
             <tbody>
             {% for artwork in artworks %}{% with stage=artwork.stage %}
                 <tr>
-                    <td><a class="art-row-link stretched-link" href="{% url 'artwork_review' event.slug artwork.pk %}">{{ artwork.title|default:'Propuesta de Arte sin título' }}</a><br><small class="text-muted">{% if artwork.owner %}{{ artwork.owner|person_name }}{% else %}Cuenta archivada{% endif %}</small></td>
+                    <td><a class="art-row-link stretched-link" href="{% url 'artwork_review' event.slug artwork.pk %}">{{ artwork.title|default:'Propuesta de Arte sin título' }}</a><br><small class="text-muted">{% if artwork.owner %}{{ artwork.owner|person_name }}{% else %}Cuenta archivada{% endif %}</small>{% if artwork.proposal %}<span class="art-desc">{{ artwork.proposal|truncatechars:160 }}</span>{% endif %}</td>
                     <td>{% include 'art/_status_badge.html' %}</td>
                     <td>{% with contact=artwork.estafa_contact %}{% if contact %}{{ contact|person_name }}{% with full_name=contact|person_full_name %}{% if full_name %}<br><small class="text-muted">{{ full_name }}</small>{% endif %}{% endwith %}{% else %}<span class="text-muted">Sin contacto</span>{% endif %}{% endwith %}</td>
                     <td>{% if artwork.understanding_letter and artwork.understanding_letter_physical_received %}Digital · física{% elif artwork.understanding_letter %}Digital{% elif artwork.understanding_letter_physical_received %}Física{% else %}{% include 'art/_dash.html' with label='Sin declaración' %}{% endif %}</td>
-                    <td>{% if stage == 'checkout_pending' or stage == 'checkout' or stage == 'verified' %}{% if stage == 'verified' %}Verificado{% elif stage == 'checkout' %}Enviado{% else %}Pendiente{% endif %}{% with photos=artwork.checkout_photos.all|length %}{% if photos %}<br><small class="text-muted">{{ photos }} foto{{ photos|pluralize }}</small>{% endif %}{% endwith %}{% else %}{% include 'art/_dash.html' with label='Checkout todavía no habilitado' %}{% endif %}</td>
-                    <td class="text-end text-muted"><i class="fas fa-chevron-right" aria-hidden="true"></i></td>
+                    <td class="art-flags">{% include 'art/_artwork_flags.html' %}</td>
+                    <td class="art-row-chevron text-end text-muted"><i class="fas fa-chevron-right" aria-hidden="true"></i></td>
                 </tr>
-            {% endwith %}{% empty %}<tr><td colspan="7" class="text-center text-muted py-5">No hay propuestas que coincidan con estos filtros.</td></tr>{% endfor %}
+            {% endwith %}{% empty %}<tr><td colspan="6" class="text-center text-muted py-5">No hay propuestas que coincidan con estos filtros.</td></tr>{% endfor %}
             </tbody>
         </table>
     </div>
@@ -98,7 +98,46 @@
     .art-row-link { color: inherit; font-weight: 700; text-decoration: none; }
     .art-row-link:focus-visible { outline: none; }
     .art-table tbody tr:has(.art-row-link:focus-visible) { outline: 3px solid rgba(40, 158, 109, .35); outline-offset: -3px; }
-    @media (max-width: 767px) { .art-filters { grid-template-columns: 1fr; } .filter-search { grid-column: auto; } }
+    /* Descripción: dos líneas, apagada. */
+    .art-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 52ch; margin-top: .2rem; font-size: .8rem; line-height: 1.35; color: var(--bs-secondary-color, #6c757d); white-space: normal; }
+    .assigned-main { min-width: 0; }
+    /* Avisos para otros equipos: por encima del link de la fila, para que se vea el tooltip. Todos en una caja de 24 px. */
+    .art-flag-list { display: inline-flex; flex-wrap: wrap; gap: 4px 6px; max-width: 104px; vertical-align: middle; }  /* hasta tres por fila: la tabla no se pasa del ancho de la página */
+    .art-flag { position: relative; z-index: 2; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; font-size: 21px; line-height: 1; cursor: help; }
+    .art-flag svg { display: block; width: 24px; height: 24px; }
+    .art-flag-camp { color: #0f766e; width: 30px; }
+    .art-flag-camp svg { width: 30px; height: 17px; }  /* el domo es más ancho que alto */
+    .art-flag-grant { color: #15803d; }
+    .art-flag-fire { color: #dc2626; }
+    .art-flag-sound { color: #7e22ce; font-size: 19px; }  /* el parlante es más ancho que alto */
+    .art-flag-mad { color: #a16207; }
+    .art-flag-ufo { color: #4338ca; width: 26px; }
+    .art-flag-ufo svg { width: 26px; height: 21px; }  /* misma grilla que la pickup */
+    @media (max-width: 767px) {
+        .art-filters { grid-template-columns: 1fr; } .filter-search { grid-column: auto; }
+        /* En el teléfono cada propuesta es una tarjeta: toda la tarjeta abre la revisión. */
+        .art-table-wrap { max-height: none; overflow: visible; border: 0; }
+        .art-table { min-width: 0; }
+        .art-table, .art-table tbody, .art-table tr, .art-table td { display: block; width: 100%; }
+        .art-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+        .art-table tbody tr { margin-bottom: .75rem; padding: .85rem 2.25rem .85rem .9rem; border: 1px solid oklch(88% .015 160); border-radius: .5rem; background: #fff; }
+        .art-table-wrap .art-table td, .art-table-wrap .art-table th { padding: .15rem 0; border: 0; }
+        .art-table-wrap .art-table td:first-child { padding-bottom: .5rem; }
+        .art-table tbody tr:hover > * { background: transparent; }
+        .art-table tbody tr:hover { background: #f6faf8; }
+        .art-table tbody tr:has(.art-row-link:focus-visible) { outline-offset: 0; }
+        .art-table td:nth-child(2), .art-table td:nth-child(3), .art-table td:nth-child(4) { position: relative; padding-left: 7.25rem !important; font-size: .9rem; }
+        .art-table td:nth-child(2)::before, .art-table td:nth-child(3)::before, .art-table td:nth-child(4)::before { position: absolute; left: 0; top: .15rem; width: 6.75rem; font-size: .8rem; font-weight: 600; color: var(--bs-secondary-color, #6c757d); }
+        .art-table td:nth-child(2)::before { content: 'Estado'; }
+        .art-table td:nth-child(3)::before { content: 'Contacto'; }
+        .art-table td:nth-child(4)::before { content: 'Declaración'; }
+        .art-table td.art-flags:not(:has(.art-flag)) { display: none; }
+        .art-table td.art-flags { position: relative; padding-left: 7.25rem !important; font-size: .9rem; white-space: normal; }
+        .art-table td.art-flags .art-flag-list { flex-wrap: wrap; }
+        .art-table td.art-flags::before { content: 'Otros equipos'; position: absolute; left: 0; top: .45rem; width: 6.75rem; font-size: .8rem; font-weight: 600; color: var(--bs-secondary-color, #6c757d); }
+        .art-table td.art-row-chevron { position: absolute; top: 50%; right: .85rem; width: auto; transform: translateY(-50%); padding: 0 !important; }
+        .art-desc { max-width: none; }
+    }
 </style>
 {% include 'art/_messages.html' %}
 {% endblock %}
