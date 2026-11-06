@@ -1,0 +1,19 @@
+{% extends "emails/base.html" %}
+{% block subject %}Sumamos preguntas nuevas a tu Propuesta de Arte «{{ artwork.title|default:"sin título"|safe }}»{% endblock %}
+{% block title %}Sumamos preguntas nuevas{% endblock %}
+{% block content %}
+<p>¡Hola{% if first_name %} {{ first_name }}{% endif %}!</p>
+<p>Gracias por inscribir <strong>«{{ artwork.title|default:"tu Propuesta de Arte" }}»</strong> en {{ artwork.event.name }} 🔥</p>
+<p>Con el feedback de estas semanas sumamos algunas preguntas al formulario. Te pedimos que entres a completarlas:</p>
+<ul>
+  <li>⛺ <strong>Camp soporte:</strong> si querés un camp soporte para tu obra.</li>
+  <li>🚚 <strong>Traslado:</strong> cómo pensás llevarla hasta Tandil.</li>
+  <li>🛸 <strong>Movilidad (MAD):</strong> si necesitás que MAD te ayude a mover materiales durante el evento, y si tu obra tiene movilidad propia (art car). Si respondés que sí a alguna, MAD se va a poner en contacto con vos.</li>
+  <li>✅ <strong>Responsabilidad sobre daños a terceros:</strong> en el paso Declaración. Es obligatoria para completar ese paso.</li>
+</ul>
+<p>En el paso Declaración también podés descargar el PDF de la declaración de entendimiento.</p>
+<p>Recordá que cada sección tiene su fecha límite. Después de esa fecha ya no se puede cargar ni modificar.</p>
+{% include "emails/partials/btn.html" with href=artwork_path label="Completar mi propuesta" %}
+<p>¡Gracias! Cualquier duda, escribinos por el chat de la página.</p>
+<p>ESTAFA · Fuego Austral</p>
+{% endblock %}
