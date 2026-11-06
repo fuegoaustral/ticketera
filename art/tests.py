@@ -8,6 +8,7 @@ from allauth.account.models import EmailAddress
 from auditlog.models import LogEntry
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError, transaction
 from django.test import TestCase
@@ -346,6 +347,21 @@ class ArtworkFlowTest(TestCase):
         self.program.save(update_fields=['image'])
         self.assertContains(self.client.get(url), 'class="art-program-image mb-4" src="/media/art/programs/banner.jpg"')
 
+    def test_shared_art_links_preview_the_current_program(self):
+        self.event.description = 'La convocatoria de Arte de Fuego Austral'
+        self.event.save(update_fields=['description'])
+        self.program.image.name = 'art/programs/banner.jpg'
+        self.program.save(update_fields=['image'])
+        image = f"{settings.APP_URL.rstrip('/')}/media/art/programs/banner.jpg"
+        login = self.client.get(settings.LOGIN_URL + '?next=' + reverse('art_dashboard'))
+        self.assertContains(login, f'<meta property="og:image" content="{image}">', html=False)
+        self.assertContains(login, '<meta property="og:description" content="La convocatoria de Arte de Fuego Austral">', html=False)
+        self.client.force_login(self.owner)
+        self.assertContains(self.client.get(reverse('art_dashboard')), f'og:image" content="{image}"')
+        # Fuera de Arte, la vista previa sigue siendo la del evento.
+        self.client.logout()
+        self.assertNotContains(self.client.get(settings.LOGIN_URL), 'art/programs/banner.jpg')
+
     def test_sound_power_needs_its_unit(self):
         artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
         self.client.force_login(self.owner)
@@ -392,6 +408,22 @@ class ArtworkFlowTest(TestCase):
 
     def steps_by_key(self, artwork):
         return {step.key: step for step in artwork_steps(artwork, self.program)}
+
+    def test_open_understanding_letter_step_links_the_declaration_pdf(self):
+        artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
+        self.client.force_login(self.owner)
+        response = self.client.get(reverse('artwork_edit', args=[artwork.pk]))
+        self.assertContains(response, 'href="https://fuegoaustral.org/files/DE_Unificada_2027.pdf"')
+
+    def test_details_step_asks_for_transport_and_support_camp_without_requiring_them(self):
+        artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
+        self.client.force_login(self.owner)
+        response = self.client.get(reverse('artwork_edit', args=[artwork.pk]))
+        self.assertContains(response, '¿Pensaste cómo vas a trasladarla hasta Tandil?')
+        self.assertContains(response, '¿Querés un camp soporte para tu obra?')
+        missing = self.steps_by_key(artwork)['detalles'].missing
+        self.assertNotIn('Traslado hasta Tandil', missing)
+        self.assertEqual(missing, ['Descripción', 'Dimensiones', 'Materiales'])
 
     def test_steps_follow_only_the_program_dates(self):
         artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
@@ -1093,13 +1125,13 @@ class ArtworkFlowTest(TestCase):
         artwork.refresh_from_db()
         self.assertEqual(artwork.grant_status, Artwork.GrantStatus.PENDING)
 
-    def test_save_bar_lifts_chat_bubble(self):
+    def test_save_bar_makes_room_for_chat_bubble(self):
         artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
         self.client.force_login(self.owner)
         page = self.client.get(reverse('artwork_edit', args=[artwork.pk]))
         self.assertContains(page, 'class="save-bar', count=1)
         self.assertContains(page, 'data-sticky-actions>', count=1)
-        self.assertContains(page, '--sticky-actions-height')
+        self.assertContains(page, '[data-sticky-actions].chat-bubble-room')
 
     def test_permissions_team_and_multiple_photo_upload(self):
         artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro', proposal='Texto')
@@ -1184,9 +1216,9 @@ class ArtworkFlowTest(TestCase):
         artwork.uses_fire = True
         self.assertIn('Plan de extinción', section('detalles').missing)
 
-        self.assertEqual(section('declaracion').missing, ['Declaración digital', 'Declaración física'])
+        self.assertEqual(section('declaracion').missing, ['Responsabilidad sobre daños a terceros', 'Declaración digital', 'Declaración física'])
         artwork.understanding_letter_physical_waiver = True
-        self.assertEqual(section('declaracion').missing, ['Declaración digital'])
+        self.assertEqual(section('declaracion').missing, ['Responsabilidad sobre daños a terceros', 'Declaración digital'])
 
         self.assertEqual(section('checkout').status, UPCOMING)
         artwork.status = Artwork.Status.CHECKOUT_VERIFIED

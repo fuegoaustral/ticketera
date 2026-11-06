@@ -247,6 +247,7 @@ class Artwork(BaseModel):
     dimensions = models.CharField(max_length=200, blank=True, verbose_name='Dimensiones')
     materials = models.TextField(blank=True, verbose_name='Materiales')
     technical_needs = models.TextField(blank=True, verbose_name='Necesidades técnicas y energía')
+    transport_plan = models.TextField(blank=True, verbose_name='¿Pensaste cómo vas a trasladarla hasta Tandil?')
     uses_sound = models.BooleanField(default=False, verbose_name='La instalación utiliza sonido amplificado')
     safety_plan = models.TextField(blank=True, verbose_name='Seguridad y uso de fuego')
     uses_fire = models.BooleanField(default=False, verbose_name='La instalación utiliza fuego')
@@ -266,6 +267,15 @@ class Artwork(BaseModel):
     burn_company = models.CharField(
         max_length=10, blank=True, choices=BurnCompany.choices,
         verbose_name='¿Preferirías quemarla sola o junto con otras obras?',
+    )
+    wants_support_camp = models.BooleanField(default=False, verbose_name='¿Querés un camp soporte para tu obra?')
+    # MAD: el equipo de movilidad del evento. Si la respuesta es sí, se ponen en contacto con la persona responsable.
+    needs_mad_assistance = models.BooleanField(
+        default=False, verbose_name='¿Necesitás asistencia de MAD para mover materiales durante el evento?',
+    )
+    has_own_mobility = models.BooleanField(
+        default=False, verbose_name='¿Tu instalación tiene movilidad propia? (art car)',
+        help_text='Si es una obra móvil, MAD va a coordinar con vos la validación de seguridad junto con las otras áreas.',
     )
     files_url = models.URLField(
         max_length=500, blank=True, verbose_name='Link a más archivos',
@@ -327,6 +337,9 @@ class Artwork(BaseModel):
     understanding_letter = models.FileField(
         upload_to='art/understanding_letters', storage=private_art_storage,
         blank=True, verbose_name='Declaración de entendimiento digital',
+    )
+    third_party_liability_accepted = models.BooleanField(
+        default=False, verbose_name='Asumo la responsabilidad de mi obra sobre cualquier daño que pueda causar a terceros',
     )
     understanding_letter_physical_received = models.BooleanField(
         default=False, verbose_name='Copia física recibida',

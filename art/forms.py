@@ -30,13 +30,14 @@ class LocalizedDecimalField(forms.DecimalField):
 
 ARTWORK_BLOCK_FIELDS = {
     'proposal': (
-        'title', 'proposal', 'dimensions', 'materials', 'technical_needs',
+        'title', 'proposal', 'dimensions', 'materials', 'technical_needs', 'transport_plan',
         'uses_sound', 'uses_fire', 'fire_details', 'extinguishing_plan', 'sound_power',
-        'safety_plan', 'safety_responsible_email', 'burns', 'burn_preferred_time', 'burn_company', 'files_url',
+        'safety_plan', 'safety_responsible_email', 'burns', 'burn_preferred_time', 'burn_company', 'wants_support_camp',
+        'needs_mad_assistance', 'has_own_mobility', 'files_url',
     ),
     'guide': ('public_title', 'public_description', 'preferred_location'),
     'checkout': ('checkout_team_responsible', 'checkout_notes'),
-    'understanding_letter_digital': ('understanding_letter',),
+    'understanding_letter_digital': ('understanding_letter', 'third_party_liability_accepted'),
 }
 
 # La beca se pide en su propia pantalla, con su propio formulario.
@@ -119,6 +120,7 @@ class ArtworkForm(InvalidFieldsMixin, forms.ModelForm):
         widgets = {
             'proposal': forms.Textarea(attrs={'rows': 8}),
             'materials': forms.Textarea(attrs={'rows': 5}),
+            'transport_plan': forms.Textarea(attrs={'rows': 3}),
             'technical_needs': forms.Textarea(attrs={'rows': 5}),
             'fire_details': forms.Textarea(attrs={'rows': 5}),
             'extinguishing_plan': forms.Textarea(attrs={'rows': 5}),
@@ -138,6 +140,8 @@ class ArtworkForm(InvalidFieldsMixin, forms.ModelForm):
         self.is_contributor = self.instance.pk and self.instance.can_edit(self.actor)
 
         for field in self.fields.values():
+            if isinstance(field.widget, forms.CheckboxInput):
+                field.widget.attrs.setdefault('role', 'switch')
             field.widget.attrs.setdefault('class', 'form-check-input' if isinstance(field.widget, forms.CheckboxInput) else 'form-control')
             field.widget.attrs['form'] = 'artwork-form'
         self.fields['checkout_team_responsible'].widget.attrs['class'] = 'form-select'
@@ -261,6 +265,8 @@ class ArtworkGrantForm(InvalidFieldsMixin, forms.ModelForm):
         self.actor = actor
         self.is_manager = self.instance.can_manage(actor)
         for field in self.fields.values():
+            if isinstance(field.widget, forms.CheckboxInput):
+                field.widget.attrs.setdefault('role', 'switch')
             field.widget.attrs.setdefault('class', 'form-check-input' if isinstance(field.widget, forms.CheckboxInput) else 'form-control')
             field.widget.attrs['form'] = 'grant-form'
         self.fields['expected_version'].initial = self.instance.version
@@ -496,6 +502,8 @@ class ArtworkPhotoUploadForm(InvalidFieldsMixin, forms.Form):
             self.fields['stage'].initial = stages[0].value
             self.fields['stage'].widget = forms.HiddenInput()
         for field in self.fields.values():
+            if isinstance(field.widget, forms.CheckboxInput):
+                field.widget.attrs.setdefault('role', 'switch')
             field.widget.attrs.setdefault('class', 'form-check-input' if isinstance(field.widget, forms.CheckboxInput) else ('form-select' if isinstance(field.widget, forms.Select) else 'form-control'))
         self.fields['images'].widget.attrs.update({'accept': 'image/*', 'data-image-preview': 'true'})
 
@@ -643,6 +651,8 @@ class ArtworkProviderForm(InvalidFieldsMixin, forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
+            if isinstance(field.widget, forms.CheckboxInput):
+                field.widget.attrs.setdefault('role', 'switch')
             field.widget.attrs.setdefault('class', 'form-check-input' if isinstance(field.widget, forms.CheckboxInput) else ('form-select' if isinstance(field.widget, forms.Select) else 'form-control'))
 
     def clean(self):
@@ -741,6 +751,7 @@ class ArtworkReviewForm(InvalidFieldsMixin, forms.ModelForm):
         for field in self.fields.values():
             if isinstance(field.widget, forms.CheckboxInput):
                 field.widget.attrs.setdefault('class', 'form-check-input')
+                field.widget.attrs.setdefault('role', 'switch')
             field.widget.attrs.setdefault('class', 'form-select' if isinstance(field.widget, forms.Select) else 'form-control')
             # Los campos viven en la sección que les corresponde, fuera del <form>.
             field.widget.attrs['form'] = self.FORM_ID
