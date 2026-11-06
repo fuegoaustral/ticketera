@@ -721,11 +721,9 @@ def profile_view(request):
             try:
                 email_address = EmailAddress.objects.get(id=email_id, user=user)
                 if email_address.verified:
-                    # Set all other emails as non-primary
-                    EmailAddress.objects.filter(user=user).update(primary=False)
-                    # Set this one as primary
-                    email_address.primary = True
-                    email_address.save()
+                    # Unmarks the old primary and syncs User.email, which is
+                    # what the navbar shows and where mail is sent.
+                    email_address.set_as_primary()
                     messages.success(request, f'{email_address.email} es ahora tu email principal.')
                 else:
                     messages.error(request, 'Solo puedes establecer como principal un email verificado.')
