@@ -164,3 +164,25 @@ class ProfileNicknameTests(TestCase):
         self.client.post(reverse('profile'), {**data, 'nickname': 'Juani'})
         profile.refresh_from_db()
         self.assertEqual(profile.nickname, 'Juani')
+
+
+class ProfilePrimaryEmailTests(TestCase):
+    def test_setting_primary_email_updates_the_account_email(self):
+        from allauth.account.models import EmailAddress
+
+        profile = _make_profile('viejo')
+        profile.profile_completion = Profile.COMPLETE
+        profile.save()
+        user = profile.user
+        EmailAddress.objects.create(user=user, email='viejo@example.com', verified=True, primary=True)
+        new = EmailAddress.objects.create(user=user, email='nuevo@example.com', verified=True)
+        self.client.force_login(user)
+
+        self.client.post(reverse('profile'), {'set_primary': '1', 'email_id': new.id})
+
+        user.refresh_from_db()
+        self.assertEqual(user.email, 'nuevo@example.com')
+        self.assertEqual(
+            list(EmailAddress.objects.filter(user=user, primary=True).values_list('email', flat=True)),
+            ['nuevo@example.com'],
+        )
