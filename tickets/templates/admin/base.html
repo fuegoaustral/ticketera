@@ -23,6 +23,12 @@
 
 {% block extrahead %}
 {{ block.super }}
+<meta name="color-scheme" content="light">
+<script>
+    // El admin está forzado a modo claro (dark-mode-vars vacío), pero CSS de terceros
+    // como import-export usa prefers-color-scheme: dark si no hay data-theme="light".
+    document.documentElement.dataset.theme = 'light';
+</script>
 <script>
     (function() {
         function hideThemeSelector() {

@@ -358,6 +358,15 @@ class ArtworkFlowTest(TestCase):
         self.assertContains(login, '<meta property="og:description" content="La convocatoria de Arte de Fuego Austral">', html=False)
         self.client.force_login(self.owner)
         self.assertContains(self.client.get(reverse('art_dashboard')), f'og:image" content="{image}"')
+        # El texto para compartir de la convocatoria reemplaza la descripción del evento.
+        self.program.share_description = 'Sumá tu propuesta de Arte'
+        self.program.share_title = 'Convocatoria de Arte 2027'
+        self.program.save(update_fields=['share_description', 'share_title'])
+        page = self.client.get(reverse('art_dashboard'))
+        self.assertContains(page, '<meta property="og:title" content="Convocatoria de Arte 2027">', html=False)
+        self.assertContains(page, '<meta name="twitter:title" content="Convocatoria de Arte 2027">', html=False)
+        self.assertContains(page, '<meta property="og:description" content="Sumá tu propuesta de Arte">', html=False)
+        self.assertNotContains(page, 'La convocatoria de Arte de Fuego Austral')
         # Fuera de Arte, la vista previa sigue siendo la del evento.
         self.client.logout()
         self.assertNotContains(self.client.get(settings.LOGIN_URL), 'art/programs/banner.jpg')
@@ -1351,6 +1360,23 @@ class ArtworkFlowTest(TestCase):
             program.clean()
         self.assertEqual(set(raised.exception.message_dict), {closes for _, closes in ArtProgram.DATE_PAIRS})
 
+    def test_current_program_works_before_its_event_is_active(self):
+        self.open_registration()
+        self.event.active = False
+        self.event.save(update_fields=['active'])
+        self.client.force_login(self.owner)
+        dashboard = self.client.get(reverse('art_dashboard'))
+        self.assertContains(dashboard, reverse('artwork_create', args=[self.event.slug]))
+        self.assertNotContains(dashboard, 'Todavía no hay una convocatoria de Arte activa.')
+        response = self.client.post(reverse('artwork_create', args=[self.event.slug]), {'title': 'Faro'})
+        artwork = Artwork.objects.get(owner=self.owner)
+        self.assertRedirects(response, reverse('artwork_edit', args=[artwork.pk]))
+
+        self.program.is_current = False
+        self.program.save(update_fields=['is_current'])
+        self.assertContains(self.client.get(reverse('art_dashboard')), 'Todavía no hay una convocatoria de Arte activa.')
+        self.assertEqual(self.client.get(reverse('artwork_create', args=[self.event.slug])).status_code, 404)
+
     def test_dashboard_says_when_registration_opens(self):
         self.client.force_login(self.owner)
         self.assertContains(self.client.get(reverse('art_dashboard')), 'La inscripción de propuestas de Arte cerró.')
@@ -1371,7 +1397,7 @@ class ArtworkFlowTest(TestCase):
         self.admin.first_name, self.admin.last_name = 'Coordi', 'Nadora'
         self.admin.save(update_fields=['first_name', 'last_name'])
         page = self.client.get(reverse('art_dashboard'))
-        self.assertContains(page, 'ESTAFA es el Equipo y Servicios de Tareas de Arte de Fuego Austral: Coordi Nadora.')
+        self.assertContains(page, 'ESTAFA es el Equipo de Servicios y Tareas de Arte Fuego Austral: Coordi Nadora.')
         self.assertNotContains(page, self.admin.email)
         self.assertContains(page, 'Chateá con nosotros')
 

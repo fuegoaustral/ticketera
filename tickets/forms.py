@@ -131,7 +131,7 @@ class CheckoutTicketSelectionForm(forms.Form):
                     'id': ticket_type.id,
                     'name': ticket_type.name,
                     'description': ticket_type.description,
-                    'price': ticket_type.price,
+                    'price': ticket_type.price or 0,
                     'field_name': field_name,
                     'quantity': initial_value,  # Pass the initial value to the template
                     'ticket_count': ticket_type.ticket_count,
@@ -178,14 +178,12 @@ class CheckoutTicketSelectionForm(forms.Form):
         if all(cleaned_data.get(field, 0) == 0 for field in self.fields if field.startswith('ticket_') and field.endswith('_quantity')):
             raise ValidationError('Debe seleccionar al menos un ticket para continuar con la compra.')
 
-        # Validate custom amounts for free tickets
+        # Free tickets take an optional custom amount ($0 is allowed). Stored as a
+        # string because cleaned_data ends up in the JSON-serialized session.
         for ticket in self.ticket_data:
             if ticket['is_free_ticket']:
-                quantity = cleaned_data.get(f'ticket_{ticket["id"]}_quantity', 0)
-                custom_amount = cleaned_data.get(f'ticket_{ticket["id"]}_custom_amount', 0)
-                
-                if quantity > 0 and custom_amount <= 0:
-                    raise ValidationError(f'Debe ingresar un monto personalizado para {ticket["name"]}.')
+                field_name = f'ticket_{ticket["id"]}_custom_amount'
+                cleaned_data[field_name] = str(cleaned_data.get(field_name) or 0)
 
         return cleaned_data
 
@@ -287,8 +285,10 @@ class TicketPurchaseForm(BaseTicketForm):
         for field in ticket_fields:
             ticket_id = field.split('_')[-1]
             ticket = TicketType.objects.get(id=ticket_id)
-            ticket_quantity = cleaned_data.get(field, 0)
-            if 0 < ticket.ticket_count < ticket_quantity:
+            ticket_quantity = cleaned_data.get(field) or 0
+            if ticket_quantity < 0:
+                raise ValidationError(f'La cantidad de {ticket.name} no puede ser negativa.')
+            if ticket.ticket_count is not None and 0 < ticket.ticket_count < ticket_quantity:
                 raise ValidationError(f'No hay suficientes tickets de tipo {ticket.name}.')
             total_tickets += ticket_quantity
 

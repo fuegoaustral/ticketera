@@ -1,0 +1,41 @@
+{% extends 'emails/base.html' %}
+{% block subject %}{% if ticket_links|length > 1 %}Tus bonos{% else %}Tu bono{% endif %} — {{ event.name|safe }}{% endblock %}
+{% block title %}
+    {% if ticket_links|length > 1 %}Tus bonos{% else %}Tu bono{% endif %}<br/>
+{% endblock %}
+{% block content %}
+    <p>
+        {% if ticket_links|length > 1 %}
+            Tenés {{ ticket_links|length }} bonos para <b>{{ event.name|safe }}</b> en tu cuenta.
+        {% else %}
+            Tenés un bono para <b>{{ event.name|safe }}</b> en tu cuenta.
+        {% endif %}
+        Los bonos están vinculados a la cuenta de cada persona: para ingresar, cada asistente necesita su bono en su propia cuenta.
+    </p>
+
+    {% for link in ticket_links %}
+        <p style="margin-bottom: 4px;">
+            <b>{{ link.ticket.ticket_type.name }}</b> · #{{ link.short_key }}
+            {% if link.is_mine %}(vinculado a tu nombre){% endif %}
+        </p>
+        {% include 'emails/partials/btn.html' with label='Ver bono' href=link.view_path %}
+        {% if link.transfer_path %}
+            {% include 'emails/partials/btn.html' with label='Transferir' href=link.transfer_path %}
+        {% endif %}
+    {% endfor %}
+
+    {% if has_transferable %}
+        <p>
+            Si alguno de estos bonos es para otra persona, transferíselo con el botón <b>Transferir</b>
+            antes del {{ event.transfers_enabled_until|date:'d/m' }} a las {{ event.transfers_enabled_until|date:'H:i' }}.
+        </p>
+    {% endif %}
+
+    <p>
+        Cualquier problema que tengas con tu{% if ticket_links|length > 1 %}s bonos{% else %} bono{% endif %}, podés escribirnos a
+        <a href="mailto:bonos@fuegoaustral.org">bonos@fuegoaustral.org</a> o chatearnos desde la web.
+    </p>
+    <p>
+        La experiencia será lo que hagamos de ella.
+    </p>
+{% endblock %}

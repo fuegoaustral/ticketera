@@ -45,6 +45,15 @@ class ArtProgram(BaseModel):
         upload_to='art/programs', blank=True, verbose_name='Imagen',
         help_text='Se muestra arriba de todo en Mi Fuego → Arte mientras la convocatoria está vigente. Ideal: apaisada, 1600 × 400 px.',
     )
+    share_title = models.CharField(
+        max_length=120, blank=True, verbose_name='Título para compartir',
+        help_text='El título al compartir un link de Mi Fuego → Arte. Vacío: se usa el título del evento.',
+    )
+    share_description = models.TextField(
+        blank=True, verbose_name='Texto para compartir',
+        help_text='Lo que se lee al compartir un link de Mi Fuego → Arte (WhatsApp, redes). '
+                  'Vacío: se usa la descripción del evento. Se muestran hasta 200 caracteres.',
+    )
     registration_opens = models.DateTimeField(
         null=True, blank=True, verbose_name='Apertura de inscripción',
         help_text='Desde cuándo se pueden inscribir propuestas de Arte nuevas (botón «Nueva propuesta de Arte»). '

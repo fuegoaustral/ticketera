@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 import mercadopago
 from django.conf import settings
@@ -148,12 +149,13 @@ def order_summary(request, event_slug=None):
     for ticket_type in ticket_types:
         field_name = f'ticket_{ticket_type.id}_quantity'
         quantity = ticket_selection.get(field_name, 0)
-        price = ticket_type.price
-        
-        # For free tickets (price = 0), use custom amount
-        if price == 0:
+        # price = 0 means "monto libre"; a blank price is a fixed $0 ticket
+        is_free_ticket = ticket_type.price == 0
+        price = ticket_type.price or 0
+
+        if is_free_ticket:
             custom_amount_field = f'ticket_{ticket_type.id}_custom_amount'
-            custom_amount = ticket_selection.get(custom_amount_field, 0)
+            custom_amount = Decimal(str(ticket_selection.get(custom_amount_field) or 0))
             subtotal = custom_amount * quantity
             effective_price = custom_amount
         else:
@@ -169,7 +171,7 @@ def order_summary(request, event_slug=None):
                 'price': effective_price,
                 'quantity': quantity,
                 'subtotal': subtotal,
-                'is_free_ticket': price == 0,
+                'is_free_ticket': is_free_ticket,
                 'original_price': price,
             })
             items.append({
@@ -284,6 +286,13 @@ def order_summary(request, event_slug=None):
                         term=acceptance.term,
                         defaults={'order': acceptance.order}
                     )
+
+        if total_amount == 0:
+            # Nothing to charge: MercadoPago rejects $0 preferences, so confirm right away.
+            # Moving to PROCESSING mints the tickets and sends the confirmation email.
+            order.status = Order.OrderStatus.PROCESSING
+            order.save()
+            return redirect('checkout_payment_callback', order_key=order.key)
 
         preference_data = {
             "items": items,

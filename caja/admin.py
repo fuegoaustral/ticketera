@@ -10,6 +10,7 @@ from caja.models import (
     EventProductStock,
     EventProductStockRecord,
 )
+from tickets.models import TicketType
 
 
 class EventCajaProductInline(admin.TabularInline):
@@ -27,6 +28,18 @@ class EventProductAdmin(admin.ModelAdmin):
     list_display = ['display_name', 'event', 'price', 'is_active', 'ticket_type']
     list_filter = ['event', 'is_active']
     search_fields = ['name', 'ticket_type__name']
+
+    def get_form(self, request, obj=None, **kwargs):
+        # Ticket types get their EventProduct auto-created (caja.signals), so only
+        # offer ones still without a product, plus the current one when editing.
+        form = super().get_form(request, obj, **kwargs)
+        field = form.base_fields.get('ticket_type')
+        if field is not None:
+            available = TicketType.objects.filter(event_product__isnull=True)
+            if obj is not None and obj.ticket_type_id:
+                available = available | TicketType.objects.filter(pk=obj.ticket_type_id)
+            field.queryset = available
+        return form
 
 
 @admin.register(EventProductStock)

@@ -8,8 +8,10 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
 from events.models import Event
+from tickets.holder_links import holder_ticket_links
 from tickets.models import NewTicket
 from tickets.ticket_pdf import build_new_ticket_pdf_bytes, new_ticket_pdf_filename
+from utils.email import send_mail
 
 
 def _authorization_matches_secret(request):
@@ -54,7 +56,9 @@ def _holder_tickets_for_event(event, payload):
 
 def run_send_holder_tickets_email(event, payload=None, *, holder_user_id=None):
     """
-    Envía PDFs al holder.
+    Envía al holder sus bonos del evento: PDFs adjuntos, o, si el evento exige
+    cuenta por asistente (attendee_must_be_registered), links directos a cada
+    bono con botón de transferir (sin PDF).
 
     - Uso HTTP / interno por JSON: run_send_holder_tickets_email(event, payload)
     - Uso broadcast (siempre por id de usuario): run_send_holder_tickets_email(event, holder_user_id=123)
@@ -97,6 +101,25 @@ def run_send_holder_tickets_email(event, payload=None, *, holder_user_id=None):
         return {'ok': False, 'error': 'Holder has no email', 'status': 400}
 
     n = len(tickets)
+
+    if event.attendee_must_be_registered:
+        # El bono vale por la cuenta, no por un PDF: mandamos links directos y botón de transferir.
+        ticket_links = holder_ticket_links(tickets, holder)
+        try:
+            send_mail(
+                template_name='holder_tickets',
+                recipient_list=[to_email],
+                context={
+                    'event': event,
+                    'ticket_links': ticket_links,
+                    'has_transferable': any(link['transfer_path'] for link in ticket_links),
+                },
+            )
+        except Exception as e:
+            logging.exception('run_send_holder_tickets_email: send failed')
+            return {'ok': False, 'error': f'Could not send email: {e}', 'status': 500}
+        return _ok_result(event, holder, to_email, tickets)
+
     subject = f'Tus bonos — {event.name}' if n > 1 else f'Tu bono — {event.name}'
 
     if n > 1:
@@ -139,11 +162,15 @@ def run_send_holder_tickets_email(event, payload=None, *, holder_user_id=None):
         logging.exception('run_send_holder_tickets_email: send failed')
         return {'ok': False, 'error': f'Could not send email: {e}', 'status': 500}
 
+    return _ok_result(event, holder, to_email, tickets)
+
+
+def _ok_result(event, holder, to_email, tickets):
     return {
         'ok': True,
         'sent_to': to_email,
         'event_slug': event.slug,
-        'ticket_count': n,
+        'ticket_count': len(tickets),
         'ticket_keys': [str(t.key) for t in tickets],
         'holder_id': holder.id,
         'status': 200,
@@ -157,7 +184,7 @@ def send_holder_tickets_email(request, event_slug):
     JSON: {"email": "..."} o {"holder_email": "..."} o {"user_id": <int>}
     Header Authorization == settings.SECRET.
 
-    Envía al holder un correo con un PDF por cada bono de ese evento.
+    Envía al holder un correo con sus bonos de ese evento (ver run_send_holder_tickets_email).
     """
     if not _authorization_matches_secret(request):
         return JsonResponse({'error': 'Unauthorized'}, status=401)

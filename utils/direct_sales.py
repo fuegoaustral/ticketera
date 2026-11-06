@@ -5,6 +5,7 @@ from django.urls import reverse
 
 from tickets.models import Order, NewTicket, TicketType, DirectTicketTemplate, DirectTicketTemplateStatus, \
     NewTicketTransfer
+from tickets.holder_links import holder_ticket_links
 from utils.email import send_mail
 
 
@@ -41,6 +42,7 @@ def direct_sales_existing_user(user, template_tickets, order_type, notes, reques
         ticket_type = TicketType.objects.get(event_id=event_id,
                                              is_direct_type=True)
         emitted_tickets = 0
+        created_tickets = []
         first_ticket_created = True
         for template_ticket in template_tickets:
             if template_ticket['amount'] > 0:
@@ -59,23 +61,30 @@ def direct_sales_existing_user(user, template_tickets, order_type, notes, reques
                         first_ticket_created = False  # Mark that we've assigned the owner
 
                     new_ticket.save()
+                    created_tickets.append(new_ticket)
                     emitted_tickets += 1
 
                 template = DirectTicketTemplate.objects.get(id=template_ticket['id'])
                 template.status = DirectTicketTemplateStatus.ASSIGNED
                 template.order = order
-                template.amount_used = template_ticket['amount']
+                template.amount_used = (template.amount_used or 0) + template_ticket['amount']
                 template.save()
+                template.orders.add(order)
 
-        order.amount = emitted_tickets * ticket_type.price
+        order.amount = emitted_tickets * (ticket_type.price or 0)
         order.save()
+
+        context = {'ticket_count': emitted_tickets}
+        event = ticket_type.event
+        if event.attendee_must_be_registered:
+            # Sin PDF: el bono vale por la cuenta. Link directo a cada bono y botón de transferir.
+            context['ticket_links'] = holder_ticket_links(created_tickets, user)
+            context['event'] = event
 
         send_mail(
             template_name='new_transfer_success',
             recipient_list=[user.email],
-            context={
-                'ticket_count': emitted_tickets,
-            }
+            context=context,
         )
 
         return order.id
@@ -128,10 +137,11 @@ def direct_sales_new_user(destination_email, template_tickets, order_type, notes
                 template = DirectTicketTemplate.objects.get(id=template_ticket['id'])
                 template.status = DirectTicketTemplateStatus.PENDING
                 template.order = order
-                template.amount_used = template_ticket['amount']
+                template.amount_used = (template.amount_used or 0) + template_ticket['amount']
                 template.save()
+                template.orders.add(order)
 
-        order.amount = emitted_tickets * ticket_type.price
+        order.amount = emitted_tickets * (ticket_type.price or 0)
         order.save()
 
         send_mail(

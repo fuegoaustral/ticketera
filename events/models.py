@@ -181,6 +181,11 @@ class Event(BaseModel):
         return cls.objects.filter(active=True)
 
     @classmethod
+    def get_current_events(cls):
+        """Active events that haven't ended yet"""
+        return cls.get_active_events().filter(end__gte=timezone.now())
+
+    @classmethod
     def get_by_slug(cls, slug):
         """Get event by slug"""
         try:

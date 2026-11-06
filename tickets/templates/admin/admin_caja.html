@@ -3,359 +3,449 @@
 {% load humanize %}
 
 {% block extrahead %}
+    {{ block.super }}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/css/intlTelInput.css"
           integrity="sha384-josBdHR9a6DDApvQzVz46RUq9U6/iPErv/hIpfkLHxxLLfPOhgvCWrrRi6Ufvbgf" crossorigin="anonymous">
     <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/js/intlTelInput.min.js"
             integrity="sha384-6Z2vPsfhcSSIc6aQuBuj8XsgzVLnrlNXrlA/OfTiadr8Pcw3xfho2s4fxWX+beqn"
             crossorigin="anonymous"></script>
     <style>
-        .field-box {
-            display: flex !important;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            margin-top: 8px;
-        }
+        .caja { max-width: 760px; margin: 0 auto; padding: 8px 0 60px; }
+        .caja h1 { margin-bottom: 4px; }
+        .caja-meta { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; color: #666; margin-bottom: 20px; }
+        .caja-meta select { padding: 6px 8px; font-size: 14px; min-height: 36px; height: auto; }
 
-        .container {
-            display: flex;
-            flex-direction: column;
-            max-width: 640px;
-            width: 100%;
-        }
+        .card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 16px 18px; margin-bottom: 16px; }
+        .card h2 { margin: 0 0 12px; font-size: 15px; color: #417690; background: none; padding: 0; text-transform: none; letter-spacing: 0; }
+        .step { display: inline-block; width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 50%; background: #417690; color: #fff; font-size: 12px; margin-right: 6px; }
 
-        .wrapper {
-            display: flex;
-            justify-content: center;
-            height: 100vh;
+        .search-wrap { position: relative; }
+        #user-search { width: 100%; box-sizing: border-box; padding: 12px 14px; font-size: 16px; border: 2px solid #ccc; border-radius: 6px; }
+        #user-search:focus { border-color: #417690; outline: none; }
+        .search-hint { color: #888; font-size: 12px; margin-top: 6px; }
+        .results { list-style: none; margin: 10px 0 0; padding: 0; max-height: 420px; overflow-y: auto; }
+        .results li { list-style: none; border: 1px solid #e3e3e3; border-radius: 6px; padding: 10px 12px; margin: 0 0 6px; cursor: pointer; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+        .results li:hover, .results li.active { border-color: #417690; background: #f0f6fa; }
+        .results li.disabled { cursor: not-allowed; opacity: .75; }
+        .results .name { font-weight: bold; font-size: 14px; color: #222; }
+        .results .details { color: #555; font-size: 12px; margin-top: 2px; }
+        .results .details span + span::before { content: " · "; color: #aaa; }
+        .results mark { background: #fff1a8; padding: 0; }
+        .results .empty { cursor: default; color: #666; justify-content: center; }
+        .badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: bold; white-space: nowrap; }
+        .badge-warn { background: #fff3e0; color: #b26a00; }
+        .badge-info { background: #e3f2fd; color: #1565c0; }
+        .badge-new { background: #e8f5e9; color: #2e7d32; }
+
+        .selected-user { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+        .selected-user dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 8px 0 0; }
+        .selected-user dt { color: #777; }
+        .selected-user dd { margin: 0; font-weight: bold; }
+        .selected-user .fullname { font-size: 18px; font-weight: bold; }
+
+        .new-user-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+        .new-user-grid label { display: block; font-weight: bold; margin-bottom: 3px; }
+        .new-user-grid input, .new-user-grid select { width: 100%; box-sizing: border-box; padding: 8px; }
+        .new-user-grid select { padding: 6px 8px; min-height: 38px; height: auto; line-height: 1.4; }
+        .new-user-grid .full { grid-column: 1 / -1; }
+        .iti { width: 100%; }
+
+        .ticket-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .ticket-row:last-child { border-bottom: none; }
+        .ticket-row .tname { font-weight: bold; font-size: 14px; }
+        .ticket-row .tinfo { color: #666; font-size: 12px; }
+        .stepper { display: flex; align-items: center; gap: 4px; }
+        .stepper button { width: 34px; height: 34px; font-size: 18px; border: 1px solid #ccc; background: #f7f7f7; border-radius: 6px; cursor: pointer; padding: 0; color: #333; }
+        .stepper button:hover { background: #e9e9e9; }
+        .stepper input { width: 52px; height: 34px; text-align: center; font-size: 16px; box-sizing: border-box; }
+
+        .order-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+        .order-grid label { font-weight: bold; display: block; margin-bottom: 3px; }
+        .order-grid select, .order-grid textarea { width: 100%; box-sizing: border-box; padding: 8px; }
+        .order-grid select { padding: 6px 8px; min-height: 38px; height: auto; line-height: 1.4; font-size: 14px; }
+
+        .checkout { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+        .checkout .total { font-size: 22px; font-weight: bold; }
+        .checkout .count { color: #666; }
+        .btn { border: none; border-radius: 6px; padding: 12px 22px; font-size: 15px; cursor: pointer; color: #fff; }
+        .btn-primary { background: #2e7d32; }
+        .btn-primary:disabled { background: #9e9e9e; cursor: not-allowed; }
+        .btn-secondary { background: #fff; color: #417690; border: 1px solid #417690; padding: 7px 14px; font-size: 13px; }
+        .btn-link { background: none; color: #417690; border: none; padding: 0; text-decoration: underline; cursor: pointer; font-size: 13px; }
+
+        .form-errors { background: #fdecea; color: #b71c1c; border: 1px solid #f5c2c0; border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; }
+        .form-errors ul { margin: 0; padding-left: 18px; }
+        .hidden { display: none !important; }
+
+        @media (max-width: 600px) {
+            .new-user-grid { grid-template-columns: 1fr; }
+            .selected-user { flex-direction: column; }
         }
     </style>
 {% endblock %}
 
 {% block content %}
-    <div class="wrapper">
-        <div class="container">
-            <h1>Emision directa de bonos</h1>
-            <form method="post" class="form-inline">
-                {% csrf_token %}
-                <input type="hidden" name="action" id="action" value="event"/>
-                <div class="field-box">
-                    <label for="user_name"><strong>Operador emitiendo los bonos:</strong></label>
-                    <span id="user_name">{{ user.email }}</span>
-                </div>
-                <br/>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="event" class="required">Evento:</label>
-                        <select name="event" id="event" class="vSelect" onchange="this.form.submit();"
-                                style="width: 100%;">
-                            <option value="">Select an event</option>
-                            {% for event in events %}
-                                <option value="{{ event.id }}" {% if event.id == default_event.id %}selected{% endif %}>
-                                    {{ event.name }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-            </form>
-
-            <form method="post" class="form-horizontal" id="ticket-purchase-form">
-                {% csrf_token %}
-                <input type="hidden" name="action" id="action" value="order"/>
-                <input type="hidden" name="event_id" value="{{ event.id }}"/>
-                <fieldset class="module aligned" style="margin-top:20px; ">
-                    <div class="form-row">
-                        <div class="field-box">
-                            <label for="id_email">Email:</label>
-                            <input type="email" name="email" id="id_email" placeholder="Email" required
-                                   style="width: 240px">
-                        </div>
-                    </div>
-                    <div class="form-row" style="display: flex!important;justify-content: end;">
-                        <button type="button" id="check-email"
-                                style="margin-top: 8px; background-color: #008CBA; border: none; color: white; padding: 15px 32px; text-align: center; text-decoration: none;">
-                            Verificar
-                        </button>
-                        <button type="button" id="clear-form"
-                                style="margin-top: 8px; background-color: #FF5733; border: none; color: white; padding: 15px 32px; text-align: center; text-decoration: none; display: none;">
-                            Limpiar
-                        </button>
-                    </div>
-
-                    <div id="tickets-section" style="display: none">
-                        <div class="form-row">
-                            <div class="field-box">
-                                <label for="id_order_type">Tipo de orden:</label>
-                                <select name="order_type" id="id_order_type" required>
-                                    <option value="CASH_ONSITE">Compra en efectivo</option>
-                                    <option value="LOCAL_TRANSFER">Transferencia local</option>
-                                    <option value="INTERNATIONAL_TRANSFER">Transferencia internacional</option>
-                                    <option value="OTHER">Otros</option>
-                                </select>
-                            </div>
-                            <div class="form-row">
-                                <div class="field-box">
-                                    <label for="id_name">Nombre:</label>
-                                    <label id="label_first_name" style="display: none"></label>
-                                    <input type="text" name="first_name" id="id_first_name" placeholder="Nombre"
-                                           required>
-                                </div>
-                            </div>
-                            <div class="form-row">
-                                <div class="field-box">
-                                    <label for="id_last_name">Apellido:</label>
-                                    <label id="label_last_name" style="display: none"></label>
-                                    <input type="text" name="last_name" id="id_last_name" placeholder="Apellido"
-                                           required>
-                                </div>
-                            </div>
-                            <div class="form-row">
-                                <div class="field-box">
-                                    <label for="id_document_type">Tipo de documento:</label>
-                                    <label id="label_document_type" style="display: none"></label>
-                                    <select name="document_type" id="id_document_type" required>
-                                        <option value="DNI">DNI</option>
-                                        <option value="PASSPORT">Pasaporte</option>
-                                        <option value="OTHER">Otro</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="form-row">
-                                <div class="field-box">
-                                    <label for="id_document_number">Numero de documento:</label>
-                                    <label id="label_document_number" style="display: none"></label>
-                                    <input type="text" name="document_number" id="id_document_number"
-                                           placeholder="Numero de documento" required>
-                                </div>
-                                <div class="form-row">
-                                    <div class="field-box">
-                                        <label for="id_phone">Telefono:</label>
-                                        <label id="label_phone" style="display: none"></label>
-                                        <input type="tel" id="phone" name="phone_input" style="width: 100%" required>
-                                        <input type="hidden" id="id_phone" name="phone">
-                                    </div>
-                                </div>
-                            <br/>
-                                {% for ticket in ticket_types %}
-                                    <div class="form-row">
-                                        <div class="field-box">
-                                            <label for="ticket_quantity_{{ ticket.id }}">
-                                                {{ ticket.emoji }} {{ ticket.name }} - Quedan {{ ticket.ticket_count }}
-                                                bonos - ${{ ticket.price|floatformat|intcomma }} c/u
-                                            </label>
-                                            <input type="number" name="ticket_quantity_{{ ticket.id }}"
-                                                   id="ticket_quantity_{{ ticket.id }}" value="0" min="0" step="1"
-                                                   style="width: 50px;">
-                                        </div>
-                                    </div>
-                                {% endfor %}
-                            </div>
-                        <br/>
-                        <br/>
-                            <div class="form-row">
-                                <div class="field-box">
-                                    <textarea name="notes" id="id_notes" placeholder="Notas aquí..." rows="3"
-                                              style="width: 100%;"></textarea>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </fieldset>
-                <div class="form-row">
-                    <div class="field-box" style="justify-content: end">
-                        <h2>
-                            <strong id="total-display">Total: $0.00</strong>
-                        </h2>
-                    </div>
-                </div>
-                <div class="submit-row" style="display:none; justify-content: center" id="emit-button">
-                    <button type="submit" class="default" id="comprar"
-                            style="background-color: #4CAF50; border: none; color: white; padding: 15px 32px; text-align: center; text-decoration: none; display: inline-block; font-size: 16px; margin: 4px 2px; cursor: pointer;">
-                        Emitir bonos
-                    </button>
-                </div>
-            </form>
-        </div>
+<div class="caja">
+    <h1>Emisión directa de bonos</h1>
+    <div class="caja-meta">
+        <form method="get" id="event-form">
+            <label for="event"><strong>Evento:</strong></label>
+            <select name="event" id="event" onchange="this.form.submit();">
+                {% for event in events %}
+                    <option value="{{ event.id }}" {% if event.id == default_event.id %}selected{% endif %}>{{ event.name }}</option>
+                {% endfor %}
+            </select>
+        </form>
+        <span>Operador: <strong>{{ user.email }}</strong></span>
     </div>
 
-    <script>
-        const input = document.querySelector("#phone");
-        const iti = window.intlTelInput(input, {
-            utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/js/utils.js",
-            initialCountry: "AR",
-            customPlaceholder: function (selectedCountryPlaceholder, selectedCountryData) {
-                if (selectedCountryData.iso2 === "ar") {
-                    return "11 1234 5678";
-                }
-                return selectedCountryPlaceholder;
-            },
-        });
+    {% if form.errors %}
+        <div class="form-errors">
+            <ul>
+                {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+                {% for field in form %}{% for error in field.errors %}<li><strong>{{ field.label }}:</strong> {{ error }}</li>{% endfor %}{% endfor %}
+            </ul>
+        </div>
+    {% endif %}
 
-        if ("{{ show_congratulations }}" === "True") {
-            alert('Felicitaciones! La compra fue exitosa');
-        }
+    <form method="post" id="ticket-purchase-form" autocomplete="off">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="order"/>
+        <input type="hidden" name="event_id" value="{{ default_event.id }}"/>
+        <input type="hidden" name="user_id" id="id_user_id" value=""/>
 
-        document.getElementById('check-email').addEventListener('click', async function () {
-            const email = document.getElementById('id_email').value;
+        <!-- Paso 1: persona -->
+        <div class="card" id="search-card">
+            <h2><span class="step">1</span>¿A quién le emitimos?</h2>
+            <div class="search-wrap">
+                <input type="search" id="user-search" placeholder="Nombre, apellido, DNI, email o teléfono" autofocus>
+                <div class="search-hint">Podés combinar palabras (ej. <em>laura 3045</em>). ↑ ↓ para moverte, Enter para elegir.</div>
+                <ul class="results" id="results"></ul>
+                <div style="margin-top: 8px;">
+                    <button type="button" class="btn-link" id="new-user-btn">+ No tiene cuenta: crear una nueva</button>
+                </div>
+            </div>
+        </div>
 
-            if (!email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) === false) {
-                alert('Por favor ingrese un email');
-                return;
-            }
+        <div class="card hidden" id="selected-card">
+            <h2><span class="step">1</span>Persona</h2>
+            <div class="selected-user">
+                <div>
+                    <div class="fullname" id="sel-name"></div>
+                    <dl>
+                        <dt>Email</dt><dd id="sel-email"></dd>
+                        <dt>Documento</dt><dd id="sel-doc"></dd>
+                        <dt>Teléfono</dt><dd id="sel-phone"></dd>
+                    </dl>
+                    <div id="sel-badges" style="margin-top: 8px;"></div>
+                </div>
+                <button type="button" class="btn btn-secondary" id="change-user">Cambiar</button>
+            </div>
+        </div>
 
-            try {
-                const response = await fetch('/admin/caja/email-has-account/', {
-                    method: 'POST',
-                    body: JSON.stringify({email}),
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': '{{ csrf_token }}',
-                    }
-                });
+        <div class="card hidden" id="new-user-card">
+            <h2><span class="step">1</span>Cuenta nueva <span class="badge badge-new">se le manda mail para crear contraseña</span></h2>
+            <div class="new-user-grid">
+                <div class="full">
+                    <label for="id_email">Email</label>
+                    <input type="email" name="email" id="id_email" value="{{ form.email.value|default_if_none:'' }}">
+                </div>
+                <div>
+                    <label for="id_first_name">Nombre</label>
+                    <input type="text" name="first_name" id="id_first_name" value="{{ form.first_name.value|default_if_none:'' }}">
+                </div>
+                <div>
+                    <label for="id_last_name">Apellido</label>
+                    <input type="text" name="last_name" id="id_last_name" value="{{ form.last_name.value|default_if_none:'' }}">
+                </div>
+                <div>
+                    <label for="id_document_type">Tipo de documento</label>
+                    <select name="document_type" id="id_document_type">
+                        <option value="DNI">DNI</option>
+                        <option value="PASSPORT">Pasaporte</option>
+                        <option value="OTHER">Otro</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="id_document_number">Número de documento</label>
+                    <input type="text" name="document_number" id="id_document_number" value="{{ form.document_number.value|default_if_none:'' }}">
+                </div>
+                <div class="full">
+                    <label for="phone">Teléfono</label>
+                    <input type="tel" id="phone" name="phone_input">
+                    <input type="hidden" id="id_phone" name="phone">
+                </div>
+            </div>
+            <div style="margin-top: 12px;">
+                <button type="button" class="btn-link" id="cancel-new-user">← Volver a buscar</button>
+            </div>
+        </div>
 
-                const fieldIds = ['first_name', 'last_name', 'document_type', 'document_number'];
-
-                if (response.status === 200) {
-                    const data = await response.json();
-                    fieldIds.forEach(id => {
-                        document.getElementById(`id_${id}`).value = data[id];
-                        document.getElementById(`id_${id}`).type = 'hidden';
-                        document.getElementById(`label_${id}`).innerText = data[id];
-                        document.getElementById(`label_${id}`).style.display = 'block';
-                    });
-                    document.getElementById(`label_phone`).style.display = 'block';
-                    document.getElementById(`label_phone`).innerText = data.phone;
-                    document.querySelector('.iti').style.display = "none";
-                    document.getElementById('id_document_type').style.display = 'none';
-                    document.getElementById('phone').type = 'hidden';
-
-                    document.getElementById('id_email').setAttribute('readonly', true);
-
-                    document.getElementById('check-email').style.display = 'none';
-                    document.getElementById('clear-form').style.display = 'block';
-                } else if (response.status === 204) {
-                    alert('El email ingresado no tiene una cuenta');
-                    fieldIds.forEach(id => {
-                        document.getElementById(`id_${id}`).value = '';
-                        document.getElementById(`id_${id}`).type = 'text';
-                        document.getElementById(`label_${id}`).innerText = '';
-                        document.getElementById(`label_${id}`).style.display = 'none';
-                    });
-                    document.getElementById(`label_phone`).style.display = 'none';
-                    document.getElementById(`label_phone`).innerText = '';
-                    document.querySelector('.iti').style.display = "block";
-                    document.getElementById('phone').type = 'tel';
-                    document.getElementById('id_document_type').style.display = 'block';
-                    document.getElementById('id_email').setAttribute('readonly', true);
-                    document.getElementById('check-email').style.display = 'none';
-                    document.getElementById('clear-form').style.display = 'block';
-                } else if (response.status === 206) {
-                    alert('El email ingresado tiene una cuenta pero no tiene los datos completos. Debe completar el perfil antes de continuar');
-                    return;
-                }
-
-                document.getElementById('tickets-section').style.display = 'block';
-                document.getElementById('emit-button').style.display = 'block';
-            } catch (e) {
-                console.error(e);
-            }
-        });
-
-        document.getElementById('clear-form').addEventListener('click', function () {
-            document.getElementById('id_email').removeAttribute('readonly');
-            document.getElementById('id_email').value = '';
-
-
-            document.getElementById('check-email').style.display = 'block';
-            document.getElementById('clear-form').style.display = 'none';
-            document.getElementById('tickets-section').style.display = 'none';
-            document.getElementById('emit-button').style.display = 'none';
-
-            ['first_name', 'last_name', 'document_type', 'document_number'].forEach(id => {
-                document.getElementById(`id_${id}`).value = '';
-                document.getElementById(`id_${id}`).type = 'text';
-                document.getElementById(`label_${id}`).innerText = '';
-                document.getElementById(`label_${id}`).style.display = 'none';
-            });
-            document.getElementById('id_notes').value = '';
-        });
-
-        document.getElementById('ticket-purchase-form').addEventListener('submit', async function (event) {
-            event.preventDefault();
-            let total = 0;
-            let hasValidTickets = false;
-
-            // Check ticket quantities
-            document.querySelectorAll('input[name^="ticket_quantity_"]').forEach(function (input) {
-                const quantity = parseInt(input.value) || 0;
-                input.value = quantity;
-                if (quantity > 0) {
-                    hasValidTickets = true;
-                    total += quantity;
-                }
-            });
-
-            if (!hasValidTickets) {
-                alert('Debe seleccionar al menos un bono');
-                return;
-            }
-
-            // Handle hidden fields for existing users
-            const fieldIds = ['first_name', 'last_name', 'document_type', 'document_number'];
-            fieldIds.forEach(id => {
-                if (document.getElementById(`id_${id}`).type === 'hidden') {
-                    // If field is hidden, use the label value
-                    document.getElementById(`id_${id}`).value = document.getElementById(`label_${id}`).innerText;
-                }
-            });
-
-            // Handle phone number
-            if (document.getElementById(`id_first_name`).type === 'hidden') {
-                document.getElementById('id_phone').value = document.getElementById(`label_phone`).innerText;
-            } else if (!iti.isValidNumber()) {
-                alert('Por favor ingrese un telefono valido');
-                return;
-            } else {
-                document.getElementById('id_phone').value = iti.getNumber();
-            }
-
-            const boton = document.getElementById('comprar');
-            boton.disabled = true;
-            boton.style.backgroundColor = 'gray';
-            boton.style.cursor = 'not-allowed';
-
-            try {
-                event.target.submit();
-            } catch (e) {
-                console.error(e);
-                boton.disabled = false;
-                boton.style.backgroundColor = '#4CAF50';
-                boton.style.cursor = 'pointer';
-            }
-        });
-
-        const ticketPrices = {
+        <!-- Paso 2: bonos -->
+        <div class="card hidden" id="tickets-card">
+            <h2><span class="step">2</span>Bonos</h2>
             {% for ticket in ticket_types %}
-                '{{ ticket.id }}': parseFloat("{{ ticket.price|floatformat:2 }}".replaceAll(',', '.')),
+                <div class="ticket-row">
+                    <div>
+                        <div class="tname">{{ ticket.emoji }} {{ ticket.name }}</div>
+                        <div class="tinfo">
+                            ${{ ticket.price|default:0|floatformat:0|intcomma }} c/u
+                            {% if ticket.ticket_count is not None %} · Quedan {{ ticket.ticket_count }}{% endif %}
+                            {% if ticket.is_direct_type %} · <span class="badge badge-info">dirigido</span>{% endif %}
+                        </div>
+                    </div>
+                    <div class="stepper">
+                        <button type="button" data-delta="-1" aria-label="Restar">−</button>
+                        <input type="number" name="ticket_quantity_{{ ticket.id }}" value="{{ ticket.selected_quantity }}" min="0" step="1"
+                               {% if ticket.ticket_count %}max="{{ ticket.ticket_count }}"{% endif %}
+                               data-price="{{ ticket.price|default:0|stringformat:'s' }}">
+                        <button type="button" data-delta="1" aria-label="Sumar">+</button>
+                    </div>
+                </div>
+            {% empty %}
+                <p>Este evento no tiene tipos de bono.</p>
             {% endfor %}
-        };
+        </div>
 
-        const updateTotal = () => {
-            let total = 0;
-            document.querySelectorAll('input[name^="ticket_quantity_"]').forEach(function (input) {
-                const ticketId = input.name.split('_').pop();
-                const price = parseFloat(ticketPrices[ticketId]);
-                const quantity = parseInt(input.value) || 0;
-                total += price * quantity;
-            });
-            document.getElementById('total-display').innerText = 'Total: $' + total.toFixed(2);
-        };
+        <div class="card hidden" id="order-card">
+            <h2><span class="step">3</span>Pago</h2>
+            <div class="order-grid">
+                <div>
+                    <label for="id_order_type">Tipo de orden</label>
+                    <select name="order_type" id="id_order_type" required>
+                        <option value="CASH_ONSITE">Compra en efectivo</option>
+                        <option value="LOCAL_TRANSFER">Transferencia local</option>
+                        <option value="INTERNATIONAL_TRANSFER">Transferencia internacional</option>
+                        <option value="OTHER">Otros</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="id_notes">Notas</label>
+                    <textarea name="notes" id="id_notes" rows="2" placeholder="Opcional">{{ form.notes.value|default_if_none:'' }}</textarea>
+                </div>
+            </div>
+            <hr style="margin: 16px 0;">
+            <div class="checkout">
+                <div>
+                    <div class="total" id="total-display">Total: $0</div>
+                    <div class="count" id="count-display">0 bonos</div>
+                </div>
+                <button type="submit" class="btn btn-primary" id="comprar" disabled>Emitir bonos</button>
+            </div>
+        </div>
+    </form>
+</div>
 
-        document.querySelectorAll('input[name^="ticket_quantity_"]').forEach(function (input) {
-            input.addEventListener('change', updateTotal);
+{{ selected_user_json|json_script:"selected-user-data" }}
+<script>
+(function () {
+    const SEARCH_URL = "{{ search_url }}";
+    const EVENT_ID = "{{ default_event.id|default:'' }}";
+    const $ = (id) => document.getElementById(id);
+
+    const iti = window.intlTelInput($('phone'), {
+        utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@24.2.0/build/js/utils.js",
+        initialCountry: "AR",
+        customPlaceholder: (placeholder, data) => data.iso2 === "ar" ? "11 1234 5678" : placeholder,
+    });
+
+    const searchInput = $('user-search');
+    const resultsEl = $('results');
+    const newUserFields = ['id_email', 'id_first_name', 'id_last_name', 'id_document_number', 'phone'];
+    let mode = 'search'; // search | selected | new
+    let results = [];
+    let activeIndex = -1;
+    let lastQuery = '';
+    let timer = null;
+    let controller = null;
+
+    const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+    const highlight = (text, terms) => {
+        let html = escapeHtml(text);
+        terms.forEach(t => {
+            if (t.length < 2) return;
+            const re = new RegExp('(' + escapeHtml(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'ig');
+            html = html.replace(re, '<mark>$1</mark>');
         });
+        return html;
+    };
+    const fullName = (u) => [u.first_name, u.last_name].filter(Boolean).join(' ') || '(sin nombre)';
+    const docLabel = (u) => u.document_number ? `${u.document_type === 'DNI' ? 'DNI' : u.document_type === 'PASSPORT' ? 'Pasaporte' : 'Doc'} ${u.document_number}` : 'sin documento';
 
+    function setMode(next) {
+        mode = next;
+        $('search-card').classList.toggle('hidden', mode !== 'search');
+        $('selected-card').classList.toggle('hidden', mode !== 'selected');
+        $('new-user-card').classList.toggle('hidden', mode !== 'new');
+        $('tickets-card').classList.toggle('hidden', mode === 'search');
+        $('order-card').classList.toggle('hidden', mode === 'search');
+        newUserFields.forEach(id => { $(id).required = mode === 'new'; });
+        if (mode === 'search') {
+            $('id_user_id').value = '';
+            searchInput.focus();
+            searchInput.select();
+        }
         updateTotal();
-    </script>
+    }
+
+    function renderResults() {
+        const terms = lastQuery.split(/\s+/).filter(Boolean);
+        if (!lastQuery || lastQuery.length < 2) { resultsEl.innerHTML = ''; return; }
+        if (!results.length) {
+            resultsEl.innerHTML = '<li class="empty">No encontramos a nadie. Revisá lo que escribiste o creá una cuenta nueva.</li>';
+            return;
+        }
+        resultsEl.innerHTML = results.map((u, i) => {
+            const otherEmails = u.emails.filter(e => e.toLowerCase() !== (u.email || '').toLowerCase());
+            const badges = [];
+            if (!u.profile_complete) badges.push('<span class="badge badge-warn">Perfil incompleto</span>');
+            if (u.tickets_in_event) badges.push(`<span class="badge badge-info">Ya tiene ${u.tickets_in_event} bono${u.tickets_in_event > 1 ? 's' : ''}</span>`);
+            return `<li data-index="${i}" class="${i === activeIndex ? 'active' : ''} ${u.profile_complete ? '' : 'disabled'}">
+                <div>
+                    <div class="name">${highlight(fullName(u), terms)}${u.nickname ? ` <span style="font-weight:normal;color:#777">(${highlight(u.nickname, terms)})</span>` : ''}</div>
+                    <div class="details">
+                        <span>${highlight(u.email, terms)}</span>
+                        ${otherEmails.map(e => `<span>${highlight(e, terms)}</span>`).join('')}
+                        <span>${highlight(docLabel(u), terms)}</span>
+                        ${u.phone ? `<span>${highlight(u.phone, terms)}</span>` : ''}
+                    </div>
+                </div>
+                <div>${badges.join(' ')}</div>
+            </li>`;
+        }).join('');
+        if (results.length >= 15) {
+            resultsEl.insertAdjacentHTML('beforeend', '<li class="empty">Hay más resultados: agregá otra palabra para afinar.</li>');
+        }
+    }
+
+    async function search(query) {
+        if (controller) controller.abort();
+        controller = new AbortController();
+        try {
+            const params = new URLSearchParams({q: query, event: EVENT_ID});
+            const resp = await fetch(`${SEARCH_URL}?${params}`, {signal: controller.signal});
+            if (!resp.ok) throw new Error(resp.status);
+            const data = await resp.json();
+            if (query !== searchInput.value.trim()) return;
+            results = data.results;
+            lastQuery = query;
+            activeIndex = results.findIndex(u => u.profile_complete);
+            renderResults();
+        } catch (e) {
+            if (e.name !== 'AbortError') {
+                resultsEl.innerHTML = '<li class="empty">Error buscando. Probá de nuevo.</li>';
+                console.error(e);
+            }
+        }
+    }
+
+    searchInput.addEventListener('input', () => {
+        clearTimeout(timer);
+        const q = searchInput.value.trim();
+        if (q.length < 2) { results = []; lastQuery = ''; renderResults(); return; }
+        timer = setTimeout(() => search(q), 250);
+    });
+
+    searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (!results.length) return;
+            const step = e.key === 'ArrowDown' ? 1 : -1;
+            activeIndex = (activeIndex + step + results.length) % results.length;
+            renderResults();
+            resultsEl.querySelector('li.active')?.scrollIntoView({block: 'nearest'});
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (activeIndex >= 0) selectUser(results[activeIndex]);
+        }
+    });
+
+    resultsEl.addEventListener('click', (e) => {
+        const li = e.target.closest('li[data-index]');
+        if (li) selectUser(results[Number(li.dataset.index)]);
+    });
+
+    function selectUser(u) {
+        if (!u) return;
+        if (!u.profile_complete) {
+            alert(`${fullName(u)} tiene cuenta pero no completó su perfil. Tiene que completarlo antes de emitirle bonos.`);
+            return;
+        }
+        $('id_user_id').value = u.id;
+        $('sel-name').textContent = fullName(u) + (u.nickname ? ` (${u.nickname})` : '');
+        $('sel-email').textContent = u.emails.join(', ') || u.email;
+        $('sel-doc').textContent = docLabel(u);
+        $('sel-phone').textContent = u.phone || '—';
+        $('sel-badges').innerHTML = u.tickets_in_event
+            ? `<span class="badge badge-info">Ya tiene ${u.tickets_in_event} bono${u.tickets_in_event > 1 ? 's' : ''} para este evento</span>` : '';
+        setMode('selected');
+        document.querySelector('input[name^="ticket_quantity_"]')?.focus();
+    }
+
+    $('change-user').addEventListener('click', () => setMode('search'));
+    $('cancel-new-user').addEventListener('click', () => setMode('search'));
+    $('new-user-btn').addEventListener('click', () => {
+        // Prellenar con lo que se buscó.
+        const q = searchInput.value.trim();
+        if (q.includes('@')) $('id_email').value = q;
+        else if (/^[\d.\s]+$/.test(q)) $('id_document_number').value = q.replace(/[.\s]/g, '');
+        else if (q) {
+            const parts = q.split(/\s+/);
+            $('id_first_name').value = parts.shift();
+            $('id_last_name').value = parts.join(' ');
+        }
+        setMode('new');
+        $('id_email').focus();
+    });
+
+    // Stepper y total
+    document.querySelectorAll('.stepper').forEach(stepper => {
+        const input = stepper.querySelector('input');
+        stepper.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => {
+            const max = input.max ? Number(input.max) : Infinity;
+            input.value = Math.min(max, Math.max(0, (parseInt(input.value) || 0) + Number(btn.dataset.delta)));
+            updateTotal();
+        }));
+        input.addEventListener('input', updateTotal);
+    });
+
+    const money = new Intl.NumberFormat('es-AR', {style: 'currency', currency: 'ARS', maximumFractionDigits: 2});
+    function updateTotal() {
+        let total = 0, count = 0;
+        document.querySelectorAll('input[name^="ticket_quantity_"]').forEach(input => {
+            const qty = Math.max(0, parseInt(input.value) || 0);
+            total += qty * (parseFloat(input.dataset.price) || 0);
+            count += qty;
+        });
+        $('total-display').textContent = 'Total: ' + money.format(total);
+        $('count-display').textContent = `${count} bono${count === 1 ? '' : 's'}`;
+        $('comprar').disabled = count === 0 || mode === 'search';
+    }
+
+    $('ticket-purchase-form').addEventListener('submit', (e) => {
+        if (mode === 'search') { e.preventDefault(); return; }
+        if (mode === 'new') {
+            if (!iti.isValidNumber()) {
+                e.preventDefault();
+                alert('Por favor ingresá un teléfono válido');
+                return;
+            }
+            $('id_phone').value = iti.getNumber();
+        }
+        const btn = $('comprar');
+        btn.disabled = true;
+        btn.textContent = 'Emitiendo…';
+    });
+
+    // Volver al estado previo si el POST falló.
+    const preselected = JSON.parse($('selected-user-data').textContent);
+    if (preselected) {
+        selectUser(preselected);
+    } else if ({{ form.is_bound|yesno:"true,false" }}) {
+        setMode('new');
+    } else {
+        setMode('search');
+    }
+})();
+</script>
 {% endblock %}
