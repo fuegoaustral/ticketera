@@ -1,0 +1,22 @@
+{% load form_filters %}
+{% comment %}Recibe og_event (título y descripción), og_img (la imagen) y og_size (si se informan sus medidas: leerlas abre el archivo).{% endcomment %}
+{% with og_image_url=og_img.url|absolute_uri og_title=og_event.title|default:og_event.name|striptags %}
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Fuego Austral">
+    <meta property="og:title" content="{{ og_title }}">
+    {% if og_event.description %}
+        <meta property="og:description" content="{{ og_event.description|striptags|truncatechars:200 }}">
+    {% endif %}
+    <meta property="og:image" content="{{ og_image_url }}">
+    {% if og_size and og_img.width %}
+        <meta property="og:image:width" content="{{ og_img.width }}">
+        <meta property="og:image:height" content="{{ og_img.height }}">
+    {% endif %}
+    <meta property="og:url" content="{{ APP_URL }}{{ request.path }}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ og_title }}">
+    {% if og_event.description %}
+        <meta name="twitter:description" content="{{ og_event.description|striptags|truncatechars:200 }}">
+    {% endif %}
+    <meta name="twitter:image" content="{{ og_image_url }}">
+{% endwith %}

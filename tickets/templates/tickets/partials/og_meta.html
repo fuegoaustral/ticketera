@@ -1,23 +1,6 @@
-{% load form_filters %}
-{% if event and event.header_image %}
-    {% with og_image_url=event.header_image.url|absolute_uri %}
-        <meta property="og:type" content="website">
-        <meta property="og:site_name" content="Fuego Austral">
-        <meta property="og:title" content="{{ event.title|default:event.name|striptags }}">
-        {% if event.description %}
-            <meta property="og:description" content="{{ event.description|striptags|truncatechars:200 }}">
-        {% endif %}
-        <meta property="og:image" content="{{ og_image_url }}">
-        {% if event.header_image.width %}
-            <meta property="og:image:width" content="{{ event.header_image.width }}">
-            <meta property="og:image:height" content="{{ event.header_image.height }}">
-        {% endif %}
-        <meta property="og:url" content="{{ APP_URL }}{{ request.path }}">
-        <meta name="twitter:card" content="summary_large_image">
-        <meta name="twitter:title" content="{{ event.title|default:event.name|striptags }}">
-        {% if event.description %}
-            <meta name="twitter:description" content="{{ event.description|striptags|truncatechars:200 }}">
-        {% endif %}
-        <meta name="twitter:image" content="{{ og_image_url }}">
-    {% endwith %}
+{% comment %}En Mi Fuego → Arte, la imagen de la convocatoria y el texto de su evento; en el resto, el evento de la página.{% endcomment %}
+{% if og_art_program and og_art_program.image or og_art_program.event.header_image %}
+    {% include 'tickets/partials/_og_tags.html' with og_event=og_art_program.event og_img=og_art_program.image|default:og_art_program.event.header_image %}
+{% elif event and event.header_image %}
+    {% include 'tickets/partials/_og_tags.html' with og_event=event og_img=event.header_image og_size=True %}
 {% endif %}

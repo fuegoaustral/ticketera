@@ -128,6 +128,7 @@ TEMPLATES = [
                 'utils.context_processors.pending_terms_and_conditions',
                 'utils.context_processors.pending_logro_celebrations',
                 'caja.context_processors.cajas_v2_menu',
+                'art.context_processors.art_share',
             ],
         },
     },
