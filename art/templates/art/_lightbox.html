@@ -1,0 +1,139 @@
+{% comment %}
+Visor de fotos. Cada link a una imagen lleva data-lightbox; las fotos de un mismo bloque (el ancestro
+con data-lightbox-group) forman una galería que se recorre con anterior/siguiente, flechas o
+deslizando. Sin JS, el link abre el archivo en otra pestaña.
+{% endcomment %}
+<dialog class="art-lightbox" id="art-lightbox" aria-label="Visor de fotos">
+    <div class="art-lightbox-bar">
+        <span class="art-lightbox-count" aria-live="polite" data-lightbox-count></span>
+        <button type="button" class="art-lightbox-btn art-lightbox-close" data-lightbox-close aria-label="Cerrar" title="Cerrar (Esc)"><i class="fas fa-xmark" aria-hidden="true"></i></button>
+    </div>
+    <figure class="art-lightbox-stage" data-lightbox-stage>
+        <img class="art-lightbox-image" alt="" data-lightbox-image>
+        <figcaption class="art-lightbox-caption" data-lightbox-text></figcaption>
+    </figure>
+    <button type="button" class="art-lightbox-btn art-lightbox-nav art-lightbox-prev" data-lightbox-prev aria-label="Anterior" title="Anterior"><i class="fas fa-chevron-left" aria-hidden="true"></i></button>
+    <button type="button" class="art-lightbox-btn art-lightbox-nav art-lightbox-next" data-lightbox-next aria-label="Siguiente" title="Siguiente"><i class="fas fa-chevron-right" aria-hidden="true"></i></button>
+</dialog>
+<style>
+    a[data-lightbox] { cursor: zoom-in; }
+    .art-lightbox { position: fixed; inset: 0; width: 100%; max-width: none; height: 100%; max-height: none; margin: 0; padding: 0; border: 0; background: rgba(10, 12, 11, .97); color: #fff; overflow: hidden; }
+    .art-lightbox:not([open]) { display: none; }
+    .art-lightbox::backdrop { background: transparent; }
+    .art-lightbox[open] { animation: art-lightbox-in .15s ease-out; }
+    @keyframes art-lightbox-in { from { opacity: 0; } to { opacity: 1; } }
+    .art-lightbox-bar { position: absolute; top: 0; left: 0; right: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; padding: .75rem 1rem; padding-top: max(.75rem, env(safe-area-inset-top)); pointer-events: none; }
+    .art-lightbox-bar > * { pointer-events: auto; }
+    .art-lightbox-count { font-size: .9rem; font-variant-numeric: tabular-nums; letter-spacing: .02em; opacity: .85; }
+    .art-lightbox-stage { position: absolute; inset: 3.75rem 4.5rem 1rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .6rem; margin: 0; touch-action: pan-y pinch-zoom; }
+    .art-lightbox-image { display: block; min-height: 0; max-width: 100%; max-height: 100%; flex: 0 1 auto; object-fit: contain; border-radius: .25rem; box-shadow: 0 6px 30px rgba(0, 0, 0, .5); user-select: none; -webkit-user-drag: none; transition: opacity .12s ease-out; }
+    .art-lightbox-image.is-loading { opacity: .35; }
+    .art-lightbox-caption { flex: none; max-width: 40rem; font-size: .85rem; line-height: 1.35; text-align: center; opacity: .85; }
+    .art-lightbox-caption:empty { display: none; }
+    .art-lightbox-btn { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .12); color: #fff; font-size: 1.1rem; transition: background-color .15s ease-out; }
+    .art-lightbox-btn:hover { background: rgba(255, 255, 255, .24); }
+    .art-lightbox-btn:focus-visible { outline: 3px solid rgba(40, 158, 109, .8); outline-offset: 2px; }
+    .art-lightbox-nav { position: absolute; top: 50%; z-index: 2; transform: translateY(-50%); }
+    .art-lightbox-prev { left: 1rem; }
+    .art-lightbox-next { right: 1rem; }
+    .art-lightbox-nav[hidden] { display: none; }
+    @media (max-width: 575.98px) {
+        .art-lightbox-stage { inset: 3.75rem .5rem 5rem; }
+        .art-lightbox-nav { top: auto; bottom: max(1rem, env(safe-area-inset-bottom)); transform: none; }
+        .art-lightbox-prev { left: calc(50% - 56px); }
+        .art-lightbox-next { right: calc(50% - 56px); }
+    }
+    html.art-lightbox-open { overflow: hidden; }
+</style>
+<script>
+    (function () {
+        const dialog = document.getElementById('art-lightbox');
+        if (!dialog || typeof dialog.showModal !== 'function') return;  // Sin <dialog>: los links abren el archivo.
+        const image = dialog.querySelector('[data-lightbox-image]');
+        const caption = dialog.querySelector('[data-lightbox-text]');
+        const count = dialog.querySelector('[data-lightbox-count]');
+        const prev = dialog.querySelector('[data-lightbox-prev]');
+        const next = dialog.querySelector('[data-lightbox-next]');
+        const closeButton = dialog.querySelector('[data-lightbox-close]');
+        let items = [];
+        let index = 0;
+        let opener = null;
+
+        const captionOf = function (link) {
+            if (link.dataset.lightboxCaption) return link.dataset.lightboxCaption;
+            const thumb = link.querySelector('img');
+            return thumb ? thumb.alt : '';
+        };
+        const preload = function (i) {
+            if (items[i]) new Image().src = items[i].href;
+        };
+        const show = function (i) {
+            index = (i + items.length) % items.length;
+            const link = items[index];
+            image.classList.add('is-loading');
+            image.onload = image.onerror = function () { image.classList.remove('is-loading'); };
+            image.src = link.href;
+            image.alt = captionOf(link);
+            caption.textContent = captionOf(link);
+            count.textContent = items.length > 1 ? (index + 1) + ' / ' + items.length : '';
+            prev.hidden = next.hidden = items.length < 2;
+            if (items.length > 1) { preload(index + 1); preload(index - 1 + items.length); }
+        };
+        const open = function (link) {
+            const group = link.closest('[data-lightbox-group]');
+            items = group ? Array.from(group.querySelectorAll('a[data-lightbox]')) : [link];
+            opener = link;
+            show(Math.max(items.indexOf(link), 0));
+            document.documentElement.classList.add('art-lightbox-open');
+            dialog.showModal();
+            closeButton.focus();
+        };
+        const close = function () {
+            if (dialog.open) dialog.close();
+        };
+
+        document.addEventListener('click', function (event) {
+            const link = event.target.closest('a[data-lightbox]');
+            // Ctrl/Cmd/Shift-clic o botón del medio: que el navegador abra el archivo como siempre.
+            if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+            event.preventDefault();
+            open(link);
+        });
+        dialog.addEventListener('close', function () {
+            document.documentElement.classList.remove('art-lightbox-open');
+            image.removeAttribute('src');
+            if (opener) opener.focus({ preventScroll: true });
+            opener = null;
+        });
+        prev.addEventListener('click', function () { show(index - 1); });
+        next.addEventListener('click', function () { show(index + 1); });
+        closeButton.addEventListener('click', close);
+        // Clic en el fondo (fuera de la foto y de los botones) cierra.
+        dialog.addEventListener('click', function (event) {
+            if (event.target === dialog || event.target.hasAttribute('data-lightbox-stage') || event.target.classList.contains('art-lightbox-bar')) close();
+        });
+        dialog.addEventListener('keydown', function (event) {
+            if (event.key === 'ArrowLeft' && items.length > 1) { event.preventDefault(); show(index - 1); }
+            else if (event.key === 'ArrowRight' && items.length > 1) { event.preventDefault(); show(index + 1); }
+            else if (event.key === 'Tab') {
+                // El <dialog> modal ya deja el foco adentro; esto además lo hace circular entre sus botones.
+                const focusable = [prev, next, closeButton].filter(function (button) { return !button.hidden; });
+                const position = focusable.indexOf(document.activeElement);
+                event.preventDefault();
+                focusable[(position + (event.shiftKey ? -1 : 1) + focusable.length) % focusable.length].focus();
+            }
+        });
+        // Deslizar en el teléfono: horizontal y más largo que vertical.
+        let touch = null;
+        dialog.addEventListener('touchstart', function (event) {
+            touch = event.touches.length === 1 ? { x: event.touches[0].clientX, y: event.touches[0].clientY } : null;
+        }, { passive: true });
+        dialog.addEventListener('touchend', function (event) {
+            if (!touch || items.length < 2) return;
+            const dx = event.changedTouches[0].clientX - touch.x;
+            const dy = event.changedTouches[0].clientY - touch.y;
+            touch = null;
+            if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) show(index + (dx < 0 ? 1 : -1));
+        });
+    }());
+</script>

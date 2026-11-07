@@ -5,6 +5,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.urls import reverse
 
 from tickets.models import MessageIdempotency
+from user_profile.display import nickname
 from utils.email import send_mail
 
 from art.models import ArtProgram
@@ -14,8 +15,7 @@ TEMPLATE = 'art_new_questions'
 
 
 def _first_name(user):
-    profile = getattr(user, 'profile', None)
-    return user.first_name or (profile.nickname if profile else '') or ''
+    return nickname(user) or user.first_name or ''
 
 
 def _send(artwork, email):

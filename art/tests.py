@@ -158,8 +158,8 @@ class ArtworkFlowTest(TestCase):
         sent = send_mail.call_args.kwargs
         self.assertEqual(sent['template_name'], 'art_contact_assigned')
         self.assertEqual(set(sent['recipient_list']), {'artista@example.com', 'colab@example.com'})
-        self.assertEqual(sent['headers'], {'Reply-To': 'juana@example.com'})
-        self.assertContains(self.client.get(reverse('art_admin_dashboard', args=[self.event.slug])), '<td>Juana Coord</td>', html=True)
+        self.assertEqual(sent['headers'], {'Reply-To': 'Juana Coord <juana@example.com>'})
+        self.assertContains(self.client.get(reverse('art_admin_dashboard', args=[self.event.slug])), '<td class="art-proposal-col art-col-contact">Juana Coord</td>', html=True)
 
         # Guardar el mismo contacto no vuelve a avisar.
         send_mail.reset_mock()
@@ -188,7 +188,7 @@ class ArtworkFlowTest(TestCase):
         send_mail.assert_not_called()
         artwork.refresh_from_db()
         self.assertIsNone(artwork.estafa_contact)
-        self.assertContains(self.client.get(reverse('art_admin_dashboard', args=[self.event.slug])), '<td><span class="text-muted">Sin contacto</span></td>', html=True)
+        self.assertContains(self.client.get(reverse('art_admin_dashboard', args=[self.event.slug])), '<td class="art-proposal-col art-col-contact"><span class="text-muted">Sin contacto</span></td>', html=True)
 
         self.client.post(contact_url, {'estafa_contact': self.stranger.pk})
         artwork.refresh_from_db()
@@ -1204,7 +1204,9 @@ class ArtworkFlowTest(TestCase):
         url = reverse('art_admin_dashboard', args=[self.event.slug])
         dashboard = self.client.get(url)
         self.assertContains(dashboard, 'Anita')
-        self.assertNotContains(dashboard, self.owner.email)
+        # El email sólo aparece en la columna de contactos (oculta hasta que ESTAFA la activa).
+        self.assertContains(dashboard, self.owner.email, count=2)
+        self.assertContains(dashboard, f'href="mailto:{self.owner.email}"')
         self.assertNotContains(dashboard, 'No solicitada')
         self.assertNotContains(dashboard, '<th>Beca</th>', html=True)
         for query in ('anita', 'artista', self.owner.email):

@@ -17,6 +17,9 @@ from events.models import Event, EventTermsAndConditions, EventTermsAndCondition
 from events.utils import get_event_from_request, get_admin_events_for_user
 from tickets.models import NewTicket, NewTicketTransfer, Order, TicketType
 from .forms import ProfileStep1Form, ProfileStep2Form, VolunteeringForm, ProfileUpdateForm, CustomPasswordChangeForm, AddEmailForm, PhoneUpdateForm, CajaEmitirBonoForm
+from art.estafa import is_estafa_member
+from art.forms import EstafaNotificationPreferenceForm
+from art.models import EstafaNotificationPreference
 from .impersonation import IMPERSONATION_ADMIN_USER_ID_SESSION_KEY
 
 
@@ -673,6 +676,9 @@ def profile_view(request):
     profile_form = ProfileUpdateForm(instance=profile, user=user)
     password_form = CustomPasswordChangeForm(user=user)
     add_email_form = AddEmailForm()
+    estafa_emails_form = None
+    if is_estafa_member(user):
+        estafa_emails_form = EstafaNotificationPreferenceForm(instance=EstafaNotificationPreference.for_user(user))
     
     # Handle profile update
     if request.method == 'POST':
@@ -685,6 +691,14 @@ def profile_view(request):
             else:
                 messages.error(request, 'Revisá los datos e intentá de nuevo.')
         
+        elif 'update_estafa_emails' in request.POST and estafa_emails_form is not None:
+            estafa_emails_form = EstafaNotificationPreferenceForm(request.POST, instance=estafa_emails_form.instance)
+            if estafa_emails_form.is_valid():
+                estafa_emails_form.save()
+                messages.success(request, 'Tus preferencias de emails de ESTAFA quedaron guardadas.')
+                return redirect('profile')
+            messages.error(request, 'Revisá los datos e intentá de nuevo.')
+
         # Handle password change
         elif 'change_password' in request.POST:
             password_form = CustomPasswordChangeForm(user=user, data=request.POST)
@@ -765,6 +779,7 @@ def profile_view(request):
         'password_form': password_form,
         'add_email_form': add_email_form,
         'email_addresses': email_addresses,
+        'estafa_emails_form': estafa_emails_form,
         'user': user,
         'profile': profile,
     }

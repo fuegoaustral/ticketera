@@ -9,6 +9,7 @@ FLAGS = {
     'burns': 'Se quema',
     'uses_sound': 'Tiene sonido',
     'needs_mad_assistance': 'Necesita asistencia de MAD',
+    'is_movable': 'Se mueve de lugar (sin motor)',
     'has_own_mobility': 'Movilidad propia (art car)',
 }
 
