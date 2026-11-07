@@ -5,6 +5,8 @@ from django.conf import settings
 from django.utils import timezone
 from django.utils.html import strip_tags
 
+from user_profile.display import display_label
+
 logger = logging.getLogger(__name__)
 
 _inbox_meta_cache = {}
@@ -97,7 +99,8 @@ def build_proposal_message(event_request):
     from events.services.event_request_actions import action_url
 
     requester = event_request.requested_by
-    requester_label = _contact_display_name(requester)
+    # The message text uses the nickname; the Chatwoot contact keeps the formal name.
+    requester_label = _contact_display_name(requester, display_label(requester))
     start_local = timezone.localtime(event_request.start)
     end_local = timezone.localtime(event_request.end)
     description_plain = strip_tags(event_request.description).strip()
@@ -161,8 +164,8 @@ def _find_contact_by_email(email):
     return None
 
 
-def _contact_display_name(user):
-    name = (user.get_full_name() or '').strip() or user.email
+def _contact_display_name(user, name=None):
+    name = name or (user.get_full_name() or '').strip() or user.email
     env = getattr(settings, 'ENV', 'local')
     if env and env not in ('local', ''):
         return f'[{env}] - {name}'

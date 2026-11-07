@@ -55,6 +55,7 @@
     {% include 'art/steps/summary/_group_title.html' with title='Movilidad (MAD)' %}
     <dl class="step-readonly">
         {% include 'art/steps/summary/_row.html' with label='Necesita asistencia de MAD' value=artwork.needs_mad_assistance|yesno:'Sí,No' %}
+        {% include 'art/steps/summary/_row.html' with label='Se mueve de lugar (sin motor)' value=artwork.is_movable|yesno:'Sí,No' %}
         {% include 'art/steps/summary/_row.html' with label='Movilidad propia (art car)' value=artwork.has_own_mobility|yesno:'Sí,No' %}
     </dl>
 </div>

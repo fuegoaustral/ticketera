@@ -1,7 +1,9 @@
 from decimal import Decimal, InvalidOperation
 
 from django import template
-from django.core.exceptions import ObjectDoesNotExist
+
+from user_profile.display import display_full_name, display_label, display_name
+from user_profile.phone import display_phone, whatsapp_number
 
 register = template.Library()
 
@@ -18,31 +20,39 @@ def art_money(value):
     return f'{amount:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.')
 
 
-def _nickname(user):
-    try:
-        return user.profile.nickname.strip()
-    except ObjectDoesNotExist:
-        return ''
-
-
+# Aliases of the site-wide helpers in user_profile.display (also available as
+# {% load display_name %}), kept so art templates keep loading art_format only.
 @register.filter
 def person_name(user):
     """Cómo mostrar a una persona: cómo le dicen, su nombre completo o, si no hay, su email."""
-    if not user:
-        return ''
-    return _nickname(user) or user.get_full_name() or user.email
+    return display_name(user)
 
 
 @register.filter
 def person_full_name(user):
     """El nombre completo, sólo cuando person_name muestra cómo le dicen."""
-    if not user or not _nickname(user):
-        return ''
-    return user.get_full_name()
+    return display_full_name(user)
 
 
 @register.filter
 def person_label(user):
     """Una línea para selects: «Juancho (Juan Bautista Sanchez)»."""
-    full_name = person_full_name(user)
-    return f'{person_name(user)} ({full_name})' if full_name else person_name(user)
+    return display_label(user)
+
+
+@register.filter
+def person_greeting(user):
+    """Para saludar: cómo le dicen o su nombre completo; nunca el email."""
+    return display_name(user, fallback_to_email=False)
+
+
+@register.filter
+def phone_display(phone):
+    """Un teléfono legible: +54 9 11 5555-1234."""
+    return display_phone(phone)
+
+
+@register.filter
+def phone_whatsapp(phone):
+    """Los dígitos internacionales para abrir el chat de WhatsApp."""
+    return whatsapp_number(phone)
