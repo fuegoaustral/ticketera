@@ -1,9 +1,11 @@
 import csv
 import logging
+from email.utils import formataddr
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.db.models import Case, F, IntegerField, Q, Value, When
 from django.http import Http404, HttpResponse, HttpResponseForbidden
@@ -16,8 +18,10 @@ from django.views.decorators.http import require_POST
 from events.models import Event, Grupo, GrupoMiembro, GrupoTipo
 from caja.stock import ticket_types_with_stock_queryset
 from tickets.models import NewTicket, TicketType
+from user_profile.phone import whatsapp_number
 from utils.email import send_mail
 
+from .digest import record_change, send_new_artwork_email
 from .estafa import can_access_estafa, can_coordinate, estafa_events, estafa_members, is_estafa_member
 from .forms import (
     GALLERY_STAGES, ArtworkForm, ArtworkGrantForm, ArtworkGrantItemForm, ArtworkTeamAddForm,
@@ -30,7 +34,7 @@ from .models import (
     ArtworkProviderVehicle,
 )
 from .review_sections import review_sections
-from .templatetags.art_format import person_label, person_name
+from .templatetags.art_format import person_greeting, person_label, person_name
 from .steps import CLOSED, OPEN, UPCOMING, artwork_steps, next_step
 
 
@@ -87,7 +91,7 @@ def _send_team_member_added_email(artwork, user, added_by):
             recipient_list=[user.email],
             context={
                 'artwork': artwork,
-                'added_by_name': added_by.get_full_name() or added_by.email,
+                'added_by_name': person_name(added_by),
                 'can_edit': artwork.can_edit(user),
                 'ticket_outlook': outlook,
                 'missing_ticket': outlook is not None and not _has_ticket(user, artwork.event),
@@ -150,10 +154,10 @@ def _send_contact_email(artwork):
             recipient_list=recipients,
             context={
                 'artwork': artwork,
-                'contact_name': contact.get_full_name() or contact.email,
+                'contact_name': person_name(contact),
                 'artwork_path': reverse('artwork_edit', args=[artwork.pk]),
             },
-            headers={'Reply-To': contact.email} if contact.email else None,
+            headers={'Reply-To': formataddr((person_greeting(contact), contact.email))} if contact.email else None,
         )
     except Exception:
         logging.exception('No se pudo avisar el contacto de ESTAFA de la instalación %s', artwork.pk)
@@ -529,6 +533,7 @@ def artwork_create(request, event_slug):
             artwork = form.save()
             _ensure_operations_group(artwork, program)
             transaction.on_commit(lambda: _send_artwork_received_email(artwork))
+            transaction.on_commit(lambda: send_new_artwork_email(artwork))
         messages.success(
             request,
             'La propuesta de Arte quedó inscripta. Queda pendiente de aprobación por ESTAFA. '
@@ -576,7 +581,10 @@ def _handle_artwork_edit(request, artwork):
     if request.method == 'POST' and form.is_valid():
         if not form.instance.submitted_at:
             form.instance.submitted_at = timezone.now()
+        changed_sections = _changed_sections(form)
         artwork = form.save()
+        for section in changed_sections:
+            record_change(artwork, section, request.user)
         _ensure_operations_group(artwork, program)
         if action == 'checkout':
             _submit_checkout(request, artwork, program)
@@ -590,6 +598,30 @@ def _handle_artwork_edit(request, artwork):
         return redirect('art_dashboard')
 
     return render(request, 'art/form.html', _artwork_context(artwork, program, form))
+
+
+# Cómo se llama cada bloque de los formularios en el resumen de cambios para ESTAFA.
+CHANGE_SECTIONS = {
+    'proposal': 'Detalles',
+    'guide': 'Folleto',
+    'checkout': 'Checkout',
+    'understanding_letter_digital': 'Declaración',
+    'grant': 'Beca',
+    'grant_report': 'Rendición de beca',
+}
+
+
+def _changed_sections(form):
+    """Los bloques del formulario con algún campo que de verdad cambió."""
+    changed = set(form.changed_data) - {'expected_version'}
+    return [
+        CHANGE_SECTIONS[block] for block, fields in form.BLOCK_FIELDS.items()
+        if changed.intersection(fields)
+    ]
+
+
+def _grant_section(phase):
+    return 'Beca' if phase == ArtworkGrantItem.Phase.BUDGET else 'Rendición de beca'
 
 
 def _can_submit_checkout(artwork, program, user):
@@ -613,6 +645,7 @@ def _submit_checkout(request, artwork, program):
             'status_changed_at', 'status_changed_by', 'updated_at',
         ])
         transaction.on_commit(lambda: _send_checkout_submitted_email(artwork))
+        record_change(artwork, 'Checkout', request.user)
         messages.success(request, 'El checkout fue enviado. El equipo de Arte lo va a verificar.')
 
 
@@ -741,7 +774,10 @@ def _handle_artwork_grant(request, artwork):
         raise Http404('Esta convocatoria no tiene becas.')
     form = ArtworkGrantForm(request.POST or None, instance=artwork, program=program, actor=request.user)
     if request.method == 'POST' and form.is_valid():
+        changed_sections = _changed_sections(form)
         form.save()
+        for section in changed_sections:
+            record_change(artwork, section, request.user)
         messages.success(request, 'Cambios guardados.')
         return redirect('artwork_grant', artwork_id=artwork.pk)
     return render(request, 'art/grant.html', _grant_page_context(artwork, program, form, request.user))
@@ -767,6 +803,7 @@ def grant_item_create(request, artwork_id, phase):
         if form.is_valid():
             item = form.save()
             _save_grant_item_images(item, form.cleaned_data['images'], request.user)
+            record_change(artwork, _grant_section(phase), request.user)
             messages.success(request, 'Ítem agregado y total actualizado.')
             return _grant_redirect(request, artwork, phase)
     return _inline_error_response(request, artwork, ('grant-new', phase), form)
@@ -791,8 +828,11 @@ def grant_item_edit(request, artwork_id, item_id):
             auto_id=f'grant-{item.pk}_%s',
         )
         if form.is_valid():
+            changed = set(form.changed_data) - {'expected_updated_at'}
             item = form.save()
             _save_grant_item_images(item, form.cleaned_data['images'], request.user)
+            if changed:
+                record_change(artwork, _grant_section(item.phase), request.user)
             messages.success(request, 'Ítem actualizado.')
             return _grant_redirect(request, artwork, item.phase)
     return _inline_error_response(request, artwork, ('grant', item.pk), form)
@@ -830,6 +870,7 @@ def grant_item_delete(request, artwork_id, item_id):
         if not _grant_item_editable(artwork, item.phase, request.user):
             return HttpResponseForbidden('Este ítem no se puede eliminar.')
         item.delete()
+        record_change(artwork, _grant_section(item.phase), request.user)
     messages.success(request, 'Ítem eliminado.')
     return _grant_redirect(request, artwork, item.phase)
 
@@ -847,6 +888,7 @@ def grant_item_photo_delete(request, artwork_id, item_id, photo_id):
         storage, image_name = photo.image.storage, photo.image.name
         photo.delete()
         transaction.on_commit(lambda: storage.delete(image_name))
+        record_change(artwork, _grant_section(item.phase), request.user)
     messages.success(request, 'Imagen eliminada del ítem.')
     return _grant_redirect(request, artwork, item.phase)
 
@@ -880,6 +922,7 @@ def grant_submit(request, artwork_id):
         else:
             artwork.grant_status = Artwork.GrantStatus.PENDING
             artwork.save(update_fields=['grant_status', 'updated_at'])
+            record_change(artwork, 'Beca', request.user)
             messages.success(request, 'La solicitud de beca fue presentada para revisión.')
     return _grant_page_redirect(artwork, 'solicitud')
 
@@ -911,6 +954,7 @@ def grant_report_submit(request, artwork_id):
         else:
             artwork.grant_status = Artwork.GrantStatus.REPORTED
             artwork.save(update_fields=['grant_status', 'updated_at'])
+            record_change(artwork, 'Rendición de beca', request.user)
             messages.success(request, 'La rendición fue enviada para revisión.')
     return _grant_page_redirect(artwork, 'rendicion')
 
@@ -956,6 +1000,7 @@ def artwork_photo_upload(request, artwork_id):
                         publication_authorized=form.cleaned_data['publication_authorized'],
                         uploaded_by=request.user,
                     )
+                record_change(artwork, 'Rendición de beca' if for_report else 'Galería', request.user)
                 messages.success(request, f"Se subieron {len(images)} foto(s).")
                 return _photo_redirect(artwork, form.cleaned_data['stage'])
     return _inline_error_response(request, artwork, ('report-photo-new' if for_report else 'photo-new', None), form)
@@ -981,6 +1026,7 @@ def artwork_photo_delete(request, artwork_id, photo_id):
         stage = photo.stage
         photo.delete()
         transaction.on_commit(lambda: storage.delete(image_name))
+        record_change(artwork, 'Rendición de beca' if stage == ArtworkPhoto.Stage.GRANT_REPORT else 'Galería', request.user)
     messages.success(request, 'Foto eliminada.')
     return _photo_redirect(artwork, stage)
 
@@ -998,6 +1044,8 @@ def artwork_team_benefits(request, artwork_id):
             return HttpResponseForbidden('La propuesta todavía no tiene equipo.')
         if not form.is_valid():
             return _inline_error_response(request, artwork, ('benefits', None), form)
+        if form.has_changed():
+            record_change(artwork, 'Ingreso y proveedores', request.user)
         form.save()
     messages.success(request, 'Ingreso anticipado y late checkout guardados.')
     return _artwork_redirect(artwork, 'ingreso')
@@ -1022,6 +1070,7 @@ def artwork_file_upload(request, artwork_id):
                     ArtworkFile.objects.create(
                         artwork=artwork, file=upload, name=upload.name[:255], uploaded_by=request.user,
                     )
+                record_change(artwork, 'Archivos', request.user)
                 messages.success(request, f"Se subieron {len(uploads)} archivo(s).")
                 return _artwork_redirect(artwork, 'detalles')
     return _inline_error_response(request, artwork, ('file-new', None), form)
@@ -1038,6 +1087,7 @@ def artwork_file_delete(request, artwork_id, file_id):
         storage, name = artwork_file.file.storage, artwork_file.file.name
         artwork_file.delete()
         transaction.on_commit(lambda: storage.delete(name))
+        record_change(artwork, 'Archivos', request.user)
     messages.success(request, 'Archivo eliminado.')
     return _artwork_redirect(artwork, 'detalles')
 
@@ -1064,6 +1114,7 @@ def artwork_checkout_photo_upload(request, artwork_id):
                     ArtworkCheckoutPhoto.objects.create(
                         artwork=artwork, image=image, caption=form.cleaned_data['caption'], uploaded_by=request.user,
                     )
+                record_change(artwork, 'Checkout', request.user)
                 messages.success(request, f"Se subieron {len(images)} foto(s) al reporte de checkout.")
                 return _checkout_redirect(request, artwork)
     return _inline_error_response(request, artwork, ('checkout-photo-new', None), form)
@@ -1083,6 +1134,7 @@ def artwork_checkout_photo_delete(request, artwork_id, photo_id):
         storage, image_name = photo.image.storage, photo.image.name
         photo.delete()
         transaction.on_commit(lambda: storage.delete(image_name))
+        record_change(artwork, 'Checkout', request.user)
     messages.success(request, 'Foto eliminada del reporte de checkout.')
     return _checkout_redirect(request, artwork)
 
@@ -1099,6 +1151,7 @@ def artwork_team_add(request, artwork_id):
             return _inline_error_response(request, artwork, ('team-add', None), form)
         group = _ensure_operations_group(artwork, artwork.event.art_program)
         GrupoMiembro.objects.create(grupo=group, user=form.user)
+        record_change(artwork, 'Equipo', request.user)
         transaction.on_commit(lambda: _send_team_member_added_email(artwork, form.user, request.user))
     messages.success(request, f'{form.user.get_full_name() or form.user.email} ya es parte del equipo. Le avisamos por email.')
     return _artwork_redirect(artwork, 'equipo')
@@ -1126,6 +1179,7 @@ def artwork_team_remove(request, artwork_id, member_id):
             artwork.checkout_team_responsible = None
             artwork.save(update_fields=['checkout_team_responsible', 'updated_at'])
         member.delete()
+        record_change(artwork, 'Equipo', request.user)
     messages.success(request, f'{member.user.get_full_name() or member.user.email} ya no es parte del equipo.')
     return _artwork_redirect(artwork, 'equipo')
 
@@ -1171,7 +1225,10 @@ def artwork_provider_edit(request, artwork_id, provider_id=None):
                 return HttpResponseForbidden('La logística de esta propuesta ya no se puede editar.')
             form.instance.artwork = artwork
             form.instance.created_by = form.instance.created_by or request.user
+            changed = form.has_changed()
             provider = form.save()
+            if changed:
+                record_change(artwork, 'Ingreso y proveedores', request.user)
         messages.success(request, 'Proveedor guardado.')
         return _artwork_redirect(artwork, 'ingreso')
     return _inline_error_response(
@@ -1189,6 +1246,7 @@ def artwork_provider_delete(request, artwork_id, provider_id):
         if not _logistics_editable(artwork, request.user):
             return HttpResponseForbidden('Este proveedor no se puede eliminar.')
         provider.delete()
+        record_change(artwork, 'Ingreso y proveedores', request.user)
     messages.success(request, 'Proveedor y sus vehículos fueron eliminados.')
     return _artwork_redirect(artwork, 'ingreso')
 
@@ -1214,7 +1272,10 @@ def artwork_vehicle_edit(request, artwork_id, provider_id, vehicle_id=None):
             if not _logistics_editable(artwork, request.user):
                 return HttpResponseForbidden('La logística de esta propuesta ya no se puede editar.')
             form.instance.provider = provider
+            changed = form.has_changed()
             form.save()
+            if changed:
+                record_change(artwork, 'Ingreso y proveedores', request.user)
         messages.success(request, 'Vehículo guardado.')
         return _artwork_redirect(artwork, 'ingreso')
     return _inline_error_response(
@@ -1233,6 +1294,7 @@ def artwork_vehicle_delete(request, artwork_id, provider_id, vehicle_id):
         if not _logistics_editable(artwork, request.user):
             return HttpResponseForbidden('Este vehículo no se puede eliminar.')
         vehicle.delete()
+        record_change(artwork, 'Ingreso y proveedores', request.user)
     messages.success(request, 'Vehículo eliminado.')
     return _artwork_redirect(artwork, 'ingreso')
 
@@ -1437,8 +1499,8 @@ def art_admin_export(request, event_slug):
     response.write('\ufeff')
     writer = csv.writer(response)
     writer.writerow([
-        'Propuesta de Arte', 'Modalidad', 'Responsable', 'Responsable (nombre)', 'Estado', 'Contacto de ESTAFA', 'Responsable de seguridad',
-        'Asistencia de MAD', 'Movilidad propia (art car)',
+        'Propuesta de Arte', 'Modalidad', 'Responsable', 'Responsable (nombre)', 'WhatsApp del responsable', 'Estado', 'Contacto de ESTAFA', 'Responsable de seguridad',
+        'Asistencia de MAD', 'Se mueve de lugar (sin motor)', 'Movilidad propia (art car)',
         'Título público', 'Descripción pública',
         'Declaración de entendimiento digital', 'Declaración de entendimiento física', 'Personas del equipo',
         'Proveedores', 'Vehículos', 'Fotos checkout', 'Checkout', 'Actualizada',
@@ -1450,10 +1512,12 @@ def art_admin_export(request, event_slug):
             artwork.get_kind_display(),
             artwork.owner.email if artwork.owner else '',
             person_label(artwork.owner),
+            whatsapp_number(_owner_phone(artwork)),
             artwork.stage_label,
             artwork.estafa_contact.email if artwork.estafa_contact else '',
             artwork.safety_responsible.email if artwork.safety_responsible else '',
             'Sí' if artwork.needs_mad_assistance else 'No',
+            'Sí' if artwork.is_movable else 'No',
             'Sí' if artwork.has_own_mobility else 'No',
             artwork.public_title,
             artwork.public_description,
@@ -1467,6 +1531,13 @@ def art_admin_export(request, event_slug):
             artwork.updated_at.isoformat(),
         ]])
     return response
+
+
+def _owner_phone(artwork):
+    try:
+        return artwork.owner.profile.phone
+    except (AttributeError, ObjectDoesNotExist):
+        return ''
 
 
 def _csv_cell(value):

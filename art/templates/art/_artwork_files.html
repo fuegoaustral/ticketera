@@ -1,10 +1,10 @@
-{% comment %}Archivos de la propuesta: las imágenes con miniatura, los PDF con ícono. Se abren en otra pestaña.{% endcomment %}
-<ul class="artwork-files list-unstyled">
+{% comment %}Archivos de la propuesta: las imágenes con miniatura (se ven en el visor de fotos), los PDF con ícono (se abren en otra pestaña).{% endcomment %}
+<ul class="artwork-files list-unstyled" data-lightbox-group>
     {% for artwork_file in artwork_files %}
     <li>
-        <a class="artwork-file" href="{{ artwork_file.file.url }}" target="_blank" rel="noopener">
+        <a class="artwork-file" href="{{ artwork_file.file.url }}" target="_blank" rel="noopener"{% if artwork_file.is_image %} data-lightbox data-lightbox-caption="{{ artwork_file.name }}"{% endif %}>
             {% if artwork_file.is_image %}<img src="{{ artwork_file.file.url }}" alt="">{% else %}<span class="artwork-file-icon"><i class="fas fa-file-pdf" aria-hidden="true"></i></span>{% endif %}
-            <span class="artwork-file-name" title="{{ artwork_file.name }}">{{ artwork_file.name }}<span class="visually-hidden"> (se abre en otra pestaña)</span></span>
+            <span class="artwork-file-name" title="{{ artwork_file.name }}">{{ artwork_file.name }}{% if not artwork_file.is_image %}<span class="visually-hidden"> (se abre en otra pestaña)</span>{% endif %}</span>
         </a>
         {% if can_edit_files %}<form class="artwork-file-delete" method="post" action="{% url 'artwork_file_delete' artwork.pk artwork_file.pk %}">{% csrf_token %}<button type="submit" title="Eliminar archivo" aria-label="Eliminar {{ artwork_file.name }}" onclick="return confirm('¿Eliminar este archivo?')"><i class="fas fa-trash" aria-hidden="true"></i></button></form>{% endif %}
     </li>

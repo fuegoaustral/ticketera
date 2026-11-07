@@ -47,6 +47,12 @@ class Profile(BaseModel):
         return fallback
 
     @property
+    def display_name(self):
+        """How to show this person in most places (see user_profile.display)."""
+        from user_profile.display import display_name
+        return display_name(self.user)
+
+    @property
     def miembro_sede(self):
         return self.sede_subscriptions.filter(is_active=True, is_soft_removed=False).exists()
 

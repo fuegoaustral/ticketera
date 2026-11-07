@@ -48,10 +48,12 @@ class ArtworkStateEmailTest(TestCase):
         with self.captureOnCommitCallbacks(execute=True):
             self.client.post(reverse('artwork_create', args=[self.event.slug]), {'title': 'Faro'})
         artwork = Artwork.objects.get(owner=self.owner)
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(mail.outbox[0].to, ['artista@example.com'])
-        self.assertIn('Recibimos tu Propuesta de Arte «Faro»', mail.outbox[0].subject)
-        self.assertIn(reverse('artwork_edit', args=[artwork.pk]), mail.outbox[0].body)
+        # ESTAFA recibe aparte su aviso de obra nueva (tests_estafa_notifications).
+        owner_mail = [message for message in mail.outbox if message.to == ['artista@example.com']]
+        self.assertEqual(len(owner_mail), 1)
+        self.assertIn('Recibimos tu Propuesta de Arte «Faro»', owner_mail[0].subject)
+        self.assertIn(reverse('artwork_edit', args=[artwork.pk]), owner_mail[0].body)
+        sent = len(mail.outbox)
 
         with self.captureOnCommitCallbacks(execute=True):
             self.client.post(reverse('artwork_edit', args=[artwork.pk]), {
@@ -59,7 +61,7 @@ class ArtworkStateEmailTest(TestCase):
             })
         artwork.refresh_from_db()
         self.assertEqual(artwork.title, 'Faro grande')
-        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(len(mail.outbox), sent)
 
     def status_post(self, transition, **data):
         artwork = Artwork.objects.get(owner=self.owner)

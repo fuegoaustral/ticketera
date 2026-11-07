@@ -9,7 +9,7 @@ from django.utils import timezone
 from .estafa import estafa_members
 from .models import (
     Artwork, ArtworkFile, ArtworkGrantItem,
-    ArtworkPhoto, ArtworkProvider, ArtworkProviderVehicle,
+    ArtworkPhoto, ArtworkProvider, ArtworkProviderVehicle, EstafaNotificationPreference,
 )
 from .templatetags.art_format import person_label
 
@@ -33,7 +33,7 @@ ARTWORK_BLOCK_FIELDS = {
         'title', 'proposal', 'dimensions', 'materials', 'technical_needs', 'transport_plan',
         'uses_sound', 'uses_fire', 'fire_details', 'extinguishing_plan', 'sound_power',
         'safety_plan', 'safety_responsible_email', 'burns', 'burn_preferred_time', 'burn_company', 'wants_support_camp',
-        'needs_mad_assistance', 'has_own_mobility', 'files_url',
+        'needs_mad_assistance', 'is_movable', 'has_own_mobility', 'files_url',
     ),
     'guide': ('public_title', 'public_description', 'preferred_location'),
     'checkout': ('checkout_team_responsible', 'checkout_notes'),
@@ -778,3 +778,15 @@ class ArtworkReviewForm(InvalidFieldsMixin, forms.ModelForm):
         if cleaned.get('understanding_letter_physical_waiver') and not cleaned.get('understanding_letter_physical_waiver_reason'):
             self.add_error('understanding_letter_physical_waiver_reason', 'Indicá por qué corresponde la excepción por distancia a CABA.')
         return cleaned
+
+
+class EstafaNotificationPreferenceForm(forms.ModelForm):
+    """En el perfil: qué emails de las obras recibe una persona de ESTAFA."""
+
+    class Meta:
+        model = EstafaNotificationPreference
+        fields = ('new_artworks', 'assigned_changes', 'all_changes')
+        widgets = {
+            name: forms.CheckboxInput(attrs={'class': 'form-check-input'})
+            for name in ('new_artworks', 'assigned_changes', 'all_changes')
+        }

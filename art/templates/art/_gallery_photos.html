@@ -1,9 +1,9 @@
 {% if photos %}
-<div class="row g-3">
+<div class="row g-3" data-lightbox-group>
     {% for photo in photos %}
     <div class="col-6 col-lg-4">
         <figure class="gallery-card mb-0">
-            <a href="{{ photo.image.url }}" target="_blank" rel="noopener"><img src="{{ photo.image.url }}" alt="{{ photo.caption|default:photo.get_stage_display }}"></a>
+            <a href="{{ photo.image.url }}" target="_blank" rel="noopener" data-lightbox data-lightbox-caption="{{ photo.get_stage_display }}{% if photo.caption %} · {{ photo.caption }}{% endif %}"><img src="{{ photo.image.url }}" alt="{{ photo.caption|default:photo.get_stage_display }}"></a>
             <figcaption class="p-2 small"><strong>{{ photo.get_stage_display }}</strong>{% if photo.caption %}<br>{{ photo.caption }}{% endif %}{% if photo.publication_authorized %}<br><span class="text-success">Publicación autorizada</span>{% endif %}</figcaption>
             {% if can_delete %}<form class="artwork-file-delete" method="post" action="{% url 'artwork_photo_delete' artwork.pk photo.pk %}">{% csrf_token %}<button type="submit" title="Eliminar foto" aria-label="Eliminar foto" onclick="return confirm('¿Eliminar esta foto?')"><i class="fas fa-trash" aria-hidden="true"></i></button></form>{% endif %}
         </figure>

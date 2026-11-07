@@ -5,6 +5,8 @@ from django.conf import settings
 from django.utils import timezone
 from django.utils.html import strip_tags
 
+from user_profile.display import display_label
+
 logger = logging.getLogger(__name__)
 
 ACTION_APPROVE = 'event_request_approve'
@@ -79,7 +81,7 @@ def _format_ticket_types(event_request):
 
 def _proposal_text(event_request):
     requester = event_request.requested_by
-    requester_name = (requester.get_full_name() or '').strip() or requester.email
+    requester_name = display_label(requester)
     start_local = timezone.localtime(event_request.start)
     end_local = timezone.localtime(event_request.end)
     description_plain = strip_tags(event_request.description).strip()

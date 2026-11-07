@@ -55,21 +55,35 @@
         </div>
     </form>
 
-    <p class="small text-muted mb-2" aria-live="polite">{{ artworks|length }} instalaci{{ artworks|length|pluralize:"ón,ones" }}</p>
-    <div class="table-responsive art-table-wrap">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+        <p class="small text-muted mb-0" aria-live="polite">{{ artworks|length }} instalaci{{ artworks|length|pluralize:"ón,ones" }}</p>
+        <div class="art-view-switch d-flex align-items-center gap-2" role="group" aria-labelledby="art-view-label">
+            <span class="small text-muted fw-semibold" id="art-view-label">Ver:</span>
+            <div class="btn-group btn-group-sm">
+                <input type="radio" class="btn-check" name="art-view" id="art-view-proposal" value="proposal" autocomplete="off" aria-controls="art-table-wrap" checked>
+                <label class="btn btn-outline-primary" for="art-view-proposal">Propuesta</label>
+                <input type="radio" class="btn-check" name="art-view" id="art-view-contact" value="contact" autocomplete="off" aria-controls="art-table-wrap">
+                <label class="btn btn-outline-primary" for="art-view-contact">Contacto</label>
+            </div>
+        </div>
+    </div>
+    <div class="table-responsive art-table-wrap" id="art-table-wrap">
         <table class="table table-sm align-middle art-table">
-            <thead><tr><th>Propuesta de Arte</th><th>Estado</th><th>Contacto</th><th>Declaración</th><th><span class="visually-hidden">Camp soporte, beca y coordinación con otros equipos</span></th><th><span class="visually-hidden">Abrir</span></th></tr></thead>
+            <thead><tr><th>Propuesta de Arte</th><th class="art-contact-col">Responsable</th><th class="art-contact-col">Email</th><th class="art-contact-col">WhatsApp</th><th class="art-proposal-col">Estado</th><th class="art-proposal-col">Contacto</th><th class="art-proposal-col">Declaración</th><th class="art-proposal-col"><span class="visually-hidden">Camp soporte, beca y coordinación con otros equipos</span></th><th><span class="visually-hidden">Abrir</span></th></tr></thead>
             <tbody>
             {% for artwork in artworks %}{% with stage=artwork.stage %}
                 <tr>
-                    <td><a class="art-row-link stretched-link" href="{% url 'artwork_review' event.slug artwork.pk %}">{{ artwork.title|default:'Propuesta de Arte sin título' }}</a><br><small class="text-muted">{% if artwork.owner %}{{ artwork.owner|person_name }}{% else %}Cuenta archivada{% endif %}</small>{% if artwork.proposal %}<span class="art-desc">{{ artwork.proposal|truncatechars:160 }}</span>{% endif %}</td>
-                    <td>{% include 'art/_status_badge.html' %}</td>
-                    <td>{% with contact=artwork.estafa_contact %}{% if contact %}{{ contact|person_name }}{% with full_name=contact|person_full_name %}{% if full_name %}<br><small class="text-muted">{{ full_name }}</small>{% endif %}{% endwith %}{% else %}<span class="text-muted">Sin contacto</span>{% endif %}{% endwith %}</td>
-                    <td>{% if artwork.understanding_letter and artwork.understanding_letter_physical_received %}Digital · física{% elif artwork.understanding_letter %}Digital{% elif artwork.understanding_letter_physical_received %}Física{% else %}{% include 'art/_dash.html' with label='Sin declaración' %}{% endif %}</td>
-                    <td class="art-flags">{% include 'art/_artwork_flags.html' %}</td>
+                    <td><a class="art-row-link stretched-link" href="{% url 'artwork_review' event.slug artwork.pk %}">{{ artwork.title|default:'Propuesta de Arte sin título' }}</a><span class="art-owner-line"><br><small class="text-muted">{% if artwork.owner %}{{ artwork.owner|person_name }}{% else %}Cuenta archivada{% endif %}</small></span>{% if artwork.proposal %}<span class="art-desc">{{ artwork.proposal|truncatechars:160 }}</span>{% endif %}</td>
+                    <td class="art-contact-col art-col-person">{% if artwork.owner %}{{ artwork.owner|person_label }}{% else %}<span class="text-muted">Cuenta archivada</span>{% endif %}</td>
+                    <td class="art-contact-col art-col-email">{% if artwork.owner.email %}<a class="art-contact-link" href="mailto:{{ artwork.owner.email }}">{{ artwork.owner.email }}</a>{% else %}{% include 'art/_dash.html' with label='Sin email' %}{% endif %}</td>
+                    <td class="art-contact-col art-col-whatsapp">{% with phone=artwork.owner.profile.phone %}{% with digits=phone|phone_whatsapp %}{% if digits %}<span class="text-nowrap">{{ phone|phone_display }}<a class="art-contact-link art-whatsapp ms-1" href="https://web.whatsapp.com/send?phone={{ digits }}" target="_blank" rel="noopener" aria-label="Escribir por WhatsApp a {% if artwork.owner %}{{ artwork.owner|person_name }}{% endif %}" title="Escribir por WhatsApp"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i></a></span>{% else %}{% include 'art/_dash.html' with label='Sin teléfono' %}{% endif %}{% endwith %}{% endwith %}</td>
+                    <td class="art-proposal-col art-col-status">{% include 'art/_status_badge.html' %}</td>
+                    <td class="art-proposal-col art-col-contact">{% with contact=artwork.estafa_contact %}{% if contact %}{{ contact|person_name }}{% with full_name=contact|person_full_name %}{% if full_name %}<br><small class="text-muted">{{ full_name }}</small>{% endif %}{% endwith %}{% else %}<span class="text-muted">Sin contacto</span>{% endif %}{% endwith %}</td>
+                    <td class="art-proposal-col art-col-letter">{% if artwork.understanding_letter and artwork.understanding_letter_physical_received %}Digital · física{% elif artwork.understanding_letter %}Digital{% elif artwork.understanding_letter_physical_received %}Física{% else %}{% include 'art/_dash.html' with label='Sin declaración' %}{% endif %}</td>
+                    <td class="art-proposal-col art-flags">{% include 'art/_artwork_flags.html' %}</td>
                     <td class="art-row-chevron text-end text-muted"><i class="fas fa-chevron-right" aria-hidden="true"></i></td>
                 </tr>
-            {% endwith %}{% empty %}<tr><td colspan="6" class="text-center text-muted py-5">No hay propuestas que coincidan con estos filtros.</td></tr>{% endfor %}
+            {% endwith %}{% empty %}<tr><td colspan="9" class="text-center text-muted py-5">No hay propuestas que coincidan con estos filtros.</td></tr>{% endfor %}
             </tbody>
         </table>
     </div>
@@ -95,6 +109,20 @@
     .art-table-wrap .art-table td:last-child { padding-left: 0; }
     .art-table tbody tr { position: relative; }
     .art-table tbody tr:hover > * { background: #f6faf8; }
+    /* Dos vistas de la misma tabla: Propuesta (por defecto) y Contacto de quien la lidera. */
+    .art-table .art-contact-col { display: none; }
+    .art-view-contact .art-table .art-contact-col { display: table-cell; }
+    .art-view-contact .art-table .art-proposal-col, .art-view-contact .art-table .art-owner-line, .art-view-contact .art-table .art-desc { display: none; }
+    .art-view-switch .btn { min-height: 36px; display: inline-flex; align-items: center; padding: .3rem .9rem; border-color: rgb(40, 158, 109); color: rgb(30, 110, 78); font-weight: 600; }
+    .art-view-switch .btn:hover { background: #f6faf8; color: rgb(30, 110, 78); }
+    .art-view-switch .btn-check:checked + .btn { background: rgb(40, 158, 109); border-color: rgb(40, 158, 109); color: #fff; }
+    .art-view-switch .btn-check:focus-visible + .btn { box-shadow: 0 0 0 3px rgba(40, 158, 109, .3); }
+    .art-view-switch .btn-group > .btn:first-of-type { border-radius: .5rem 0 0 .5rem; }
+    .art-view-switch .btn-group > .btn:last-of-type { border-radius: 0 .5rem .5rem 0; }
+    .art-col-email { max-width: 16rem; overflow-wrap: anywhere; }
+    .art-contact-link { position: relative; z-index: 2; }
+    .art-whatsapp { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: 24px; color: #15803d; font-size: 1.1rem; text-decoration: none; vertical-align: middle; }
+    .art-whatsapp:hover, .art-whatsapp:focus-visible { color: #166534; }
     .art-row-link { color: inherit; font-weight: 700; text-decoration: none; }
     .art-row-link:focus-visible { outline: none; }
     .art-table tbody tr:has(.art-row-link:focus-visible) { outline: 3px solid rgba(40, 158, 109, .35); outline-offset: -3px; }
@@ -111,6 +139,7 @@
     .art-flag-fire { color: #dc2626; }
     .art-flag-sound { color: #7e22ce; font-size: 19px; }  /* el parlante es más ancho que alto */
     .art-flag-mad { color: #a16207; }
+    .art-flag-movable { color: #0369a1; width: 26px; }  /* las personas con la caja son más anchas que altas */
     .art-flag-ufo { color: #4338ca; width: 26px; }
     .art-flag-ufo svg { width: 26px; height: 21px; }  /* misma grilla que la pickup */
     @media (max-width: 767px) {
@@ -126,11 +155,17 @@
         .art-table tbody tr:hover > * { background: transparent; }
         .art-table tbody tr:hover { background: #f6faf8; }
         .art-table tbody tr:has(.art-row-link:focus-visible) { outline-offset: 0; }
-        .art-table td:nth-child(2), .art-table td:nth-child(3), .art-table td:nth-child(4) { position: relative; padding-left: 7.25rem !important; font-size: .9rem; }
-        .art-table td:nth-child(2)::before, .art-table td:nth-child(3)::before, .art-table td:nth-child(4)::before { position: absolute; left: 0; top: .15rem; width: 6.75rem; font-size: .8rem; font-weight: 600; color: var(--bs-secondary-color, #6c757d); }
-        .art-table td:nth-child(2)::before { content: 'Estado'; }
-        .art-table td:nth-child(3)::before { content: 'Contacto'; }
-        .art-table td:nth-child(4)::before { content: 'Declaración'; }
+        .art-view-contact .art-table td.art-contact-col { display: block; }
+        .art-view-contact .art-table td.art-proposal-col { display: none; }
+        .art-table td.art-col-status, .art-table td.art-col-contact, .art-table td.art-col-letter, .art-table td.art-contact-col { position: relative; padding-left: 7.25rem !important; font-size: .9rem; }
+        .art-table td.art-col-status::before, .art-table td.art-col-contact::before, .art-table td.art-col-letter::before, .art-table td.art-contact-col::before { position: absolute; left: 0; top: .15rem; width: 6.75rem; font-size: .8rem; font-weight: 600; color: var(--bs-secondary-color, #6c757d); }
+        .art-table td.art-col-status::before { content: 'Estado'; }
+        .art-table td.art-col-contact::before { content: 'Contacto'; }
+        .art-table td.art-col-letter::before { content: 'Declaración'; }
+        .art-table td.art-col-person::before { content: 'Responsable'; }
+        .art-table td.art-col-email::before { content: 'Email'; }
+        .art-table td.art-col-whatsapp::before { content: 'WhatsApp'; }
+        .art-col-email { max-width: none; }
         .art-table td.art-flags:not(:has(.art-flag)) { display: none; }
         .art-table td.art-flags { position: relative; padding-left: 7.25rem !important; font-size: .9rem; white-space: normal; }
         .art-table td.art-flags .art-flag-list { flex-wrap: wrap; }
@@ -139,5 +174,23 @@
         .art-desc { max-width: none; }
     }
 </style>
+<script>
+(function () {
+    var wrap = document.getElementById('art-table-wrap');
+    var contact = document.getElementById('art-view-contact');
+    var proposal = document.getElementById('art-view-proposal');
+    if (!wrap || !contact || !proposal) return;
+    var KEY = 'estafa-dashboard-view';
+    function apply() { wrap.classList.toggle('art-view-contact', contact.checked); }
+    try { if (localStorage.getItem(KEY) === 'contact') { contact.checked = true; } } catch (e) {}
+    apply();
+    [contact, proposal].forEach(function (input) {
+        input.addEventListener('change', function () {
+            apply();
+            try { localStorage.setItem(KEY, contact.checked ? 'contact' : 'proposal'); } catch (e) {}
+        });
+    });
+})();
+</script>
 {% include 'art/_messages.html' %}
 {% endblock %}
