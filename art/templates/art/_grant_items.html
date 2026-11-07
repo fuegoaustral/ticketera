@@ -17,7 +17,7 @@
                     <div class="grant-item-detail-content">
                         {% if item.details %}<span>{{ item.details }}</span>{% endif %}
                         <span class="text-muted">Fecha: {{ item.rate_date|date:'d/m/Y' }}{% if item.rate_source %} · Fuente: {{ item.rate_source }}{% endif %}</span>
-                        {% if item.photos.all %}<span class="grant-item-images">{% for photo in item.photos.all %}<a href="{{ photo.image.url }}" target="_blank" rel="noopener"><img src="{{ photo.image.url }}" alt="Imagen de {{ item.concept }}"></a>{% endfor %}</span>{% endif %}
+                        {% if item.photos.all %}<span class="grant-item-images" data-lightbox-group>{% for photo in item.photos.all %}<a href="{{ photo.image.url }}" target="_blank" rel="noopener" data-lightbox><img src="{{ photo.image.url }}" alt="Imagen de {{ item.concept }}"></a>{% endfor %}</span>{% endif %}
                         {% if can_review %}<span class="badge {% if item.review_status == 'approved' %}bg-success{% elif item.review_status == 'rejected' %}bg-danger{% else %}bg-secondary{% endif %}">{{ item.get_review_status_display }}</span>{% endif %}
                     </div>
                     {% if can_review %}
@@ -40,9 +40,9 @@
                         {% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}">{% endif %}
                         {% include 'art/_inline_fields.html' with inline_form=item.inline_form %}
                         {% if item.photos.all %}
-                        <div class="inline-images mb-3">
+                        <div class="inline-images mb-3" data-lightbox-group>
                             {% for photo in item.photos.all %}
-                            <span><a href="{{ photo.image.url }}" target="_blank" rel="noopener"><img src="{{ photo.image.url }}" alt="Imagen de {{ item.concept }}"></a><span class="artwork-file-delete"><button type="submit" formaction="{% url 'grant_item_photo_delete' artwork.pk item.pk photo.pk %}" title="Eliminar imagen" aria-label="Eliminar imagen de {{ item.concept }}" onclick="return confirm('¿Eliminar esta imagen?')"><i class="fas fa-trash" aria-hidden="true"></i></button></span></span>
+                            <span><a href="{{ photo.image.url }}" target="_blank" rel="noopener" data-lightbox><img src="{{ photo.image.url }}" alt="Imagen de {{ item.concept }}"></a><span class="artwork-file-delete"><button type="submit" formaction="{% url 'grant_item_photo_delete' artwork.pk item.pk photo.pk %}" title="Eliminar imagen" aria-label="Eliminar imagen de {{ item.concept }}" onclick="return confirm('¿Eliminar esta imagen?')"><i class="fas fa-trash" aria-hidden="true"></i></button></span></span>
                             {% endfor %}
                         </div>
                         {% endif %}

@@ -282,6 +282,10 @@ class Artwork(BaseModel):
     needs_mad_assistance = models.BooleanField(
         default=False, verbose_name='¿Necesitás asistencia de MAD para mover materiales durante el evento?',
     )
+    is_movable = models.BooleanField(
+        default=False, verbose_name='¿Tu instalación se mueve de lugar durante el evento?',
+        help_text='Sin motor: se empuja, se arrastra o se lleva entre varias personas. Si tiene motor, es un art car: marcá la pregunta de abajo.',
+    )
     has_own_mobility = models.BooleanField(
         default=False, verbose_name='¿Tu instalación tiene movilidad propia? (art car)',
         help_text='Si es una obra móvil, MAD va a coordinar con vos la validación de seguridad junto con las otras áreas.',
@@ -693,3 +697,42 @@ auditlog.register(ArtworkProviderVehicle)
 auditlog.register(ArtworkPhoto)
 auditlog.register(ArtworkFile)
 auditlog.register(ArtworkCheckoutPhoto)
+
+
+class EstafaNotificationPreference(BaseModel):
+    """Qué emails de las obras recibe una persona de ESTAFA. Sin fila, valen los valores por defecto."""
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='estafa_notification_preference')
+    new_artworks = models.BooleanField(default=True, verbose_name='Obras nuevas')
+    assigned_changes = models.BooleanField(default=True, verbose_name='Cambios de las obras asignadas a mí')
+    all_changes = models.BooleanField(default=False, verbose_name='Cambios de todas las obras')
+
+    class Meta:
+        verbose_name = 'Preferencia de emails de ESTAFA'
+        verbose_name_plural = 'Preferencias de emails de ESTAFA'
+
+    def __str__(self):
+        return f'Emails de ESTAFA · {self.user}'
+
+    @classmethod
+    def for_user(cls, user):
+        """La preferencia guardada o, si no hay, una sin guardar con los valores por defecto."""
+        return cls.objects.filter(user=user).first() or cls(user=user)
+
+
+class ArtworkChange(models.Model):
+    """Un cambio del lado de la instalación, para el resumen horario a ESTAFA."""
+
+    artwork = models.ForeignKey(Artwork, on_delete=models.CASCADE, related_name='estafa_changes')
+    section = models.CharField(max_length=60, verbose_name='Sección')
+    actor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='+')
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    digested_at = models.DateTimeField(null=True, blank=True, db_index=True)
+
+    class Meta:
+        ordering = ['created_at']
+        verbose_name = 'Cambio de propuesta de Arte'
+        verbose_name_plural = 'Cambios de propuestas de Arte'
+
+    def __str__(self):
+        return f'{self.section} · {self.artwork}'

@@ -1,11 +1,12 @@
 {% extends 'emails/base.html' %}
+{% load display_name %}
 {% block subject %}Tu propuesta de evento fue aprobada — {{ event.name|safe }}{% endblock %}
 {% block title %}
     Propuesta aprobada
 {% endblock %}
 {% block content %}
     <p>
-        Hola{% if user.get_full_name %} {{ user.get_full_name|safe }}{% endif %},
+        {% with name=user|greeting_name %}Hola{% if name %} {{ name|safe }}{% endif %},{% endwith %}
     </p>
 
     <p>

@@ -1,0 +1,12 @@
+{% extends "emails/base.html" %}
+{% block subject %}[ESTAFA] {% if lines|length == 1 %}Cambios en «{{ lines.0.artwork.title|default:"sin título"|safe }}»{% else %}Cambios en {{ lines|length }} obras{% endif %}{% endblock %}
+{% block title %}Cambios en las obras{% endblock %}
+{% block content %}
+<p>{% if lines|length == 1 %}Hubo cambios en una obra{% else %}Hubo cambios en {{ lines|length }} obras{% endif %} en la última hora:</p>
+<ul style="padding-left:20px;margin:0 0 16px">
+{% for line in lines %}
+<li style="margin-bottom:8px"><a href="{{ base_url }}{{ line.review_path }}"><strong>«{{ line.artwork.title|default:"sin título" }}»</strong></a>: {{ line.sections|join:", " }} — {% if line.actors|length > 1 %}lo cambiaron{% else %}lo cambió{% endif %} {{ line.actors_sentence }}</li>
+{% endfor %}
+</ul>
+<p style="font-size:13px;color:#777">Te llega porque sos parte de ESTAFA. Podés elegir qué emails recibir en <a href="{{ base_url }}{{ prefs_path }}">tus preferencias de email</a>.</p>
+{% endblock %}

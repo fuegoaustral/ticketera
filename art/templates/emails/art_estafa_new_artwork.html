@@ -1,0 +1,9 @@
+{% extends "emails/base.html" %}
+{% block subject %}[ESTAFA] Nueva obra inscripta: «{{ artwork.title|default:"sin título"|safe }}»{% endblock %}
+{% block title %}Nueva obra inscripta{% endblock %}
+{% block content %}
+<p>{{ owner_name }} inscribió <strong>{{ artwork.title|default:"una Propuesta de Arte sin título" }}</strong> para {{ artwork.event.name }}.</p>
+<p>Queda pendiente de aprobación. Ya podés revisarla y asignarle un contacto de ESTAFA.</p>
+{% include "emails/partials/btn.html" with href=review_path label="Revisar obra" %}
+<p style="font-size:13px;color:#777">Te llega porque sos parte de ESTAFA. Podés elegir qué emails recibir en <a href="{{ base_url }}{{ prefs_path }}">tus preferencias de email</a>.</p>
+{% endblock %}
