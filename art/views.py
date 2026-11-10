@@ -1,12 +1,13 @@
 import csv
 import logging
+import uuid
 from email.utils import formataddr
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Case, F, IntegerField, Q, Value, When
 from django.http import Http404, HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
@@ -510,6 +511,24 @@ def art_dashboard(request):
     return render(request, 'art/dashboard.html', context)
 
 
+def _parse_creation_token(value):
+    try:
+        return uuid.UUID(str(value or ''))
+    except ValueError:
+        return None
+
+
+def _artwork_created_redirect(request, artwork, program):
+    messages.success(
+        request,
+        'La propuesta de Arte quedó inscripta. Queda pendiente de aprobación por ESTAFA. '
+        'Podés seguir modificándola libremente a medida que la instalación avance.',
+    )
+    if request.POST.get('action') == 'beca' and program.grants_enabled:
+        return redirect('artwork_grant', artwork_id=artwork.pk)
+    return redirect('artwork_edit', artwork_id=artwork.pk)
+
+
 @login_required
 def artwork_create(request, event_slug):
     """Blank dossier: the artwork only exists after the first valid save."""
@@ -522,26 +541,40 @@ def artwork_create(request, event_slug):
         messages.error(request, 'La inscripción de propuestas de Arte está cerrada.')
         return redirect('art_dashboard')
 
+    # Cada carga del formulario lleva un token de un solo uso. Si el mismo envío llega otra vez (doble
+    # toque mientras el primero tarda), se vuelve a la obra ya creada en lugar de crear otra.
+    creation_token = _parse_creation_token(request.POST.get('creation_token')) if request.method == 'POST' else None
+    if creation_token:
+        existing = Artwork.objects.filter(creation_token=creation_token).first()
+        if existing and existing.owner_id == request.user.pk:
+            return _artwork_created_redirect(request, existing, program)
+        if existing:
+            creation_token = None
+
     form = ArtworkForm(
         request.POST or None, request.FILES or None,
         instance=Artwork(event=program.event, owner=request.user, kind=Artwork.Kind.PLANNED),
         program=program, owner=request.user, actor=request.user,
     )
     if request.method == 'POST' and form.is_valid():
-        with transaction.atomic():
-            form.instance.submitted_at = timezone.now()
-            artwork = form.save()
-            _ensure_operations_group(artwork, program)
-            transaction.on_commit(lambda: _send_artwork_received_email(artwork))
-            transaction.on_commit(lambda: send_new_artwork_email(artwork))
-        messages.success(
-            request,
-            'La propuesta de Arte quedó inscripta. Queda pendiente de aprobación por ESTAFA. '
-            'Podés seguir modificándola libremente a medida que la instalación avance.',
-        )
-        if request.POST.get('action') == 'beca' and program.grants_enabled:
-            return redirect('artwork_grant', artwork_id=artwork.pk)
-        return redirect('artwork_edit', artwork_id=artwork.pk)
+        try:
+            with transaction.atomic():
+                form.instance.submitted_at = timezone.now()
+                form.instance.creation_token = creation_token
+                artwork = form.save()
+                _ensure_operations_group(artwork, program)
+                transaction.on_commit(lambda: _send_artwork_received_email(artwork))
+                transaction.on_commit(lambda: send_new_artwork_email(artwork))
+        except IntegrityError:
+            # Dos envíos simultáneos con el mismo token: el otro ya la creó (y mandó los emails). Los
+            # on_commit de este bloque se descartan con el rollback.
+            existing = creation_token and Artwork.objects.filter(
+                creation_token=creation_token, owner=request.user,
+            ).first()
+            if not existing:
+                raise
+            artwork = existing
+        return _artwork_created_redirect(request, artwork, program)
 
     context = _base_context(program.event)
     context.update({
@@ -549,6 +582,7 @@ def artwork_create(request, event_slug):
         'program': program,
         'artwork': None,
         'can_edit_artwork': True,
+        'creation_token': creation_token or uuid.uuid4(),
         **_steps_context(None, program, request.user, form),
     })
     return render(request, 'art/form.html', context)

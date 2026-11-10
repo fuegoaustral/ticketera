@@ -250,6 +250,9 @@ class Artwork(BaseModel):
         'events.Grupo', on_delete=models.SET_NULL, null=True, blank=True, related_name='artwork', verbose_name='Equipo',
     )
     kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.PLANNED, verbose_name='Modalidad')
+    # Token de un solo uso del formulario de alta: si el mismo envío llega dos veces (doble toque en un
+    # teléfono lento), el segundo vuelve a la obra ya creada en lugar de crear otra.
+    creation_token = models.UUIDField(null=True, blank=True, unique=True, editable=False)
 
     title = models.CharField(max_length=120, blank=True, verbose_name='Nombre de la propuesta')
     proposal = models.TextField(blank=True, verbose_name='Descripción de la propuesta')
