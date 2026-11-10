@@ -37,6 +37,7 @@
     <form id="artwork-form" method="post" action="{% if artwork %}{% url 'artwork_edit' artwork.pk %}{% else %}{% url 'artwork_create' program.event.slug %}{% endif %}" enctype="multipart/form-data" novalidate>
         {% csrf_token %}
         {{ form.expected_version }}
+        {% if not artwork %}<input type="hidden" name="creation_token" value="{{ creation_token }}">{% endif %}
     </form>
     {% include 'art/_error_summary.html' %}
 
@@ -305,4 +306,5 @@
 {% include 'art/_messages.html' %}
 {% include 'art/_lightbox.html' %}
 {% include 'art/_restore_position.html' %}
+{% include 'art/_submit_guard.html' %}
 {% endblock %}
