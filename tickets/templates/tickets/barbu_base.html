@@ -2,6 +2,7 @@
 {% load static %}
 {% load account %}
 {% load estafa %}
+{% load display_name %}
 <html lang="es-AR" prefix="og: http://ogp.me/ns# fb: http://ogp.me/ns/fb#">
   <head>
     <meta charset="UTF-8">
@@ -179,7 +180,7 @@
             {% with url_name=request.resolver_match.url_name is_event_admin=user.admin_events.exists can_scan=user.scanner_events.exists can_caja=user.caja_events.exists is_estafa=user|can_access_estafa %}
             <div class="dropdown-menu dropdown-menu-end account-menu" aria-labelledby="dropdownProfileButton">
               <div class="account-menu-user">
-                {% if user.get_full_name %}<div class="account-menu-name">{{ user.get_full_name }}</div>{% endif %}
+                {% with menu_name=user|greeting_name %}{% if menu_name %}<div class="account-menu-name">{{ menu_name }}</div>{% endif %}{% endwith %}
                 <div class="account-menu-email">{{ user.email }}</div>
               </div>
               <hr class="dropdown-divider">
