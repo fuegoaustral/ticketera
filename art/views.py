@@ -8,7 +8,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, transaction
-from django.db.models import Case, F, IntegerField, Q, Value, When
+from django.db.models import F, Q
+from django.db.models.functions import Lower
 from django.http import Http404, HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -1347,6 +1348,25 @@ def _estafa_contact_choices(event):
     return [(str(user.pk), person_label(user)) for user in contacts.select_related('profile')]
 
 
+def _selected_stages(params):
+    return [stage for stage in Artwork.STAGES if stage in params.getlist('status')]
+
+
+def _filter_summary(params, contact_choices):
+    """Lo que muestra cada botón de filtro cuando tiene algo elegido."""
+    stages = _selected_stages(params)
+    if len(stages) == 1:
+        status = Artwork.STAGES[stages[0]][0]
+    else:
+        status = f'{len(stages)} estados' if stages else ''
+    contact = params.get('contact', '')
+    contact_label = {'me': 'Asignadas a vos', 'none': 'Sin contacto', **dict(contact_choices)}.get(contact, '')
+    return {
+        'selected_statuses': stages, 'status_summary': status, 'contact_summary': contact_label,
+        'filters_active': bool(stages or contact_label or params.get('q', '').strip()),
+    }
+
+
 def _filtered_artworks(event, params, user):
     artworks = event.artworks.select_related(
         'event__art_program', 'owner__profile', 'safety_responsible', 'estafa_contact__profile',
@@ -1364,18 +1384,24 @@ def _filtered_artworks(event, params, user):
             | Q(public_title__icontains=query)
             | Q(assigned_location__icontains=query)
         )
-    stage = params.get('status')
-    if stage in Artwork.STAGES:
+    stages = _selected_stages(params)
+    if stages:
         try:
             checkout_open = event.art_program.checkout_is_open()
         except ArtProgram.DoesNotExist:
             checkout_open = False
-        if stage == Artwork.CHECKOUT_PENDING:
-            artworks = artworks.filter(status=Artwork.Status.ACTIVE) if checkout_open else artworks.none()
-        elif stage == Artwork.Status.ACTIVE and checkout_open:
-            artworks = artworks.none()
-        else:
-            artworks = artworks.filter(status=stage)
+        # Con el checkout abierto, una inscripción aprobada se muestra como "Checkout pendiente".
+        statuses = set()
+        for stage in stages:
+            if stage == Artwork.CHECKOUT_PENDING:
+                if checkout_open:
+                    statuses.add(Artwork.Status.ACTIVE)
+            elif not (stage == Artwork.Status.ACTIVE and checkout_open):
+                statuses.add(stage)
+        artworks = artworks.filter(status__in=statuses)
+    else:
+        # Sin filtro de estado no se listan las rechazadas: se ven eligiendo «Rechazada».
+        artworks = artworks.exclude(status=Artwork.Status.REJECTED)
     if params.get('grant') in Artwork.GrantStatus.values:
         artworks = artworks.filter(grant_status=params['grant'])
     contact = params.get('contact', '')
@@ -1385,15 +1411,7 @@ def _filtered_artworks(event, params, user):
         artworks = artworks.filter(estafa_contact__isnull=True)
     elif contact.isdigit():
         artworks = artworks.filter(estafa_contact_id=contact)
-    # Primero lo que espera a ESTAFA: inscripciones y checkouts por revisar.
-    turn = Case(
-        When(status=Artwork.Status.PENDING, then=Value(0)),
-        When(status=Artwork.Status.CHECKOUT_SUBMITTED, then=Value(1)),
-        When(status=Artwork.Status.ACTIVE, then=Value(2)),
-        When(status=Artwork.Status.CHECKOUT_VERIFIED, then=Value(3)),
-        default=Value(4), output_field=IntegerField(),
-    )
-    return artworks.distinct().order_by(turn, 'title')
+    return artworks.distinct().order_by(Lower('title'), 'pk')
 
 
 @login_required
@@ -1413,11 +1431,14 @@ def art_admin_dashboard(request, event_slug):
     if not event:
         return HttpResponseForbidden('No tenés permisos para coordinar Arte en este evento.')
     artworks = _filtered_artworks(event, request.GET, request.user)
-    assigned = event.artworks.filter(estafa_contact=request.user).select_related('owner').order_by('status', 'title')
+    contact_choices = _estafa_contact_choices(event)
+    assigned = event.artworks.filter(estafa_contact=request.user).exclude(
+        status=Artwork.Status.REJECTED,
+    ).select_related('owner').order_by(Lower('title'), 'pk')
     return render(request, 'art/admin_dashboard.html', {
         **_estafa_context(request.user, event), 'artworks': artworks, 'assigned_artworks': assigned,
         'status_choices': [(stage, label) for stage, (label, _hint) in Artwork.STAGES.items()],
-        'contact_choices': _estafa_contact_choices(event),
+        'contact_choices': contact_choices, **_filter_summary(request.GET, contact_choices),
     })
 
 

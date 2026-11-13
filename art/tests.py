@@ -1900,7 +1900,7 @@ class ArtworkFlowTest(TestCase):
         artwork.refresh_from_db()
         self.assertEqual(artwork.status, Artwork.Status.CHECKOUT_SUBMITTED)
 
-    def test_admin_list_puts_estafa_turn_first_and_filters_by_stage(self):
+    def test_admin_list_is_alphabetical_hides_rejected_and_filters_by_stage(self):
         for title, status in (
             ('Activa', Artwork.Status.ACTIVE), ('Enviada', Artwork.Status.CHECKOUT_SUBMITTED),
             ('Pendiente', Artwork.Status.PENDING), ('Rechazada', Artwork.Status.REJECTED),
@@ -1909,7 +1909,13 @@ class ArtworkFlowTest(TestCase):
         self.client.force_login(self.admin)
         url = reverse('art_admin_dashboard', args=[self.event.slug])
         titles = [artwork.title for artwork in self.client.get(url).context['artworks']]
-        self.assertEqual(titles, ['Pendiente', 'Enviada', 'Activa', 'Rechazada'])
+        # Siempre alfabético (sin distinguir mayúsculas) y sin las rechazadas, salvo que se filtre por ese estado.
+        self.assertEqual(titles, ['Activa', 'Enviada', 'Pendiente'])
+        self.assertEqual([a.title for a in self.client.get(url, {'status': 'rejected'}).context['artworks']], ['Rechazada'])
+        # El filtro de estado acepta varios a la vez.
+        response = self.client.get(url, {'status': ['pending', 'rejected']})
+        self.assertEqual([a.title for a in response.context['artworks']], ['Pendiente', 'Rechazada'])
+        self.assertEqual(response.context['status_summary'], '2 estados')
         self.assertNotContains(self.client.get(url), 'value="approve"')
 
         self.assertEqual([a.title for a in self.client.get(url, {'status': 'checkout_pending'}).context['artworks']], [])
