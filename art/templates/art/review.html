@@ -29,8 +29,19 @@
                 <small class="text-muted ms-sm-2" id="status-message-help">Le avisamos al equipo por email.</small>
             </div>
         </form>
-        {% else %}
-            {% if artwork.review_feedback %}<p class="review-status-message small mt-3 mb-0"><strong>Mensaje enviado:</strong> {{ artwork.review_feedback|linebreaksbr }}</p>{% endif %}
+        {% endif %}
+        {% if status_messages %}
+        <div class="review-messages">
+            <h3 class="h6 mb-2">Mensajes enviados al equipo</h3>
+            <ol class="list-unstyled mb-0">
+                {% for sent in status_messages %}
+                <li class="review-message">
+                    <p class="review-message-meta mb-1"><strong>{% if sent.sent_by %}{{ sent.sent_by.get_full_name|default:sent.sent_by.email }}{% else %}Cuenta archivada{% endif %}</strong> · {{ sent.created_at|date:'d/m/Y H:i' }} · {% if sent.status == 'active' %}al aprobar{% elif sent.status == 'rejected' %}al rechazar{% else %}{{ sent.get_status_display|lower }}{% endif %}</p>
+                    <p class="review-message-text mb-0">{{ sent.message|linebreaksbr }}</p>
+                </li>
+                {% endfor %}
+            </ol>
+        </div>
         {% endif %}
         {% if can_manage %}
         <form class="review-contact" method="post" action="{% url 'artwork_contact' event.slug artwork.pk %}">{% csrf_token %}
@@ -110,7 +121,12 @@
     .review-status .badge { font-size: .8rem; padding: .45em .7em; }
     .review-status .btn { min-height: 44px; }
     .review-status .review-reopen { min-height: 32px; padding: .2rem .7rem; font-size: .8rem; }
-    .review-status-message { max-width: 68ch; }
+    .review-messages { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #d8e6df; }
+    .review-message { max-width: 68ch; padding: .5rem 0 .5rem .75rem; border-left: 3px solid #d8e6df; }
+    .review-message + .review-message { margin-top: .6rem; }
+    .review-message-meta { font-size: .8rem; color: #6c757d; }
+    .review-message-meta strong { color: #3d4643; }
+    .review-message-text { font-size: .9rem; }
     .review-risk { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #d8e6df; }
     .review-risk .form-check-input { cursor: pointer; }
     .review-risk .form-check-label { cursor: pointer; color: #6c757d; }

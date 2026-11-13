@@ -725,6 +725,24 @@ class EstafaNotificationPreference(BaseModel):
         return cls.objects.filter(user=user).first() or cls(user=user)
 
 
+class ArtworkStatusMessage(models.Model):
+    """Cada mensaje que ESTAFA le mandó al equipo al cambiar el estado de la propuesta."""
+
+    artwork = models.ForeignKey(Artwork, on_delete=models.CASCADE, related_name='status_messages')
+    status = models.CharField(max_length=12, choices=Artwork.Status.choices, verbose_name='Estado al que pasó')
+    message = models.TextField(verbose_name='Mensaje')
+    sent_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+', verbose_name='Enviado por')
+    created_at = models.DateTimeField(default=timezone.now, verbose_name='Enviado')
+
+    class Meta:
+        ordering = ['created_at', 'pk']
+        verbose_name = 'Mensaje de ESTAFA'
+        verbose_name_plural = 'Mensajes de ESTAFA'
+
+    def __str__(self):
+        return f'{self.get_status_display()} · {self.artwork}'
+
+
 class ArtworkChange(models.Model):
     """Un cambio del lado de la instalación, para el resumen horario a ESTAFA."""
 
