@@ -30,19 +30,6 @@
             </div>
         </form>
         {% endif %}
-        {% if status_messages %}
-        <div class="review-messages">
-            <h3 class="h6 mb-2">Mensajes enviados al equipo</h3>
-            <ol class="list-unstyled mb-0">
-                {% for sent in status_messages %}
-                <li class="review-message">
-                    <p class="review-message-meta mb-1"><strong>{% if sent.sent_by %}{{ sent.sent_by.get_full_name|default:sent.sent_by.email }}{% else %}Cuenta archivada{% endif %}</strong> · {{ sent.created_at|date:'d/m/Y H:i' }} · {% if sent.status == 'active' %}al aprobar{% elif sent.status == 'rejected' %}al rechazar{% else %}{{ sent.get_status_display|lower }}{% endif %}</p>
-                    <p class="review-message-text mb-0">{{ sent.message|linebreaksbr }}</p>
-                </li>
-                {% endfor %}
-            </ol>
-        </div>
-        {% endif %}
         {% if can_manage %}
         <form class="review-contact" method="post" action="{% url 'artwork_contact' event.slug artwork.pk %}">{% csrf_token %}
             <label class="form-label fw-semibold" for="{{ contact_form.estafa_contact.id_for_label }}">{{ contact_form.estafa_contact.label }}</label>
@@ -63,6 +50,30 @@
         </form>
         {% endif %}
     </section>
+    {% if history %}
+    <section class="review-history mb-4" aria-labelledby="history-title" data-filter="important">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <h3 class="h5 mb-0" id="history-title">Historial</h3>
+            <div class="history-filters" role="group" aria-label="Filtrar el historial">
+                <button type="button" data-filter="important" aria-pressed="true">Importantes</button>
+                <button type="button" data-filter="all" aria-pressed="false">Todo</button>
+                <button type="button" data-filter="status" aria-pressed="false">Estado</button>
+                <button type="button" data-filter="edit" aria-pressed="false">Cambios</button>
+                <button type="button" data-filter="estafa" aria-pressed="false">ESTAFA</button>
+                <button type="button" data-filter="close" aria-pressed="false">Cierres</button>
+            </div>
+        </div>
+        <ol class="history-list list-unstyled mb-0">
+            {% for entry in history %}
+            <li class="history-entry history-{{ entry.kind }}" data-kind="{{ entry.kind }}"{% if entry.important %} data-important{% endif %}>
+                <time class="history-when" datetime="{{ entry.created_at|date:'c' }}">{{ entry.created_at|date:'d/m/Y H:i' }}</time>
+                <span class="history-what">{% if entry.kind == 'close' %}<i class="fas fa-lock me-1" aria-hidden="true"></i>{{ entry.summary }}{% else %}<strong>{% if entry.actor %}{{ entry.actor.get_full_name|default:entry.actor.email }}{% else %}Cuenta archivada{% endif %}</strong> {{ entry.summary|lower_first }}{% endif %}{% if entry.detail %}{% if entry.kind == 'status' %}<span class="history-message">{{ entry.detail|linebreaksbr }}</span>{% else %}<span class="history-fields"> · {{ entry.detail }}</span>{% endif %}{% endif %}</span>
+            </li>
+            {% endfor %}
+            <li class="history-empty text-muted">No hay nada de este tipo en el historial.</li>
+        </ol>
+    </section>
+    {% endif %}
     <section class="review-sections" aria-labelledby="sections-title">
         <h3 class="h5 mb-1" id="sections-title">Secciones</h3>
         <p class="small text-muted mb-3">Abrí una sección para leer lo que cargó el equipo y completar lo que le toca a ESTAFA.</p>
@@ -120,13 +131,29 @@
     .review-status { padding: 1rem; border: 1px solid #d8e6df; border-radius: .55rem; }
     .review-status .badge { font-size: .8rem; padding: .45em .7em; }
     .review-status .btn { min-height: 44px; }
-    .review-status .review-reopen { min-height: 32px; padding: .2rem .7rem; font-size: .8rem; }
-    .review-messages { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #d8e6df; }
-    .review-message { max-width: 68ch; padding: .5rem 0 .5rem .75rem; border-left: 3px solid #d8e6df; }
-    .review-message + .review-message { margin-top: .6rem; }
-    .review-message-meta { font-size: .8rem; color: #6c757d; }
-    .review-message-meta strong { color: #3d4643; }
-    .review-message-text { font-size: .9rem; }
+    .review-status .btn.review-reopen { display: inline-flex; align-items: center; height: 30px; min-height: 0; padding: 0 .7rem; font-size: .8rem; line-height: 1; }
+    /* Historial: una línea por hecho, lo más nuevo arriba. Por defecto, sólo lo importante. */
+    .review-history { padding: 1rem; border: 1px solid #d8e6df; border-radius: .55rem; }
+    .history-filters { display: flex; flex-wrap: wrap; gap: .25rem; }
+    .history-filters button { min-height: 28px; padding: 0 .65rem; border: 1px solid transparent; border-radius: 999px; background: none; color: #6c757d; font-size: .8rem; }
+    .history-filters button:hover { background: #f3f5f4; color: #3d4643; }
+    .history-filters button[aria-pressed="true"] { border-color: rgba(40, 158, 109, .55); background: #eff8f4; color: rgb(24, 96, 67); font-weight: 600; }
+    .history-filters button:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(40, 158, 109, .2); }
+    .history-list { max-height: 19rem; overflow-y: auto; font-size: .875rem; line-height: 1.4; }
+    .history-entry { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: .75rem; padding: .3rem 0; }
+    .history-entry + .history-entry { border-top: 1px solid #f0f3f1; }
+    .history-when { color: #8a938f; font-size: .8rem; font-variant-numeric: tabular-nums; white-space: nowrap; padding-top: .05rem; }
+    .history-what strong { font-weight: 600; }
+    .history-close .history-what, .history-fields { color: #6c757d; }
+    .history-message { display: block; max-width: 68ch; margin-top: .2rem; padding-left: .6rem; border-left: 2px solid #d8e6df; color: #3d4643; }
+    .history-empty { display: none; padding: .3rem 0; font-size: .85rem; }
+    .review-history[data-filter="important"] .history-entry:not([data-important]),
+    .review-history[data-filter="status"] .history-entry:not([data-kind="status"]),
+    .review-history[data-filter="edit"] .history-entry:not([data-kind="edit"]),
+    .review-history[data-filter="estafa"] .history-entry:not([data-kind="estafa"]),
+    .review-history[data-filter="close"] .history-entry:not([data-kind="close"]) { display: none; }
+    .review-history.is-empty .history-empty { display: block; }
+    @media (max-width: 575px) { .history-entry { grid-template-columns: 1fr; gap: 0; } }
     .review-risk { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #d8e6df; }
     .review-risk .form-check-input { cursor: pointer; }
     .review-risk .form-check-label { cursor: pointer; color: #6c757d; }
@@ -208,5 +235,21 @@
         var section = target && target.closest('details.review-section');
         if (section) { section.open = true; target.scrollIntoView(); }
     })();
+</script>
+<script>
+(function () {
+    // Filtro del historial: sin recargar la página.
+    var box = document.querySelector('.review-history');
+    if (!box) return;
+    var buttons = box.querySelectorAll('.history-filters button');
+    function apply(filter) {
+        box.dataset.filter = filter;
+        buttons.forEach(function (button) { button.setAttribute('aria-pressed', button.dataset.filter === filter ? 'true' : 'false'); });
+        var visible = Array.prototype.some.call(box.querySelectorAll('.history-entry'), function (entry) { return entry.offsetParent !== null; });
+        box.classList.toggle('is-empty', !visible);
+    }
+    buttons.forEach(function (button) { button.addEventListener('click', function () { apply(button.dataset.filter); }); });
+    apply('important');
+})();
 </script>
 {% endblock %}

@@ -17,6 +17,7 @@ from tickets.models import MessageIdempotency
 from user_profile.display import display_name
 from templated_email import get_templated_mail
 
+from . import history
 from .estafa import estafa_members, is_fuego_austral
 from .models import ArtworkChange, EstafaNotificationPreference
 
@@ -46,8 +47,13 @@ def _names_sentence(names):
     return f"{', '.join(names[:-1])} y {names[-1]}"
 
 
-def record_change(artwork, section, actor):
-    """Anota un cambio del equipo de la instalación. Lo que hace ESTAFA al coordinar no cuenta."""
+def record_change(artwork, section, actor, fields=()):
+    """Anota un cambio en el historial de la propuesta y, si lo hizo su equipo, en el resumen para ESTAFA.
+
+    Lo que hace ESTAFA al coordinar queda en el historial pero no se avisa por email.
+    """
+    if actor and actor.is_authenticated:
+        history.log_edit(artwork, section, actor, fields)
     if not actor or not actor.is_authenticated or not artwork.can_edit(actor):
         return None
     if not is_fuego_austral(artwork.event):

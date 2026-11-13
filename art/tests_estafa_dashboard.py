@@ -105,3 +105,46 @@ class EstafaDashboardListTest(TestCase):
         self.assertEqual(titles(['risk', 'fire']), ['Faro'])
         self.assertEqual(titles(['sound']), [])
         self.assertEqual(self.client.get(self.url, {'flag': ['risk', 'fire']}).context['flag_summary'], '2 marcas')
+
+    def test_history_records_who_changed_what(self):
+        from art import history
+        from art.digest import record_change
+        review_url = reverse('artwork_review', args=[self.event.slug, self.artwork.pk])
+        # Inscripta antes del cierre de inscripción: ese cierre es parte de su historia.
+        Artwork.objects.filter(pk=self.artwork.pk).update(created_at=timezone.now() - timedelta(days=10))
+        self.artwork.refresh_from_db()
+        # Cambios seguidos de la misma persona en el mismo bloque quedan en una línea, con los campos sumados.
+        record_change(self.artwork, 'Detalles', self.owner, fields=['Título'])
+        record_change(self.artwork, 'Detalles', self.owner, fields=['Materiales', 'Título'])
+        record_change(self.artwork, 'Galería', self.owner)
+        self.client.force_login(self.admin)
+        self.client.post(reverse('artwork_risk', args=[self.event.slug, self.artwork.pk]), {'risky': '1'})
+        self.client.post(reverse('artwork_contact', args=[self.event.slug, self.artwork.pk]), {'estafa_contact': ''})
+        entries = list(self.artwork.history.values_list('kind', 'summary', 'detail', 'important', 'actor'))
+        self.assertEqual(entries, [
+            ('edit', 'Editó Detalles', 'Título, Materiales', True, self.owner.pk),
+            ('edit', 'Editó Galería', '', False, self.owner.pk),
+            ('estafa', 'Marcó la propuesta como riesgosa', '', True, self.admin.pk),
+            ('estafa', 'Quitó el contacto de ESTAFA', '', True, self.admin.pk),
+        ])
+        response = self.client.get(review_url)
+        timeline = response.context['history']
+        # Lo más nuevo arriba, con los cierres del programa que ya pasaron.
+        self.assertEqual(timeline[0].summary, 'Quitó el contacto de ESTAFA')
+        self.assertIn('Cierre de Inscripción', [entry.summary for entry in timeline if entry.kind == history.CLOSE])
+        self.assertNotIn('Cierre de Propuesta', [entry.summary for entry in timeline])
+        self.assertContains(response, 'editó Detalles')
+        self.assertContains(response, 'Título, Materiales')
+        self.assertContains(response, 'data-kind="close" data-important')
+
+    def test_contact_filter_shows_how_many_each_one_has(self):
+        Artwork.objects.create(
+            event=self.event, owner=self.owner, title='Rechazada', estafa_contact=self.admin, status=Artwork.Status.REJECTED,
+        )
+        self.client.force_login(self.admin)
+        response = self.client.get(self.url, {'contact': str(self.admin.pk)})
+        choices = {value: total for value, _label, total in response.context['contact_choices']}
+        self.assertEqual(choices[str(self.admin.pk)], 1)  # sin contar la rechazada
+        self.assertEqual(response.context['no_contact_count'], 1)
+        self.assertTrue(response.context['contact_summary'].endswith('(1)'))
+        self.assertContains(response, 'class="filter-count"')

@@ -8,7 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, transaction
-from django.db.models import F, Q
+from django.db.models import Count, F, Q
 from django.db.models.functions import Lower
 from django.http import Http404, HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
@@ -23,6 +23,7 @@ from tickets.models import NewTicket, TicketType
 from user_profile.phone import whatsapp_number
 from utils.email import send_mail
 
+from . import history
 from .digest import record_change, send_new_artwork_email
 from .estafa import can_access_estafa, can_coordinate, estafa_events, estafa_members, is_estafa_member
 from .forms import (
@@ -32,7 +33,7 @@ from .forms import (
 )
 from .models import (
     ArtProgram, Artwork, ArtworkFile, ArtworkGrantItem, ArtworkGrantItemPhoto,
-    ArtworkPhoto, ArtworkCheckoutPhoto, ArtworkProvider, ArtworkStatusMessage,
+    ArtworkPhoto, ArtworkCheckoutPhoto, ArtworkProvider,
     ArtworkProviderVehicle,
 )
 from .review_sections import review_sections
@@ -427,7 +428,7 @@ def _review_context(artwork, form, user, inline_forms=None):
         'team_members': team['team_members'],
         'ticket_outlook': team['ticket_outlook'],
         'artwork': artwork, 'form': form, 'sections': sections,
-        'status_messages': artwork.status_messages.select_related('sent_by'),
+        'history': history.timeline(artwork, artwork.event.art_program),
         'contact_form': ArtworkContactForm(instance=artwork, auto_id='contact_%s'),
         'can_manage': artwork.can_manage(user),
         'checkout_photo_upload_form': inline_forms.get(('checkout-photo-new', None)) or ArtworkCheckoutPhotoUploadForm(
@@ -565,6 +566,7 @@ def artwork_create(request, event_slug):
                 form.instance.creation_token = creation_token
                 artwork = form.save()
                 _ensure_operations_group(artwork, program)
+                history.log(artwork, history.STATUS, request.user, 'Inscribió la propuesta')
                 transaction.on_commit(lambda: _send_artwork_received_email(artwork))
                 transaction.on_commit(lambda: send_new_artwork_email(artwork))
         except IntegrityError:
@@ -619,8 +621,8 @@ def _handle_artwork_edit(request, artwork):
             form.instance.submitted_at = timezone.now()
         changed_sections = _changed_sections(form)
         artwork = form.save()
-        for section in changed_sections:
-            record_change(artwork, section, request.user)
+        for section, fields in changed_sections:
+            record_change(artwork, section, request.user, fields=fields)
         _ensure_operations_group(artwork, program)
         if action == 'checkout':
             _submit_checkout(request, artwork, program)
@@ -648,12 +650,16 @@ CHANGE_SECTIONS = {
 
 
 def _changed_sections(form):
-    """Los bloques del formulario con algún campo que de verdad cambió."""
+    """Los bloques del formulario con algún campo que de verdad cambió, cada uno con los nombres de esos campos."""
     changed = set(form.changed_data) - {'expected_version'}
     return [
-        CHANGE_SECTIONS[block] for block, fields in form.BLOCK_FIELDS.items()
-        if changed.intersection(fields)
+        (CHANGE_SECTIONS[block], _field_labels(form, [name for name in fields if name in changed]))
+        for block, fields in form.BLOCK_FIELDS.items() if changed.intersection(fields)
     ]
+
+
+def _field_labels(form, names):
+    return [str(form.fields[name].label or name) for name in names if name in form.fields]
 
 
 def _grant_section(phase):
@@ -682,6 +688,7 @@ def _submit_checkout(request, artwork, program):
         ])
         transaction.on_commit(lambda: _send_checkout_submitted_email(artwork))
         record_change(artwork, 'Checkout', request.user)
+        history.log(artwork, history.STATUS, request.user, 'Envió el checkout')
         messages.success(request, 'El checkout fue enviado. El equipo de Arte lo va a verificar.')
 
 
@@ -812,8 +819,8 @@ def _handle_artwork_grant(request, artwork):
     if request.method == 'POST' and form.is_valid():
         changed_sections = _changed_sections(form)
         form.save()
-        for section in changed_sections:
-            record_change(artwork, section, request.user)
+        for section, fields in changed_sections:
+            record_change(artwork, section, request.user, fields=fields)
         messages.success(request, 'Cambios guardados.')
         return redirect('artwork_grant', artwork_id=artwork.pk)
     return render(request, 'art/grant.html', _grant_page_context(artwork, program, form, request.user))
@@ -888,6 +895,7 @@ def grant_item_review(request, event_slug, artwork_id, item_id):
         form = ArtworkGrantItemReviewForm(request.POST, instance=item)
         if form.is_valid():
             form.save()
+            history.log_edit(artwork, 'Revisión de beca', request.user, [item.concept], kind=history.ESTAFA, important=False)
             messages.success(request, f'Revisión de “{item.concept}” guardada.')
         else:
             for errors in form.errors.values():
@@ -1238,6 +1246,7 @@ def artwork_team_access(request, artwork_id, member_id):
         else:
             artwork.collaborators.remove(member.user)
             messages.success(request, f'{name} ya no puede editar la propuesta.')
+        history.log_edit(artwork, 'Equipo', request.user)
     return _artwork_redirect(artwork, 'equipo')
 
 
@@ -1342,11 +1351,19 @@ def _managed_event(request, event_slug):
     return event
 
 
-def _estafa_contact_choices(event):
+def _contact_counts(event):
+    """Cuántas propuestas tiene asignadas cada contacto de ESTAFA (None: sin contacto). No cuenta las rechazadas."""
+    return dict(
+        event.artworks.exclude(status=Artwork.Status.REJECTED)
+        .values_list('estafa_contact_id').annotate(total=Count('pk')).order_by()
+    )
+
+
+def _estafa_contact_choices(event, counts):
     contacts = User.objects.filter(
         Q(pk__in=estafa_members().values('pk')) | Q(estafa_contact_artworks__event=event),
     ).distinct().order_by('first_name', 'last_name', 'email')
-    return [(str(user.pk), person_label(user)) for user in contacts.select_related('profile')]
+    return [(str(user.pk), person_label(user), counts.get(user.pk, 0)) for user in contacts.select_related('profile')]
 
 
 # Marcas del listado de ESTAFA: (clave, etiqueta, condición). El dibujo de cada una está en art/_flag_icon.html.
@@ -1371,7 +1388,7 @@ def _selected_stages(params):
     return [stage for stage in Artwork.STAGES if stage in params.getlist('status')]
 
 
-def _filter_summary(params, contact_choices):
+def _filter_summary(params, contact_choices, counts, user):
     """Lo que muestra cada botón de filtro cuando tiene algo elegido."""
     stages = _selected_stages(params)
     if len(stages) == 1:
@@ -1379,7 +1396,10 @@ def _filter_summary(params, contact_choices):
     else:
         status = f'{len(stages)} estados' if stages else ''
     contact = params.get('contact', '')
-    contact_label = {'me': 'Asignadas a vos', 'none': 'Sin contacto', **dict(contact_choices)}.get(contact, '')
+    contact_label = {
+        'me': f'Asignadas a vos ({counts.get(user.pk, 0)})', 'none': f'Sin contacto ({counts.get(None, 0)})',
+        **{value: f'{label} ({total})' for value, label, total in contact_choices},
+    }.get(contact, '')
     flags = _selected_flags(params)
     flag_summary = flags[0][1] if len(flags) == 1 else (f'{len(flags)} marcas' if flags else '')
     return {
@@ -1456,7 +1476,8 @@ def art_admin_dashboard(request, event_slug):
     if not event:
         return HttpResponseForbidden('No tenés permisos para coordinar Arte en este evento.')
     artworks = _filtered_artworks(event, request.GET, request.user)
-    contact_choices = _estafa_contact_choices(event)
+    counts = _contact_counts(event)
+    contact_choices = _estafa_contact_choices(event, counts)
     assigned = event.artworks.filter(estafa_contact=request.user).exclude(
         status=Artwork.Status.REJECTED,
     ).select_related('owner').order_by(Lower('title'), 'pk')
@@ -1464,7 +1485,8 @@ def art_admin_dashboard(request, event_slug):
         **_estafa_context(request.user, event), 'artworks': artworks, 'assigned_artworks': assigned,
         'status_choices': [(stage, label) for stage, (label, _hint) in Artwork.STAGES.items()],
         'flag_choices': [(key, label) for key, label, _condition in ARTWORK_FLAGS],
-        'contact_choices': contact_choices, **_filter_summary(request.GET, contact_choices),
+        'contact_choices': contact_choices, 'mine_count': counts.get(request.user.pk, 0), 'no_contact_count': counts.get(None, 0),
+        **_filter_summary(request.GET, contact_choices, counts, request.user),
     })
 
 
@@ -1486,6 +1508,7 @@ def artwork_review(request, event_slug, artwork_id):
             form = ArtworkReviewForm(request.POST, request.FILES, instance=artwork, can_manage=can_manage)
             if form.is_valid():
                 artwork = form.save(commit=False)
+                previous_status = artwork.status
                 if artwork.checkin_art_at and not had_art_checkin:
                     artwork.checkin_art_by = request.user
                 if artwork.checkout_verified_at:
@@ -1498,6 +1521,17 @@ def artwork_review(request, event_slug, artwork_id):
                     if artwork.status == Artwork.Status.CHECKOUT_VERIFIED:
                         artwork.set_status(Artwork.Status.CHECKOUT_SUBMITTED, request.user)
                 artwork.save()
+                if artwork.status != previous_status:
+                    history.log(artwork, history.STATUS, request.user, (
+                        'Verificó el checkout' if artwork.status == Artwork.Status.CHECKOUT_VERIFIED
+                        else 'Quitó la verificación del checkout'
+                    ))
+                tracked = [name for name in form.changed_data if name not in ('expected_updated_at', 'checkout_verified_at')]
+                if tracked:
+                    history.log_edit(
+                        artwork, 'Seguimiento de ESTAFA', request.user, _field_labels(form, tracked),
+                        kind=history.ESTAFA, important=False,
+                    )
                 messages.success(request, 'La revisión quedó guardada.')
                 return redirect('artwork_review', event_slug=event.slug, artwork_id=artwork.pk)
     else:
@@ -1520,10 +1554,12 @@ def artwork_contact(request, event_slug, artwork_id):
         elif form.cleaned_data['estafa_contact'] and form.cleaned_data['estafa_contact'].pk != previous_id:
             artwork = form.save()
             contact = artwork.estafa_contact
+            history.log(artwork, history.ESTAFA, request.user, f'Asignó a {contact.get_full_name() or contact.email} como contacto de ESTAFA')
             transaction.on_commit(lambda: _send_contact_email(artwork))
             messages.success(request, f'{contact.get_full_name() or contact.email} es el contacto de ESTAFA. Le avisamos al equipo por email.')
         elif not form.cleaned_data['estafa_contact'] and previous_id:
             form.save()
+            history.log(artwork, history.ESTAFA, request.user, 'Quitó el contacto de ESTAFA')
             messages.success(request, 'La propuesta quedó sin contacto de ESTAFA.')
     return redirect('artwork_review', event_slug=event.slug, artwork_id=artwork.pk)
 
@@ -1538,6 +1574,8 @@ def artwork_risk(request, event_slug, artwork_id):
     risky = request.POST.get('risky') == '1'
     # Sin tocar updated_at: es una marca interna y no tiene que pisar una revisión abierta en otra pestaña.
     Artwork.objects.filter(pk=artwork.pk).update(is_risky=risky)
+    if risky != artwork.is_risky:
+        history.log(artwork, history.ESTAFA, request.user, 'Marcó la propuesta como riesgosa' if risky else 'Quitó la marca de riesgo')
     messages.success(request, 'Marcaste la propuesta como riesgosa.' if risky else 'La propuesta ya no está marcada como riesgosa.')
     return redirect('artwork_review', event_slug=event.slug, artwork_id=artwork.pk)
 
@@ -1572,11 +1610,12 @@ def artwork_status(request, event_slug, artwork_id):
         artwork.set_status(status, request.user)
         artwork.review_feedback = message
         artwork.save(update_fields=['status', 'status_changed_at', 'status_changed_by', 'review_feedback', 'updated_at'])
-        if message:
-            # review_feedback guarda sólo el último mensaje; acá queda el historial.
-            ArtworkStatusMessage.objects.create(
-                artwork=artwork, status=status, message=message, sent_by=request.user, created_at=artwork.status_changed_at,
-            )
+        # review_feedback guarda sólo el último mensaje; el historial los guarda todos.
+        history.log(artwork, history.STATUS, request.user, {
+            Artwork.Status.ACTIVE: 'Aprobó la inscripción',
+            Artwork.Status.REJECTED: 'Rechazó la propuesta',
+            Artwork.Status.PENDING: 'Volvió a inscripción pendiente',
+        }[status], detail=message)
         if status == Artwork.Status.ACTIVE:
             _ensure_operations_group(artwork, event.art_program)
         transaction.on_commit(lambda: _send_status_email(artwork))
