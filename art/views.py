@@ -1348,6 +1348,24 @@ def _estafa_contact_choices(event):
     return [(str(user.pk), person_label(user)) for user in contacts.select_related('profile')]
 
 
+# Marcas del listado de ESTAFA: (clave, etiqueta, ícono del menú de filtros, condición).
+ARTWORK_FLAGS = (
+    ('risky', 'Riesgosa', 'fa-triangle-exclamation', Q(is_risky=True)),
+    ('camp', 'Con camp soporte', 'fa-campground', Q(wants_support_camp=True)),
+    ('grant', 'Pidió beca', 'fa-hand-holding-dollar', Q(grant_requested=True) | ~Q(grant_status=Artwork.GrantStatus.NOT_REQUESTED)),
+    ('fire', 'Se quema', 'fa-fire', Q(burns=True)),
+    ('sound', 'Tiene sonido', 'fa-volume-high', Q(uses_sound=True)),
+    ('mad', 'Necesita asistencia de MAD', 'fa-truck-pickup', Q(needs_mad_assistance=True)),
+    ('movable', 'Se mueve de lugar (sin motor)', 'fa-people-carry-box', Q(is_movable=True)),
+    ('ufo', 'Movilidad propia (art car)', 'fa-shuttle-space', Q(has_own_mobility=True)),
+)
+
+
+def _selected_flags(params):
+    chosen = params.getlist('flag')
+    return [flag for flag in ARTWORK_FLAGS if flag[0] in chosen]
+
+
 def _selected_stages(params):
     return [stage for stage in Artwork.STAGES if stage in params.getlist('status')]
 
@@ -1361,9 +1379,12 @@ def _filter_summary(params, contact_choices):
         status = f'{len(stages)} estados' if stages else ''
     contact = params.get('contact', '')
     contact_label = {'me': 'Asignadas a vos', 'none': 'Sin contacto', **dict(contact_choices)}.get(contact, '')
+    flags = _selected_flags(params)
+    flag_summary = flags[0][1] if len(flags) == 1 else (f'{len(flags)} marcas' if flags else '')
     return {
         'selected_statuses': stages, 'status_summary': status, 'contact_summary': contact_label,
-        'filters_active': bool(stages or contact_label or params.get('q', '').strip()),
+        'selected_flags': [key for key, *_rest in flags], 'flag_summary': flag_summary,
+        'filters_active': bool(stages or flags or contact_label or params.get('q', '').strip()),
     }
 
 
@@ -1402,6 +1423,9 @@ def _filtered_artworks(event, params, user):
     else:
         # Sin filtro de estado no se listan las rechazadas: se ven eligiendo «Rechazada».
         artworks = artworks.exclude(status=Artwork.Status.REJECTED)
+    # Varias marcas a la vez: la propuesta tiene que cumplir todas.
+    for _key, _label, _icon, condition in _selected_flags(params):
+        artworks = artworks.filter(condition)
     if params.get('grant') in Artwork.GrantStatus.values:
         artworks = artworks.filter(grant_status=params['grant'])
     contact = params.get('contact', '')
@@ -1438,6 +1462,7 @@ def art_admin_dashboard(request, event_slug):
     return render(request, 'art/admin_dashboard.html', {
         **_estafa_context(request.user, event), 'artworks': artworks, 'assigned_artworks': assigned,
         'status_choices': [(stage, label) for stage, (label, _hint) in Artwork.STAGES.items()],
+        'flag_choices': [(key, label, icon) for key, label, icon, _condition in ARTWORK_FLAGS],
         'contact_choices': contact_choices, **_filter_summary(request.GET, contact_choices),
     })
 
@@ -1502,6 +1527,20 @@ def artwork_contact(request, event_slug, artwork_id):
     return redirect('artwork_review', event_slug=event.slug, artwork_id=artwork.pk)
 
 
+@login_required
+@require_POST
+def artwork_risk(request, event_slug, artwork_id):
+    event = get_object_or_404(Event, slug=event_slug)
+    artwork = get_object_or_404(Artwork, pk=artwork_id, event=event)
+    if not artwork.can_manage(request.user):
+        return HttpResponseForbidden('No tenés permisos para coordinar Arte en este evento.')
+    risky = request.POST.get('risky') == '1'
+    # Sin tocar updated_at: es una marca interna y no tiene que pisar una revisión abierta en otra pestaña.
+    Artwork.objects.filter(pk=artwork.pk).update(is_risky=risky)
+    messages.success(request, 'Marcaste la propuesta como riesgosa.' if risky else 'La propuesta ya no está marcada como riesgosa.')
+    return redirect('artwork_review', event_slug=event.slug, artwork_id=artwork.pk)
+
+
 STATUS_TRANSITIONS = {
     'approve': ((Artwork.Status.PENDING,), Artwork.Status.ACTIVE),
     'reject': ((Artwork.Status.PENDING,), Artwork.Status.REJECTED),
@@ -1554,7 +1593,7 @@ def art_admin_export(request, event_slug):
     response.write('\ufeff')
     writer = csv.writer(response)
     writer.writerow([
-        'Propuesta de Arte', 'Modalidad', 'Responsable', 'Responsable (nombre)', 'WhatsApp del responsable', 'Estado', 'Contacto de ESTAFA', 'Responsable de seguridad',
+        'Propuesta de Arte', 'Modalidad', 'Responsable', 'Responsable (nombre)', 'WhatsApp del responsable', 'Estado', 'Contacto de ESTAFA', 'Riesgosa', 'Responsable de seguridad',
         'Asistencia de MAD', 'Se mueve de lugar (sin motor)', 'Movilidad propia (art car)',
         'Título público', 'Descripción pública',
         'Declaración de entendimiento digital', 'Declaración de entendimiento física', 'Personas del equipo',
@@ -1570,6 +1609,7 @@ def art_admin_export(request, event_slug):
             whatsapp_number(_owner_phone(artwork)),
             artwork.stage_label,
             artwork.estafa_contact.email if artwork.estafa_contact else '',
+            'Sí' if artwork.is_risky else 'No',
             artwork.safety_responsible.email if artwork.safety_responsible else '',
             'Sí' if artwork.needs_mad_assistance else 'No',
             'Sí' if artwork.is_movable else 'No',

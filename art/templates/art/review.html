@@ -10,6 +10,17 @@
         <div class="d-flex gap-2"><a class="btn btn-outline-primary" href="{% url 'artwork_edit' artwork.pk %}">Ver propuesta de Arte</a></div>
     </div>
     <section class="review-status mb-4" aria-label="Estado">
+        {% if can_manage %}
+        <form class="review-risk{% if artwork.is_risky %} is-risky{% endif %}" method="post" action="{% url 'artwork_risk' event.slug artwork.pk %}">{% csrf_token %}
+            <input type="hidden" name="risky" value="{% if artwork.is_risky %}0{% else %}1{% endif %}">
+            <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" role="switch" id="review-risk-switch"{% if artwork.is_risky %} checked{% endif %} onchange="this.form.submit()">
+                <label class="form-check-label fw-semibold" for="review-risk-switch"><i class="fas fa-triangle-exclamation me-1" aria-hidden="true"></i>Propuesta riesgosa</label>
+            </div>
+            <small class="text-muted">Marca interna de ESTAFA: el equipo de la propuesta no la ve.</small>
+            <noscript><button class="btn btn-sm btn-outline-secondary" type="submit">{% if artwork.is_risky %}Quitar marca{% else %}Marcar como riesgosa{% endif %}</button></noscript>
+        </form>
+        {% endif %}
         <p class="d-flex flex-wrap align-items-center gap-2 mb-0">
             {% include 'art/_status_badge.html' %}
             {% if artwork.status_changed_at %}<small class="text-muted">Desde el {{ artwork.status_changed_at|date:'d/m/Y H:i' }}{% if artwork.status_changed_by %} · {{ artwork.status_changed_by.get_full_name|default:artwork.status_changed_by.email }}{% endif %}</small>{% endif %}
@@ -82,6 +93,12 @@
     .review-status .badge { font-size: .8rem; padding: .45em .7em; }
     .review-status .btn { min-height: 44px; }
     .review-status-message { max-width: 68ch; }
+    .review-risk { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem 1rem; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #d8e6df; }
+    .review-risk .form-check-input { cursor: pointer; }
+    .review-risk .form-check-label { cursor: pointer; color: #6c757d; }
+    .review-risk.is-risky .form-check-label { color: #c2410c; }
+    .review-risk .form-check-input:checked { background-color: #ea580c; border-color: #ea580c; }
+    .review-risk .form-check-input:focus { border-color: #ea580c; box-shadow: 0 0 0 3px rgba(234, 88, 12, .2); }
     .review-contact { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #d8e6df; }
     .review-contact > div { max-width: 40rem; }
     .review-contact .form-select { min-height: 44px; }
