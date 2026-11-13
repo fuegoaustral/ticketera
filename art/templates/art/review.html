@@ -10,21 +10,15 @@
         <div class="d-flex gap-2"><a class="btn btn-outline-primary" href="{% url 'artwork_edit' artwork.pk %}">Ver propuesta de Arte</a></div>
     </div>
     <section class="review-status mb-4" aria-label="Estado">
-        {% if can_manage %}
-        <form class="review-risk{% if artwork.is_risky %} is-risky{% endif %}" method="post" action="{% url 'artwork_risk' event.slug artwork.pk %}">{% csrf_token %}
-            <input type="hidden" name="risky" value="{% if artwork.is_risky %}0{% else %}1{% endif %}">
-            <div class="form-check form-switch mb-0">
-                <input class="form-check-input" type="checkbox" role="switch" id="review-risk-switch"{% if artwork.is_risky %} checked{% endif %} onchange="this.form.submit()">
-                <label class="form-check-label fw-semibold" for="review-risk-switch"><i class="fas fa-triangle-exclamation me-1" aria-hidden="true"></i>Propuesta riesgosa</label>
-            </div>
-            <small class="text-muted">Marca interna de ESTAFA: el equipo de la propuesta no la ve.</small>
-            <noscript><button class="btn btn-sm btn-outline-secondary" type="submit">{% if artwork.is_risky %}Quitar marca{% else %}Marcar como riesgosa{% endif %}</button></noscript>
-        </form>
-        {% endif %}
-        <p class="d-flex flex-wrap align-items-center gap-2 mb-0">
-            {% include 'art/_status_badge.html' %}
-            {% if artwork.status_changed_at %}<small class="text-muted">Desde el {{ artwork.status_changed_at|date:'d/m/Y H:i' }}{% if artwork.status_changed_by %} · {{ artwork.status_changed_by.get_full_name|default:artwork.status_changed_by.email }}{% endif %}</small>{% endif %}
-        </p>
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <p class="d-flex flex-wrap align-items-center gap-2 mb-0">
+                {% include 'art/_status_badge.html' %}
+                {% if artwork.status_changed_at %}<small class="text-muted">Desde el {{ artwork.status_changed_at|date:'d/m/Y H:i' }}{% if artwork.status_changed_by %} · {{ artwork.status_changed_by.get_full_name|default:artwork.status_changed_by.email }}{% endif %}</small>{% endif %}
+            </p>
+            {% if can_manage and artwork.status == 'active' or can_manage and artwork.status == 'rejected' %}
+            <button class="btn btn-sm btn-outline-secondary review-reopen ms-auto" type="button" data-bs-toggle="modal" data-bs-target="#reopen-modal"><i class="fas fa-rotate-left me-1" aria-hidden="true"></i>Volver a inscripción pendiente</button>
+            {% endif %}
+        </div>
         {% if can_manage and artwork.status == 'pending' %}
         <form class="mt-3" method="post" action="{% url 'artwork_status' event.slug artwork.pk %}">{% csrf_token %}
             <label class="form-label fw-semibold" for="status-message">Mensaje para el equipo <span class="fw-normal text-muted">(opcional al aprobar, obligatorio al rechazar)</span></label>
@@ -37,11 +31,6 @@
         </form>
         {% else %}
             {% if artwork.review_feedback %}<p class="review-status-message small mt-3 mb-0"><strong>Mensaje enviado:</strong> {{ artwork.review_feedback|linebreaksbr }}</p>{% endif %}
-            {% if can_manage and artwork.status == 'active' or can_manage and artwork.status == 'rejected' %}
-            <form class="mt-2" method="post" action="{% url 'artwork_status' event.slug artwork.pk %}">{% csrf_token %}
-                <button class="btn btn-link px-0" type="submit" name="transition" value="reopen">Volver a inscripción pendiente</button>
-            </form>
-            {% endif %}
         {% endif %}
         {% if can_manage %}
         <form class="review-contact" method="post" action="{% url 'artwork_contact' event.slug artwork.pk %}">{% csrf_token %}
@@ -51,6 +40,15 @@
                 <button class="btn btn-outline-primary text-nowrap" type="submit">Guardar contacto</button>
             </div>
             <small class="d-block text-muted mt-2" id="contact-help">Acompaña al equipo durante todo el proceso. Le avisamos al equipo por email.</small>
+        </form>
+        <form class="review-risk{% if artwork.is_risky %} is-risky{% endif %}" method="post" action="{% url 'artwork_risk' event.slug artwork.pk %}">{% csrf_token %}
+            <input type="hidden" name="risky" value="{% if artwork.is_risky %}0{% else %}1{% endif %}">
+            <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" role="switch" id="review-risk-switch"{% if artwork.is_risky %} checked{% endif %} onchange="this.form.submit()">
+                <label class="form-check-label fw-semibold" for="review-risk-switch"><i class="fas fa-triangle-exclamation me-1" aria-hidden="true"></i>Propuesta riesgosa</label>
+            </div>
+            <small class="text-muted">Marca interna de ESTAFA: el equipo de la propuesta no la ve.</small>
+            <noscript><button class="btn btn-sm btn-outline-secondary" type="submit">{% if artwork.is_risky %}Quitar marca{% else %}Marcar como riesgosa{% endif %}</button></noscript>
         </form>
         {% endif %}
     </section>
@@ -88,12 +86,32 @@
         </form>
     </section>
 </div>
+{% if can_manage and artwork.status == 'active' or can_manage and artwork.status == 'rejected' %}
+<div class="modal fade" id="reopen-modal" tabindex="-1" aria-labelledby="reopen-modal-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content" method="post" action="{% url 'artwork_status' event.slug artwork.pk %}">{% csrf_token %}
+            <div class="modal-header">
+                <h2 class="modal-title h5" id="reopen-modal-title">¿Volver a inscripción pendiente?</h2>
+                <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">«{{ artwork.title|default:'Propuesta de Arte sin título' }}» deja de estar {% if artwork.status == 'rejected' %}rechazada{% else %}aprobada{% endif %} y vuelve a revisión. Le avisamos al equipo por email.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-primary" type="submit" name="transition" value="reopen">Volver a pendiente</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
 <style>
     .review-status { padding: 1rem; border: 1px solid #d8e6df; border-radius: .55rem; }
     .review-status .badge { font-size: .8rem; padding: .45em .7em; }
     .review-status .btn { min-height: 44px; }
+    .review-status .review-reopen { min-height: 32px; padding: .2rem .7rem; font-size: .8rem; }
     .review-status-message { max-width: 68ch; }
-    .review-risk { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem 1rem; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #d8e6df; }
+    .review-risk { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #d8e6df; }
     .review-risk .form-check-input { cursor: pointer; }
     .review-risk .form-check-label { cursor: pointer; color: #6c757d; }
     .review-risk.is-risky .form-check-label { color: #c2410c; }
@@ -101,7 +119,9 @@
     .review-risk .form-check-input:focus { border-color: #ea580c; box-shadow: 0 0 0 3px rgba(234, 88, 12, .2); }
     .review-contact { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #d8e6df; }
     .review-contact > div { max-width: 40rem; }
-    .review-contact .form-select { min-height: 44px; }
+    .review-contact .form-select, .review-contact .btn { height: 38px; min-height: 0; padding-top: 0; padding-bottom: 0; font-size: .9rem; }
+    .review-contact .btn { display: inline-flex; align-items: center; }
+    .review-contact .form-label { margin-bottom: .35rem; }
     .review-section-list { border-top: 1px solid #dee2e6; }
     .review-section { border-bottom: 1px solid #dee2e6; }
     .review-section > summary { display: grid; grid-template-columns: minmax(12rem, 1.2fr) minmax(0, 1.6fr) minmax(7rem, auto) 1rem; gap: .5rem 1rem; align-items: center; min-height: 52px; padding: .65rem .5rem; cursor: pointer; list-style: none; }
