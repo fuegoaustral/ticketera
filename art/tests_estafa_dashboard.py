@@ -64,3 +64,44 @@ class EstafaDashboardListTest(TestCase):
         for artwork in (self.artwork, self.bare):
             review_url = reverse('artwork_review', args=[self.event.slug, artwork.pk])
             self.assertContains(response, f'<a class="art-row-link stretched-link" href="{review_url}">')
+
+    def test_risk_mark_is_set_from_the_review_and_shown_in_the_list(self):
+        self.client.force_login(self.admin)
+        review_url = reverse('artwork_review', args=[self.event.slug, self.artwork.pk])
+        risk_url = reverse('artwork_risk', args=[self.event.slug, self.artwork.pk])
+        self.assertNotContains(self.client.get(self.url), 'class="art-flag art-flag-risk"')
+        updated_at = self.artwork.updated_at
+        self.assertRedirects(self.client.post(risk_url, {'risky': '1'}), review_url)
+        self.artwork.refresh_from_db()
+        self.assertTrue(self.artwork.is_risky)
+        self.assertEqual(self.artwork.updated_at, updated_at)
+        self.assertContains(self.client.get(self.url), 'class="art-flag art-flag-risk"', count=1)
+        self.assertContains(self.client.get(review_url), 'id="review-risk-switch" checked')
+        self.client.post(risk_url, {'risky': '0'})
+        self.artwork.refresh_from_db()
+        self.assertFalse(self.artwork.is_risky)
+
+    def test_risk_mark_is_only_for_estafa(self):
+        self.client.force_login(self.owner)
+        risk_url = reverse('artwork_risk', args=[self.event.slug, self.artwork.pk])
+        self.assertEqual(self.client.post(risk_url, {'risky': '1'}).status_code, 403)
+        self.artwork.refresh_from_db()
+        self.assertFalse(self.artwork.is_risky)
+        self.artwork.is_risky = True
+        self.artwork.save()
+        response = self.client.get(reverse('artwork_edit', args=[self.artwork.pk]))
+        self.assertNotContains(response, 'iesgosa')
+
+    def test_list_filters_by_flags(self):
+        self.artwork.is_risky = True
+        self.artwork.burns = True
+        self.artwork.save()
+        self.bare.burns = True
+        self.bare.save()
+        self.client.force_login(self.admin)
+        titles = lambda flags: [a.title for a in self.client.get(self.url, {'flag': flags}).context['artworks']]
+        self.assertEqual(titles(['fire']), ['Faro', 'Sin texto'])
+        self.assertEqual(titles(['risk']), ['Faro'])
+        self.assertEqual(titles(['risk', 'fire']), ['Faro'])
+        self.assertEqual(titles(['sound']), [])
+        self.assertEqual(self.client.get(self.url, {'flag': ['risk', 'fire']}).context['flag_summary'], '2 marcas')

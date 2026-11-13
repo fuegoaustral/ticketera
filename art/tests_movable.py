@@ -63,7 +63,7 @@ class MovableArtworkTest(MadMobilityTest):
         Artwork.objects.filter(pk=self.artwork.pk).update(is_movable=True)
         response = self.client.get(url)
         self.assertContains(response, 'class="art-flag art-flag-movable"', count=1)
-        self.assertContains(response, 'fa-people-carry-box', count=1)
+        self.assertContains(response, 'fa-people-carry-box', count=2)  # en la fila y en el filtro de marcas, con el mismo dibujo
         self.assertContains(response, f'title="{MOVABLE_LABEL}"', count=1)
         self.assertNotContains(response, 'class="art-flag art-flag-ufo"')
 

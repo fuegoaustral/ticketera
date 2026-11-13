@@ -8,7 +8,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, transaction
-from django.db.models import Case, F, IntegerField, Q, Value, When
+from django.db.models import F, Q
+from django.db.models.functions import Lower
 from django.http import Http404, HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -1347,6 +1348,46 @@ def _estafa_contact_choices(event):
     return [(str(user.pk), person_label(user)) for user in contacts.select_related('profile')]
 
 
+# Marcas del listado de ESTAFA: (clave, etiqueta, condición). El dibujo de cada una está en art/_flag_icon.html.
+ARTWORK_FLAGS = (
+    ('risk', 'Riesgosa', Q(is_risky=True)),
+    ('camp', 'Con camp soporte', Q(wants_support_camp=True)),
+    ('grant', 'Pidió beca', Q(grant_requested=True) | ~Q(grant_status=Artwork.GrantStatus.NOT_REQUESTED)),
+    ('fire', 'Se quema', Q(burns=True)),
+    ('sound', 'Tiene sonido', Q(uses_sound=True)),
+    ('mad', 'Necesita asistencia de MAD', Q(needs_mad_assistance=True)),
+    ('movable', 'Se mueve de lugar (sin motor)', Q(is_movable=True)),
+    ('ufo', 'Movilidad propia (art car)', Q(has_own_mobility=True)),
+)
+
+
+def _selected_flags(params):
+    chosen = params.getlist('flag')
+    return [flag for flag in ARTWORK_FLAGS if flag[0] in chosen]
+
+
+def _selected_stages(params):
+    return [stage for stage in Artwork.STAGES if stage in params.getlist('status')]
+
+
+def _filter_summary(params, contact_choices):
+    """Lo que muestra cada botón de filtro cuando tiene algo elegido."""
+    stages = _selected_stages(params)
+    if len(stages) == 1:
+        status = Artwork.STAGES[stages[0]][0]
+    else:
+        status = f'{len(stages)} estados' if stages else ''
+    contact = params.get('contact', '')
+    contact_label = {'me': 'Asignadas a vos', 'none': 'Sin contacto', **dict(contact_choices)}.get(contact, '')
+    flags = _selected_flags(params)
+    flag_summary = flags[0][1] if len(flags) == 1 else (f'{len(flags)} marcas' if flags else '')
+    return {
+        'selected_statuses': stages, 'status_summary': status, 'contact_summary': contact_label,
+        'selected_flags': [key for key, *_rest in flags], 'flag_summary': flag_summary,
+        'filters_active': bool(stages or flags or contact_label or params.get('q', '').strip()),
+    }
+
+
 def _filtered_artworks(event, params, user):
     artworks = event.artworks.select_related(
         'event__art_program', 'owner__profile', 'safety_responsible', 'estafa_contact__profile',
@@ -1364,18 +1405,27 @@ def _filtered_artworks(event, params, user):
             | Q(public_title__icontains=query)
             | Q(assigned_location__icontains=query)
         )
-    stage = params.get('status')
-    if stage in Artwork.STAGES:
+    stages = _selected_stages(params)
+    if stages:
         try:
             checkout_open = event.art_program.checkout_is_open()
         except ArtProgram.DoesNotExist:
             checkout_open = False
-        if stage == Artwork.CHECKOUT_PENDING:
-            artworks = artworks.filter(status=Artwork.Status.ACTIVE) if checkout_open else artworks.none()
-        elif stage == Artwork.Status.ACTIVE and checkout_open:
-            artworks = artworks.none()
-        else:
-            artworks = artworks.filter(status=stage)
+        # Con el checkout abierto, una inscripción aprobada se muestra como "Checkout pendiente".
+        statuses = set()
+        for stage in stages:
+            if stage == Artwork.CHECKOUT_PENDING:
+                if checkout_open:
+                    statuses.add(Artwork.Status.ACTIVE)
+            elif not (stage == Artwork.Status.ACTIVE and checkout_open):
+                statuses.add(stage)
+        artworks = artworks.filter(status__in=statuses)
+    else:
+        # Sin filtro de estado no se listan las rechazadas: se ven eligiendo «Rechazada».
+        artworks = artworks.exclude(status=Artwork.Status.REJECTED)
+    # Varias marcas a la vez: la propuesta tiene que cumplir todas.
+    for _key, _label, condition in _selected_flags(params):
+        artworks = artworks.filter(condition)
     if params.get('grant') in Artwork.GrantStatus.values:
         artworks = artworks.filter(grant_status=params['grant'])
     contact = params.get('contact', '')
@@ -1385,15 +1435,7 @@ def _filtered_artworks(event, params, user):
         artworks = artworks.filter(estafa_contact__isnull=True)
     elif contact.isdigit():
         artworks = artworks.filter(estafa_contact_id=contact)
-    # Primero lo que espera a ESTAFA: inscripciones y checkouts por revisar.
-    turn = Case(
-        When(status=Artwork.Status.PENDING, then=Value(0)),
-        When(status=Artwork.Status.CHECKOUT_SUBMITTED, then=Value(1)),
-        When(status=Artwork.Status.ACTIVE, then=Value(2)),
-        When(status=Artwork.Status.CHECKOUT_VERIFIED, then=Value(3)),
-        default=Value(4), output_field=IntegerField(),
-    )
-    return artworks.distinct().order_by(turn, 'title')
+    return artworks.distinct().order_by(Lower('title'), 'pk')
 
 
 @login_required
@@ -1413,11 +1455,15 @@ def art_admin_dashboard(request, event_slug):
     if not event:
         return HttpResponseForbidden('No tenés permisos para coordinar Arte en este evento.')
     artworks = _filtered_artworks(event, request.GET, request.user)
-    assigned = event.artworks.filter(estafa_contact=request.user).select_related('owner').order_by('status', 'title')
+    contact_choices = _estafa_contact_choices(event)
+    assigned = event.artworks.filter(estafa_contact=request.user).exclude(
+        status=Artwork.Status.REJECTED,
+    ).select_related('owner').order_by(Lower('title'), 'pk')
     return render(request, 'art/admin_dashboard.html', {
         **_estafa_context(request.user, event), 'artworks': artworks, 'assigned_artworks': assigned,
         'status_choices': [(stage, label) for stage, (label, _hint) in Artwork.STAGES.items()],
-        'contact_choices': _estafa_contact_choices(event),
+        'flag_choices': [(key, label) for key, label, _condition in ARTWORK_FLAGS],
+        'contact_choices': contact_choices, **_filter_summary(request.GET, contact_choices),
     })
 
 
@@ -1481,6 +1527,20 @@ def artwork_contact(request, event_slug, artwork_id):
     return redirect('artwork_review', event_slug=event.slug, artwork_id=artwork.pk)
 
 
+@login_required
+@require_POST
+def artwork_risk(request, event_slug, artwork_id):
+    event = get_object_or_404(Event, slug=event_slug)
+    artwork = get_object_or_404(Artwork, pk=artwork_id, event=event)
+    if not artwork.can_manage(request.user):
+        return HttpResponseForbidden('No tenés permisos para coordinar Arte en este evento.')
+    risky = request.POST.get('risky') == '1'
+    # Sin tocar updated_at: es una marca interna y no tiene que pisar una revisión abierta en otra pestaña.
+    Artwork.objects.filter(pk=artwork.pk).update(is_risky=risky)
+    messages.success(request, 'Marcaste la propuesta como riesgosa.' if risky else 'La propuesta ya no está marcada como riesgosa.')
+    return redirect('artwork_review', event_slug=event.slug, artwork_id=artwork.pk)
+
+
 STATUS_TRANSITIONS = {
     'approve': ((Artwork.Status.PENDING,), Artwork.Status.ACTIVE),
     'reject': ((Artwork.Status.PENDING,), Artwork.Status.REJECTED),
@@ -1533,7 +1593,7 @@ def art_admin_export(request, event_slug):
     response.write('\ufeff')
     writer = csv.writer(response)
     writer.writerow([
-        'Propuesta de Arte', 'Modalidad', 'Responsable', 'Responsable (nombre)', 'WhatsApp del responsable', 'Estado', 'Contacto de ESTAFA', 'Responsable de seguridad',
+        'Propuesta de Arte', 'Modalidad', 'Responsable', 'Responsable (nombre)', 'WhatsApp del responsable', 'Estado', 'Contacto de ESTAFA', 'Riesgosa', 'Responsable de seguridad',
         'Asistencia de MAD', 'Se mueve de lugar (sin motor)', 'Movilidad propia (art car)',
         'Título público', 'Descripción pública',
         'Declaración de entendimiento digital', 'Declaración de entendimiento física', 'Personas del equipo',
@@ -1549,6 +1609,7 @@ def art_admin_export(request, event_slug):
             whatsapp_number(_owner_phone(artwork)),
             artwork.stage_label,
             artwork.estafa_contact.email if artwork.estafa_contact else '',
+            'Sí' if artwork.is_risky else 'No',
             artwork.safety_responsible.email if artwork.safety_responsible else '',
             'Sí' if artwork.needs_mad_assistance else 'No',
             'Sí' if artwork.is_movable else 'No',
