@@ -32,7 +32,7 @@ from .forms import (
 )
 from .models import (
     ArtProgram, Artwork, ArtworkFile, ArtworkGrantItem, ArtworkGrantItemPhoto,
-    ArtworkPhoto, ArtworkCheckoutPhoto, ArtworkProvider,
+    ArtworkPhoto, ArtworkCheckoutPhoto, ArtworkProvider, ArtworkStatusMessage,
     ArtworkProviderVehicle,
 )
 from .review_sections import review_sections
@@ -427,6 +427,7 @@ def _review_context(artwork, form, user, inline_forms=None):
         'team_members': team['team_members'],
         'ticket_outlook': team['ticket_outlook'],
         'artwork': artwork, 'form': form, 'sections': sections,
+        'status_messages': artwork.status_messages.select_related('sent_by'),
         'contact_form': ArtworkContactForm(instance=artwork, auto_id='contact_%s'),
         'can_manage': artwork.can_manage(user),
         'checkout_photo_upload_form': inline_forms.get(('checkout-photo-new', None)) or ArtworkCheckoutPhotoUploadForm(
@@ -1571,6 +1572,11 @@ def artwork_status(request, event_slug, artwork_id):
         artwork.set_status(status, request.user)
         artwork.review_feedback = message
         artwork.save(update_fields=['status', 'status_changed_at', 'status_changed_by', 'review_feedback', 'updated_at'])
+        if message:
+            # review_feedback guarda sólo el último mensaje; acá queda el historial.
+            ArtworkStatusMessage.objects.create(
+                artwork=artwork, status=status, message=message, sent_by=request.user, created_at=artwork.status_changed_at,
+            )
         if status == Artwork.Status.ACTIVE:
             _ensure_operations_group(artwork, event.art_program)
         transaction.on_commit(lambda: _send_status_email(artwork))
