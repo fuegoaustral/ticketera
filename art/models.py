@@ -386,6 +386,8 @@ class Artwork(BaseModel):
         User, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='estafa_contact_artworks', verbose_name='Contacto de ESTAFA',
     )
+    # Marca interna de ESTAFA: el equipo de la propuesta no la ve.
+    is_risky = models.BooleanField(default=False, verbose_name='Riesgosa')
     review_feedback = models.TextField(blank=True, verbose_name='Mensaje de ESTAFA al equipo de la propuesta')
     benefit_status = models.CharField(max_length=10, choices=BenefitStatus.choices, default=BenefitStatus.NOT_EVALUATED, verbose_name='Beneficio para la próxima edición')
     benefit_notes = models.TextField(blank=True, verbose_name='Notas del beneficio')

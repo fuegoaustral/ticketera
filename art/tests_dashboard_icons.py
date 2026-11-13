@@ -54,5 +54,5 @@ class DashboardFlagIconsTest(MadMobilityTest):
 
     def test_artwork_without_flags_has_no_icons(self):
         response = self.dashboard()
-        self.assertContains(response, 'Camp soporte, beca y coordinación con otros equipos')
+        self.assertContains(response, 'Riesgo, camp soporte, beca y coordinación con otros equipos')
         self.assertNotContains(response, 'class="art-flag ')

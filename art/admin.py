@@ -237,7 +237,7 @@ class ArtworkAdmin(admin.ModelAdmin):
         ('Logística', {'fields': ('arrival_date', 'departure_date', 'crew', 'providers')}),
         ('Checkout, paso 1, equipo de la propuesta', {'fields': ('checkout_completed', 'checkout_team_responsible', 'checkout_notes', 'checkout_requested_at')}),
         ('Checkout, paso 2, ESTAFA', {'fields': ('checkout_verified_at', 'checkout_verified_by', 'checkout_staff_notes')}),
-        ('Seguimiento', {'fields': ('status', 'status_changed_at', 'status_changed_by', 'estafa_contact', 'review_feedback', 'benefit_status', 'benefit_notes', 'submitted_at', 'version', 'created_at', 'updated_at')}),
+        ('Seguimiento', {'fields': ('status', 'status_changed_at', 'status_changed_by', 'estafa_contact', 'is_risky', 'review_feedback', 'benefit_status', 'benefit_notes', 'submitted_at', 'version', 'created_at', 'updated_at')}),
     )
     inlines = [ArtworkBudgetItemInline, ArtworkExpenseItemInline, ArtworkPhotoInline, ArtworkCheckoutPhotoInline, ArtworkProviderInline]
     actions = ('approve_grant_reports', 'reopen_grant_reports')

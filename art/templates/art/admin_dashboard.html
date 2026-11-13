@@ -50,6 +50,13 @@
                 {% for value, label in contact_choices %}<label class="filter-option"><input class="form-check-input" type="radio" name="contact" value="{{ value }}"{% if request.GET.contact == value %} checked{% endif %}><span>{{ label }}</span></label>{% endfor %}
             </div>
         </div>
+        <div class="dropdown">
+            <button class="filter-chip{% if selected_flags %} is-active{% endif %}" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">Marcas{% if flag_summary %}<span class="filter-chip-value">{{ flag_summary }}</span>{% endif %}<i class="fas fa-chevron-down" aria-hidden="true"></i></button>
+            <div class="dropdown-menu filter-menu" role="group" aria-label="Marcas">
+                {% for value, label, icon in flag_choices %}<label class="filter-option"><input class="form-check-input" type="checkbox" name="flag" value="{{ value }}"{% if value in selected_flags %} checked{% endif %}><i class="fas {{ icon }} filter-option-icon art-flag-{{ value }}" aria-hidden="true"></i><span>{{ label }}</span></label>{% endfor %}
+                <p class="filter-hint">Con varias elegidas se ven las propuestas que cumplen todas.</p>
+            </div>
+        </div>
         {% if filters_active %}<a class="filter-clear" href="{% url 'art_admin_dashboard' event.slug %}"><i class="fas fa-times" aria-hidden="true"></i> Limpiar</a>{% endif %}
         <button class="visually-hidden" type="submit" tabindex="-1">Filtrar</button>
     </form>
@@ -68,7 +75,7 @@
     </div>
     <div class="table-responsive art-table-wrap" id="art-table-wrap">
         <table class="table table-sm align-middle art-table">
-            <thead><tr><th>Propuesta de Arte</th><th class="art-contact-col">Responsable</th><th class="art-contact-col">Email</th><th class="art-contact-col">WhatsApp</th><th class="art-proposal-col">Estado</th><th class="art-proposal-col">Contacto</th><th class="art-proposal-col">Declaración</th><th class="art-proposal-col"><span class="visually-hidden">Camp soporte, beca y coordinación con otros equipos</span></th><th><span class="visually-hidden">Abrir</span></th></tr></thead>
+            <thead><tr><th>Propuesta de Arte</th><th class="art-contact-col">Responsable</th><th class="art-contact-col">Email</th><th class="art-contact-col">WhatsApp</th><th class="art-proposal-col">Estado</th><th class="art-proposal-col">Contacto</th><th class="art-proposal-col">Declaración</th><th class="art-proposal-col"><span class="visually-hidden">Riesgo, camp soporte, beca y coordinación con otros equipos</span></th><th><span class="visually-hidden">Abrir</span></th></tr></thead>
             <tbody>
             {% for artwork in artworks %}{% with stage=artwork.stage %}
                 <tr>
@@ -150,6 +157,8 @@
     .art-flag-list { display: inline-flex; flex-wrap: wrap; gap: 4px 6px; max-width: 104px; vertical-align: middle; }  /* hasta tres por fila: la tabla no se pasa del ancho de la página */
     .art-flag { position: relative; z-index: 2; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; font-size: 21px; line-height: 1; cursor: help; }
     .art-flag svg { display: block; width: 24px; height: 24px; }
+    .art-flag-risk, .art-flag-risky { color: #ea580c; }
+    .filter-menu .filter-option-icon { flex: none; width: 1.25rem; text-align: center; font-size: .9rem; }
     .art-flag-camp { color: #0f766e; width: 30px; }
     .art-flag-camp svg { width: 30px; height: 17px; }  /* el domo es más ancho que alto */
     .art-flag-grant { color: #15803d; }
@@ -186,7 +195,7 @@
         .art-table td.art-flags:not(:has(.art-flag)) { display: none; }
         .art-table td.art-flags { position: relative; padding-left: 7.25rem !important; font-size: .9rem; white-space: normal; }
         .art-table td.art-flags .art-flag-list { flex-wrap: wrap; }
-        .art-table td.art-flags::before { content: 'Otros equipos'; position: absolute; left: 0; top: .45rem; width: 6.75rem; font-size: .8rem; font-weight: 600; color: var(--bs-secondary-color, #6c757d); }
+        .art-table td.art-flags::before { content: 'Marcas'; position: absolute; left: 0; top: .45rem; width: 6.75rem; font-size: .8rem; font-weight: 600; color: var(--bs-secondary-color, #6c757d); }
         .art-table td.art-row-chevron { position: absolute; top: 50%; right: .85rem; width: auto; transform: translateY(-50%); padding: 0 !important; }
         .art-desc { max-width: none; }
     }
