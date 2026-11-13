@@ -1348,16 +1348,16 @@ def _estafa_contact_choices(event):
     return [(str(user.pk), person_label(user)) for user in contacts.select_related('profile')]
 
 
-# Marcas del listado de ESTAFA: (clave, etiqueta, ícono del menú de filtros, condición).
+# Marcas del listado de ESTAFA: (clave, etiqueta, condición). El dibujo de cada una está en art/_flag_icon.html.
 ARTWORK_FLAGS = (
-    ('risky', 'Riesgosa', 'fa-triangle-exclamation', Q(is_risky=True)),
-    ('camp', 'Con camp soporte', 'fa-campground', Q(wants_support_camp=True)),
-    ('grant', 'Pidió beca', 'fa-hand-holding-dollar', Q(grant_requested=True) | ~Q(grant_status=Artwork.GrantStatus.NOT_REQUESTED)),
-    ('fire', 'Se quema', 'fa-fire', Q(burns=True)),
-    ('sound', 'Tiene sonido', 'fa-volume-high', Q(uses_sound=True)),
-    ('mad', 'Necesita asistencia de MAD', 'fa-truck-pickup', Q(needs_mad_assistance=True)),
-    ('movable', 'Se mueve de lugar (sin motor)', 'fa-people-carry-box', Q(is_movable=True)),
-    ('ufo', 'Movilidad propia (art car)', 'fa-shuttle-space', Q(has_own_mobility=True)),
+    ('risk', 'Riesgosa', Q(is_risky=True)),
+    ('camp', 'Con camp soporte', Q(wants_support_camp=True)),
+    ('grant', 'Pidió beca', Q(grant_requested=True) | ~Q(grant_status=Artwork.GrantStatus.NOT_REQUESTED)),
+    ('fire', 'Se quema', Q(burns=True)),
+    ('sound', 'Tiene sonido', Q(uses_sound=True)),
+    ('mad', 'Necesita asistencia de MAD', Q(needs_mad_assistance=True)),
+    ('movable', 'Se mueve de lugar (sin motor)', Q(is_movable=True)),
+    ('ufo', 'Movilidad propia (art car)', Q(has_own_mobility=True)),
 )
 
 
@@ -1424,7 +1424,7 @@ def _filtered_artworks(event, params, user):
         # Sin filtro de estado no se listan las rechazadas: se ven eligiendo «Rechazada».
         artworks = artworks.exclude(status=Artwork.Status.REJECTED)
     # Varias marcas a la vez: la propuesta tiene que cumplir todas.
-    for _key, _label, _icon, condition in _selected_flags(params):
+    for _key, _label, condition in _selected_flags(params):
         artworks = artworks.filter(condition)
     if params.get('grant') in Artwork.GrantStatus.values:
         artworks = artworks.filter(grant_status=params['grant'])
@@ -1462,7 +1462,7 @@ def art_admin_dashboard(request, event_slug):
     return render(request, 'art/admin_dashboard.html', {
         **_estafa_context(request.user, event), 'artworks': artworks, 'assigned_artworks': assigned,
         'status_choices': [(stage, label) for stage, (label, _hint) in Artwork.STAGES.items()],
-        'flag_choices': [(key, label, icon) for key, label, icon, _condition in ARTWORK_FLAGS],
+        'flag_choices': [(key, label) for key, label, _condition in ARTWORK_FLAGS],
         'contact_choices': contact_choices, **_filter_summary(request.GET, contact_choices),
     })
 
