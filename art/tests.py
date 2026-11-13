@@ -1826,6 +1826,15 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(send_mail.call_count, 2)
         self.assertFalse(send_mail.call_args.kwargs['context']['approved'])
         self.assertEqual(send_mail.call_args.kwargs['context']['artwork'].review_feedback, 'No entra en el predio.')
+        # Quedan todos los mensajes enviados, con quién y cuándo, aunque review_feedback guarde sólo el último.
+        sent = list(artwork.status_messages.values_list('status', 'message', 'sent_by'))
+        self.assertEqual(sent, [
+            ('active', 'Nos encanta.', self.admin.pk), ('rejected', 'No entra en el predio.', self.admin.pk),
+        ])
+        review = self.client.get(reverse('artwork_review', args=[self.event.slug, artwork.pk]))
+        self.assertContains(review, 'Mensajes enviados al equipo')
+        self.assertContains(review, 'Nos encanta.')
+        self.assertContains(review, 'No entra en el predio.')
         self.assertTrue(all(
             field.disabled for name, field in self.artwork_form({}, artwork=artwork).fields.items()
             if name != 'expected_version'
