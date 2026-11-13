@@ -1422,7 +1422,7 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(titles('none'), ['Sin nadie'])
         self.assertEqual(titles(str(contact.pk)), ['De Juana'])
         dashboard = self.client.get(url)
-        self.assertIn((str(contact.pk), 'Juana Coord'), dashboard.context['contact_choices'])
+        self.assertIn((str(contact.pk), 'Juana Coord', 1), dashboard.context['contact_choices'])
         self.assertNotContains(dashboard, 'Etiquetas')
         self.assertNotContains(dashboard, 'Modalidad')
 
@@ -1826,13 +1826,15 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(send_mail.call_count, 2)
         self.assertFalse(send_mail.call_args.kwargs['context']['approved'])
         self.assertEqual(send_mail.call_args.kwargs['context']['artwork'].review_feedback, 'No entra en el predio.')
-        # Quedan todos los mensajes enviados, con quién y cuándo, aunque review_feedback guarde sólo el último.
-        sent = list(artwork.status_messages.values_list('status', 'message', 'sent_by'))
+        # El historial guarda cada cambio de estado con su mensaje, quién y cuándo; review_feedback, sólo el último.
+        sent = list(artwork.history.filter(kind='status').values_list('summary', 'detail', 'actor'))
         self.assertEqual(sent, [
-            ('active', 'Nos encanta.', self.admin.pk), ('rejected', 'No entra en el predio.', self.admin.pk),
+            ('Aprobó la inscripción', 'Nos encanta.', self.admin.pk),
+            ('Volvió a inscripción pendiente', '', self.admin.pk),
+            ('Rechazó la propuesta', 'No entra en el predio.', self.admin.pk),
         ])
         review = self.client.get(reverse('artwork_review', args=[self.event.slug, artwork.pk]))
-        self.assertContains(review, 'Mensajes enviados al equipo')
+        self.assertContains(review, 'id="history-title"')
         self.assertContains(review, 'Nos encanta.')
         self.assertContains(review, 'No entra en el predio.')
         self.assertTrue(all(
