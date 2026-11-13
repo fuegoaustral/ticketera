@@ -56,3 +56,10 @@ def phone_display(phone):
 def phone_whatsapp(phone):
     """Los dígitos internacionales para abrir el chat de WhatsApp."""
     return whatsapp_number(phone)
+
+
+@register.filter
+def lower_first(text):
+    """«Aprobó la inscripción» → «aprobó la inscripción», para seguir a un nombre en una oración."""
+    text = str(text)
+    return text[:1].lower() + text[1:]
