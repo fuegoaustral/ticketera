@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -53,17 +54,24 @@ class EstafaDashboardListTest(TestCase):
         self.assertEqual(response.status_code, 200)
         # Sin columna de checkout (el CSV sigue teniéndola).
         self.assertNotContains(response, '<th>Checkout</th>', html=True)
-        # Primeras líneas de la descripción, truncadas, en la tabla y en "Asignadas a vos".
+        # Entra viendo las propias (Faro), sin un bloque aparte de "Asignadas a vos".
+        self.assertEqual([artwork.title for artwork in response.context['artworks']], ['Faro'])
+        self.assertNotContains(response, 'assigned-title')
+        self.assertNotContains(response, 'Limpiar')
+        # Primeras líneas de la descripción, truncadas.
         snippet = self.artwork.proposal[:100]
-        self.assertContains(response, snippet, count=2)
+        self.assertContains(response, snippet, count=1)
         self.assertNotContains(response, self.artwork.proposal.strip())
-        self.assertContains(response, '…</span>', count=2)
-        # Sin descripción no se muestra el bloque vacío: sólo las dos de "Faro".
-        self.assertContains(response, 'class="art-desc"', count=2)
+        self.assertContains(response, '…</span>', count=1)
+        # "Todos" muestra el resto; sin descripción no se muestra el bloque vacío.
+        everyone = self.client.get(self.url, {'contact': 'all'})
+        self.assertEqual([artwork.title for artwork in everyone.context['artworks']], ['Faro', 'Sin texto'])
+        self.assertContains(everyone, 'class="art-desc"', count=1)
+        self.assertContains(everyone, 'Limpiar')
         # Toda la fila es un link real a la revisión.
         for artwork in (self.artwork, self.bare):
             review_url = reverse('artwork_review', args=[self.event.slug, artwork.pk])
-            self.assertContains(response, f'<a class="art-row-link stretched-link" href="{review_url}">')
+            self.assertContains(everyone, f'<a class="art-row-link stretched-link" href="{review_url}">')
 
     def test_risk_mark_is_set_from_the_review_and_shown_in_the_list(self):
         self.client.force_login(self.admin)
@@ -80,6 +88,28 @@ class EstafaDashboardListTest(TestCase):
         self.client.post(risk_url, {'risky': '0'})
         self.artwork.refresh_from_db()
         self.assertFalse(self.artwork.is_risky)
+
+    def test_estafa_can_write_to_the_team_at_any_time(self):
+        self.client.force_login(self.admin)
+        review_url = reverse('artwork_review', args=[self.event.slug, self.artwork.pk])
+        message_url = reverse('artwork_message', args=[self.event.slug, self.artwork.pk])
+        Artwork.objects.filter(pk=self.artwork.pk).update(status=Artwork.Status.ACTIVE)
+        self.assertContains(self.client.get(review_url), f'action="{message_url}"')
+        with patch('art.views.send_mail') as send_mail:
+            self.assertRedirects(self.client.post(message_url, {'message': '  '}), review_url)
+            send_mail.assert_not_called()
+            self.assertRedirects(self.client.post(message_url, {'message': 'Traigan el plano de luces.'}), review_url)
+        self.assertEqual(send_mail.call_args.kwargs['template_name'], 'art_team_message')
+        self.assertEqual(send_mail.call_args.kwargs['recipient_list'], ['artista@example.com'])
+        self.assertEqual(send_mail.call_args.kwargs['context']['message'], 'Traigan el plano de luces.')
+        self.artwork.refresh_from_db()
+        self.assertEqual(self.artwork.status, Artwork.Status.ACTIVE)
+        entry = self.artwork.history.get(kind='message')
+        self.assertEqual((entry.actor, entry.detail), (self.admin, 'Traigan el plano de luces.'))
+        self.assertContains(self.client.get(review_url), 'Traigan el plano de luces.')
+        # El equipo de la propuesta no puede usarlo.
+        self.client.force_login(self.owner)
+        self.assertEqual(self.client.post(message_url, {'message': 'Hola'}).status_code, 403)
 
     def test_risk_mark_is_only_for_estafa(self):
         self.client.force_login(self.owner)
@@ -99,7 +129,7 @@ class EstafaDashboardListTest(TestCase):
         self.bare.burns = True
         self.bare.save()
         self.client.force_login(self.admin)
-        titles = lambda flags: [a.title for a in self.client.get(self.url, {'flag': flags}).context['artworks']]
+        titles = lambda flags: [a.title for a in self.client.get(self.url, {'flag': flags, 'contact': 'all'}).context['artworks']]
         self.assertEqual(titles(['fire']), ['Faro', 'Sin texto'])
         self.assertEqual(titles(['risk']), ['Faro'])
         self.assertEqual(titles(['risk', 'fire']), ['Faro'])
