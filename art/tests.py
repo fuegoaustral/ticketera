@@ -169,7 +169,9 @@ class ArtworkFlowTest(TestCase):
 
         self.client.force_login(contact)
         dashboard = self.client.get(reverse('art_admin_dashboard', args=[self.event.slug]))
-        self.assertEqual(list(dashboard.context['assigned_artworks']), [artwork])
+        # Al entrar, quien tiene propuestas asignadas ve las suyas.
+        self.assertEqual(list(dashboard.context['artworks']), [artwork])
+        self.assertEqual(dashboard.context['selected_contact'], 'me')
 
         self.client.force_login(self.collaborator)
         response = self.client.get(edit_url)
@@ -1417,7 +1419,8 @@ class ArtworkFlowTest(TestCase):
         def titles(contact_filter):
             return [artwork.title for artwork in self.client.get(url, {'contact': contact_filter}).context['artworks']]
 
-        self.assertEqual(titles(''), ['De Juana', 'Mía', 'Sin nadie'])
+        self.assertEqual(titles('all'), ['De Juana', 'Mía', 'Sin nadie'])
+        self.assertEqual(titles(''), ['Mía'])  # sin elegir contacto: las propias
         self.assertEqual(titles('me'), ['Mía'])
         self.assertEqual(titles('none'), ['Sin nadie'])
         self.assertEqual(titles(str(contact.pk)), ['De Juana'])
@@ -1615,7 +1618,9 @@ class ArtworkFlowTest(TestCase):
             team=Team.objects.get(slug=ESTAFA_SLUG), user=self.collaborator, started_on=timezone.localdate(),
         )
         dashboard = self.client.get(reverse('art_admin_dashboard', args=[self.event.slug]))
-        self.assertEqual(list(dashboard.context['assigned_artworks']), [artwork])
+        # Al entrar, quien tiene propuestas asignadas ve las suyas.
+        self.assertEqual(list(dashboard.context['artworks']), [artwork])
+        self.assertEqual(dashboard.context['selected_contact'], 'me')
         response = self.client.get(review_url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Copia física recibida')

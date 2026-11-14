@@ -733,6 +733,7 @@ class ArtworkEvent(models.Model):
         EDIT = 'edit', 'Cambio'
         ESTAFA = 'estafa', 'ESTAFA'
         CLOSE = 'close', 'Cierre'  # no se guarda: sale de las fechas del programa
+        MESSAGE = 'message', 'Mensaje'
 
     artwork = models.ForeignKey(Artwork, on_delete=models.CASCADE, related_name='history')
     kind = models.CharField(max_length=8, choices=Kind.choices)
