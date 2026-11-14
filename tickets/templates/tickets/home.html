@@ -196,7 +196,9 @@
                 const formatNumber = (num) => num.toString().padStart(2, '0');
 
                 // Display the result
-                const countdownText = `Bonos disponibles en ${formatNumber(days)}d ${formatNumber(hours)}:${formatNumber(minutes)}:${formatNumber(seconds)}`;
+                // "1 día 10:25:51": los días en palabras, sin cero adelante; sin días cuando falta menos de uno.
+                const dayText = days > 0 ? `${days} ${days === 1 ? 'día' : 'días'} ` : '';
+                const countdownText = `Bonos disponibles en ${dayText}${formatNumber(hours)}:${formatNumber(minutes)}:${formatNumber(seconds)}`;
                 const countdownElement = document.getElementById("countdown");
                 const countdownBottomElement = document.getElementById("countdown-bottom");
                 
