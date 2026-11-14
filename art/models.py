@@ -725,6 +725,19 @@ class EstafaNotificationPreference(BaseModel):
         return cls.objects.filter(user=user).first() or cls(user=user)
 
 
+class ArtworkVisit(models.Model):
+    """Cuándo abrió cada persona de ESTAFA la revisión de una propuesta: lo que pasó después son sus novedades."""
+
+    artwork = models.ForeignKey('Artwork', on_delete=models.CASCADE, related_name='visits')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='+')
+    seen_at = models.DateTimeField(verbose_name='Última visita')
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['artwork', 'user'], name='art_visit_once_per_user')]
+        verbose_name = 'Visita a propuesta de Arte'
+        verbose_name_plural = 'Visitas a propuestas de Arte'
+
+
 class ArtworkEvent(models.Model):
     """Una línea del historial de la propuesta: quién hizo qué y cuándo."""
 
