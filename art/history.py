@@ -1,10 +1,12 @@
 """Historial de cada propuesta de Arte: quién cambió qué y cuándo."""
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone as dt_timezone
 
+from django.db.models import Count, IntegerField, OuterRef, Subquery, Value
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.text import Truncator
 
-from .models import ArtworkEvent
+from .models import ArtworkEvent, ArtworkVisit
 
 STATUS, EDIT, ESTAFA, CLOSE, MESSAGE = (
     ArtworkEvent.Kind.STATUS, ArtworkEvent.Kind.EDIT, ArtworkEvent.Kind.ESTAFA, ArtworkEvent.Kind.CLOSE, ArtworkEvent.Kind.MESSAGE,
@@ -15,6 +17,10 @@ STATUS, EDIT, ESTAFA, CLOSE, MESSAGE = (
 IMPORTANT_SECTIONS = {'Detalles', 'Folleto', 'Checkout', 'Declaración', 'Beca', 'Rendición de beca'}
 # Varios cambios seguidos de la misma persona en el mismo bloque son una sola línea.
 MERGE_WINDOW = timedelta(minutes=30)
+
+# Las novedades se cuentan desde la última visita de cada persona. Quien todavía no abrió una propuesta
+# las cuenta desde que existe el aviso: lo anterior no aparece como nuevo.
+NEWS_SINCE = datetime(2026, 11, 14, 16, 0, tzinfo=dt_timezone.utc)
 
 # Los cierres del programa, en el orden del proceso.
 CLOSURES = (
@@ -70,3 +76,36 @@ def timeline(artwork, program):
                 artwork=artwork, kind=CLOSE, summary=f'Cierre de {label}', created_at=deadline, important=True,
             ))
     return sorted(events, key=lambda event: event.created_at, reverse=True)
+
+
+def with_news(artworks, user):
+    """Anota en cada propuesta cuántos cambios de otras personas hubo desde la última visita de `user`."""
+    seen = ArtworkVisit.objects.filter(artwork=OuterRef('pk'), user=user).values('seen_at')[:1]
+    news = (
+        ArtworkEvent.objects.filter(artwork=OuterRef('pk'), created_at__gt=OuterRef('last_seen'))
+        .exclude(actor=user).order_by().values('artwork').annotate(total=Count('pk')).values('total')
+    )
+    return artworks.annotate(
+        last_seen=Coalesce(Subquery(seen), Value(NEWS_SINCE)),
+    ).annotate(news_count=Coalesce(Subquery(news, output_field=IntegerField()), 0))
+
+
+def visit(artwork, user, entries):
+    """Marca en `entries` lo nuevo para `user`, anota la visita y devuelve (cuántas novedades, visita anterior)."""
+    previous = ArtworkVisit.objects.filter(artwork=artwork, user=user).values_list('seen_at', flat=True).first()
+    since = previous or NEWS_SINCE
+    total = 0
+    for entry in entries:
+        entry.is_new = bool(entry.pk and entry.created_at > since and entry.actor_id != user.pk)
+        total += entry.is_new
+    ArtworkVisit.objects.update_or_create(artwork=artwork, user=user, defaults={'seen_at': timezone.now()})
+    return total, previous
+
+
+def mark_all_seen(artworks, user):
+    """Deja todas las propuestas de `artworks` como vistas por `user`."""
+    now = timezone.now()
+    ArtworkVisit.objects.bulk_create(
+        [ArtworkVisit(artwork_id=pk, user=user, seen_at=now) for pk in artworks.values_list('pk', flat=True)],
+        update_conflicts=True, unique_fields=['artwork', 'user'], update_fields=['seen_at'],
+    )

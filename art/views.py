@@ -449,6 +449,7 @@ def _review_context(artwork, form, user, inline_forms=None):
         'ticket_outlook': team['ticket_outlook'],
         'artwork': artwork, 'form': form, 'sections': sections,
         'history': history.timeline(artwork, artwork.event.art_program),
+        'news_count': 0,
         'contact_form': ArtworkContactForm(instance=artwork, auto_id='contact_%s'),
         'can_manage': artwork.can_manage(user),
         'checkout_photo_upload_form': inline_forms.get(('checkout-photo-new', None)) or ArtworkCheckoutPhotoUploadForm(
@@ -1434,7 +1435,8 @@ def _filter_summary(params, contact_choices, counts, user):
         'selected_statuses': stages, 'status_summary': status, 'contact_summary': contact_label, 'selected_contact': contact,
         'selected_flags': [key for key, *_rest in flags], 'flag_summary': flag_summary,
         # "Limpiar" vuelve a lo que se ve al entrar: aparece sólo si se eligió algo.
-        'filters_active': bool(stages or flags or params.get('contact') or params.get('q', '').strip()),
+        'only_news': bool(params.get('news')),
+        'filters_active': bool(stages or flags or params.get('contact') or params.get('news') or params.get('q', '').strip()),
     }
 
 
@@ -1485,6 +1487,9 @@ def _filtered_artworks(event, params, user):
         artworks = artworks.filter(estafa_contact__isnull=True)
     elif contact.isdigit():
         artworks = artworks.filter(estafa_contact_id=contact)
+    artworks = history.with_news(artworks, user)
+    if params.get('news'):
+        artworks = artworks.filter(news_count__gt=0)
     return artworks.distinct().order_by(Lower('title'), 'pk')
 
 
@@ -1507,13 +1512,29 @@ def art_admin_dashboard(request, event_slug):
     artworks = _filtered_artworks(event, request.GET, request.user)
     counts = _contact_counts(event)
     contact_choices = _estafa_contact_choices(event, counts)
+    news_total = history.with_news(event.artworks.exclude(status=Artwork.Status.REJECTED), request.user).filter(news_count__gt=0).count()
     return render(request, 'art/admin_dashboard.html', {
-        **_estafa_context(request.user, event), 'artworks': artworks,
+        **_estafa_context(request.user, event), 'artworks': artworks, 'news_total': news_total,
         'status_choices': [(stage, label) for stage, (label, _hint) in Artwork.STAGES.items()],
         'flag_choices': [(key, label) for key, label, _condition in ARTWORK_FLAGS],
         'contact_choices': contact_choices, 'mine_count': counts.get(request.user.pk, 0), 'no_contact_count': counts.get(None, 0),
         **_filter_summary(request.GET, contact_choices, counts, request.user),
     })
+
+
+@login_required
+@require_POST
+def art_admin_mark_seen(request, event_slug):
+    """Marca como leídas las novedades de todas las propuestas del evento, para quien lo pide."""
+    event = _managed_event(request, event_slug)
+    if not event:
+        return HttpResponseForbidden('No tenés permisos para coordinar Arte en este evento.')
+    history.mark_all_seen(event.artworks.all(), request.user)
+    messages.success(request, 'Marcaste todas las novedades como leídas.')
+    next_url = request.POST.get('next', '')
+    if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+        next_url = reverse('art_admin_dashboard', args=[event.slug])
+    return redirect(next_url)
 
 
 @login_required
@@ -1562,7 +1583,11 @@ def artwork_review(request, event_slug, artwork_id):
                 return redirect('artwork_review', event_slug=event.slug, artwork_id=artwork.pk)
     else:
         form = ArtworkReviewForm(instance=artwork, can_manage=can_manage)
-    return render(request, 'art/review.html', _review_context(artwork, form, request.user))
+    context = _review_context(artwork, form, request.user)
+    if request.method == 'GET':
+        # Abrir la revisión es ponerse al día: lo que pasó desde la visita anterior se marca como nuevo.
+        context['news_count'], context['previous_visit'] = history.visit(artwork, request.user, context['history'])
+    return render(request, 'art/review.html', context)
 
 
 @login_required

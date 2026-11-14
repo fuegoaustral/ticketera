@@ -111,6 +111,45 @@ class EstafaDashboardListTest(TestCase):
         self.client.force_login(self.owner)
         self.assertEqual(self.client.post(message_url, {'message': 'Hola'}).status_code, 403)
 
+    def test_changes_by_others_since_your_last_visit_are_flagged(self):
+        from . import history
+        other = User.objects.create_user(username='otra', email='otra@example.com')
+        self.client.force_login(self.admin)
+        review_url = reverse('artwork_review', args=[self.event.slug, self.artwork.pk])
+        everyone = {'contact': 'all'}
+        # Lo anterior al aviso y lo que hace una misma no cuenta como novedad.
+        old = history.log(self.artwork, history.EDIT, self.owner, 'Editó Detalles')
+        type(old).objects.filter(pk=old.pk).update(created_at=history.NEWS_SINCE - timedelta(days=1))
+        history.log(self.artwork, history.ESTAFA, self.admin, 'Marcó la propuesta como riesgosa')
+        self.assertNotContains(self.client.get(self.url, everyone), 'class="art-news"')
+        # Un cambio del equipo y otro de alguien más de ESTAFA.
+        history.log(self.artwork, history.EDIT, self.owner, 'Editó Folleto')
+        history.log(self.artwork, history.ESTAFA, other, 'Quitó el contacto de ESTAFA', important=False)
+        listing = self.client.get(self.url, everyone)
+        self.assertContains(listing, 'class="art-news"', count=1)
+        self.assertNotContains(listing, '2 nuevos')
+        self.assertEqual([a.title for a in self.client.get(self.url, {**everyone, 'news': '1'}).context['artworks']], ['Faro'])
+        # Al abrirla se ven marcados y quedan vistos, sólo para quien la abrió.
+        review = self.client.get(review_url)
+        self.assertContains(review, '2 cambios que todavía no habías visto')
+        self.assertContains(review, ' data-new>', count=2)
+        self.assertNotContains(self.client.get(review_url), ' data-new>')
+        self.assertNotContains(self.client.get(self.url, everyone), 'class="art-news"')
+        self.assertEqual(list(self.client.get(self.url, {**everyone, 'news': '1'}).context['artworks']), [])
+        history.log(self.artwork, history.EDIT, self.owner, 'Editó Checkout')
+        self.assertContains(self.client.get(review_url), '1 cambio desde tu última visita')
+        # "Marcar todas como leídas" apaga el aviso de todas a la vez.
+        history.log(self.artwork, history.EDIT, self.owner, 'Editó Beca')
+        history.log(self.bare, history.EDIT, self.owner, 'Editó Detalles')
+        self.assertContains(self.client.get(self.url, everyone), 'class="art-news"', count=2)
+        seen_url = reverse('art_admin_mark_seen', args=[self.event.slug])
+        self.assertRedirects(self.client.post(seen_url), self.url)
+        listing = self.client.get(self.url, everyone)
+        self.assertNotContains(listing, 'class="art-news"')
+        self.assertNotContains(listing, seen_url)
+        self.client.force_login(self.owner)
+        self.assertEqual(self.client.post(seen_url).status_code, 403)
+
     def test_risk_mark_is_only_for_estafa(self):
         self.client.force_login(self.owner)
         risk_url = reverse('artwork_risk', args=[self.event.slug, self.artwork.pk])
