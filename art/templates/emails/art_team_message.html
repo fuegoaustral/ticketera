@@ -1,0 +1,9 @@
+{% extends "emails/base.html" %}
+{% block subject %}Mensaje de ESTAFA sobre {{ artwork.title|default:"tu propuesta de Arte"|safe }}{% endblock %}
+{% block title %}Mensaje de ESTAFA{% endblock %}
+{% block content %}
+<p><strong>{{ sender_name }}</strong>, de ESTAFA, te escribió sobre <strong>{{ artwork.title|default:"tu propuesta de Arte" }}</strong>:</p>
+<p>{{ message|linebreaksbr }}</p>
+<p>Para contestarle, respondé este email.</p>
+{% include "emails/partials/btn.html" with href=artwork_path label="Ver propuesta de Arte" %}
+{% endblock %}

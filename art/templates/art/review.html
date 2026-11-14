@@ -16,21 +16,22 @@
                 {% if artwork.status_changed_at %}<small class="text-muted">Desde el {{ artwork.status_changed_at|date:'d/m/Y H:i' }}{% if artwork.status_changed_by %} · {{ artwork.status_changed_by.get_full_name|default:artwork.status_changed_by.email }}{% endif %}</small>{% endif %}
             </p>
             {% if can_manage and artwork.status == 'active' or can_manage and artwork.status == 'rejected' %}
-            <button class="btn btn-sm btn-outline-secondary review-reopen ms-auto" type="button" data-bs-toggle="modal" data-bs-target="#reopen-modal"><i class="fas fa-rotate-left me-1" aria-hidden="true"></i>Volver a inscripción pendiente</button>
+            <button class="btn btn-sm review-reopen ms-auto" type="button" data-bs-toggle="modal" data-bs-target="#reopen-modal"><i class="fas fa-rotate-left me-1" aria-hidden="true"></i>Volver a inscripción pendiente</button>
             {% endif %}
         </div>
-        {% if can_manage and artwork.status == 'pending' %}
-        <form class="mt-3" method="post" action="{% url 'artwork_status' event.slug artwork.pk %}">{% csrf_token %}
-            <label class="form-label fw-semibold" for="status-message">Mensaje para el equipo <span class="fw-normal text-muted">(opcional al aprobar, obligatorio al rechazar)</span></label>
-            <textarea class="form-control" id="status-message" name="message" rows="3" aria-describedby="status-message-help"></textarea>
-            <div class="d-flex flex-column flex-sm-row align-items-sm-center gap-2 mt-3">
-                <button class="btn btn-success" type="submit" name="transition" value="approve"><i class="fas fa-check me-1" aria-hidden="true"></i>Aprobar</button>
-                <button class="btn btn-outline-danger" type="submit" name="transition" value="reject">Rechazar</button>
-                <small class="text-muted ms-sm-2" id="status-message-help">Le avisamos al equipo por email.</small>
+        {% if can_manage %}
+        <form class="review-message" method="post" action="{% url 'artwork_message' event.slug artwork.pk %}">{% csrf_token %}
+            <label class="form-label fw-semibold" for="status-message">Mensaje para el equipo{% if artwork.status == 'pending' %} <span class="fw-normal text-muted">(opcional al aprobar, obligatorio al rechazar)</span>{% endif %}</label>
+            <textarea class="form-control" id="status-message" name="message" rows="{% if artwork.status == 'pending' %}3{% else %}2{% endif %}" aria-describedby="status-message-help"></textarea>
+            <div class="d-flex flex-column flex-sm-row align-items-sm-center gap-2 mt-2">
+                {% if artwork.status == 'pending' %}
+                <button class="btn btn-success" type="submit" name="transition" value="approve" formaction="{% url 'artwork_status' event.slug artwork.pk %}"><i class="fas fa-check me-1" aria-hidden="true"></i>Aprobar</button>
+                <button class="btn btn-outline-danger" type="submit" name="transition" value="reject" formaction="{% url 'artwork_status' event.slug artwork.pk %}">Rechazar</button>
+                {% endif %}
+                <button class="btn btn-outline-primary review-message-send" type="submit"><i class="far fa-paper-plane me-1" aria-hidden="true"></i>{% if artwork.status == 'pending' %}Solo enviar el mensaje{% else %}Enviar mensaje{% endif %}</button>
+                <small class="text-muted ms-sm-2" id="status-message-help">Le llega al equipo por email y queda en el historial.</small>
             </div>
         </form>
-        {% endif %}
-        {% if can_manage %}
         <form class="review-contact" method="post" action="{% url 'artwork_contact' event.slug artwork.pk %}">{% csrf_token %}
             <label class="form-label fw-semibold" for="{{ contact_form.estafa_contact.id_for_label }}">{{ contact_form.estafa_contact.label }}</label>
             <div class="d-flex flex-column flex-sm-row gap-2">
@@ -57,6 +58,7 @@
             <div class="history-filters" role="group" aria-label="Filtrar el historial">
                 <button type="button" data-filter="important" aria-pressed="true">Importantes</button>
                 <button type="button" data-filter="all" aria-pressed="false">Todo</button>
+                <button type="button" data-filter="message" aria-pressed="false">Mensajes</button>
                 <button type="button" data-filter="status" aria-pressed="false">Estado</button>
                 <button type="button" data-filter="edit" aria-pressed="false">Cambios</button>
                 <button type="button" data-filter="estafa" aria-pressed="false">ESTAFA</button>
@@ -67,7 +69,7 @@
             {% for entry in history %}
             <li class="history-entry history-{{ entry.kind }}" data-kind="{{ entry.kind }}"{% if entry.important %} data-important{% endif %}>
                 <time class="history-when" datetime="{{ entry.created_at|date:'c' }}">{{ entry.created_at|date:'d/m/Y H:i' }}</time>
-                <span class="history-what">{% if entry.kind == 'close' %}<i class="fas fa-lock me-1" aria-hidden="true"></i>{{ entry.summary }}{% else %}<strong>{% if entry.actor %}{{ entry.actor.get_full_name|default:entry.actor.email }}{% else %}Cuenta archivada{% endif %}</strong> {{ entry.summary|lower_first }}{% endif %}{% if entry.detail %}{% if entry.kind == 'status' %}<span class="history-message">{{ entry.detail|linebreaksbr }}</span>{% else %}<span class="history-fields"> · {{ entry.detail }}</span>{% endif %}{% endif %}</span>
+                <span class="history-what">{% if entry.kind == 'close' %}<i class="fas fa-lock me-1" aria-hidden="true"></i>{{ entry.summary }}{% else %}<strong>{% if entry.actor %}{{ entry.actor.get_full_name|default:entry.actor.email }}{% else %}Cuenta archivada{% endif %}</strong> {{ entry.summary|lower_first }}{% endif %}{% if entry.detail %}{% if entry.kind == 'status' or entry.kind == 'message' %}<span class="history-message">{{ entry.detail|linebreaksbr }}</span>{% else %}<span class="history-fields"> · {{ entry.detail }}</span>{% endif %}{% endif %}</span>
             </li>
             {% endfor %}
             <li class="history-empty text-muted">No hay nada de este tipo en el historial.</li>
@@ -131,7 +133,9 @@
     .review-status { padding: 1rem; border: 1px solid #d8e6df; border-radius: .55rem; }
     .review-status .badge { font-size: .8rem; padding: .45em .7em; }
     .review-status .btn { min-height: 44px; }
-    .review-status .btn.review-reopen { display: inline-flex; align-items: center; height: 30px; min-height: 0; padding: 0 .7rem; font-size: .8rem; line-height: 1; }
+    /* Deshacer la aprobación o el rechazo: a mano, pero sin llamar la atención. */
+    .review-status .btn.review-reopen { display: inline-flex; align-items: center; height: 24px; min-height: 0; padding: 0 .35rem; border: 0; background: none; color: #6c757d; font-size: .875rem; font-weight: 400; line-height: 1; }
+    .review-status .btn.review-reopen:hover, .review-status .btn.review-reopen:focus-visible { color: #3d4643; background: #f3f5f4; }
     /* Historial: una línea por hecho, lo más nuevo arriba. Por defecto, sólo lo importante. */
     .review-history { padding: 1rem; border: 1px solid #d8e6df; border-radius: .55rem; }
     .history-filters { display: flex; flex-wrap: wrap; gap: .25rem; }
@@ -148,12 +152,15 @@
     .history-message { display: block; max-width: 68ch; margin-top: .2rem; padding-left: .6rem; border-left: 2px solid #d8e6df; color: #3d4643; }
     .history-empty { display: none; padding: .3rem 0; font-size: .85rem; }
     .review-history[data-filter="important"] .history-entry:not([data-important]),
+    .review-history[data-filter="message"] .history-entry:not([data-kind="message"]):not(:has(.history-message)),
     .review-history[data-filter="status"] .history-entry:not([data-kind="status"]),
     .review-history[data-filter="edit"] .history-entry:not([data-kind="edit"]),
     .review-history[data-filter="estafa"] .history-entry:not([data-kind="estafa"]),
     .review-history[data-filter="close"] .history-entry:not([data-kind="close"]) { display: none; }
     .review-history.is-empty .history-empty { display: block; }
     @media (max-width: 575px) { .history-entry { grid-template-columns: 1fr; gap: 0; } }
+    .review-message { margin-top: 1rem; }
+    .review-message .btn { height: 38px; min-height: 0; padding-top: 0; padding-bottom: 0; font-size: .9rem; display: inline-flex; align-items: center; justify-content: center; }
     .review-risk { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #d8e6df; }
     .review-risk .form-check-input { cursor: pointer; }
     .review-risk .form-check-label { cursor: pointer; color: #6c757d; }

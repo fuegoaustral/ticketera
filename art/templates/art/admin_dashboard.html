@@ -12,22 +12,6 @@
         <a class="btn btn-outline-primary" href="{% url 'art_admin_export' event.slug %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"><i class="fas fa-download me-1" aria-hidden="true"></i> Exportar CSV</a>
     </div>
 
-    {% if assigned_artworks %}
-    <section class="assigned mb-4" aria-labelledby="assigned-title">
-        <h3 class="h5 mb-2" id="assigned-title">Asignadas a vos <span class="text-muted fw-normal">· {{ assigned_artworks|length }}</span></h3>
-        <p class="small text-muted mb-2">Propuestas de Arte donde sos contacto de ESTAFA.</p>
-        <div class="assigned-list">
-            {% for artwork in assigned_artworks %}
-            <a class="assigned-row d-flex justify-content-between align-items-center gap-3" href="{% url 'artwork_review' event.slug artwork.pk %}">
-                <span class="assigned-main"><strong>{{ artwork.title|default:'Propuesta de Arte sin título' }}</strong> <span class="text-muted">· {{ artwork.stage_label }}</span>{% if artwork.proposal %}<span class="art-desc">{{ artwork.proposal|truncatechars:160 }}</span>{% endif %}</span>
-                <span class="text-primary fw-semibold text-nowrap">Revisar <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i></span>
-            </a>
-            {% endfor %}
-        </div>
-    </section>
-    <h3 class="h5 mb-3">Todas las propuestas de Arte</h3>
-    {% endif %}
-
     <form method="get" class="art-filters mb-3" id="art-filters" aria-label="Filtros de propuestas">
         <div class="filter-search">
             <i class="fas fa-search" aria-hidden="true"></i>
@@ -43,11 +27,11 @@
         <div class="dropdown">
             <button class="filter-chip{% if contact_summary %} is-active{% endif %}" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">Contacto{% if contact_summary %}<span class="filter-chip-value">{{ contact_summary }}</span>{% endif %}<i class="fas fa-chevron-down" aria-hidden="true"></i></button>
             <div class="dropdown-menu filter-menu" role="group" aria-label="Contacto de ESTAFA">
-                <label class="filter-option"><input class="form-check-input" type="radio" name="contact" value=""{% if not contact_summary %} checked{% endif %}><span>Todos</span></label>
-                <label class="filter-option"><input class="form-check-input" type="radio" name="contact" value="me"{% if request.GET.contact == 'me' %} checked{% endif %}><span>Asignadas a vos</span><span class="filter-count">{{ mine_count }}</span></label>
-                <label class="filter-option"><input class="form-check-input" type="radio" name="contact" value="none"{% if request.GET.contact == 'none' %} checked{% endif %}><span>Sin contacto</span><span class="filter-count">{{ no_contact_count }}</span></label>
+                <label class="filter-option"><input class="form-check-input" type="radio" name="contact" value="all"{% if not selected_contact %} checked{% endif %}><span>Todos</span></label>
+                <label class="filter-option"><input class="form-check-input" type="radio" name="contact" value="me"{% if selected_contact == 'me' %} checked{% endif %}><span>Asignadas a vos</span><span class="filter-count">{{ mine_count }}</span></label>
+                <label class="filter-option"><input class="form-check-input" type="radio" name="contact" value="none"{% if selected_contact == 'none' %} checked{% endif %}><span>Sin contacto</span><span class="filter-count">{{ no_contact_count }}</span></label>
                 <hr class="dropdown-divider">
-                {% for value, label, total in contact_choices %}<label class="filter-option"><input class="form-check-input" type="radio" name="contact" value="{{ value }}"{% if request.GET.contact == value %} checked{% endif %}><span>{{ label }}</span><span class="filter-count" title="Propuestas asignadas, sin contar rechazadas">{{ total }}</span></label>{% endfor %}
+                {% for value, label, total in contact_choices %}<label class="filter-option"><input class="form-check-input" type="radio" name="contact" value="{{ value }}"{% if selected_contact == value %} checked{% endif %}><span>{{ label }}</span><span class="filter-count" title="Propuestas asignadas, sin contar rechazadas">{{ total }}</span></label>{% endfor %}
             </div>
         </div>
         <div class="dropdown">
@@ -97,10 +81,6 @@
 </div>
 <style>
     .art-admin-dashboard { max-width: 1320px; }
-    .assigned-list { border-top: 1px solid #dee2e6; }
-    .assigned-row { min-height: 44px; padding: .6rem .25rem; border-bottom: 1px solid #dee2e6; color: inherit; text-decoration: none; }
-    .assigned-row:hover, .assigned-row:focus-visible { background: #f6faf8; color: inherit; }
-    .assigned-row:focus-visible { outline: 3px solid rgba(40, 158, 109, .3); outline-offset: 2px; }
     /* Filtros: una sola fila baja, sin caja. Se aplican solos al elegir. */
     .art-filters { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
     .filter-search { position: relative; flex: 0 1 300px; min-width: 200px; }
@@ -153,7 +133,6 @@
     .art-table tbody tr:has(.art-row-link:focus-visible) { outline: 3px solid rgba(40, 158, 109, .35); outline-offset: -3px; }
     /* Descripción: dos líneas, apagada. */
     .art-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 52ch; margin-top: .2rem; font-size: .8rem; line-height: 1.35; color: var(--bs-secondary-color, #6c757d); white-space: normal; }
-    .assigned-main { min-width: 0; }
     /* Avisos para otros equipos: por encima del link de la fila, para que se vea el tooltip. Todos en una caja de 24 px. */
     .art-flag-list { display: inline-flex; flex-wrap: wrap; gap: 4px 6px; max-width: 104px; vertical-align: middle; }  /* hasta tres por fila: la tabla no se pasa del ancho de la página */
     .art-flag { position: relative; z-index: 2; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; font-size: 21px; line-height: 1; cursor: help; }
@@ -233,7 +212,7 @@
     search.addEventListener('search', function () { if (!search.value && state() !== initial) send(); });  // la cruz del buscador
     // La URL queda sin parámetros vacíos.
     form.addEventListener('submit', function () {
-        form.querySelectorAll('input[name="q"], input[name="contact"]:checked').forEach(function (input) {
+        form.querySelectorAll('input[name="q"]').forEach(function (input) {
             if (!input.value.trim()) input.disabled = true;
         });
     });

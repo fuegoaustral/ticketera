@@ -6,7 +6,9 @@ from django.utils.text import Truncator
 
 from .models import ArtworkEvent
 
-STATUS, EDIT, ESTAFA, CLOSE = ArtworkEvent.Kind.STATUS, ArtworkEvent.Kind.EDIT, ArtworkEvent.Kind.ESTAFA, ArtworkEvent.Kind.CLOSE
+STATUS, EDIT, ESTAFA, CLOSE, MESSAGE = (
+    ArtworkEvent.Kind.STATUS, ArtworkEvent.Kind.EDIT, ArtworkEvent.Kind.ESTAFA, ArtworkEvent.Kind.CLOSE, ArtworkEvent.Kind.MESSAGE,
+)
 
 # Los bloques con el contenido de la propuesta: sus cambios son los importantes.
 # Fotos, archivos, equipo y proveedores quedan en el historial completo.

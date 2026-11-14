@@ -126,6 +126,26 @@ def _send_status_email(artwork):
         logging.exception('No se pudo avisar el cambio de estado de la instalación %s', artwork.pk)
 
 
+def _send_team_message_email(artwork, sender, message):
+    recipients = _team_emails(artwork)
+    if not recipients:
+        return
+    try:
+        send_mail(
+            template_name='art_team_message',
+            recipient_list=recipients,
+            context={
+                'artwork': artwork,
+                'sender_name': person_name(sender),
+                'message': message,
+                'artwork_path': reverse('artwork_edit', args=[artwork.pk]),
+            },
+            headers={'Reply-To': formataddr((person_greeting(sender), sender.email))} if sender.email else None,
+        )
+    except Exception:
+        logging.exception('No se pudo enviar el mensaje de ESTAFA de la instalación %s', artwork.pk)
+
+
 def _send_artwork_received_email(artwork):
     """Confirma a quien inscribe que la propuesta nueva llegó; solo al crearla."""
     if not artwork.owner or not artwork.owner.email:
@@ -1388,6 +1408,14 @@ def _selected_stages(params):
     return [stage for stage in Artwork.STAGES if stage in params.getlist('status')]
 
 
+def _contact_filter(params, user, counts):
+    """El contacto elegido. Sin elegir nada, quien tiene propuestas asignadas ve las suyas."""
+    contact = params.get('contact', '')
+    if contact:
+        return '' if contact == 'all' else contact
+    return 'me' if counts.get(user.pk) else ''
+
+
 def _filter_summary(params, contact_choices, counts, user):
     """Lo que muestra cada botón de filtro cuando tiene algo elegido."""
     stages = _selected_stages(params)
@@ -1395,7 +1423,7 @@ def _filter_summary(params, contact_choices, counts, user):
         status = Artwork.STAGES[stages[0]][0]
     else:
         status = f'{len(stages)} estados' if stages else ''
-    contact = params.get('contact', '')
+    contact = _contact_filter(params, user, counts)
     contact_label = {
         'me': f'Asignadas a vos ({counts.get(user.pk, 0)})', 'none': f'Sin contacto ({counts.get(None, 0)})',
         **{value: f'{label} ({total})' for value, label, total in contact_choices},
@@ -1403,9 +1431,10 @@ def _filter_summary(params, contact_choices, counts, user):
     flags = _selected_flags(params)
     flag_summary = flags[0][1] if len(flags) == 1 else (f'{len(flags)} marcas' if flags else '')
     return {
-        'selected_statuses': stages, 'status_summary': status, 'contact_summary': contact_label,
+        'selected_statuses': stages, 'status_summary': status, 'contact_summary': contact_label, 'selected_contact': contact,
         'selected_flags': [key for key, *_rest in flags], 'flag_summary': flag_summary,
-        'filters_active': bool(stages or flags or contact_label or params.get('q', '').strip()),
+        # "Limpiar" vuelve a lo que se ve al entrar: aparece sólo si se eligió algo.
+        'filters_active': bool(stages or flags or params.get('contact') or params.get('q', '').strip()),
     }
 
 
@@ -1449,7 +1478,7 @@ def _filtered_artworks(event, params, user):
         artworks = artworks.filter(condition)
     if params.get('grant') in Artwork.GrantStatus.values:
         artworks = artworks.filter(grant_status=params['grant'])
-    contact = params.get('contact', '')
+    contact = _contact_filter(params, user, _contact_counts(event))
     if contact == 'me':
         artworks = artworks.filter(estafa_contact=user)
     elif contact == 'none':
@@ -1478,11 +1507,8 @@ def art_admin_dashboard(request, event_slug):
     artworks = _filtered_artworks(event, request.GET, request.user)
     counts = _contact_counts(event)
     contact_choices = _estafa_contact_choices(event, counts)
-    assigned = event.artworks.filter(estafa_contact=request.user).exclude(
-        status=Artwork.Status.REJECTED,
-    ).select_related('owner').order_by(Lower('title'), 'pk')
     return render(request, 'art/admin_dashboard.html', {
-        **_estafa_context(request.user, event), 'artworks': artworks, 'assigned_artworks': assigned,
+        **_estafa_context(request.user, event), 'artworks': artworks,
         'status_choices': [(stage, label) for stage, (label, _hint) in Artwork.STAGES.items()],
         'flag_choices': [(key, label) for key, label, _condition in ARTWORK_FLAGS],
         'contact_choices': contact_choices, 'mine_count': counts.get(request.user.pk, 0), 'no_contact_count': counts.get(None, 0),
@@ -1577,6 +1603,26 @@ def artwork_risk(request, event_slug, artwork_id):
     if risky != artwork.is_risky:
         history.log(artwork, history.ESTAFA, request.user, 'Marcó la propuesta como riesgosa' if risky else 'Quitó la marca de riesgo')
     messages.success(request, 'Marcaste la propuesta como riesgosa.' if risky else 'La propuesta ya no está marcada como riesgosa.')
+    return redirect('artwork_review', event_slug=event.slug, artwork_id=artwork.pk)
+
+
+@login_required
+@require_POST
+def artwork_message(request, event_slug, artwork_id):
+    """Un mensaje de ESTAFA al equipo, en cualquier momento y sin cambiar el estado."""
+    event = get_object_or_404(Event, slug=event_slug)
+    artwork = get_object_or_404(Artwork, pk=artwork_id, event=event)
+    if not artwork.can_manage(request.user):
+        return HttpResponseForbidden('No tenés permisos para coordinar Arte en este evento.')
+    message = request.POST.get('message', '').strip()
+    if not message:
+        messages.error(request, 'Escribí el mensaje para el equipo.')
+    elif not _team_emails(artwork):
+        messages.error(request, 'El equipo de la propuesta no tiene un email al que escribirle.')
+    else:
+        history.log(artwork, history.MESSAGE, request.user, 'Le escribió al equipo', detail=message)
+        _send_team_message_email(artwork, request.user, message)
+        messages.success(request, 'Le enviamos tu mensaje al equipo por email.')
     return redirect('artwork_review', event_slug=event.slug, artwork_id=artwork.pk)
 
 
