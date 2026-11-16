@@ -1,6 +1,8 @@
 import json
+import logging
 import re
 import uuid
+from decimal import Decimal
 from urllib.parse import urlencode
 
 from allauth.account.forms import ResetPasswordForm
@@ -9,12 +11,13 @@ from django.contrib import admin, messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import permission_required
 from django.contrib.auth.models import User
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Count, Prefetch, Q, Value
 from django.db.models.functions import Replace
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
-from django.urls import reverse
+from django.urls import path, reverse
 from django.utils.html import format_html, format_html_join
 from import_export import resources, fields
 from import_export.admin import ImportExportModelAdmin, ExportActionMixin, ExportMixin
@@ -741,11 +744,14 @@ class OrderAdmin(ExportActionMixin, ExportMixin, admin.ModelAdmin):
     search_help_text = 'Buscá por número de orden, key, nombre, email, teléfono, DNI o notas.'
     inlines = [NewTicketInline, OrderTicketInline]
     raw_id_fields = ['user', 'coupon', 'generated_by_admin_user']
-    readonly_fields = ['key', 'tickets_summary', 'direct_ticket_templates_display', 'created_at', 'updated_at']
+    readonly_fields = [
+        'key', 'tickets_summary', 'direct_ticket_templates_display', 'cancel_link', 'created_at', 'updated_at',
+    ]
     fieldsets = (
         ('Orden', {
             'fields': (
                 ('event', 'status'),
+                'cancel_link',
                 ('order_type', 'amount', 'net_received_amount'),
                 'tickets_summary',
                 'direct_ticket_templates_display',
@@ -804,6 +810,130 @@ class OrderAdmin(ExportActionMixin, ExportMixin, admin.ModelAdmin):
             '<span style="color: {}; font-weight: bold">{}</span>',
             colors.get(order.status, 'inherit'), order.get_status_display(),
         )
+
+    @admin.display(description='Anular')
+    def cancel_link(self, order):
+        if not order.pk or order.status != Order.OrderStatus.CONFIRMED:
+            return '-'
+        return format_html(
+            '<a class="button" style="background:#ba2121;color:#fff" href="{}">Anular bonos y devolver plata…</a>',
+            reverse('admin:tickets_order_cancel', args=[order.pk]),
+        )
+
+    def get_urls(self):
+        return [
+            path('<int:order_id>/anular/', self.admin_site.admin_view(self.cancel_view), name='tickets_order_cancel'),
+        ] + super().get_urls()
+
+    def cancel_view(self, request, order_id):
+        from . import order_cancellation as oc
+
+        order = Order.objects.select_related('event').filter(pk=order_id).first()
+        if order is None:
+            messages.error(request, f'No existe la orden #{order_id}.')
+            return redirect('admin:tickets_order_changelist')
+        if not self.has_change_permission(request, order):
+            raise PermissionDenied
+        change_url = reverse('admin:tickets_order_change', args=[order.pk])
+
+        tickets = oc.cancellable_tickets(order)
+        used_count = order.new_tickets.filter(is_used=True).count()
+        payment, payment_error = None, None
+        try:
+            payment = oc.fetch_payment(order)
+        except Exception as e:
+            payment_error = f'No se pudo consultar el pago en Mercado Pago ({e}). Se puede anular igual, pero sin refund automático.'
+
+        blocked_reason = None
+        if order.status != Order.OrderStatus.CONFIRMED:
+            blocked_reason = f'La orden está {order.get_status_display()}: solo se pueden anular órdenes confirmadas.'
+        elif not tickets and used_count:
+            blocked_reason = 'Todos los bonos de la orden ya fueron usados.'
+
+        ticket_type_names = sorted({t.ticket_type.name for t in tickets}) or sorted(
+            {ot.ticket_type.name for ot in order.order_tickets.select_related('ticket_type')})
+        max_qty = len(tickets)
+        suggested = {q: oc.suggested_refund(order, tickets, q, payment) for q in range(0, max_qty + 1)}
+
+        if request.method == 'POST' and not blocked_reason:
+            post = request.POST
+            try:
+                quantity = int(post.get('quantity') or 0)
+                refund_amount = Decimal(post.get('refund_amount') or '0')
+            except (ValueError, ArithmeticError):
+                quantity, refund_amount = -1, Decimal('0')
+            do_refund = bool(post.get('do_refund')) and payment is not None
+            form = {
+                'quantity': quantity, 'refund_amount': refund_amount, 'do_refund': do_refund,
+                'send_email': bool(post.get('send_email')),
+                'email_subject': post.get('email_subject', '').strip(),
+                'email_body': post.get('email_body', '').strip(),
+            }
+            if form['send_email'] and not (form['email_subject'] and form['email_body']):
+                messages.error(request, 'Completá asunto y texto del mail (o destildá "Mandar mail").')
+            else:
+                try:
+                    result = oc.cancel_order_tickets(
+                        order.pk, quantity=quantity, refund_amount=refund_amount if do_refund else 0,
+                        do_refund=do_refund, send_email=form['send_email'],
+                        email_subject=form['email_subject'], email_body=form['email_body'],
+                        admin_user=request.user, idempotency_key=post.get('idempotency_key') or str(uuid.uuid4()),
+                    )
+                except oc.OrderCancellationError as e:
+                    messages.error(request, str(e))
+                except Exception as e:
+                    logging.exception('Order %s: error anulando bonos', order.pk)
+                    messages.error(request, f'Error inesperado, no se aplicó nada: {e}')
+                else:
+                    msg = f'Orden #{order.pk}: {result.cancelled_tickets} bono(s) anulado(s)'
+                    if result.refund_id:
+                        msg += f', refund MP #{result.refund_id} por ${oc.format_ars(result.refund_amount)}'
+                    if result.order_refunded:
+                        msg += ', orden marcada como Reembolsada'
+                    if result.email_sent:
+                        msg += f', mail enviado a {order.email}'
+                    messages.success(request, msg + '.')
+                    if result.email_error:
+                        messages.warning(request, f'No se pudo mandar el mail: {result.email_error}')
+                    return redirect(change_url)
+            body_edited = True
+        else:
+            default_qty = max_qty
+            amount = suggested[default_qty]
+            form = {
+                'quantity': default_qty, 'refund_amount': amount, 'do_refund': bool(payment and amount > 0),
+                'send_email': True,
+                'email_subject': oc.default_email_subject(order),
+                'email_body': oc.default_email_body(order, default_qty, amount, ticket_type_names),
+            }
+            body_edited = False
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': f'Anular bonos de la orden #{order.pk}',
+            'opts': self.model._meta,
+            'order': order,
+            'tickets': tickets,
+            'used_count': used_count,
+            'payment': payment,
+            'payment_error': payment_error,
+            'blocked_reason': blocked_reason,
+            'form': form,
+            'idempotency_key': str(uuid.uuid4()),
+            'client_data': {
+                'order_id': order.pk,
+                'first_name': order.first_name,
+                'email': order.email,
+                'event': order.event.name if order.event else 'Fuego Austral',
+                'reason': oc.DEFAULT_REASON,
+                'ticket_type_names': ticket_type_names,
+                'max_qty': max_qty,
+                'suggested': {str(q): float(v) for q, v in suggested.items()},
+                'refundable': float(payment.refundable) if payment else None,
+                'body_edited': body_edited,
+            },
+        }
+        return render(request, 'admin/tickets/order/cancel.html', context)
 
     @admin.display(description='Bonos dirigidos')
     def direct_ticket_templates_display(self, order):
