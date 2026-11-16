@@ -1,0 +1,8 @@
+{% extends 'emails/base.html' %}
+{% block subject %}{{ subject|safe }}{% endblock %}
+{% block title %}
+    BONO ANULADO
+{% endblock %}
+{% block content %}
+    {{ body|linebreaks }}
+{% endblock %}
