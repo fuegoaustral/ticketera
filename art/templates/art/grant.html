@@ -13,15 +13,17 @@
         <h2 class="h3 mb-2">Beca</h2>
         {% if not acting_as_estafa %}
         <div class="grant-intro text-muted">
-            <p>El Programa de Becas {{ program.event.name }} ofrece apoyo económico para la compra de materiales y equipamiento destinados a la realización de obras artísticas.</p>
+            <p>El {% if program.grant_program_url %}<a href="{{ program.grant_program_url }}" target="_blank" rel="noopener">Programa de Becas {{ program.event.name }}</a>{% else %}Programa de Becas {{ program.event.name }}{% endif %} ofrece apoyo económico para la compra de materiales y equipamiento destinados a la realización de obras artísticas.</p>
             <p>Antes de completar la solicitud, les pedimos leer el {% if program.grant_rules_url %}<a href="{{ program.grant_rules_url }}" target="_blank" rel="noopener">Reglamento de Becas</a>{% else %}Reglamento de Becas{% endif %}, donde encontrarán los requisitos y condiciones del programa.</p>
             {% if program.grant_deadline %}<p class="mb-0">La fecha límite para enviar la solicitud es el {{ program.grant_deadline|date:"j \d\e F \d\e Y" }}.</p>{% endif %}
         </div>
         {% endif %}
     </header>
 
+    {% if show_grant_notice %}{% include 'art/_grant_pending.html' %}{% endif %}
+
     <div class="artwork-status mb-4">
-        <p class="d-flex flex-column flex-sm-row align-items-sm-center gap-2 mb-0"><span class="badge bg-light text-dark border">{% if artwork.grant_status == 'none' %}Solicitud sin presentar{% else %}Beca · {{ artwork.get_grant_status_display }}{% endif %}</span></p>
+        <p class="d-flex flex-column flex-sm-row align-items-sm-center gap-2 mb-0">{% if artwork.grant_incomplete %}<span class="badge grant-incomplete-badge">Beca · Incompleta</span>{% elif artwork.grant_status == 'none' %}<span class="badge bg-light text-dark border">Beca · Sin empezar</span>{% else %}<span class="badge bg-light text-dark border">Beca · {{ artwork.get_grant_status_display }}</span>{% endif %}</p>
         {% if artwork.grant_decision_notes %}<div class="artwork-status-message mt-3"><strong>Devolución sobre la beca</strong><br>{{ artwork.grant_decision_notes|linebreaksbr }}</div>{% endif %}
         {% if artwork.grant_approved_amount %}<p class="artwork-contact mt-3 mb-0"><strong>Monto aprobado:</strong> {{ artwork.grant_currency }} {{ artwork.grant_approved_amount|art_money }}{% if artwork.grant_paid_at %} · pagado el {{ artwork.grant_paid_at|date:'d/m/Y' }}{% endif %}</p>{% endif %}
     </div>
@@ -89,13 +91,13 @@
                     <h2 id="solicitud-title">1. Solicitud</h2>
                     <p class="step-meta">{% if program.grant_deadline %}<span>Hasta el {{ program.grant_deadline|date:'d/m' }}</span>{% endif %}</p>
                 </header>
-                {% include 'art/_field.html' with field=form.grant_requested %}
                 {% include 'art/_field.html' with field=form.grant_justification %}
                 {% include 'art/_field.html' with field=form.grant_currency %}
 
                 <fieldset class="step-group mt-4">
                     <legend>Presupuesto</legend>
-                    <p class="form-text mt-0 mb-3">Los materiales y el equipamiento que necesita la obra, con sus montos en {{ artwork.grant_currency }}. Total: <strong>{{ artwork.grant_currency }} {{ budget_total|art_money }}</strong></p>
+                    <p class="form-text mt-0 mb-3">Lo que cuesta hacer la obra. Total: <strong>{{ artwork.grant_currency }} {{ budget_total|art_money }}</strong>{% if budget_has_unfundable %} · Cubre la beca: <strong>{{ artwork.grant_currency }} {{ budget_fundable_total|art_money }}</strong>{% endif %}</p>
+                    <p class="form-text mt-0 mb-3">La beca cubre solo materiales y equipamiento. Podés cargar mano de obra y proveedores para mostrar el presupuesto completo, pero no se puede pedir beca por eso.</p>
                     {% if can_edit_budget %}
                     <details class="inline-editor inline-create mb-3"{% if budget_create_form.errors %} open{% endif %}>
                         <summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar ítem</span></summary>
@@ -105,7 +107,7 @@
                         </form>
                     </details>
                     {% endif %}
-                    {% include 'art/_grant_items.html' with items=budget_items can_edit=can_edit_budget total=budget_total %}
+                    {% include 'art/_grant_items.html' with items=budget_items can_edit=can_edit_budget total=budget_total fundable_total=budget_fundable_total show_fundable=budget_has_unfundable %}
                 </fieldset>
 
                 <div class="mt-4">{% include 'art/_field.html' with field=form.grant_requested_amount %}</div>
@@ -121,14 +123,7 @@
 
                 {% include 'art/_field.html' with field=form.grant_terms_accepted %}
 
-                {% if can_submit_grant %}
-                    {% if not grant_missing %}
-                    <form method="post" action="{% url 'grant_submit' artwork.pk %}">{% csrf_token %}<button class="btn btn-primary" type="submit">Presentar solicitud de beca</button></form>
-                    <p class="form-text mb-0">Se presenta lo que está guardado: si cambiaste algo, guardá primero.</p>
-                    {% else %}
-                    <div class="alert alert-info mb-0"><strong>Antes de presentar, guardá los cambios con esto completo:</strong><ul class="mb-0 mt-2 ps-3">{% for item in grant_missing %}<li>{{ item }}</li>{% endfor %}</ul></div>
-                    {% endif %}
-                {% endif %}
+                {% if show_grant_notice %}{% include 'art/_grant_pending.html' %}{% endif %}
             </section>
         </li>
 
@@ -144,7 +139,7 @@
 
                 <fieldset class="step-group mt-4">
                     <legend>Gastos</legend>
-                    <p class="form-text mt-0 mb-3">Lo que compraste con la beca, con sus comprobantes y montos en {{ artwork.grant_currency }}. Total: <strong>{{ artwork.grant_currency }} {{ expense_total|art_money }}</strong></p>
+                    <p class="form-text mt-0 mb-3">Lo que compraste con la beca, con sus comprobantes. Total: <strong>{{ artwork.grant_currency }} {{ expense_total|art_money }}</strong></p>
                     {% if can_edit_expenses %}
                     <details class="inline-editor inline-create mb-3"{% if expense_create_form.errors %} open{% endif %}>
                         <summary><i class="fas fa-plus" aria-hidden="true"></i><span>Agregar gasto</span></summary>
@@ -199,4 +194,16 @@
 {% include 'art/_lightbox.html' %}
 {% include 'art/_restore_position.html' %}
 {% include 'art/_submit_guard.html' %}
+<script>
+// Cambiar la moneda guarda la solicitud al momento: los montos y totales se muestran en la moneda guardada.
+(function () {
+    var currency = document.querySelector('select[name="grant_currency"]');
+    var form = document.getElementById('grant-form');
+    if (!currency || !form || currency.disabled) return;
+    currency.addEventListener('change', function () {
+        if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); }
+    });
+})();
+</script>
+<style>.grant-incomplete-badge { color: #7a5200; background: #fff3cd; border: 1px solid #f0d58a; } .grant-pending { border-left: .35rem solid #d39e00; font-size: 1rem; } .grant-presented { border-left: .35rem solid #198754; } .grant-pending strong { font-size: 1.05rem; }</style>
 {% endblock %}

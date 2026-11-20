@@ -45,10 +45,22 @@ ARTWORK_BLOCK_FIELDS = {
 GRANT_PAYEE_FIELDS = ('grant_payee_name', 'grant_payee_tax_id', 'grant_payee_account')
 GRANT_BLOCK_FIELDS = {
     'grant': (
-        'grant_requested', 'grant_justification', 'grant_currency', 'grant_requested_amount',
+        'grant_justification', 'grant_currency', 'grant_requested_amount',
         *GRANT_PAYEE_FIELDS, 'grant_terms_accepted',
     ),
     'grant_report': ('grant_report',),
+}
+# Mientras la beca no se decide, el equipo sigue editando su solicitud.
+GRANT_REQUEST_EDITABLE = (
+    Artwork.GrantStatus.NOT_REQUESTED, Artwork.GrantStatus.PENDING, Artwork.GrantStatus.INFO_REQUIRED,
+)
+# La beca cubre sólo materiales y equipamiento. El presupuesto también admite mano de obra y proveedores,
+# para mostrarlo completo; la rendición es sólo de lo que cubre la beca.
+GRANT_ITEM_TYPES = {
+    ArtworkGrantItem.Phase.BUDGET: (
+        *ArtworkGrantItem.FUNDABLE_TYPES, ArtworkGrantItem.ItemType.LABOR, ArtworkGrantItem.ItemType.SERVICE,
+    ),
+    ArtworkGrantItem.Phase.EXPENSE: ArtworkGrantItem.FUNDABLE_TYPES,
 }
 # A partir de qué monto se pide una confirmación extra, en cada moneda.
 LARGE_AMOUNT = {Artwork.GrantCurrency.ARS: Decimal('1000000'), Artwork.GrantCurrency.USD: Decimal('1000')}
@@ -279,7 +291,7 @@ class ArtworkGrantForm(InvalidFieldsMixin, forms.ModelForm):
     expected_version = forms.IntegerField(widget=forms.HiddenInput, required=False)
     grant_requested_amount = LocalizedDecimalField(
         required=False, max_digits=14, decimal_places=2, min_value=Decimal('0.01'), label='Monto que pedís',
-        help_text='En la moneda de la beca. No puede superar el total del presupuesto.',
+        help_text='En la moneda de la beca. No puede superar el presupuesto de materiales y equipamiento.',
         widget=_money_widget(),
     )
     grant_terms_accepted = forms.BooleanField(required=False)
@@ -287,7 +299,7 @@ class ArtworkGrantForm(InvalidFieldsMixin, forms.ModelForm):
     class Meta:
         model = Artwork
         fields = (
-            'grant_requested', 'grant_justification', 'grant_currency', 'grant_requested_amount',
+            'grant_justification', 'grant_currency', 'grant_requested_amount',
             *GRANT_PAYEE_FIELDS, 'grant_report',
         )
         widgets = {
@@ -296,7 +308,8 @@ class ArtworkGrantForm(InvalidFieldsMixin, forms.ModelForm):
             'grant_payee_tax_id': forms.TextInput(attrs={'inputmode': 'numeric', 'maxlength': 13}),
         }
         help_texts = {
-            'grant_currency': 'Todo va en esta moneda: el presupuesto, el monto que pedís y la rendición.',
+            'grant_currency': 'Todo va en esta moneda: el presupuesto, el monto que pedís y la rendición. Al cambiarla se guarda la solicitud.',
+            'grant_payee_tax_id': 'Con guiones: 20-12345678-9.',
             'grant_payee_account': 'El CBU o CVU tiene 22 dígitos.',
         }
 
@@ -318,6 +331,9 @@ class ArtworkGrantForm(InvalidFieldsMixin, forms.ModelForm):
             self.fields['grant_payee_account'].max_length = None
             self.fields['grant_payee_account'].validators = []
             self.fields['grant_payee_tax_id'].widget.attrs['maxlength'] = 13
+            saved = self.instance.grant_payee_tax_id
+            if len(saved) == 11:
+                self.initial['grant_payee_tax_id'] = f'{saved[:2]}-{saved[2:10]}-{saved[10]}'
             self.fields['grant_payee_account'].widget.attrs['maxlength'] = 30
         terms = self.fields['grant_terms_accepted']
         terms.label = format_html(
@@ -332,9 +348,14 @@ class ArtworkGrantForm(InvalidFieldsMixin, forms.ModelForm):
             field.widget.attrs.setdefault('class', 'form-select' if isinstance(field.widget, forms.Select) else 'form-control')
             field.widget.attrs['form'] = 'grant-form'
         self.fields['expected_version'].initial = self.instance.version
+        if program.grant_max_percent:
+            self.fields['grant_requested_amount'].help_text = (
+                f'En la moneda de la beca. No puede superar el {program.grant_max_percent} % del presupuesto de materiales y equipamiento.'
+            )
 
         locked = set()
-        if self.instance.grant_status not in (Artwork.GrantStatus.NOT_REQUESTED, Artwork.GrantStatus.INFO_REQUIRED):
+        # La solicitud se edita hasta que se aprueba.
+        if self.instance.grant_status not in GRANT_REQUEST_EDITABLE:
             locked.update(self.BLOCK_FIELDS['grant'])
         if self.instance.grant_status == Artwork.GrantStatus.CLOSED or (
             not self.is_manager
@@ -360,8 +381,12 @@ class ArtworkGrantForm(InvalidFieldsMixin, forms.ModelForm):
     def clean_grant_payee_tax_id(self):
         value = self.cleaned_data.get('grant_payee_tax_id') or ''
         digits = re.sub(r'[\s.-]', '', value)
-        if digits and not valid_tax_id(digits):
-            raise forms.ValidationError('Revisá el CUIT o CUIL: son 11 números, con o sin guiones.')
+        if not digits:
+            return ''
+        if not digits.isdigit() or len(digits) != 11:
+            raise forms.ValidationError('El CUIT o CUIL tiene 11 números. Escribilo con guiones, así: 20-12345678-9.')
+        if not valid_tax_id(digits):
+            raise forms.ValidationError('Ese CUIT o CUIL no es válido: revisá que los números estén bien copiados.')
         return digits
 
     def clean_grant_payee_account(self):
@@ -417,7 +442,13 @@ class ArtworkGrantItemForm(InvalidFieldsMixin, forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.phase = phase
         self.currency = self.instance.artwork.grant_currency
-        self.fields['amount'].label = f'Monto en {self.currency}'
+        self.fields['amount'].label = 'Monto'
+        # Un ítem viejo conserva su tipo aunque ya no se ofrezca.
+        offered = GRANT_ITEM_TYPES[phase]
+        self.fields['item_type'].choices = [
+            choice for choice in ArtworkGrantItem.ItemType.choices
+            if choice[0] in offered or (self.instance.pk and choice[0] == self.instance.item_type)
+        ]
         self.fields['amount'].widget = _money_widget(self.currency)
         self.fields['images'] = MultipleImageField(required=False, label='Imágenes o comprobantes')
         self.fields['images'].help_text = 'Podés seleccionar varias imágenes. Máximo 10 MB por archivo.'

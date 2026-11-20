@@ -7,7 +7,7 @@
     <a class="small text-decoration-none" href="{% url 'art_admin_dashboard' event.slug %}">← Volver a las propuestas</a>
     <div class="d-flex flex-column flex-md-row justify-content-between gap-3 my-4">
         <div><h2 class="h3 mb-1">{{ artwork.title|default:'Propuesta de Arte sin título' }}</h2><p class="text-muted mb-0">{% if artwork.owner %}{{ artwork.owner|person_name }}{% else %}Cuenta archivada{% endif %}</p></div>
-        <div class="d-flex flex-wrap align-items-start gap-2">{% if show_grant %}<a class="btn btn-outline-primary" href="{% url 'artwork_grant' artwork.pk %}">Beca{% if artwork.grant_status != 'none' %} · {{ artwork.get_grant_status_display }}{% endif %}</a>{% endif %}{% if can_manage %}<a class="btn btn-outline-primary" href="{% url 'artwork_edit' artwork.pk %}">Ver propuesta de Arte</a>{% endif %}</div>
+        <div class="d-flex flex-wrap align-items-start gap-2">{% if show_grant %}<a class="btn btn-outline-primary" href="{% url 'artwork_grant' artwork.pk %}">Beca{% if artwork.grant_started %} · {{ artwork.grant_status_label }}{% endif %}</a>{% endif %}{% if can_manage %}<a class="btn btn-outline-primary" href="{% url 'artwork_edit' artwork.pk %}">Ver propuesta de Arte</a>{% endif %}</div>
     </div>
     <section class="review-status mb-4" aria-label="Estado">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">

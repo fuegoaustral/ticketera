@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 
 from auditlog.registry import auditlog
@@ -79,6 +79,15 @@ class ArtProgram(BaseModel):
     grant_deadline = models.DateTimeField(
         null=True, blank=True, verbose_name='Cierre de becas',
         help_text='Último momento para pedir beca y cargar el presupuesto. Vacía: no cierra.',
+    )
+    grant_max_percent = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MinValueValidator(1), MaxValueValidator(100)],
+        verbose_name='Porcentaje máximo del presupuesto que se puede pedir',
+        help_text='Vacío: se puede pedir hasta el total del presupuesto.',
+    )
+    grant_program_url = models.URLField(
+        max_length=500, blank=True, verbose_name='Link al Programa de Becas',
+        help_text='Se enlaza en la presentación de la beca.',
     )
     grant_rules_url = models.URLField(
         max_length=500, blank=True, verbose_name='Link al reglamento de becas',
@@ -315,7 +324,7 @@ class Artwork(BaseModel):
         related_name='safety_responsible_artworks', verbose_name='Responsable de seguridad',
     )
 
-    grant_requested = models.BooleanField(default=False, verbose_name='Quiero solicitar una beca')
+    grant_requested = models.BooleanField(default=False, verbose_name='Pidió beca')
     grant_justification = models.TextField(blank=True, verbose_name='Por qué la beca hace posible la instalación')
     grant_status = models.CharField(max_length=10, choices=GrantStatus.choices, default=GrantStatus.NOT_REQUESTED, verbose_name='Estado de la beca')
     grant_report = models.TextField(blank=True, verbose_name='Rendición y resultado de la instalación')
@@ -523,6 +532,42 @@ class Artwork(BaseModel):
         return sum((item.amount for item in self.grant_items.filter(phase=phase)), Decimal('0.00'))
 
     @property
+    def fundable_budget_total(self):
+        """Lo que la beca puede cubrir del presupuesto: materiales y equipamiento."""
+        return sum((
+            item.amount for item in self.grant_items.filter(
+                phase=ArtworkGrantItem.Phase.BUDGET, item_type__in=ArtworkGrantItem.FUNDABLE_TYPES,
+            )
+        ), Decimal('0.00'))
+
+    @property
+    def grant_request_cap(self):
+        """Hasta cuánto se puede pedir: lo que cubre la beca, o el porcentaje que fije el programa."""
+        budget, percent = self.fundable_budget_total, self.event.art_program.grant_max_percent
+        if not percent:
+            return budget
+        return (budget * percent / 100).quantize(Decimal('0.01'))
+
+    @property
+    def grant_started(self):
+        """Tiene algo de la solicitud de beca cargado, esté presentada o no."""
+        return self.grant_status != self.GrantStatus.NOT_REQUESTED or bool(
+            self.grant_justification or self.grant_requested_amount or self.grant_payee_name
+            or self.grant_payee_tax_id or self.grant_payee_account or self.grant_terms_accepted_at
+            or self.grant_items.filter(phase=ArtworkGrantItem.Phase.BUDGET).exists()
+        )
+
+    @property
+    def grant_incomplete(self):
+        """Empezó a cargar la beca y todavía no la presentó."""
+        return self.grant_status == self.GrantStatus.NOT_REQUESTED and self.grant_started
+
+    @property
+    def grant_status_label(self):
+        """El estado de la beca como se muestra: una solicitud a medio cargar es «Incompleta»."""
+        return GRANT_INCOMPLETE_LABEL if self.grant_incomplete else self.get_grant_status_display()
+
+    @property
     def budget_total(self):
         return self.grant_total(ArtworkGrantItem.Phase.BUDGET)
 
@@ -538,9 +583,13 @@ class ArtworkGrantItem(BaseModel):
 
     class ItemType(models.TextChoices):
         MATERIALS = 'materials', 'Materiales'
+        EQUIPMENT = 'equipment', 'Equipamiento'
+        # La beca cubre sólo materiales y equipamiento: lo demás muestra el presupuesto completo.
         LABOR = 'labor', 'Mano de obra'
-        SERVICE = 'service', 'Servicio'
+        SERVICE = 'service', 'Proveedores'
         OTHER = 'other', 'Otro'
+
+    FUNDABLE_TYPES = (ItemType.MATERIALS, ItemType.EQUIPMENT)
 
     class ReviewStatus(models.TextChoices):
         PENDING = 'pending', 'Pendiente de revisión'
@@ -549,7 +598,7 @@ class ArtworkGrantItem(BaseModel):
 
     artwork = models.ForeignKey(Artwork, on_delete=models.CASCADE, related_name='grant_items')
     phase = models.CharField(max_length=8, choices=Phase.choices)
-    item_type = models.CharField(max_length=10, choices=ItemType.choices, default=ItemType.OTHER, verbose_name='Tipo')
+    item_type = models.CharField(max_length=10, choices=ItemType.choices, default=ItemType.MATERIALS, verbose_name='Tipo')
     concept = models.CharField(max_length=200, verbose_name='Concepto')
     details = models.TextField(blank=True, verbose_name='Detalle')
     amount = models.DecimalField(max_digits=14, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))], verbose_name='Monto')
@@ -571,6 +620,32 @@ class ArtworkGrantItem(BaseModel):
 
     def __str__(self):
         return f'{self.get_phase_display()} · {self.concept}'
+
+    @property
+    def is_fundable(self):
+        return self.item_type in self.FUNDABLE_TYPES
+
+
+GRANT_INCOMPLETE_LABEL = 'Incompleta'
+
+
+
+def grant_incomplete_q():
+    """Solicitudes de beca a medio cargar: sin presentar, pero con algo de la solicitud ya guardado.
+
+    Es la misma regla que `Artwork.grant_incomplete`. Va en una función porque arma una subconsulta.
+    """
+    return Q(grant_status=Artwork.GrantStatus.NOT_REQUESTED) & (
+        ~Q(grant_justification='') | Q(grant_requested_amount__isnull=False)
+        | ~Q(grant_payee_name='') | ~Q(grant_payee_tax_id='') | ~Q(grant_payee_account='')
+        | Q(grant_terms_accepted_at__isnull=False)
+        | Exists(ArtworkGrantItem.objects.filter(artwork=OuterRef('pk'), phase=ArtworkGrantItem.Phase.BUDGET))
+    )
+
+
+def grant_started_q():
+    """Empezó la beca: la presentó o la tiene a medio cargar. Quien nunca la tocó no cuenta."""
+    return ~Q(grant_status=Artwork.GrantStatus.NOT_REQUESTED) | grant_incomplete_q()
 
 
 class ArtworkGrantItemPhoto(BaseModel):

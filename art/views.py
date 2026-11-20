@@ -10,7 +10,7 @@ from django.contrib.auth.models import User
 from django.core import signing
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, transaction
-from django.db.models import Count, F, Q, Sum
+from django.db.models import BooleanField, Count, ExpressionWrapper, F, Q, Sum
 from django.db.models.functions import Lower
 from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -39,13 +39,14 @@ from .forms import (
     GALLERY_STAGES, ArtworkForm, ArtworkGrantForm, ArtworkGrantItemForm, ArtworkTeamAddForm,
     ArtworkCheckoutPhotoUploadForm, ArtworkFileUploadForm, ArtworkPhotoUploadForm, ArtworkProviderForm, ArtworkTeamBenefitsForm,
     ArtworkProviderVehicleForm, ArtworkContactForm, ArtworkGrantActionForm, ArtworkGrantItemReviewForm, ArtworkReviewForm,
-    GRANT_ACTIONS, _localized_amount, grant_actions_for,
+    GRANT_ACTIONS, GRANT_REQUEST_EDITABLE, _localized_amount, grant_actions_for,
 )
 from .models import (
-    ASKS_MAD, ArtProgram, Artwork, ArtworkFile, ArtworkGrantItem, ArtworkGrantItemPhoto,
+    ASKS_MAD, GRANT_INCOMPLETE_LABEL, ArtProgram, Artwork, ArtworkFile, ArtworkGrantItem, ArtworkGrantItemPhoto,
     ArtworkPhoto, ArtworkCheckoutPhoto, ArtworkProvider,
     ArtworkProviderVehicle,
 )
+from .models import grant_incomplete_q, grant_started_q
 from .review_sections import review_sections
 from .templatetags.art_format import person_greeting, person_label, person_name
 from .steps import CLOSED, OPEN, UPCOMING, artwork_steps, next_step
@@ -351,6 +352,9 @@ def _grant_context(artwork, inline_forms=None):
         'budget_items': budget,
         'expense_items': expenses,
         'budget_total': sum((item.amount for item in budget), Decimal('0.00')),
+        # Lo que cubre la beca se muestra aparte sólo si el presupuesto tiene algo que no cubre.
+        'budget_fundable_total': sum((item.amount for item in budget if item.is_fundable), Decimal('0.00')),
+        'budget_has_unfundable': any(not item.is_fundable for item in budget),
         'expense_total': sum((item.amount for item in expenses), Decimal('0.00')),
         'grant_over_budget': bool(
             artwork.grant_approved_amount
@@ -442,7 +446,7 @@ def _artwork_context(artwork, program, form, inline_forms=None):
         ),
         'can_manage': artwork.can_manage(form.actor),
         'can_edit_artwork': artwork.can_edit(form.actor) or artwork.can_manage(form.actor),
-        'grant_started': artwork.grant_status != Artwork.GrantStatus.NOT_REQUESTED,
+        'grant_started': artwork.grant_started,
         'benefits_form': inline_forms.get(('benefits', None)) or _benefits_form(artwork),
     })
     # ESTAFA editando la instalación de otra persona: navega dentro de ESTAFA y auditlog registra quién guarda.
@@ -496,7 +500,7 @@ def _review_context(artwork, form, user, inline_forms=None):
         'news_count': 0,
         'contact_form': ArtworkContactForm(instance=artwork, auto_id='contact_%s'),
         'can_manage': artwork.can_manage(user), 'can_message': artwork.can_message(user),
-        'show_grant': artwork.event.art_program.grants_enabled or artwork.grant_status != Artwork.GrantStatus.NOT_REQUESTED,
+        'show_grant': artwork.event.art_program.grants_enabled or artwork.grant_started,
         'checkout_photo_upload_form': inline_forms.get(('checkout-photo-new', None)) or ArtworkCheckoutPhotoUploadForm(
             auto_id='checkout-photo-new_%s',
         ),
@@ -775,9 +779,7 @@ def _grant_item_editable(artwork, phase, user):
     if not program.is_current or not program.grants_enabled or artwork.status == Artwork.Status.REJECTED:
         return False
     if phase == ArtworkGrantItem.Phase.BUDGET:
-        return program.checkpoint_state('grant') == 'open' and artwork.grant_status in (
-            Artwork.GrantStatus.NOT_REQUESTED, Artwork.GrantStatus.INFO_REQUIRED,
-        )
+        return program.checkpoint_state('grant') == 'open' and artwork.grant_status in GRANT_REQUEST_EDITABLE
     return program.checkpoint_state('grant_report') == 'open' and artwork.grant_status in (
         Artwork.GrantStatus.APPROVED, Artwork.GrantStatus.PAID,
     )
@@ -848,7 +850,10 @@ def _grant_page_context(artwork, program, form, user, inline_forms=None):
         'can_manage': artwork.can_manage_grant(user),
         'can_edit_budget': _grant_item_editable(artwork, ArtworkGrantItem.Phase.BUDGET, user),
         'can_edit_expenses': _grant_item_editable(artwork, ArtworkGrantItem.Phase.EXPENSE, user),
-        'can_submit_grant': artwork.can_edit(user) and program.is_current and program.checkpoint_state('grant') == 'open' and artwork.grant_status in (Artwork.GrantStatus.NOT_REQUESTED, Artwork.GrantStatus.INFO_REQUIRED),
+        # El aviso de «sin presentar» o «presentada» es para el equipo, mientras la beca no se decide.
+        'show_grant_notice': artwork.can_edit(user) and artwork.grant_status in (
+            Artwork.GrantStatus.NOT_REQUESTED, Artwork.GrantStatus.PENDING,
+        ),
         'can_submit_report': artwork.can_edit(user) and program.is_current and program.checkpoint_state('grant_report') == 'open' and artwork.grant_status in (Artwork.GrantStatus.APPROVED, Artwork.GrantStatus.PAID),
         'report_opened': artwork.grant_status in (
             Artwork.GrantStatus.APPROVED, Artwork.GrantStatus.PAID, Artwork.GrantStatus.REPORTED, Artwork.GrantStatus.CLOSED,
@@ -902,7 +907,8 @@ def _handle_artwork_grant(request, artwork):
         form.save()
         for section, fields in changed_sections:
             record_change(artwork, section, request.user, fields=fields)
-        messages.success(request, 'Cambios guardados.')
+        if not _sync_grant_presentation(request, artwork):
+            messages.success(request, 'Cambios guardados.')
         return redirect('artwork_grant', artwork_id=artwork.pk)
     return render(request, 'art/grant.html', _grant_page_context(artwork, program, form, request.user))
 
@@ -929,6 +935,7 @@ def grant_item_create(request, artwork_id, phase):
             _save_grant_item_images(item, form.cleaned_data['images'], request.user)
             record_change(artwork, _grant_section(phase), request.user)
             messages.success(request, 'Ítem agregado y total actualizado.')
+            _sync_grant_presentation(request, artwork)
             return _grant_redirect(request, artwork, phase)
     return _inline_error_response(request, artwork, ('grant-new', phase), form)
 
@@ -958,6 +965,7 @@ def grant_item_edit(request, artwork_id, item_id):
             if changed:
                 record_change(artwork, _grant_section(item.phase), request.user)
             messages.success(request, 'Ítem actualizado.')
+            _sync_grant_presentation(request, artwork)
             return _grant_redirect(request, artwork, item.phase)
     return _inline_error_response(request, artwork, ('grant', item.pk), form)
 
@@ -1064,7 +1072,8 @@ def grant_item_delete(request, artwork_id, item_id):
             return HttpResponseForbidden('Este ítem no se puede eliminar.')
         item.delete()
         record_change(artwork, _grant_section(item.phase), request.user)
-    messages.success(request, 'Ítem eliminado.')
+        messages.success(request, 'Ítem eliminado.')
+        _sync_grant_presentation(request, artwork)
     return _grant_redirect(request, artwork, item.phase)
 
 
@@ -1087,19 +1096,23 @@ def grant_item_photo_delete(request, artwork_id, item_id, photo_id):
 
 
 def _grant_missing(artwork):
-    """Lo que le falta a la solicitud de beca para presentarse, ya guardado."""
+    """Lo que le falta a la solicitud de beca para quedar presentada, ya guardado."""
     missing = []
-    if not artwork.grant_requested:
-        missing.append('Marcá «Quiero solicitar una beca».')
     if not artwork.grant_justification:
         missing.append('Contá por qué la beca hace posible la instalación.')
-    budget = artwork.budget_total
-    if not budget:
-        missing.append('Agregá al menos un ítem al presupuesto.')
+    # La beca se pide sólo sobre lo que cubre: materiales y equipamiento.
+    fundable = artwork.fundable_budget_total
+    if not fundable:
+        missing.append('Agregá al presupuesto al menos un ítem de materiales o equipamiento.')
     if not artwork.grant_requested_amount:
         missing.append('Indicá el monto que pedís.')
-    elif budget and artwork.grant_requested_amount > budget:
-        missing.append('El monto que pedís no puede superar el total del presupuesto.')
+    elif fundable and artwork.grant_requested_amount > artwork.grant_request_cap:
+        percent = artwork.event.art_program.grant_max_percent
+        cap = f'({artwork.grant_currency} {_localized_amount(artwork.grant_request_cap)})'
+        missing.append(
+            f'El monto que pedís no puede superar el {percent} % del presupuesto de materiales y equipamiento {cap}.'
+            if percent else f'El monto que pedís no puede superar el presupuesto de materiales y equipamiento {cap}.'
+        )
     if not (artwork.grant_payee_name and artwork.grant_payee_tax_id and artwork.grant_payee_account):
         missing.append('Completá quién recibiría la beca: nombre o razón social, CUIT/CUIL y CBU, CVU o alias.')
     if not artwork.grant_terms_accepted_at:
@@ -1107,34 +1120,41 @@ def _grant_missing(artwork):
     return missing
 
 
-@login_required
-def grant_submit(request, artwork_id):
-    if request.method != 'POST':
-        return HttpResponseForbidden('La convocatoria de becas no está abierta.')
-    with transaction.atomic():
-        artwork = get_object_or_404(
-            _accessible_artworks(request.user).filter(
-                Q(owner=request.user) | Q(pk__in=Artwork.objects.filter(collaborators=request.user).values('pk')),
-            ).select_for_update(),
-            pk=artwork_id,
-        )
-        program = artwork.event.art_program
-        if not program.is_current or not program.grants_enabled or program.checkpoint_state('grant') != 'open':
-            return HttpResponseForbidden('La convocatoria de becas no está abierta.')
-        if artwork.grant_status not in (Artwork.GrantStatus.NOT_REQUESTED, Artwork.GrantStatus.INFO_REQUIRED):
-            return HttpResponseForbidden('La solicitud de beca ya fue presentada.')
-        errors = _grant_missing(artwork)
-        if errors:
-            for error in errors:
-                messages.error(request, error)
-        else:
-            artwork.grant_status = Artwork.GrantStatus.PENDING
-            artwork.grant_submitted_at = timezone.now()
-            artwork.save(update_fields=['grant_status', 'grant_submitted_at', 'updated_at'])
-            record_change(artwork, GRANT_REQUEST_SECTION, request.user)
+def _sync_grant_presentation(request, artwork):
+    """Guardar es presentar: con todo completo la solicitud queda presentada; si deja de estarlo, vuelve atrás.
+
+    Devuelve si cambió el estado (y ya dejó su mensaje).
+    """
+    status = Artwork.GrantStatus
+    if artwork.grant_status not in GRANT_REQUEST_EDITABLE:
+        return False
+    missing = _grant_missing(artwork)
+    if not missing and (
+        artwork.grant_status == status.NOT_REQUESTED
+        # Lo que pidió Becas lo responde el equipo: que guarde Becas no la da por respondida.
+        or (artwork.grant_status == status.INFO_REQUIRED and artwork.can_edit(request.user))
+    ):
+        # A Becas se le avisa la primera vez y cuando el equipo responde un pedido de información.
+        notify = artwork.grant_status == status.INFO_REQUIRED or not artwork.grant_submitted_at
+        artwork.grant_status, artwork.grant_requested = status.PENDING, True
+        artwork.grant_submitted_at = timezone.now()
+        artwork.save(update_fields=['grant_status', 'grant_requested', 'grant_submitted_at', 'updated_at'])
+        history.log(artwork, history.STATUS, request.user, 'Presentó la solicitud de beca')
+        if notify:
             transaction.on_commit(lambda: send_grant_application_email(artwork, request.user))
-            messages.success(request, 'La solicitud de beca fue presentada para revisión.')
-    return _grant_page_redirect(artwork, 'solicitud')
+        messages.success(request, 'Solicitud presentada. Podés seguir editándola hasta que se apruebe.')
+        return True
+    if missing and artwork.grant_status == status.PENDING:
+        artwork.grant_status, artwork.grant_requested = status.NOT_REQUESTED, False
+        artwork.save(update_fields=['grant_status', 'grant_requested', 'updated_at'])
+        history.log(artwork, history.STATUS, request.user, 'La solicitud de beca dejó de estar presentada')
+        messages.warning(
+            request,
+            'Tu solicitud de beca dejó de estar presentada porque quedó incompleta. '
+            'Completá lo que falta y guardá para volver a presentarla.',
+        )
+        return True
+    return False
 
 
 @login_required
@@ -1608,7 +1628,8 @@ def _estafa_contact_choices(event, counts):
 ARTWORK_FLAGS = (
     ('risk', 'Riesgosa', Q(is_risky=True)),
     ('camp', 'Con camp soporte', Q(wants_support_camp=True)),
-    ('grant', 'Pidió beca', Q(grant_requested=True) | ~Q(grant_status=Artwork.GrantStatus.NOT_REQUESTED)),
+    # Callable: la condición arma una subconsulta y se resuelve al filtrar.
+    ('grant', 'Pidió beca', grant_started_q),
     ('fire', 'Se quema', Q(burns=True)),
     ('sound', 'Tiene sonido', Q(uses_sound=True)),
     ('mad', 'Necesita asistencia de MAD', Q(needs_mad_assistance=True)),
@@ -1710,13 +1731,15 @@ def _filtered_artworks(event, params, user):
         artworks = artworks.exclude(status=Artwork.Status.REJECTED)
     # Varias marcas a la vez: la propuesta tiene que cumplir todas.
     for _key, _label, condition in _selected_flags(params):
-        artworks = artworks.filter(condition)
+        artworks = artworks.filter(condition() if callable(condition) else condition)
     if params.get('grant') in Artwork.GrantStatus.values:
         artworks = artworks.filter(grant_status=params['grant'])
     artworks = _filter_by_contact(artworks, _contact_filter(params, user, _contact_counts(event)), user)
     artworks = history.with_news(artworks, user)
     if params.get('news'):
         artworks = artworks.filter(news_count__gt=0)
+    # La marca «Pidió beca» del listado, sin una consulta por fila.
+    artworks = artworks.annotate(grant_listed=ExpressionWrapper(grant_started_q(), output_field=BooleanField()))
     return artworks.distinct().order_by(Lower('title'), 'pk')
 
 
@@ -1981,13 +2004,16 @@ def art_admin_export(request, event_slug):
     return response
 
 
-GRANT_STATUS_FILTERS = [
+GRANT_INCOMPLETE_FILTER = 'incomplete'
+# Los estados del filtro de Becas: primero las solicitudes a medio cargar, después los de la beca presentada.
+GRANT_STATUS_FILTERS = [(GRANT_INCOMPLETE_FILTER, GRANT_INCOMPLETE_LABEL)] + [
     (value, label) for value, label in Artwork.GrantStatus.choices if value != Artwork.GrantStatus.NOT_REQUESTED
 ]
 
 
-def _submitted_grants(event):
-    return event.artworks.exclude(grant_status=Artwork.GrantStatus.NOT_REQUESTED)
+def _listed_grants(event):
+    """Las becas que se listan: presentadas o a medio cargar. Quien nunca tocó la beca no aparece."""
+    return event.artworks.filter(grant_started_q())
 
 
 def _grant_statuses(params):
@@ -1995,18 +2021,46 @@ def _grant_statuses(params):
     return [value for value, _label in GRANT_STATUS_FILTERS if value in chosen]
 
 
+def _grant_missing_short(artwork):
+    """Qué le falta a una solicitud incompleta, en pocas palabras, con lo ya anotado en el listado."""
+    missing = []
+    if not artwork.grant_justification:
+        missing.append('justificación')
+    if not artwork.fundable_sum:
+        missing.append('presupuesto')
+    if not artwork.grant_requested_amount:
+        missing.append('monto pedido')
+    if not (artwork.grant_payee_name and artwork.grant_payee_tax_id and artwork.grant_payee_account):
+        missing.append('datos de cobro')
+    if not artwork.grant_terms_accepted_at:
+        missing.append('condiciones')
+    return ', '.join(missing) or 'revisar el monto pedido'
+
+
 def _grant_artworks(event, params, user):
-    """Las propuestas que presentaron su solicitud de beca, con el total de su presupuesto.
+    """Las solicitudes de beca, presentadas o incompletas, con los totales de su presupuesto.
 
     Mismo buscador que el listado de propuestas; el estado es el de la beca.
     """
-    artworks = _search_artworks(_submitted_grants(event).select_related('owner__profile', 'estafa_contact__profile'), params)
+    artworks = _search_artworks(_listed_grants(event).select_related('owner__profile', 'estafa_contact__profile'), params)
     statuses = _grant_statuses(params)
     if statuses:
-        artworks = artworks.filter(grant_status__in=statuses)
-    return artworks.annotate(
-        budget_sum=Sum('grant_items__amount', filter=Q(grant_items__phase=ArtworkGrantItem.Phase.BUDGET)),
-    ).order_by(Lower('title'), 'pk')
+        chosen = Q(grant_status__in=[value for value in statuses if value != GRANT_INCOMPLETE_FILTER])
+        if GRANT_INCOMPLETE_FILTER in statuses:
+            chosen |= grant_incomplete_q()
+        artworks = artworks.filter(chosen)
+    budget = Q(grant_items__phase=ArtworkGrantItem.Phase.BUDGET)
+    artworks = list(artworks.annotate(
+        budget_sum=Sum('grant_items__amount', filter=budget),
+        fundable_sum=Sum(
+            'grant_items__amount', filter=budget & Q(grant_items__item_type__in=ArtworkGrantItem.FUNDABLE_TYPES),
+        ),
+    ).order_by(Lower('title'), 'pk'))
+    for artwork in artworks:
+        artwork.is_grant_incomplete = artwork.grant_status == Artwork.GrantStatus.NOT_REQUESTED
+        artwork.grant_label = GRANT_INCOMPLETE_LABEL if artwork.is_grant_incomplete else artwork.get_grant_status_display()
+        artwork.grant_missing_short = _grant_missing_short(artwork) if artwork.is_grant_incomplete else ''
+    return artworks
 
 
 @login_required
@@ -2016,7 +2070,14 @@ def art_grants_dashboard(request, event_slug):
     if not event:
         return HttpResponseForbidden('No tenés permisos para ver las becas de este evento.')
     params = request.GET
-    status_counts = dict(_submitted_grants(event).values_list('grant_status').annotate(total=Count('pk')).order_by())
+    listed = _listed_grants(event)
+    status_counts = dict(
+        listed.exclude(grant_status=Artwork.GrantStatus.NOT_REQUESTED)
+        .values_list('grant_status').annotate(total=Count('pk')).order_by()
+    )
+    incomplete = listed.filter(grant_status=Artwork.GrantStatus.NOT_REQUESTED).count()
+    if incomplete:
+        status_counts[GRANT_INCOMPLETE_FILTER] = incomplete
     statuses = _grant_statuses(params)
     labels = dict(GRANT_STATUS_FILTERS)
     return render(request, 'art/grants_dashboard.html', {
@@ -2108,7 +2169,7 @@ def art_grants_export(request, event_slug):
     writer = csv.writer(response)
     writer.writerow([
         'Propuesta de Arte', 'Estado de la propuesta', 'Responsable', 'Email del responsable', 'WhatsApp del responsable',
-        'Estado de la beca', 'Moneda', 'Total del presupuesto', 'Monto pedido', 'Monto aprobado',
+        'Estado de la beca', 'Falta', 'Moneda', 'Total del presupuesto', 'Cubre la beca', 'Monto pedido', 'Monto aprobado',
         'Nombre o razón social', 'CUIT/CUIL', 'CBU, CVU o alias',
         'Por qué la beca hace posible la instalación', 'Condiciones aceptadas', 'Solicitud presentada',
         'Última decisión', 'Devolución sobre la beca', 'Fecha de pago', 'Referencia del pago',
@@ -2125,9 +2186,11 @@ def art_grants_export(request, event_slug):
             (owner.get_full_name() or owner.email) if owner else '',
             owner.email if owner else '',
             whatsapp_number(_owner_phone(artwork)),
-            artwork.get_grant_status_display(),
+            artwork.grant_label,
+            artwork.grant_missing_short,
             artwork.grant_currency,
             artwork.budget_sum or 0,
+            artwork.fundable_sum or 0,
             artwork.grant_requested_amount,
             artwork.grant_approved_amount,
             artwork.grant_payee_name,
