@@ -17,7 +17,7 @@ from events.models import Event, EventTermsAndConditions, EventTermsAndCondition
 from events.utils import get_event_from_request, get_admin_events_for_user
 from tickets.models import NewTicket, NewTicketTransfer, Order, TicketType
 from .forms import ProfileStep1Form, ProfileStep2Form, VolunteeringForm, ProfileUpdateForm, CustomPasswordChangeForm, AddEmailForm, PhoneUpdateForm, CajaEmitirBonoForm
-from art.estafa import is_estafa_member
+from art.estafa import art_teams
 from art.forms import EstafaNotificationPreferenceForm
 from art.models import EstafaNotificationPreference
 from .impersonation import IMPERSONATION_ADMIN_USER_ID_SESSION_KEY
@@ -677,8 +677,10 @@ def profile_view(request):
     password_form = CustomPasswordChangeForm(user=user)
     add_email_form = AddEmailForm()
     estafa_emails_form = None
-    if is_estafa_member(user):
-        estafa_emails_form = EstafaNotificationPreferenceForm(instance=EstafaNotificationPreference.for_user(user))
+    if art_teams(user):
+        estafa_emails_form = EstafaNotificationPreferenceForm(
+            instance=EstafaNotificationPreference.for_user(user), teams=art_teams(user),
+        )
     
     # Handle profile update
     if request.method == 'POST':
@@ -692,10 +694,12 @@ def profile_view(request):
                 messages.error(request, 'Revisá los datos e intentá de nuevo.')
         
         elif 'update_estafa_emails' in request.POST and estafa_emails_form is not None:
-            estafa_emails_form = EstafaNotificationPreferenceForm(request.POST, instance=estafa_emails_form.instance)
+            estafa_emails_form = EstafaNotificationPreferenceForm(
+                request.POST, instance=estafa_emails_form.instance, teams=art_teams(user),
+            )
             if estafa_emails_form.is_valid():
                 estafa_emails_form.save()
-                messages.success(request, 'Tus preferencias de emails de ESTAFA quedaron guardadas.')
+                messages.success(request, 'Tus preferencias de emails quedaron guardadas.')
                 return redirect('profile')
             messages.error(request, 'Revisá los datos e intentá de nuevo.')
 

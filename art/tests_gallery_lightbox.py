@@ -26,7 +26,7 @@ class GalleryLightboxTest(MadMobilityTest):
         super().setUp()
         Artwork.objects.filter(pk=self.artwork.pk).update(
             status=Artwork.Status.ACTIVE, grant_status=Artwork.GrantStatus.APPROVED,
-            grant_approved_amount_ars=Decimal('100000'),
+            grant_approved_amount=Decimal('100000'),
         )
         self.artwork.refresh_from_db()
         self.program.gallery_opens = self.program.checkout_opens = timezone.now() - timedelta(days=1)
@@ -39,7 +39,7 @@ class GalleryLightboxTest(MadMobilityTest):
         ArtworkFile.objects.create(artwork=self.artwork, file='art/files/plano.pdf', name='plano.pdf')
         item = ArtworkGrantItem.objects.create(
             artwork=self.artwork, phase=ArtworkGrantItem.Phase.EXPENSE, concept='Madera',
-            amount=100, currency='ARS', exchange_rate=1, rate_date=timezone.localdate(),
+            amount=100,
         )
         ArtworkGrantItemPhoto.objects.create(item=item, image='art/grants/factura.gif')
 

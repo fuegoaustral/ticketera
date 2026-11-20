@@ -1,5 +1,5 @@
 import re
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from importlib import import_module
 from unittest.mock import patch
@@ -404,8 +404,7 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(response.status_code, 302)
         artwork.refresh_from_db()
         self.client.post(reverse('grant_item_create', args=[artwork.pk, 'budget']), {
-            'item_type': 'materials', 'concept': 'Hierro', 'amount': '1500', 'currency': 'ARS',
-            'exchange_rate': '1', 'rate_date': timezone.localdate(),
+            'item_type': 'materials', 'concept': 'Hierro', 'amount': '1500',
         })
         self.client.post(reverse('artwork_file_upload', args=[artwork.pk]), {'files': self.image('inicio.gif')})
         self.client.post(reverse('artwork_team_add', args=[artwork.pk]), {'identifier': '10000002'})
@@ -781,7 +780,7 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual((artwork.proposal, artwork.grant_justification), ('Una pata gigante', 'Madera'))
 
         response = self.client.post(reverse('artwork_grant', args=[artwork.pk]), {
-            'grant_requested': 'on', 'grant_justification': 'Madera y tela', 'expected_version': artwork.version,
+            'grant_requested': 'on', 'grant_justification': 'Madera y tela', 'grant_currency': 'ARS', 'expected_version': artwork.version,
         })
         self.assertRedirects(response, reverse('artwork_grant', args=[artwork.pk]), fetch_redirect_response=False)
         artwork.refresh_from_db()
@@ -933,8 +932,7 @@ class ArtworkFlowTest(TestCase):
         self.assertNotContains(page, reverse('artwork_photo_upload', args=[artwork.pk]))
         self.assertNotContains(page, 'Agregar ítem')
         response = self.client.post(reverse('grant_item_create', args=[artwork.pk, 'budget']), {
-            'item_type': 'materials', 'concept': 'Hierro', 'amount': '1500', 'currency': 'ARS',
-            'exchange_rate': '1', 'rate_date': timezone.localdate(),
+            'item_type': 'materials', 'concept': 'Hierro', 'amount': '1500',
         })
         self.assertEqual(response.status_code, 403)
         self.assertFalse(artwork.grant_items.exists())
@@ -1072,69 +1070,108 @@ class ArtworkFlowTest(TestCase):
         self.assertFalse(stale.is_valid())
         self.assertIn('Otra persona guardó', str(stale.non_field_errors()))
 
-    def test_itemized_grant_uses_frozen_decimal_exchange_rate(self):
-        artwork = Artwork.objects.create(event=self.event, owner=self.owner, grant_requested=True)
-        self.assertTrue(ArtworkGrantItemForm(
-            instance=ArtworkGrantItem(artwork=artwork), phase=ArtworkGrantItem.Phase.BUDGET,
-        ).fields['images'].widget.allow_multiple_selected)
+    def test_grant_items_and_request_use_the_grant_currency(self):
+        artwork = Artwork.objects.create(event=self.event, owner=self.owner, grant_requested=True, grant_currency='USD')
+
+        def item_form(data, instance=None):
+            return ArtworkGrantItemForm(
+                data, instance=instance or ArtworkGrantItem(artwork=artwork, created_by=self.owner),
+                phase=ArtworkGrantItem.Phase.BUDGET,
+            )
+
+        blank = item_form(None)
+        self.assertTrue(blank.fields['images'].widget.allow_multiple_selected)
         self.assertTrue(ArtworkPhotoUploadForm().fields['images'].widget.allow_multiple_selected)
-        ars_form = ArtworkGrantItemForm({
-            'item_type': 'materials', 'concept': 'Hierro', 'amount': '1000.25', 'currency': 'ARS',
-            'exchange_rate': '999', 'rate_date': timezone.localdate(), 'rate_source': 'No aplica',
-        }, instance=ArtworkGrantItem(artwork=artwork, created_by=self.owner), phase=ArtworkGrantItem.Phase.BUDGET)
-        self.assertTrue(ars_form.is_valid(), ars_form.errors)
-        ars = ars_form.save()
-        self.assertEqual(ars.exchange_rate, Decimal('1'))
-        self.assertEqual(ars.amount_ars, Decimal('1000.25'))
+        # El ítem sólo lleva un monto, en la moneda de la beca.
+        self.assertEqual(blank.fields['amount'].label, 'Monto en USD')
+        self.assertFalse({'currency', 'exchange_rate', 'rate_date', 'rate_source'} & set(blank.fields))
 
-        localized = ArtworkGrantItemForm({
-            'item_type': 'materials', 'concept': 'Placa', 'amount': '150.000,50', 'currency': 'ARS',
-            'exchange_rate': '1', 'rate_date': timezone.localdate(), 'rate_source': '',
-        }, instance=ArtworkGrantItem(artwork=artwork, created_by=self.owner), phase=ArtworkGrantItem.Phase.BUDGET)
+        localized = item_form({'item_type': 'materials', 'concept': 'Placa', 'amount': '150,50'})
         self.assertTrue(localized.is_valid(), localized.errors)
-        self.assertEqual(localized.cleaned_data['amount'], Decimal('150000.50'))
+        placa = localized.save()
+        self.assertEqual(placa.amount, Decimal('150.50'))
 
-        large = ArtworkGrantItemForm({
-            'item_type': 'other', 'concept': 'Equipo', 'amount': '1.000.000,00', 'currency': 'ARS',
-            'exchange_rate': '1', 'rate_date': timezone.localdate(), 'rate_source': '',
-        }, instance=ArtworkGrantItem(artwork=artwork), phase=ArtworkGrantItem.Phase.BUDGET)
+        # La confirmación extra depende de la moneda: USD 1.000 o ARS 1.000.000.
+        large = item_form({'item_type': 'other', 'concept': 'Equipo', 'amount': '1.000,00'})
         self.assertFalse(large.is_valid())
         self.assertIn('confirm_large_amount', large.errors)
+        confirmed = item_form({'item_type': 'other', 'concept': 'Equipo', 'amount': '1.000,00', 'confirm_large_amount': 'on'})
+        self.assertTrue(confirmed.is_valid(), confirmed.errors)
+        confirmed.save()
+        self.assertEqual(artwork.budget_total, Decimal('1150.50'))
 
-        usd_form = ArtworkGrantItemForm({
-            'item_type': 'service', 'concept': 'LEDs', 'amount': '10.50', 'currency': 'USD',
-            'exchange_rate': '1234.5678', 'rate_date': timezone.localdate(), 'rate_source': 'BNA vendedor',
-        }, instance=ArtworkGrantItem(artwork=artwork, created_by=self.owner), phase=ArtworkGrantItem.Phase.BUDGET)
-        self.assertTrue(usd_form.is_valid(), usd_form.errors)
-        usd = usd_form.save()
-        self.assertEqual(usd.amount_ars, Decimal('12962.96'))
-        self.assertEqual(artwork.budget_total_ars, Decimal('13963.21'))
-
-        missing_source = ArtworkGrantItemForm({
-            'item_type': 'other', 'concept': 'Tela', 'amount': '2', 'currency': 'USD',
-            'exchange_rate': '1000', 'rate_date': timezone.localdate(),
-        }, instance=ArtworkGrantItem(artwork=artwork), phase=ArtworkGrantItem.Phase.BUDGET)
-        self.assertFalse(missing_source.is_valid())
-
-        previous_update = usd.updated_at.isoformat()
-        ArtworkGrantItem.objects.filter(pk=usd.pk).update(amount=20, updated_at=timezone.now())
-        usd.refresh_from_db()
-        stale = ArtworkGrantItemForm({
-            'item_type': usd.item_type, 'concept': usd.concept, 'amount': '30', 'currency': 'USD',
-            'exchange_rate': usd.exchange_rate, 'rate_date': usd.rate_date,
-            'rate_source': usd.rate_source, 'expected_updated_at': previous_update,
-        }, instance=usd, phase=ArtworkGrantItem.Phase.BUDGET)
+        previous_update = placa.updated_at.isoformat()
+        ArtworkGrantItem.objects.filter(pk=placa.pk).update(amount=20, updated_at=timezone.now())
+        placa.refresh_from_db()
+        stale = item_form({
+            'item_type': placa.item_type, 'concept': placa.concept, 'amount': '30', 'expected_updated_at': previous_update,
+        }, instance=placa)
         self.assertFalse(stale.is_valid())
 
-        artwork.owner = self.owner
-        artwork.grant_requested = True
-        artwork.grant_justification = 'Necesitamos apoyo para producir la obra.'
-        artwork.save()
         self.client.force_login(self.owner)
+        grant_url = reverse('artwork_grant', args=[artwork.pk])
+        page = self.client.get(grant_url)
+        self.assertContains(page, 'USD 1.020,00')
+        self.assertContains(page, 'Antes de presentar')
+        self.assertNotContains(page, 'Presentar solicitud de beca')
+
+        def save(**data):
+            return self.client.post(grant_url, {
+                'grant_requested': 'on', 'grant_justification': 'Necesitamos apoyo para producir la obra.',
+                'grant_currency': 'USD', 'grant_requested_amount': '800', 'grant_payee_name': 'Ana Artista',
+                'grant_payee_tax_id': '20-12345678-6', 'grant_payee_account': 'ana.artista.mp',
+                'grant_terms_accepted': 'on', 'expected_version': Artwork.objects.get(pk=artwork.pk).version, **data,
+            })
+
+        # CUIT con verificador incorrecto, CBU corto y alias con caracteres de más.
+        self.assertContains(save(grant_payee_tax_id='20-12345678-9'), 'Revisá el CUIT o CUIL')
+        self.assertContains(save(grant_payee_account='12345'), 'El CBU o CVU tiene 22 dígitos.')
+        self.assertContains(save(grant_payee_account='alias con espacios y ñ'), 'Ingresá un CBU o CVU')
+        artwork.refresh_from_db()
+        self.assertEqual(artwork.grant_payee_tax_id, '')
+
+        # Sin aceptar las condiciones, o pidiendo más que el presupuesto, no se presenta.
+        self.assertRedirects(save(grant_terms_accepted='', grant_requested_amount='2.000,00'), grant_url, fetch_redirect_response=False)
+        response = self.client.post(reverse('grant_submit', args=[artwork.pk]), follow=True)
+        self.assertContains(response, 'El monto que pedís no puede superar el total del presupuesto.')
+        self.assertContains(response, 'Aceptá las condiciones de la beca.')
+        artwork.refresh_from_db()
+        self.assertEqual(artwork.grant_status, Artwork.GrantStatus.NOT_REQUESTED)
+        self.assertIsNone(artwork.grant_terms_accepted_at)
+
+        self.assertRedirects(save(grant_payee_account='0000003100012345678901'), grant_url, fetch_redirect_response=False)
+        artwork.refresh_from_db()
+        self.assertEqual(
+            (artwork.grant_payee_tax_id, artwork.grant_payee_account, artwork.grant_requested_amount, artwork.grant_terms_accepted_by),
+            ('20123456786', '0000003100012345678901', Decimal('800'), self.owner),
+        )
+        self.assertIsNotNone(artwork.grant_terms_accepted_at)
+        self.assertContains(self.client.get(grant_url), 'Presentar solicitud de beca')
         response = self.client.post(reverse('grant_submit', args=[artwork.pk]))
-        self.assertEqual(response.url, f"{reverse('artwork_grant', args=[artwork.pk])}#solicitud")
+        self.assertEqual(response.url, f"{grant_url}#solicitud")
         artwork.refresh_from_db()
         self.assertEqual(artwork.grant_status, Artwork.GrantStatus.PENDING)
+        self.assertIsNotNone(artwork.grant_submitted_at)
+        # Presentada, la moneda y los datos de cobro ya no se editan.
+        save(grant_currency='ARS', grant_payee_name='Otra persona')
+        artwork.refresh_from_db()
+        self.assertEqual((artwork.grant_currency, artwork.grant_payee_name), ('USD', 'Ana Artista'))
+
+    def test_grant_page_intro_links_the_rules_and_shows_the_deadline(self):
+        artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
+        self.client.force_login(self.owner)
+        grant_url = reverse('artwork_grant', args=[artwork.pk])
+        page = self.client.get(grant_url)
+        self.assertContains(page, f'El Programa de Becas {self.event.name} ofrece apoyo económico')
+        self.assertNotContains(page, 'target="_blank" rel="noopener">Reglamento de Becas</a>')
+        program = self.event.art_program
+        program.grant_rules_url = 'https://example.com/reglamento'
+        program.grant_deadline = timezone.make_aware(datetime(2030, 12, 15, 12))
+        program.save()
+        page = self.client.get(grant_url)
+        self.assertContains(page, '<a href="https://example.com/reglamento" target="_blank" rel="noopener">Reglamento de Becas</a>')
+        self.assertContains(page, 'descriptas en el <a href="https://example.com/reglamento" target="_blank" rel="noopener">reglamento</a>')
+        self.assertContains(page, 'La fecha límite para enviar la solicitud es el 15 de diciembre de 2030.')
 
     def test_save_bar_makes_room_for_chat_bubble(self):
         artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
@@ -1522,8 +1559,7 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(ArtworkProviderVehicle.objects.get(provider=provider).plate, 'AB123CD')
 
         response = self.client.post(reverse('grant_item_create', args=[artwork.pk, 'budget']), {
-            'item_type': 'materials', 'concept': 'Madera', 'amount': '5000', 'currency': 'ARS',
-            'exchange_rate': '1', 'rate_date': timezone.localdate(), 'images': [self.image('uno.gif'), self.image('dos.gif')],
+            'item_type': 'materials', 'concept': 'Madera', 'amount': '5000', 'images': [self.image('uno.gif'), self.image('dos.gif')],
         })
         self.assertEqual(response.status_code, 302)
         self.assertEqual(artwork.grant_items.get().photos.count(), 2)
@@ -1663,7 +1699,7 @@ class ArtworkFlowTest(TestCase):
         )
         expense = ArtworkGrantItem.objects.create(
             artwork=artwork, phase=ArtworkGrantItem.Phase.EXPENSE,
-            concept='Flete', amount=Decimal('1000'), rate_date=timezone.localdate(),
+            concept='Flete', amount=Decimal('1000'),
         )
         self.client.force_login(self.admin)
         self.assertEqual(
@@ -1684,7 +1720,7 @@ class ArtworkFlowTest(TestCase):
         )
         item = ArtworkGrantItem.objects.create(
             artwork=artwork, phase=ArtworkGrantItem.Phase.EXPENSE,
-            concept='Flete', amount=Decimal('1000'), rate_date=timezone.localdate(),
+            concept='Flete', amount=Decimal('1000'),
         )
         review_url = reverse('grant_item_review', args=[self.event.slug, artwork.pk, item.pk])
 
@@ -1747,7 +1783,7 @@ class ArtworkFlowTest(TestCase):
 
         ArtworkGrantItem.objects.create(
             artwork=artwork, phase=ArtworkGrantItem.Phase.EXPENSE, concept='Materiales',
-            amount=100, currency='ARS', exchange_rate=1, rate_date=timezone.localdate(),
+            amount=100,
         )
         ArtworkPhoto.objects.create(
             artwork=artwork, image='art/gallery/final.gif', stage=ArtworkPhoto.Stage.FINAL,
@@ -1766,12 +1802,12 @@ class ArtworkFlowTest(TestCase):
     def test_grant_report_blocks_expenses_above_approved_amount(self):
         artwork = Artwork.objects.create(
             event=self.event, owner=self.owner, title='Faro', proposal='Texto',
-            grant_status=Artwork.GrantStatus.APPROVED, grant_approved_amount_ars=Decimal('1000'),
+            grant_status=Artwork.GrantStatus.APPROVED, grant_approved_amount=Decimal('1000'),
             grant_report='Fondos utilizados.',
         )
         ArtworkGrantItem.objects.create(
             artwork=artwork, phase=ArtworkGrantItem.Phase.EXPENSE, concept='Materiales',
-            amount=1001, currency='ARS', exchange_rate=1, rate_date=timezone.localdate(),
+            amount=1001,
         )
         ArtworkPhoto.objects.create(
             artwork=artwork, image='art/gallery/final.gif', stage=ArtworkPhoto.Stage.FINAL,

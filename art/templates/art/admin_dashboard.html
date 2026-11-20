@@ -1,6 +1,6 @@
 {% extends 'mi_fuego/my_tickets/index.html' %}
 {% load art_format %}
-{% block page_title %}ESTAFA{% endblock %}
+{% block page_title %}{{ art_team_name|default:'ESTAFA' }}{% endblock %}
 {% block submenu %}{% include 'art/_estafa_menu.html' %}{% endblock %}
 {% block truecontent %}
 <div class="container-fluid art-admin-dashboard">
@@ -13,10 +13,7 @@
     </div>
 
     <form method="get" class="art-filters mb-3" id="art-filters" aria-label="Filtros de propuestas">
-        <div class="filter-search">
-            <i class="fas fa-search" aria-hidden="true"></i>
-            <input type="search" name="q" value="{{ request.GET.q }}" placeholder="Buscar propuesta, persona o email" aria-label="Buscar propuesta, persona o email">
-        </div>
+        {% include 'art/_filter_search.html' %}
         <div class="dropdown">
             <button class="filter-chip{% if selected_statuses %} is-active{% endif %}" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">Estado{% if status_summary %}<span class="filter-chip-value">{{ status_summary }}</span>{% endif %}<i class="fas fa-chevron-down" aria-hidden="true"></i></button>
             <div class="dropdown-menu filter-menu" role="group" aria-label="Estado">
@@ -24,16 +21,7 @@
                 <p class="filter-hint">Sin elegir ninguno se ven todas menos las rechazadas.</p>
             </div>
         </div>
-        <div class="dropdown">
-            <button class="filter-chip{% if contact_summary %} is-active{% endif %}" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">Contacto{% if contact_summary %}<span class="filter-chip-value">{{ contact_summary }}</span>{% endif %}<i class="fas fa-chevron-down" aria-hidden="true"></i></button>
-            <div class="dropdown-menu filter-menu" role="group" aria-label="Contacto de ESTAFA">
-                <label class="filter-option"><input class="form-check-input" type="radio" name="contact" value="all"{% if not selected_contact %} checked{% endif %}><span>Todos</span></label>
-                <label class="filter-option"><input class="form-check-input" type="radio" name="contact" value="me"{% if selected_contact == 'me' %} checked{% endif %}><span>Asignadas a vos</span><span class="filter-count">{{ mine_count }}</span></label>
-                <label class="filter-option"><input class="form-check-input" type="radio" name="contact" value="none"{% if selected_contact == 'none' %} checked{% endif %}><span>Sin contacto</span><span class="filter-count">{{ no_contact_count }}</span></label>
-                <hr class="dropdown-divider">
-                {% for value, label, total in contact_choices %}<label class="filter-option"><input class="form-check-input" type="radio" name="contact" value="{{ value }}"{% if selected_contact == value %} checked{% endif %}><span>{{ label }}</span><span class="filter-count" title="Propuestas asignadas, sin contar rechazadas">{{ total }}</span></label>{% endfor %}
-            </div>
-        </div>
+        {% include 'art/_filter_contact.html' %}
         <div class="dropdown">
             <button class="filter-chip{% if selected_flags %} is-active{% endif %}" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">Marcas{% if flag_summary %}<span class="filter-chip-value">{{ flag_summary }}</span>{% endif %}<i class="fas fa-chevron-down" aria-hidden="true"></i></button>
             <div class="dropdown-menu filter-menu" role="group" aria-label="Marcas">
@@ -51,15 +39,7 @@
             <p class="small text-muted mb-0" aria-live="polite">{{ artworks|length }} instalaci{{ artworks|length|pluralize:"ón,ones" }}</p>
             {% if news_total %}<form method="post" action="{% url 'art_admin_mark_seen' event.slug %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="art-mark-seen" type="submit" title="Apaga el aviso de novedades en las {{ news_total }} propuesta{{ news_total|pluralize }} que lo tiene{{ news_total|pluralize:'n' }}"><i class="fas fa-check-double" aria-hidden="true"></i> Marcar todas como leídas</button></form>{% endif %}
         </div>
-        <div class="art-view-switch d-flex align-items-center gap-2" role="group" aria-labelledby="art-view-label">
-            <span class="small text-muted fw-semibold" id="art-view-label">Ver:</span>
-            <div class="btn-group btn-group-sm">
-                <input type="radio" class="btn-check" name="art-view" id="art-view-proposal" value="proposal" autocomplete="off" aria-controls="art-table-wrap" checked>
-                <label class="btn btn-outline-primary" for="art-view-proposal">Propuesta</label>
-                <input type="radio" class="btn-check" name="art-view" id="art-view-contact" value="contact" autocomplete="off" aria-controls="art-table-wrap">
-                <label class="btn btn-outline-primary" for="art-view-contact">Contacto</label>
-            </div>
-        </div>
+        {% include 'art/_view_switch.html' %}
     </div>
     <div class="table-responsive art-table-wrap" id="art-table-wrap">
         <table class="table table-sm align-middle art-table">
@@ -68,11 +48,9 @@
             {% for artwork in artworks %}{% with stage=artwork.stage %}
                 <tr>
                     <td>{% if artwork.news_count %}<span class="art-news" title="Cambios sin leer"><span class="art-news-dot" aria-hidden="true"></span><span class="visually-hidden">Cambios sin leer.</span></span>{% endif %}<a class="art-row-link stretched-link" href="{% url 'artwork_review' event.slug artwork.pk %}">{{ artwork.title|default:'Propuesta de Arte sin título' }}</a><span class="art-owner-line"><br><small class="text-muted">{% if artwork.owner %}{{ artwork.owner|person_name }}{% else %}Cuenta archivada{% endif %}</small></span>{% if artwork.proposal %}<span class="art-desc">{{ artwork.proposal|truncatechars:160 }}</span>{% endif %}</td>
-                    <td class="art-contact-col art-col-person">{% if artwork.owner %}{{ artwork.owner|person_label }}{% else %}<span class="text-muted">Cuenta archivada</span>{% endif %}</td>
-                    <td class="art-contact-col art-col-email">{% if artwork.owner.email %}<a class="art-contact-link" href="mailto:{{ artwork.owner.email }}">{{ artwork.owner.email }}</a>{% else %}{% include 'art/_dash.html' with label='Sin email' %}{% endif %}</td>
-                    <td class="art-contact-col art-col-whatsapp">{% with phone=artwork.owner.profile.phone %}{% with digits=phone|phone_whatsapp %}{% if digits %}<span class="text-nowrap">{{ phone|phone_display }}<a class="art-contact-link art-whatsapp ms-1" href="https://web.whatsapp.com/send?phone={{ digits }}" target="_blank" rel="noopener" aria-label="Escribir por WhatsApp a {% if artwork.owner %}{{ artwork.owner|person_name }}{% endif %}" title="Escribir por WhatsApp"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i></a></span>{% else %}{% include 'art/_dash.html' with label='Sin teléfono' %}{% endif %}{% endwith %}{% endwith %}</td>
+                    {% include 'art/_owner_contact_cells.html' %}
                     <td class="art-proposal-col art-col-status">{% include 'art/_status_badge.html' %}</td>
-                    <td class="art-proposal-col art-col-contact">{% with contact=artwork.estafa_contact %}{% if contact %}{{ contact|person_name }}{% with full_name=contact|person_full_name %}{% if full_name %}<br><small class="text-muted">{{ full_name }}</small>{% endif %}{% endwith %}{% else %}<span class="text-muted">Sin contacto</span>{% endif %}{% endwith %}</td>
+                    {% include 'art/_estafa_contact_cell.html' %}
                     <td class="art-proposal-col art-col-letter">{% if artwork.understanding_letter and artwork.understanding_letter_physical_received %}Digital · física{% elif artwork.understanding_letter %}Digital{% elif artwork.understanding_letter_physical_received %}Física{% else %}{% include 'art/_dash.html' with label='Sin declaración' %}{% endif %}</td>
                     <td class="art-proposal-col art-flags">{% include 'art/_artwork_flags.html' %}</td>
                     <td class="art-row-chevron text-end text-muted"><i class="fas fa-chevron-right" aria-hidden="true"></i></td>
@@ -83,154 +61,6 @@
     </div>
     {% endif %}
 </div>
-<style>
-    .art-admin-dashboard { max-width: 1320px; }
-    /* Filtros: una sola fila baja, sin caja. Se aplican solos al elegir. */
-    .art-filters { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
-    .filter-search { position: relative; flex: 0 1 300px; min-width: 200px; }
-    .filter-search i { position: absolute; left: .7rem; top: 50%; transform: translateY(-50%); font-size: .8rem; color: #8a938f; pointer-events: none; }
-    .art-filters .filter-search input { width: 100%; height: 36px; min-height: 0; margin: 0; padding: 0 .7rem 0 2rem; border: 1px solid oklch(86% .012 160); border-radius: .5rem; background: #fff; font-size: .875rem; line-height: 1; box-shadow: none; }
-    .art-filters .filter-search input::placeholder { color: #8a938f; }
-    .art-filters .filter-search input:focus, .filter-chip:focus-visible, .filter-clear:focus-visible { outline: none; border-color: rgb(40, 158, 109); box-shadow: 0 0 0 3px rgba(40, 158, 109, .2); }
-    .filter-chip { display: inline-flex; align-items: center; gap: .4rem; height: 36px; padding: 0 .75rem; border: 1px solid oklch(86% .012 160); border-radius: .5rem; background: #fff; color: #3d4643; font-size: .875rem; font-weight: 500; white-space: nowrap; }
-    .filter-chip:hover, .filter-chip[aria-expanded="true"] { background: #f6faf8; border-color: oklch(76% .03 160); }
-    .filter-chip i { font-size: .6rem; color: #8a938f; }
-    .filter-chip.is-active { border-color: rgba(40, 158, 109, .55); background: #eff8f4; color: rgb(24, 96, 67); }
-    .filter-chip-value { max-width: 14rem; overflow: hidden; text-overflow: ellipsis; font-weight: 700; }
-    .filter-chip-value::before { content: '· '; font-weight: 400; opacity: .6; }
-    .filter-menu { min-width: 15rem; width: max-content; max-width: min(22rem, 90vw); max-height: 60vh; overflow-y: auto; margin-top: .25rem !important; padding: .35rem; border: 1px solid oklch(88% .015 160); border-radius: .6rem; box-shadow: 0 8px 24px rgba(20, 40, 30, .12); font-size: .875rem; }
-    .filter-option { display: flex; align-items: center; gap: .6rem; min-height: 34px; margin: 0; padding: .3rem .55rem; border-radius: .4rem; font-weight: 400; line-height: 1.25; cursor: pointer; }
-    .filter-option:hover, .filter-option:focus-within { background: #f6faf8; }
-    .filter-option .form-check-input { flex: none; width: 1rem; height: 1rem; margin: 0; cursor: pointer; }
-    .filter-option .form-check-input:checked { background-color: rgb(40, 158, 109); border-color: rgb(40, 158, 109); }
-    .filter-option .form-check-input:focus { border-color: rgb(40, 158, 109); box-shadow: 0 0 0 3px rgba(40, 158, 109, .2); }
-    .filter-option:has(:checked) { font-weight: 600; }
-    .filter-count { margin-left: auto; padding-left: 1rem; font-size: .8rem; font-weight: 400; font-variant-numeric: tabular-nums; color: #8a938f; }
-    .filter-hint { margin: .35rem .55rem .2rem; padding-top: .45rem; border-top: 1px solid #e9eeec; font-size: .75rem; line-height: 1.3; color: #6c757d; }
-    .filter-clear { display: inline-flex; align-items: center; gap: .35rem; height: 36px; padding: 0 .5rem; border: 1px solid transparent; border-radius: .5rem; color: #6c757d; font-size: .85rem; text-decoration: none; }
-    .filter-clear:hover { color: #3d4643; background: #f3f5f4; }
-    /* Novedades: un punto y cuántos cambios hubo desde la última vez que la persona abrió la propuesta. */
-    .art-news-dot { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; background: #2563eb; }
-    .art-news { position: relative; z-index: 2; display: inline-flex; align-items: center; margin-right: .4rem; vertical-align: middle; cursor: help; }
-    .filter-news { cursor: pointer; margin: 0; }
-    .art-mark-seen { display: inline-flex; align-items: center; gap: .35rem; height: 28px; padding: 0 .5rem; border: 0; border-radius: .4rem; background: none; color: #6c757d; font-size: .8rem; }
-    .art-mark-seen:hover, .art-mark-seen:focus-visible { color: #3d4643; background: #f3f5f4; outline: none; }
-    .filter-news:has(:focus-visible) { border-color: rgb(40, 158, 109); box-shadow: 0 0 0 3px rgba(40, 158, 109, .2); }
-    .art-table-wrap { max-height: 70vh; border: 1px solid oklch(88% .015 160); }
-    .art-table { min-width: 760px; margin: 0; }
-    .art-table thead { position: sticky; top: 0; z-index: 3; background: oklch(95% .01 160); }
-    .art-table th { white-space: nowrap; }
-    .art-table-wrap .art-table tr { line-height: 1.35; }  /* barbu-style.css pone 1rem 2rem y line-height 1 en .table-responsive */
-    .art-table-wrap .art-table td, .art-table-wrap .art-table th { padding: .75rem .6rem; }
-    .art-table-wrap .art-table td:last-child { padding-left: 0; }
-    .art-table tbody tr { position: relative; }
-    .art-table tbody tr:hover > * { background: #f6faf8; }
-    /* Dos vistas de la misma tabla: Propuesta (por defecto) y Contacto de quien la lidera. */
-    .art-table .art-contact-col { display: none; }
-    .art-view-contact .art-table .art-contact-col { display: table-cell; }
-    .art-view-contact .art-table .art-proposal-col, .art-view-contact .art-table .art-owner-line, .art-view-contact .art-table .art-desc { display: none; }
-    .art-view-switch .btn { min-height: 36px; display: inline-flex; align-items: center; padding: .3rem .9rem; border-color: rgb(40, 158, 109); color: rgb(30, 110, 78); font-weight: 600; }
-    .art-view-switch .btn:hover { background: #f6faf8; color: rgb(30, 110, 78); }
-    .art-view-switch .btn-check:checked + .btn { background: rgb(40, 158, 109); border-color: rgb(40, 158, 109); color: #fff; }
-    .art-view-switch .btn-check:focus-visible + .btn { box-shadow: 0 0 0 3px rgba(40, 158, 109, .3); }
-    .art-view-switch .btn-group > .btn:first-of-type { border-radius: .5rem 0 0 .5rem; }
-    .art-view-switch .btn-group > .btn:last-of-type { border-radius: 0 .5rem .5rem 0; }
-    .art-col-email { max-width: 16rem; overflow-wrap: anywhere; }
-    .art-contact-link { position: relative; z-index: 2; }
-    .art-whatsapp { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: 24px; color: #15803d; font-size: 1.1rem; text-decoration: none; vertical-align: middle; }
-    .art-whatsapp:hover, .art-whatsapp:focus-visible { color: #166534; }
-    .art-row-link { color: inherit; font-weight: 700; text-decoration: none; }
-    .art-row-link:focus-visible { outline: none; }
-    .art-table tbody tr:has(.art-row-link:focus-visible) { outline: 3px solid rgba(40, 158, 109, .35); outline-offset: -3px; }
-    /* Descripción: dos líneas, apagada. */
-    .art-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 52ch; margin-top: .2rem; font-size: .8rem; line-height: 1.35; color: var(--bs-secondary-color, #6c757d); white-space: normal; }
-    /* Avisos para otros equipos: por encima del link de la fila, para que se vea el tooltip. Todos en una caja de 24 px. */
-    .art-flag-list { display: inline-flex; flex-wrap: wrap; gap: 4px 6px; max-width: 104px; vertical-align: middle; }  /* hasta tres por fila: la tabla no se pasa del ancho de la página */
-    .art-flag { position: relative; z-index: 2; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; font-size: 21px; line-height: 1; cursor: help; }
-    .art-flag svg { display: block; width: 24px; height: 24px; }
-    .art-flag-risk { color: #ea580c; }
-    .filter-menu .filter-option-icon { flex: none; width: 30px; z-index: auto; cursor: inherit; }  /* mismos íconos que la tabla, en una columna pareja */
-    .art-flag-camp { color: #0f766e; width: 30px; }
-    .art-flag-camp svg { width: 30px; height: 17px; }  /* el domo es más ancho que alto */
-    .art-flag-grant { color: #15803d; }
-    .art-flag-fire { color: #dc2626; }
-    .art-flag-sound { color: #7e22ce; font-size: 19px; }  /* el parlante es más ancho que alto */
-    .art-flag-mad { color: #a16207; }
-    .art-flag-movable { color: #0369a1; width: 26px; }  /* las personas con la caja son más anchas que altas */
-    .art-flag-ufo { color: #4338ca; width: 26px; }
-    .art-flag-ufo svg { width: 26px; height: 21px; }  /* misma grilla que la pickup */
-    @media (max-width: 767px) {
-        .filter-search { flex: 1 1 100%; }
-        /* En el teléfono cada propuesta es una tarjeta: toda la tarjeta abre la revisión. */
-        .art-table-wrap { max-height: none; overflow: visible; border: 0; }
-        .art-table { min-width: 0; }
-        .art-table, .art-table tbody, .art-table tr, .art-table td { display: block; width: 100%; }
-        .art-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-        .art-table tbody tr { margin-bottom: .75rem; padding: .85rem 2.25rem .85rem .9rem; border: 1px solid oklch(88% .015 160); border-radius: .5rem; background: #fff; }
-        .art-table-wrap .art-table td, .art-table-wrap .art-table th { padding: .15rem 0; border: 0; }
-        .art-table-wrap .art-table td:first-child { padding-bottom: .5rem; }
-        .art-table tbody tr:hover > * { background: transparent; }
-        .art-table tbody tr:hover { background: #f6faf8; }
-        .art-table tbody tr:has(.art-row-link:focus-visible) { outline-offset: 0; }
-        .art-view-contact .art-table td.art-contact-col { display: block; }
-        .art-view-contact .art-table td.art-proposal-col { display: none; }
-        .art-table td.art-col-status, .art-table td.art-col-contact, .art-table td.art-col-letter, .art-table td.art-contact-col { position: relative; padding-left: 7.25rem !important; font-size: .9rem; }
-        .art-table td.art-col-status::before, .art-table td.art-col-contact::before, .art-table td.art-col-letter::before, .art-table td.art-contact-col::before { position: absolute; left: 0; top: .15rem; width: 6.75rem; font-size: .8rem; font-weight: 600; color: var(--bs-secondary-color, #6c757d); }
-        .art-table td.art-col-status::before { content: 'Estado'; }
-        .art-table td.art-col-contact::before { content: 'Contacto'; }
-        .art-table td.art-col-letter::before { content: 'Declaración'; }
-        .art-table td.art-col-person::before { content: 'Responsable'; }
-        .art-table td.art-col-email::before { content: 'Email'; }
-        .art-table td.art-col-whatsapp::before { content: 'WhatsApp'; }
-        .art-col-email { max-width: none; }
-        .art-table td.art-flags:not(:has(.art-flag)) { display: none; }
-        .art-table td.art-flags { position: relative; padding-left: 7.25rem !important; font-size: .9rem; white-space: normal; }
-        .art-table td.art-flags .art-flag-list { flex-wrap: wrap; }
-        .art-table td.art-flags::before { content: 'Marcas'; position: absolute; left: 0; top: .45rem; width: 6.75rem; font-size: .8rem; font-weight: 600; color: var(--bs-secondary-color, #6c757d); }
-        .art-table td.art-row-chevron { position: absolute; top: 50%; right: .85rem; width: auto; transform: translateY(-50%); padding: 0 !important; }
-        .art-desc { max-width: none; }
-    }
-</style>
-<script>
-(function () {
-    var wrap = document.getElementById('art-table-wrap');
-    var contact = document.getElementById('art-view-contact');
-    var proposal = document.getElementById('art-view-proposal');
-    if (!wrap || !contact || !proposal) return;
-    var KEY = 'estafa-dashboard-view';
-    function apply() { wrap.classList.toggle('art-view-contact', contact.checked); }
-    try { if (localStorage.getItem(KEY) === 'contact') { contact.checked = true; } } catch (e) {}
-    apply();
-    [contact, proposal].forEach(function (input) {
-        input.addEventListener('change', function () {
-            apply();
-            try { localStorage.setItem(KEY, contact.checked ? 'contact' : 'proposal'); } catch (e) {}
-        });
-    });
-})();
-</script>
-<script>
-(function () {
-    // Los filtros se aplican solos: al cerrar el menú de estados (si cambió algo), al elegir un contacto o al buscar.
-    var form = document.getElementById('art-filters');
-    if (!form) return;
-    function state() { return new URLSearchParams(new FormData(form)).toString(); }
-    var initial = state();
-    var search = form.querySelector('input[type="search"]');
-    function send() { if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); } }
-    form.addEventListener('hidden.bs.dropdown', function () { if (state() !== initial) send(); });
-    form.addEventListener('change', function (event) { if (event.target.type === 'radio' || event.target.name === 'news') send(); });
-    search.addEventListener('search', function () { if (!search.value && state() !== initial) send(); });  // la cruz del buscador
-    // La URL queda sin parámetros vacíos.
-    form.addEventListener('submit', function () {
-        form.querySelectorAll('input[name="q"]').forEach(function (input) {
-            if (!input.value.trim()) input.disabled = true;
-        });
-    });
-    window.addEventListener('pageshow', function () {
-        form.querySelectorAll('input:disabled').forEach(function (input) { input.disabled = false; });
-    });
-})();
-</script>
+{% include 'art/_dashboard_assets.html' %}
 {% include 'art/_messages.html' %}
 {% endblock %}

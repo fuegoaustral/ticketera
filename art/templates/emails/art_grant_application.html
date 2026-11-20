@@ -1,0 +1,10 @@
+{% extends "emails/base.html" %}
+{% load art_format %}
+{% block subject %}[Becas] Nueva solicitud de beca: «{{ artwork.title|default:"sin título"|safe }}»{% endblock %}
+{% block title %}Nueva solicitud de beca{% endblock %}
+{% block content %}
+<p>{{ actor_name }} presentó la solicitud de beca de <strong>{{ artwork.title|default:"una Propuesta de Arte sin título" }}</strong> para {{ artwork.event.name }}.</p>
+<p>Pide {{ artwork.grant_currency }} {{ artwork.grant_requested_amount|art_money }}. Queda pendiente de evaluación.</p>
+{% include "emails/partials/btn.html" with href=grant_path label="Ver la beca" %}
+<p style="font-size:13px;color:#777">Te llega porque sos parte de {{ team_label|default:"ESTAFA" }}. Podés elegir qué emails recibir en <a href="{{ base_url }}{{ prefs_path }}">tus preferencias de email</a>.</p>
+{% endblock %}

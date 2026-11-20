@@ -1,0 +1,88 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% load art_format %}
+{% block page_title %}MAD · {{ artwork.title|default:'Propuesta de Arte sin título' }}{% endblock %}
+{% block submenu %}{% include 'art/_estafa_menu.html' %}{% endblock %}
+{% block truecontent %}
+<div class="container-fluid art-mad-artwork" style="max-width:1200px">
+    <a class="small text-decoration-none" href="{% url 'art_mad_dashboard' event.slug %}">← Volver a MAD</a>
+    <div class="my-4">
+        <p class="text-uppercase text-muted small fw-semibold mb-2">{{ event.name }}</p>
+        <h2 class="h3 mb-1">{{ artwork.title|default:'Propuesta de Arte sin título' }}</h2>
+        <p class="text-muted mb-0">{% if artwork.owner %}{{ artwork.owner|person_name }}{% else %}Cuenta archivada{% endif %}</p>
+    </div>
+    <div class="artwork-status mb-4">
+        <p class="d-flex flex-wrap align-items-center gap-2 mb-0">
+            {% include 'art/_status_badge.html' %}
+            {% if artwork.status_changed_at %}<small class="text-muted">Desde el {{ artwork.status_changed_at|date:'d/m/Y H:i' }}</small>{% endif %}
+        </p>
+        <p class="artwork-contact mt-3 mb-0">Responsable: {% if artwork.owner %}<strong>{{ artwork.owner|person_label }}</strong>{% else %}<span class="text-muted">Cuenta archivada</span>{% endif %}{% if artwork.owner.email %} · <a href="mailto:{{ artwork.owner.email }}">{{ artwork.owner.email }}</a>{% endif %}{% with phone=artwork.owner.profile.phone %}{% with digits=phone|phone_whatsapp %}{% if digits %} · <span class="text-nowrap">{{ phone|phone_display }}<a class="art-whatsapp ms-1" href="https://web.whatsapp.com/send?phone={{ digits }}" target="_blank" rel="noopener" aria-label="Escribir por WhatsApp a {{ artwork.owner|person_name }}" title="Escribir por WhatsApp"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i></a></span>{% endif %}{% endwith %}{% endwith %}</p>
+    </div>
+
+    <section class="mad-box mb-4" id="mad" aria-labelledby="mad-title">
+        <h3 class="h5" id="mad-title">Qué pide a MAD</h3>
+        <div class="review-summary">
+            <dl class="step-readonly mb-0">
+                {% include 'art/steps/summary/_row.html' with label='Necesita asistencia de MAD' value=artwork.needs_mad_assistance|yesno:'Sí,No' %}
+                {% include 'art/steps/summary/_row.html' with label='Movilidad propia (art car)' value=artwork.has_own_mobility|yesno:'Sí,No' %}
+            </dl>
+        </div>
+    </section>
+
+    <section class="mad-box mb-4" id="mensajes" aria-labelledby="messages-title">
+        <h3 class="h5" id="messages-title">Mensajes</h3>
+        {% if can_message %}
+        <form method="post" action="{% url 'artwork_message' event.slug artwork.pk %}">{% csrf_token %}
+            <input type="hidden" name="return_to" value="mad">
+            <label class="form-label fw-semibold" for="mad-message">Mensaje para el equipo</label>
+            <textarea class="form-control" id="mad-message" name="message" rows="2" aria-describedby="mad-message-help"></textarea>
+            <div class="d-flex flex-column flex-sm-row align-items-sm-center gap-2 mt-2">
+                <button class="btn btn-outline-primary" type="submit"><i class="far fa-paper-plane me-1" aria-hidden="true"></i>Enviar mensaje</button>
+                <small class="text-muted ms-sm-2" id="mad-message-help">Le llega al equipo por email.</small>
+            </div>
+        </form>
+        {% endif %}
+        {% if team_messages %}
+        <ol class="mad-messages list-unstyled mb-0 mt-3">
+            {% for entry in team_messages %}
+            <li><time class="text-muted small" datetime="{{ entry.created_at|date:'c' }}">{{ entry.created_at|date:'d/m/Y H:i' }}</time> <strong>{% if entry.actor %}{{ entry.actor.get_full_name|default:entry.actor.email }}{% else %}Cuenta archivada{% endif %}</strong><span class="mad-message-text">{{ entry.detail|linebreaksbr }}</span></li>
+            {% endfor %}
+        </ol>
+        {% else %}<p class="small text-muted mb-0 mt-3">Todavía no hay mensajes al equipo.</p>{% endif %}
+    </section>
+
+    <section aria-labelledby="proposal-title">
+        <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-2">
+            <h3 class="h5 mb-0" id="proposal-title">La propuesta</h3>
+            {% if show_full_link %}<a class="small" href="{% url 'artwork_review' event.slug artwork.pk %}">Ver la propuesta completa</a>{% endif %}
+        </div>
+        {% comment %}Sólo la propuesta creativa, campo por campo: lo que coordina ESTAFA no se muestra acá.{% endcomment %}
+        <div class="review-summary">
+            <dl class="step-readonly">
+                {% include 'art/steps/summary/_row.html' with label='Nombre' value=artwork.title %}
+                {% include 'art/steps/summary/_row.html' with label='Descripción' value=artwork.proposal multiline=True %}
+                {% include 'art/steps/summary/_row.html' with label='Dimensiones' value=artwork.dimensions %}
+                {% include 'art/steps/summary/_row.html' with label='Materiales' value=artwork.materials multiline=True %}
+                {% include 'art/steps/summary/_row.html' with label='Traslado hasta Tandil' value=artwork.transport_plan multiline=True %}
+                {% include 'art/steps/summary/_row.html' with label='Ubicación preferida' value=artwork.preferred_location %}
+                {% include 'art/steps/summary/_row.html' with label='Ubicación asignada' value=artwork.assigned_location empty='Sin asignar' %}
+            </dl>
+            <h4 class="summary-group-title">Archivos</h4>
+            {% if artwork_files %}{% include 'art/_artwork_files.html' with can_edit_files=False %}{% else %}<p class="small text-muted mb-2">No se subieron archivos.</p>{% endif %}
+            {% if artwork.files_url %}<p class="small mb-0"><a href="{{ artwork.files_url }}" target="_blank" rel="noopener">Link a más archivos<span class="visually-hidden"> (se abre en otra pestaña)</span></a></p>{% endif %}
+        </div>
+    </section>
+</div>
+<style>
+    .mad-box { padding: 1rem; border: 1px solid #d8e6df; border-radius: .55rem; }
+    .artwork-status { padding: 1rem; border: 1px solid #dee2e6; border-radius: .5rem; }
+    .artwork-status .badge { font-size: .8rem; padding: .45em .7em; }
+    .artwork-contact { padding-top: .75rem; border-top: 1px solid #dee2e6; overflow-wrap: anywhere; }
+    .art-whatsapp { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: 24px; color: #15803d; font-size: 1.1rem; text-decoration: none; vertical-align: middle; }
+    .art-whatsapp:hover, .art-whatsapp:focus-visible { color: #166534; }
+    .mad-messages li { padding: .5rem 0; border-top: 1px solid #f0f3f1; }
+    .mad-message-text { display: block; max-width: 68ch; margin-top: .2rem; padding-left: .6rem; border-left: 2px solid #d8e6df; color: #3d4643; }
+</style>
+{% include 'art/_summary_styles.html' %}
+{% include 'art/_messages.html' %}
+{% include 'art/_lightbox.html' %}
+{% endblock %}

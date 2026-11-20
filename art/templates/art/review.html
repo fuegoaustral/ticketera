@@ -4,10 +4,10 @@
 {% block submenu %}{% include 'art/_estafa_menu.html' %}{% endblock %}
 {% block truecontent %}
 <div class="container-fluid art-review" style="max-width:1200px">
-    <a class="small text-decoration-none" href="{% url 'art_admin_dashboard' event.slug %}">← Volver a ESTAFA</a>
+    <a class="small text-decoration-none" href="{% url 'art_admin_dashboard' event.slug %}">← Volver a las propuestas</a>
     <div class="d-flex flex-column flex-md-row justify-content-between gap-3 my-4">
         <div><h2 class="h3 mb-1">{{ artwork.title|default:'Propuesta de Arte sin título' }}</h2><p class="text-muted mb-0">{% if artwork.owner %}{{ artwork.owner|person_name }}{% else %}Cuenta archivada{% endif %}</p></div>
-        <div class="d-flex gap-2"><a class="btn btn-outline-primary" href="{% url 'artwork_edit' artwork.pk %}">Ver propuesta de Arte</a></div>
+        <div class="d-flex flex-wrap align-items-start gap-2">{% if show_grant %}<a class="btn btn-outline-primary" href="{% url 'artwork_grant' artwork.pk %}">Beca{% if artwork.grant_status != 'none' %} · {{ artwork.get_grant_status_display }}{% endif %}</a>{% endif %}{% if can_manage %}<a class="btn btn-outline-primary" href="{% url 'artwork_edit' artwork.pk %}">Ver propuesta de Arte</a>{% endif %}</div>
     </div>
     <section class="review-status mb-4" aria-label="Estado">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -19,19 +19,21 @@
             <button class="btn btn-sm review-reopen ms-auto" type="button" data-bs-toggle="modal" data-bs-target="#reopen-modal"><i class="fas fa-rotate-left me-1" aria-hidden="true"></i>Volver a inscripción pendiente</button>
             {% endif %}
         </div>
-        {% if can_manage %}
+        {% if can_message %}
         <form class="review-message" method="post" action="{% url 'artwork_message' event.slug artwork.pk %}">{% csrf_token %}
-            <label class="form-label fw-semibold" for="status-message">Mensaje para el equipo{% if artwork.status == 'pending' %} <span class="fw-normal text-muted">(opcional al aprobar, obligatorio al rechazar)</span>{% endif %}</label>
-            <textarea class="form-control" id="status-message" name="message" rows="{% if artwork.status == 'pending' %}3{% else %}2{% endif %}" aria-describedby="status-message-help"></textarea>
+            <label class="form-label fw-semibold" for="status-message">Mensaje para el equipo{% if can_manage and artwork.status == 'pending' %} <span class="fw-normal text-muted">(opcional al aprobar, obligatorio al rechazar)</span>{% endif %}</label>
+            <textarea class="form-control" id="status-message" name="message" rows="{% if can_manage and artwork.status == 'pending' %}3{% else %}2{% endif %}" aria-describedby="status-message-help"></textarea>
             <div class="d-flex flex-column flex-sm-row align-items-sm-center gap-2 mt-2">
-                {% if artwork.status == 'pending' %}
+                {% if can_manage and artwork.status == 'pending' %}
                 <button class="btn btn-success" type="submit" name="transition" value="approve" formaction="{% url 'artwork_status' event.slug artwork.pk %}"><i class="fas fa-check me-1" aria-hidden="true"></i>Aprobar</button>
                 <button class="btn btn-outline-danger" type="submit" name="transition" value="reject" formaction="{% url 'artwork_status' event.slug artwork.pk %}">Rechazar</button>
                 {% endif %}
-                <button class="btn btn-outline-primary review-message-send" type="submit"><i class="far fa-paper-plane me-1" aria-hidden="true"></i>{% if artwork.status == 'pending' %}Solo enviar el mensaje{% else %}Enviar mensaje{% endif %}</button>
+                <button class="btn btn-outline-primary review-message-send" type="submit"><i class="far fa-paper-plane me-1" aria-hidden="true"></i>{% if can_manage and artwork.status == 'pending' %}Solo enviar el mensaje{% else %}Enviar mensaje{% endif %}</button>
                 <small class="text-muted ms-sm-2" id="status-message-help">Le llega al equipo por email y queda en el historial.</small>
             </div>
         </form>
+        {% endif %}
+        {% if can_manage %}
         <form class="review-contact" method="post" action="{% url 'artwork_contact' event.slug artwork.pk %}">{% csrf_token %}
             <label class="form-label fw-semibold" for="{{ contact_form.estafa_contact.id_for_label }}">{{ contact_form.estafa_contact.label }}</label>
             <div class="d-flex flex-column flex-sm-row gap-2">
@@ -49,6 +51,8 @@
             <small class="text-muted">Marca interna de ESTAFA: el equipo de la propuesta no la ve.</small>
             <noscript><button class="btn btn-sm btn-outline-secondary" type="submit">{% if artwork.is_risky %}Quitar marca{% else %}Marcar como riesgosa{% endif %}</button></noscript>
         </form>
+        {% else %}
+        <p class="review-readonly mb-0"><span><strong>Contacto de ESTAFA:</strong> {% if artwork.estafa_contact %}{{ artwork.estafa_contact|person_name }}{% else %}Sin asignar{% endif %}</span>{% if artwork.is_risky %}<span class="review-readonly-risk"><i class="fas fa-triangle-exclamation me-1" aria-hidden="true"></i>Propuesta riesgosa</span>{% endif %}</p>
         {% endif %}
     </section>
     {% if history %}
@@ -80,7 +84,7 @@
     {% endif %}
     <section class="review-sections" aria-labelledby="sections-title">
         <h3 class="h5 mb-1" id="sections-title">Secciones</h3>
-        <p class="small text-muted mb-3">Abrí una sección para leer lo que cargó el equipo y completar lo que le toca a ESTAFA.</p>
+        <p class="small text-muted mb-3">{% if can_manage %}Abrí una sección para leer lo que cargó el equipo y completar lo que le toca a ESTAFA.{% else %}Abrí una sección para leer lo que cargó el equipo y lo que registró ESTAFA.{% endif %}</p>
         {% if form.non_field_errors %}<div class="alert alert-danger" role="alert">{{ form.non_field_errors }}</div>{% endif %}
         <div class="review-section-list">
             {% for section in sections %}
@@ -96,20 +100,22 @@
                     {% if section.template %}<div class="review-summary">{% include section.template with artwork=summary_artwork estafa_view=True %}</div>{% endif %}
                     {% if section.fields %}
                     <div class="estafa-fields">
-                        <h4 class="h6"><i class="fas fa-paintbrush me-1" aria-hidden="true"></i>Lo completa ESTAFA</h4>
+                        <h4 class="h6"><i class="fas fa-paintbrush me-1" aria-hidden="true"></i>{% if can_manage %}Lo completa ESTAFA{% else %}Lo registró ESTAFA{% endif %}</h4>
                         {% for field in section.fields %}{% include 'art/_field.html' %}{% endfor %}
                     </div>
                     {% endif %}
-                    {% if section.anchor %}<a class="review-section-edit" href="{% url 'artwork_edit' artwork.pk %}#{{ section.anchor }}">Ver en la propuesta <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i></a>{% endif %}
+                    {% if section.anchor and can_manage %}<a class="review-section-edit" href="{% url 'artwork_edit' artwork.pk %}#{{ section.anchor }}">Ver en la propuesta <i class="fas fa-arrow-right ms-1" aria-hidden="true"></i></a>{% endif %}
                 </div>
             </details>
             {% endfor %}
         </div>
+        {% if can_manage %}
         <form class="review-save" id="{{ form.FORM_ID }}" method="post" action="{% url 'artwork_review' artwork.event.slug artwork.pk %}" enctype="multipart/form-data" novalidate>{% csrf_token %}
             {% for field in form.hidden_fields %}{{ field }}{% endfor %}
             <small class="text-muted">Guarda lo que completa ESTAFA en todas las secciones.</small>
             <button class="btn btn-primary" type="submit">Guardar cambios</button>
         </form>
+        {% endif %}
     </section>
 </div>
 {% if can_manage and artwork.status == 'active' or can_manage and artwork.status == 'rejected' %}
@@ -167,6 +173,8 @@
     @media (max-width: 575px) { .history-entry { grid-template-columns: 1fr; gap: 0; } }
     .review-message { margin-top: 1rem; }
     .review-message .btn { height: 38px; min-height: 0; padding-top: 0; padding-bottom: 0; font-size: .9rem; display: inline-flex; align-items: center; justify-content: center; }
+    .review-readonly { display: flex; flex-wrap: wrap; gap: .25rem 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #d8e6df; }
+    .review-readonly-risk { color: #b45309; font-weight: 600; }
     .review-risk { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #d8e6df; }
     .review-risk .form-check-input { cursor: pointer; }
     .review-risk .form-check-label { cursor: pointer; color: #6c757d; }

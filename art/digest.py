@@ -1,4 +1,6 @@
-"""Emails de las obras para ESTAFA: obra nueva al momento y un resumen horario de cambios.
+"""Emails de las obras para ESTAFA, Becas y MAD: avisos al momento y un resumen horario de cambios.
+
+ESTAFA recibe lo de todas las obras, Becas sólo lo de las becas y MAD sólo lo de las obras que piden MAD.
 
 Cuentan como cambio sólo los que hace el equipo de la instalación (editar la propuesta, la beca,
 el checkout, subir fotos o archivos). Lo que hace ESTAFA al coordinar no se avisa.
@@ -8,6 +10,7 @@ import logging
 from collections import OrderedDict
 
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.core.mail import get_connection
 from django.db import transaction
 from django.urls import reverse
@@ -18,8 +21,14 @@ from user_profile.display import display_name
 from templated_email import get_templated_mail
 
 from . import history
-from .estafa import estafa_members, is_fuego_austral
+from .estafa import (
+    BECAS_SLUG, ESTAFA_SLUG, MAD_SLUG, art_team_members, art_team_names, is_fuego_austral,
+)
 from .models import ArtworkChange, EstafaNotificationPreference
+
+# Las secciones del historial que son de la beca: lo único que le llega a Becas, y lo que ESTAFA puede apagar.
+GRANT_REQUEST_SECTION, GRANT_REPORT_SECTION = 'Beca', 'Rendición de beca'
+GRANT_SECTIONS = frozenset((GRANT_REQUEST_SECTION, GRANT_REPORT_SECTION))
 
 
 def _send_one(connection, template_name, email, context):
@@ -31,6 +40,10 @@ def _send_one(connection, template_name, email, context):
     connection.send_messages([message])
 
 
+def _mad_path(artwork):
+    return reverse('artwork_mad', args=[artwork.event.slug, artwork.pk])
+
+
 def _prefs_path():
     return f"{reverse('profile')}#emails-estafa"
 
@@ -38,6 +51,32 @@ def _prefs_path():
 def _preferences(users):
     saved = {pref.user_id: pref for pref in EstafaNotificationPreference.objects.filter(user__in=users)}
     return {user.pk: saved.get(user.pk) or EstafaNotificationPreference(user=user) for user in users}
+
+
+def _team_members():
+    """La gente de ESTAFA, Becas y MAD con email, sus equipos y sus preferencias."""
+    teams = art_team_members()
+    members = list(User.objects.filter(pk__in=teams).exclude(email='').select_related('profile'))
+    return members, teams, _preferences(members)
+
+
+def _team_label(slugs):
+    return _names_sentence(art_team_names(slugs))
+
+
+def _send_each(template_name, recipients, context, what):
+    """El mismo aviso a cada persona por separado. `recipients`: [(persona, etiqueta de su equipo)]."""
+    sent = 0
+    if not recipients:
+        return sent
+    with get_connection() as connection:
+        for member, team_label in recipients:
+            try:
+                _send_one(connection, template_name, member.email, {**context, 'team_label': team_label})
+                sent += 1
+            except Exception:
+                logging.exception('No se pudo avisar a %s %s', member.email, what)
+    return sent
 
 
 def _names_sentence(names):
@@ -62,41 +101,88 @@ def record_change(artwork, section, actor, fields=()):
 
 
 def send_new_artwork_email(artwork):
-    """Avisa a ESTAFA que se inscribió una obra, a cada quien por separado."""
+    """Avisa que se inscribió una obra: a ESTAFA siempre y a MAD si la obra pide MAD. Un email por persona."""
     if not is_fuego_austral(artwork.event):
         return 0
-    members = list(estafa_members().exclude(email='').exclude(pk=artwork.owner_id).select_related('profile'))
-    prefs = _preferences(members)
+    members, teams, prefs = _team_members()
+    estafa, mad = [], []
+    for member in members:
+        if member.pk == artwork.owner_id:
+            continue
+        slugs, pref = teams[member.pk], prefs[member.pk]
+        if ESTAFA_SLUG in slugs and pref.new_artworks:
+            estafa.append((member, _team_label(slugs)))
+        elif MAD_SLUG in slugs and pref.mad_new_artworks and artwork.asks_mad:
+            mad.append((member, _team_label(slugs)))
     context = {
         'artwork': artwork,
         'owner_name': display_name(artwork.owner),
         'review_path': reverse('artwork_review', args=[artwork.event.slug, artwork.pk]),
         'prefs_path': _prefs_path(),
     }
-    recipients = [member.email for member in members if prefs[member.pk].new_artworks]
-    if not recipients:
+    what = f'la obra nueva {artwork.pk}'
+    return (
+        _send_each('art_estafa_new_artwork', estafa, context, what)
+        + _send_each('art_mad_artwork', mad, {**context, 'review_path': _mad_path(artwork), 'is_new': True}, what)
+    )
+
+
+def send_mad_request_email(artwork, actor=None):
+    """Una obra ya inscripta pasó a pedir MAD: se le avisa a MAD."""
+    if not is_fuego_austral(artwork.event):
         return 0
-    sent = 0
-    with get_connection() as connection:
-        for email in recipients:
-            try:
-                _send_one(connection, 'art_estafa_new_artwork', email, context)
-                sent += 1
-            except Exception:
-                logging.exception('No se pudo avisar a %s la obra nueva %s', email, artwork.pk)
-    return sent
+    members, teams, prefs = _team_members()
+    recipients = [
+        (member, _team_label(teams[member.pk])) for member in members
+        if MAD_SLUG in teams[member.pk] and prefs[member.pk].mad_new_artworks
+        and member.pk != getattr(actor, 'pk', None)
+    ]
+    return _send_each('art_mad_artwork', recipients, {
+        'artwork': artwork,
+        'owner_name': display_name(artwork.owner),
+        'review_path': _mad_path(artwork),
+        'prefs_path': _prefs_path(),
+        'is_new': False,
+    }, f'que la obra {artwork.pk} pide MAD')
 
 
-def _lines_for(member, pref, changes):
+def send_grant_application_email(artwork, actor=None):
+    """Un equipo presentó su solicitud de beca: se le avisa a Becas."""
+    if not is_fuego_austral(artwork.event):
+        return 0
+    members, teams, prefs = _team_members()
+    recipients = [
+        (member, _team_label(teams[member.pk])) for member in members
+        if BECAS_SLUG in teams[member.pk] and prefs[member.pk].becas_new_applications
+        and member.pk != getattr(actor, 'pk', None)
+    ]
+    return _send_each('art_grant_application', recipients, {
+        'artwork': artwork,
+        'actor_name': display_name(actor) if actor else display_name(artwork.owner),
+        'grant_path': reverse('artwork_grant', args=[artwork.pk]),
+        'prefs_path': _prefs_path(),
+    }, f'la solicitud de beca de la obra {artwork.pk}')
+
+
+def _wants_change(member, slugs, pref, change):
+    """Si a esta persona le corresponde enterarse del cambio, por alguno de sus equipos."""
+    artwork, is_grant = change.artwork, change.section in GRANT_SECTIONS
+    if ESTAFA_SLUG in slugs and (pref.grant_updates or not is_grant):
+        if pref.all_changes or (pref.assigned_changes and artwork.estafa_contact_id == member.pk):
+            return True
+    if BECAS_SLUG in slugs and is_grant and pref.becas_changes:
+        return True
+    return MAD_SLUG in slugs and pref.mad_changes and artwork.asks_mad
+
+
+def _lines_for(member, slugs, pref, changes):
     """Una línea por obra con lo que cambió, sin los cambios que hizo la misma persona."""
-    if not member.email or not (pref.all_changes or pref.assigned_changes):
+    if not member.email:
         return []
     by_artwork = OrderedDict()
     for change in changes:
         artwork = change.artwork
-        if change.actor_id == member.pk:
-            continue
-        if not pref.all_changes and artwork.estafa_contact_id != member.pk:
+        if change.actor_id == member.pk or not _wants_change(member, slugs, pref, change):
             continue
         line = by_artwork.setdefault(artwork.pk, {
             'artwork': artwork, 'sections': [], 'actors': [], 'change_ids': [],
@@ -125,7 +211,7 @@ def _reserve(member, lines):
 
 
 def send_estafa_change_digest(event=None, context=None):
-    """Cron horario: un email por persona de ESTAFA con las obras que cambiaron."""
+    """Cron horario: un email por persona de ESTAFA, Becas y MAD con las obras que cambiaron."""
     sent = 0
     with transaction.atomic():
         changes = list(
@@ -136,10 +222,9 @@ def send_estafa_change_digest(event=None, context=None):
         )
         if not changes:
             return 0
-        members = list(estafa_members().exclude(email='').select_related('profile'))
-        prefs = _preferences(members)
+        members, teams, prefs = _team_members()
         prefs_path = _prefs_path()
-        digests = [(member, _lines_for(member, prefs[member.pk], changes)) for member in members]
+        digests = [(member, _lines_for(member, teams[member.pk], prefs[member.pk], changes)) for member in members]
         digests = [(member, lines) for member, lines in digests if lines]
         if digests:
             with get_connection() as connection:
@@ -150,6 +235,7 @@ def send_estafa_change_digest(event=None, context=None):
                     try:
                         _send_one(connection, 'art_estafa_change_digest', member.email, {
                             'lines': lines, 'prefs_path': prefs_path,
+                            'team_label': _team_label(teams[member.pk]),
                         })
                         sent += 1
                     except Exception:

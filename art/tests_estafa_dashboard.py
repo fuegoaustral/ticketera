@@ -11,7 +11,7 @@ from teams.models import Team, TeamMembership
 from user_profile.models import Profile
 
 from .estafa import ESTAFA_SLUG
-from .models import ArtProgram, Artwork
+from .models import ArtProgram, Artwork, ArtworkGrantItem
 
 
 class EstafaDashboardListTest(TestCase):
@@ -217,3 +217,348 @@ class EstafaDashboardListTest(TestCase):
         self.assertEqual(response.context['no_contact_count'], 1)
         self.assertTrue(response.context['contact_summary'].endswith('(1)'))
         self.assertContains(response, 'class="filter-count"')
+
+
+class ArtTeamsTest(TestCase):
+    """MAD lee todo, Becas además gestiona las becas, ESTAFA hace todo."""
+
+    def setUp(self):
+        now = timezone.now()
+        Event.objects.filter(is_main=True).update(is_main=False)
+        self.event = Event.objects.create(
+            name='FA Equipos', slug='fa-equipos', active=True, is_main=True,
+            start=now + timedelta(days=20), end=now + timedelta(days=24),
+            transfers_enabled_until=now + timedelta(days=10), header_image='events/heros/no-image.jpg',
+            title='FA', description='Evento', has_volunteers=True,
+        )
+        self.program = ArtProgram.objects.create(
+            event=self.event, is_current=True, grants_enabled=True,
+            registration_opens=now - timedelta(days=30), registration_closes=now - timedelta(days=1),
+            grant_opens=now - timedelta(days=30), grant_deadline=now + timedelta(days=2),
+            proposal_deadline=now + timedelta(days=2), grant_report_deadline=now + timedelta(days=30),
+        )
+        self.owner = User.objects.create_user(username='duenia', email='duenia@example.com')
+        self.artwork = Artwork.objects.create(
+            event=self.event, owner=self.owner, title='Faro', grant_requested=True,
+            grant_status=Artwork.GrantStatus.PENDING,
+        )
+        self.users = {}
+        for slug in ('estafa', 'mad', 'becas'):
+            user = User.objects.create_user(username=slug, email=f'{slug}@example.com')
+            TeamMembership.objects.create(
+                team=Team.objects.get(slug=slug), user=user, started_on=now.date() - timedelta(days=30),
+            )
+            self.users[slug] = user
+        self.outsider = User.objects.create_user(username='otra', email='otra@example.com')
+        for index, user in enumerate((self.owner, self.outsider, *self.users.values()), start=1):
+            user.profile.document_number = f'2000000{index}'
+            user.profile.phone = f'+54911000001{index:02d}'
+            user.profile.profile_completion = Profile.COMPLETE
+            user.profile.save()
+        self.review_url = reverse('artwork_review', args=[self.event.slug, self.artwork.pk])
+        self.grant_url = reverse('artwork_grant', args=[self.artwork.pk])
+        self.decision_url = reverse('artwork_grant_decision', args=[self.event.slug, self.artwork.pk])
+
+    def test_mad_tab_lists_only_artworks_asking_for_mad(self):
+        url = reverse('art_mad_dashboard', args=[self.event.slug])
+        Artwork.objects.create(event=self.event, owner=self.owner, title='Carreta', is_movable=True)
+        Artwork.objects.create(
+            event=self.event, owner=self.owner, title='Buque', needs_mad_assistance=True, has_own_mobility=True,
+            proposal='Un buque que navega la playa',
+        )
+        Artwork.objects.create(event=self.event, owner=self.owner, title='Nave', has_own_mobility=True)
+        Artwork.objects.create(event=self.event, owner=self.owner, title='Grua', needs_mad_assistance=True)
+        Artwork.objects.create(
+            event=self.event, owner=self.owner, title='Descartada', has_own_mobility=True, status=Artwork.Status.REJECTED,
+        )
+        for slug in ('estafa', 'becas', 'mad'):
+            self.client.force_login(self.users[slug])
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200, slug)
+            titles = [artwork.title for artwork in response.context['artworks']]
+            # Moverse sin motor (Carreta) no es un pedido a MAD.
+            self.assertEqual(titles, ['Buque', 'Grua', 'Nave'], slug)
+        self.assertContains(response, 'Un buque que navega la playa')
+        self.assertNotContains(response, 'Se mueve')
+        response = self.client.get(url, {'ask': ['car']})
+        self.assertEqual([artwork.title for artwork in response.context['artworks']], ['Buque', 'Nave'])
+        response = self.client.get(url, {'q': 'gru'})
+        self.assertEqual([artwork.title for artwork in response.context['artworks']], ['Grua'])
+        self.assertContains(response, reverse('artwork_mad', args=[self.event.slug, response.context['artworks'][0].pk]))
+        # El contacto de ESTAFA es sólo del listado de propuestas.
+        self.assertNotContains(response, 'Sin contacto')
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(url).status_code, 403)
+
+    def test_mad_opens_a_proposal_with_the_mad_part_messages_and_the_proposal(self):
+        Artwork.objects.filter(pk=self.artwork.pk).update(needs_mad_assistance=True, proposal='Un faro que gira')
+        mad_url = reverse('artwork_mad', args=[self.event.slug, self.artwork.pk])
+        self.client.force_login(self.users['mad'])
+        # Quien es sólo de MAD no abre la revisión de ESTAFA: va a su vista.
+        self.assertRedirects(self.client.get(self.review_url), mad_url)
+        response = self.client.get(mad_url)
+        self.assertEqual(response.status_code, 200)
+        for text in ('Qué pide a MAD', 'Mensaje para el equipo', 'Volver a MAD', 'La propuesta', 'Un faro que gira', 'duenia@example.com'):
+            self.assertContains(response, text)
+        for text in (
+            'Checkout', 'Declaración', 'Proveedores', 'Ingreso anticipado', 'Late checkout', 'Seguridad', 'Se quema',
+            'Sonido', 'Galería', 'Devolución sobre la beca', 'Historial', 'Guardar contacto', 'Lo registró ESTAFA',
+            'Ver la propuesta completa', 'Check-in', 'Se mueve',
+        ):
+            self.assertNotContains(response, text)
+        with patch('art.views.send_mail'):
+            sent = self.client.post(
+                reverse('artwork_message', args=[self.event.slug, self.artwork.pk]),
+                {'message': 'Coordinamos el traslado', 'return_to': 'mad'},
+            )
+        self.assertRedirects(sent, mad_url + '#mensajes')
+        self.assertContains(self.client.get(mad_url), 'Coordinamos el traslado')
+        # ESTAFA también la ve, con el enlace a la revisión completa.
+        self.client.force_login(self.users['estafa'])
+        self.assertContains(self.client.get(mad_url), 'Ver la propuesta completa')
+        self.assertEqual(self.client.get(self.review_url).status_code, 200)
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(mad_url).status_code, 403)
+
+    def test_mad_only_member_lands_on_the_mad_tab(self):
+        self.client.force_login(self.users['mad'])
+        self.assertRedirects(
+            self.client.get(reverse('estafa_home')), reverse('art_mad_dashboard', args=[self.event.slug]),
+        )
+        self.client.force_login(self.users['estafa'])
+        self.assertRedirects(
+            self.client.get(reverse('estafa_home')), reverse('art_admin_dashboard', args=[self.event.slug]),
+            fetch_redirect_response=False,
+        )
+
+    def decision(self, action='approve', **data):
+        fields = {'approve': {'amount': '450.000,00', 'notes': ''}}.get(action, {})
+        return {
+            'action': action, **fields,
+            'expected_version': Artwork.objects.get(pk=self.artwork.pk).version, **data,
+        }
+
+    def test_mad_and_becas_read_everything_without_editing(self):
+        for slug in ('mad', 'becas'):
+            self.client.force_login(self.users[slug])
+            # Cada equipo entra por su pestaña.
+            landing = 'art_grants_dashboard' if slug == 'becas' else 'art_mad_dashboard'
+            self.assertRedirects(self.client.get(reverse('estafa_home')), reverse(landing, args=[self.event.slug]))
+            self.assertContains(self.client.get(reverse('art_admin_dashboard', args=[self.event.slug])), 'Faro')
+            self.assertEqual(self.client.get(reverse('art_admin_export', args=[self.event.slug])).status_code, 200)
+            # Becas lee la revisión completa; MAD, su vista de la propuesta, sin lo de ESTAFA.
+            response = self.client.get(self.review_url, follow=True)
+            if slug == 'becas':
+                self.assertContains(response, 'Lo registró ESTAFA')
+            else:
+                self.assertNotContains(response, 'Lo registró ESTAFA')
+            self.assertNotContains(response, 'Guardar cambios')
+            self.assertNotContains(response, 'Aprobar')
+            self.assertNotContains(response, 'Guardar contacto')
+            self.assertNotContains(response, 'Agregar fotos al reporte')
+            self.assertEqual(self.client.get(self.grant_url).status_code, 200)
+            # Nada de lo que decide o edita ESTAFA.
+            self.assertEqual(self.client.get(reverse('artwork_edit', args=[self.artwork.pk])).status_code, 404)
+            self.assertEqual(self.client.post(self.review_url, {}).status_code, 403)
+            for name, data in (
+                ('artwork_status', {'transition': 'approve'}),
+                ('artwork_risk', {'risky': '1'}), ('artwork_contact', {'estafa_contact': ''}),
+            ):
+                self.assertEqual(self.client.post(reverse(name, args=[self.event.slug, self.artwork.pk]), data).status_code, 403, name)
+        self.artwork.refresh_from_db()
+        self.assertEqual(self.artwork.status, Artwork.Status.PENDING)
+        self.assertFalse(self.artwork.is_risky)
+
+    def test_mad_and_becas_write_to_the_team(self):
+        message_url = reverse('artwork_message', args=[self.event.slug, self.artwork.pk])
+        for slug, name in (('mad', 'MAD'), ('becas', 'Becas')):
+            self.client.force_login(self.users[slug])
+            # MAD escribe desde su vista de la propuesta; Becas, desde la revisión.
+            page_url = reverse('artwork_mad', args=[self.event.slug, self.artwork.pk]) if slug == 'mad' else self.review_url
+            self.assertContains(self.client.get(page_url), 'Mensaje para el equipo')
+            self.assertContains(self.client.get(self.grant_url), 'Mensaje para el equipo')
+            with patch('art.views.send_mail') as send_mail:
+                self.assertRedirects(self.client.post(message_url, {'message': f'Hola de {name}'}), page_url)
+            self.assertEqual(send_mail.call_args.kwargs['context']['sender_team'], name)
+            self.assertEqual(send_mail.call_args.kwargs['recipient_list'], ['duenia@example.com'])
+            self.assertTrue(self.artwork.history.filter(kind='message', detail=f'Hola de {name}').exists())
+            # Desde la beca, vuelve a la beca.
+            with patch('art.views.send_mail'):
+                response = self.client.post(message_url, {'message': 'Otra', 'return_to': 'grant'})
+            self.assertRedirects(response, self.grant_url + '#mensaje')
+        # El equipo de la obra no se escribe a sí mismo.
+        self.client.force_login(self.owner)
+        self.assertNotContains(self.client.get(self.grant_url), 'Mensaje para el equipo')
+
+    def test_mad_cannot_touch_the_grant(self):
+        self.client.force_login(self.users['mad'])
+        response = self.client.get(self.grant_url)
+        self.assertNotContains(response, 'Decisión de la beca')
+        self.assertNotContains(response, 'Agregar ítem')
+        self.assertEqual(self.client.post(self.decision_url, self.decision()).status_code, 403)
+        self.assertEqual(self.client.post(self.grant_url, {'grant_justification': 'x'}).status_code, 404)
+        self.assertEqual(self.client.post(reverse('grant_item_create', args=[self.artwork.pk, 'budget']), {}).status_code, 403)
+        self.artwork.refresh_from_db()
+        self.assertEqual(self.artwork.grant_status, Artwork.GrantStatus.PENDING)
+
+    def test_becas_and_estafa_decide_the_grant(self):
+        for slug in ('becas', 'estafa'):
+            self.client.force_login(self.users[slug])
+            response = self.client.get(self.grant_url)
+            self.assertContains(response, 'Estado de la beca')
+            self.assertContains(response, 'Agregar ítem')
+            # La decisión son acciones, no un desplegable de estados.
+            self.assertNotContains(response, 'name="grant_status"')
+            for label in ('Aprobar', 'Pedir información', 'No aprobar'):
+                self.assertContains(response, label)
+            self.assertNotContains(response, 'Registrar pago')
+            # Aprobar pide el monto.
+            response = self.client.post(self.decision_url, self.decision(amount=''))
+            self.assertContains(response, 'Indicá el monto aprobado.')
+            with patch('art.views.send_mail') as send_mail, self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(self.decision_url, self.decision())
+            self.assertRedirects(response, self.grant_url + '#decision')
+            self.assertEqual(send_mail.call_args.kwargs['template_name'], 'art_grant_decision')
+            self.assertEqual(send_mail.call_args.kwargs['recipient_list'], ['duenia@example.com'])
+            # Ya aprobada, aprobar de nuevo no corresponde: no cambia nada ni avisa.
+            with patch('art.views.send_mail') as send_mail, self.captureOnCommitCallbacks(execute=True):
+                self.client.post(self.decision_url, self.decision())
+            send_mail.assert_not_called()
+            self.artwork.refresh_from_db()
+            self.assertEqual(self.artwork.grant_status, Artwork.GrantStatus.APPROVED)
+            self.assertEqual(self.artwork.grant_approved_amount, 450000)
+            self.assertIsNotNone(self.artwork.grant_decided_at)
+            # El monto se muestra como se escribe.
+            self.assertContains(self.client.get(self.grant_url), 'value="450.000,00"')
+            Artwork.objects.filter(pk=self.artwork.pk).update(
+                grant_status=Artwork.GrantStatus.PENDING, grant_approved_amount=None,
+            )
+        self.assertTrue(self.artwork.history.filter(summary='Aprobó la beca por ARS 450.000,00').exists())
+
+    def test_grant_actions_follow_the_status(self):
+        self.client.force_login(self.users['becas'])
+
+        def act(action, **data):
+            with patch('art.views.send_mail') as send_mail, self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(self.decision_url, self.decision(action, **data))
+            self.artwork.refresh_from_db()
+            return response, send_mail
+
+        # Pedir información exige contar qué falta.
+        response, _ = act('request_info', notes='')
+        self.assertContains(response, 'Contale al equipo qué falta.')
+        response, send_mail = act('request_info', notes='Falta el presupuesto de la estructura')
+        self.assertEqual(self.artwork.grant_status, Artwork.GrantStatus.INFO_REQUIRED)
+        send_mail.assert_called_once()
+        # Una versión vieja de la página no pisa lo que se guardó después.
+        response, _ = act('approve', expected_version=0)
+        self.assertContains(response, 'Otra persona guardó cambios')
+        act('approve')
+        self.assertEqual(self.artwork.grant_status, Artwork.GrantStatus.APPROVED)
+        self.assertEqual(self.artwork.grant_decision_notes, '')
+        # Registrar el pago pide la fecha.
+        response, _ = act('pay', paid_at='', reference='')
+        self.assertContains(response, 'Indicá la fecha de pago.')
+        _, send_mail = act('pay', paid_at='2026-12-20', reference='TRF 1')
+        self.assertEqual(self.artwork.grant_status, Artwork.GrantStatus.PAID)
+        send_mail.assert_called_once()
+        # Corregir sólo la referencia interna no le avisa al equipo.
+        _, send_mail = act('fix_payment', paid_at='2026-12-20', reference='TRF 2')
+        self.assertEqual(self.artwork.grant_payment_reference, 'TRF 2')
+        send_mail.assert_not_called()
+        # Con la rendición enviada: pedir cambios la devuelve al equipo; aprobarla la cierra.
+        Artwork.objects.filter(pk=self.artwork.pk).update(grant_status=Artwork.GrantStatus.REPORTED)
+        act('request_report_changes', notes='Falta un comprobante')
+        self.assertEqual(self.artwork.grant_status, Artwork.GrantStatus.PAID)
+        Artwork.objects.filter(pk=self.artwork.pk).update(grant_status=Artwork.GrantStatus.REPORTED)
+        act('approve_report')
+        self.assertEqual(self.artwork.grant_status, Artwork.GrantStatus.CLOSED)
+        act('reopen_report')
+        self.assertEqual(self.artwork.grant_status, Artwork.GrantStatus.REPORTED)
+        self.assertTrue(self.artwork.history.filter(summary='Registró el pago de la beca del 20/12/2026').exists())
+
+    def test_grants_tab_lists_requests_and_only_managers_export(self):
+        Artwork.objects.filter(pk=self.artwork.pk).update(
+            grant_currency='USD', grant_requested_amount=800, grant_payee_name='Ana Artista',
+            grant_payee_tax_id='20123456786', grant_payee_account='ana.artista.mp',
+        )
+        ArtworkGrantItem.objects.create(artwork=self.artwork, phase='budget', concept='Madera', amount=1000)
+        ArtworkGrantItem.objects.create(artwork=self.artwork, phase='expense', concept='Gasto', amount=5)
+        Artwork.objects.create(event=self.event, owner=self.owner, title='Sin beca')
+        tab_url = reverse('art_grants_dashboard', args=[self.event.slug])
+        export_url = reverse('art_grants_export', args=[self.event.slug])
+        for slug in ('estafa', 'becas', 'mad'):
+            self.client.force_login(self.users[slug])
+            response = self.client.get(tab_url)
+            self.assertContains(response, 'Faro')
+            self.assertNotContains(response, 'Sin beca')
+            self.assertContains(response, '1.000,00')
+            self.assertContains(response, '800,00')
+            self.assertContains(response, f'href="{self.grant_url}"')
+            # Datos de cobro en la tabla: sólo para quienes gestionan becas.
+            (self.assertNotContains if slug == 'mad' else self.assertContains)(response, 'ana.artista.mp')
+            (self.assertNotContains if slug == 'mad' else self.assertContains)(response, '20123456786')
+            self.assertContains(response, f'mailto:{self.owner.email}')
+            self.assertContains(self.client.get(tab_url + '?status=approved'), 'No hay becas que coincidan con estos filtros.')
+            export = self.client.get(export_url)
+            if slug == 'mad':
+                self.assertNotContains(response, 'Exportar CSV')
+                self.assertEqual(export.status_code, 403)
+                # MAD lee la beca, sin los datos de cobro.
+                grant_page = self.client.get(self.grant_url)
+                self.assertNotContains(grant_page, 'Ana Artista')
+                self.assertNotContains(grant_page, '20123456786')
+                self.assertNotContains(grant_page, 'ana.artista.mp')
+            else:
+                self.assertContains(response, 'Exportar CSV')
+                content = export.content.decode('utf-8-sig')
+                self.assertIn('Faro', content)
+                self.assertIn('USD,1000.00,800.00', content)
+                self.assertIn('Ana Artista,20123456786,ana.artista.mp', content)
+                self.assertNotIn('Madera', content)
+                self.assertNotIn('Sin beca', content)
+                self.assertContains(self.client.get(self.grant_url), 'ana.artista.mp')
+        # El equipo de la propuesta ve sus propios datos de cobro.
+        self.client.force_login(self.owner)
+        self.assertContains(self.client.get(self.grant_url), 'ana.artista.mp')
+
+    def test_grants_tab_searches_and_filters_like_the_proposals_list(self):
+        other_owner = User.objects.create_user('olga', 'olga@example.com', 'x', first_name='Olga', last_name='Molinera')
+        Artwork.objects.create(
+            event=self.event, owner=other_owner, title='Molino', grant_status=Artwork.GrantStatus.APPROVED,
+        )
+        tab_url = reverse('art_grants_dashboard', args=[self.event.slug])
+        export_url = reverse('art_grants_export', args=[self.event.slug])
+        self.client.force_login(self.users['estafa'])
+
+        def titles(query):
+            return [artwork.title for artwork in self.client.get(tab_url + query).context['artworks']]
+
+        self.assertEqual(titles(''), ['Faro', 'Molino'])
+        self.assertEqual(titles('?q=molin'), ['Molino'])
+        self.assertEqual(titles('?q=olga@example'), ['Molino'])
+        self.assertEqual(titles('?q=Olga'), ['Molino'])
+        self.assertEqual(titles('?status=approved'), ['Molino'])
+        self.assertEqual(titles(f'?status=approved&status={self.artwork.grant_status}'), ['Faro', 'Molino'])
+        # El contacto de ESTAFA es sólo del listado de propuestas: acá no filtra ni se muestra.
+        self.assertEqual(titles('?contact=none'), ['Faro', 'Molino'])
+        self.assertNotContains(self.client.get(tab_url), 'Sin contacto')
+        self.assertEqual(titles('?q=nada-de-nada'), [])
+        response = self.client.get(tab_url + '?q=molin&status=approved')
+        self.assertContains(response, 'Limpiar')
+        self.assertContains(response, 'name="q" value="molin"')
+        self.assertContains(response, f'{export_url}?q=molin&amp;status=approved')
+        self.assertNotContains(self.client.get(tab_url), 'Limpiar')
+        # El export respeta la búsqueda y los filtros.
+        content = self.client.get(export_url + '?q=molin').content.decode('utf-8-sig')
+        self.assertIn('Molino', content)
+        self.assertNotIn('Faro', content)
+
+    def test_people_outside_the_teams_stay_out(self):
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(reverse('estafa_home')).status_code, 403)
+        self.assertEqual(self.client.get(self.review_url).status_code, 403)
+        self.assertEqual(self.client.get(self.grant_url).status_code, 404)
+        self.assertEqual(self.client.post(self.decision_url, self.decision()).status_code, 403)
+        self.assertEqual(self.client.get(reverse('art_grants_dashboard', args=[self.event.slug])).status_code, 403)
+        self.assertEqual(self.client.get(reverse('art_grants_export', args=[self.event.slug])).status_code, 403)
