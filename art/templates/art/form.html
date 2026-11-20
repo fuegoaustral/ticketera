@@ -275,10 +275,74 @@
     // Al cargar sólo se ajusta la beca; los pasos se recuentan recién con la primera edición.
     setDirty(dirtyAtLoad);
 
-    // Elegir archivos ya los sube: no hace falta otro botón.
+    // Elegir archivos ya los sube: no hace falta otro botón. Con data-presign-url van directo a S3,
+    // porque la app (en Lambda) no recibe pedidos de más de ~6 MB: pide permiso, sube cada archivo
+    // al bucket y confirma.
+    const uploadDirect = async function (form, input, files) {
+        const label = form.querySelector('.artwork-file-add span');
+        const errorBox = form.closest('ul').parentElement.querySelector('[data-upload-error]');
+        const csrf = form.querySelector('[name="csrfmiddlewaretoken"]').value;
+        const labelText = label.textContent;
+        const post = async function (url, data) {
+            data.append('csrfmiddlewaretoken', csrf);
+            const response = await fetch(url, { method: 'POST', body: data, credentials: 'same-origin' });
+            const json = await response.json().catch(function () { return {}; });
+            if (!response.ok) throw new Error(json.error || 'No se pudieron subir los archivos. Probá de nuevo.');
+            return json;
+        };
+        errorBox.hidden = true;
+        input.disabled = true;
+        label.textContent = 'Preparando…';
+        try {
+            const request = new FormData();
+            files.forEach(function (file) {
+                request.append('name', file.name);
+                request.append('size', file.size);
+            });
+            const permission = await post(form.dataset.presignUrl, request);
+            const confirmation = new FormData();
+            for (let index = 0; index < files.length; index++) {
+                const upload = permission.uploads[index];
+                label.textContent = files.length > 1 ? 'Subiendo ' + (index + 1) + ' de ' + files.length + '…' : 'Subiendo…';
+                const body = new FormData();
+                Object.entries(upload.fields).forEach(function (entry) { body.append(entry[0], entry[1]); });
+                body.append('file', files[index]);
+                let stored;
+                try {
+                    stored = await fetch(upload.url, { method: 'POST', body: body });
+                } catch (error) {
+                    stored = null;
+                }
+                if (!stored || !stored.ok) throw new Error('No se pudo subir “' + files[index].name + '”. Revisá tu conexión y probá de nuevo.');
+                confirmation.append('token', upload.token);
+            }
+            label.textContent = 'Guardando…';
+            const done = await post(form.dataset.confirmUrl, confirmation);
+            const target = new URL(done.redirect, location.href);
+            if (target.pathname === location.pathname && target.search === location.search) {
+                location.hash = target.hash;
+                location.reload();
+            } else {
+                location.assign(target);
+            }
+        } catch (error) {
+            errorBox.innerHTML = '<p><i class="fas fa-circle-exclamation" aria-hidden="true"><\/i><\/p>';
+            errorBox.querySelector('p').append(error.message);
+            errorBox.hidden = false;
+            input.disabled = false;
+            input.value = '';
+            label.textContent = labelText;
+        }
+    };
     document.querySelectorAll('form[data-autosubmit]').forEach(function (form) {
-        form.querySelector('input[type="file"]').addEventListener('change', function (event) {
-            if (event.target.files.length) form.requestSubmit();
+        const input = form.querySelector('input[type="file"]');
+        input.addEventListener('change', function () {
+            if (!input.files.length) return;
+            if (form.dataset.presignUrl && window.fetch) {
+                uploadDirect(form, input, Array.from(input.files));
+            } else {
+                form.requestSubmit();
+            }
         });
     });
 

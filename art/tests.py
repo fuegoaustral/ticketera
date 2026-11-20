@@ -748,24 +748,35 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(artwork.artwork_providers.count(), 1)
         self.assertEqual(artwork.photos.count(), 1)
 
-    def test_proposal_files_accept_images_and_pdfs_only(self):
+    def test_proposal_files_accept_images_pdfs_and_videos_only(self):
         artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
         self.client.force_login(self.owner)
         url = reverse('artwork_file_upload', args=[artwork.pk])
         pdf = SimpleUploadedFile('plano.pdf', b'%PDF-1.4 plano', content_type='application/pdf')
-        response = self.client.post(url, {'files': [self.image('boceto.gif'), pdf]})
+        video = SimpleUploadedFile('recorrido.MP4', b'video', content_type='video/mp4')
+        response = self.client.post(url, {'files': [self.image('boceto.gif'), pdf, video]})
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(sorted(artwork.files.values_list('name', flat=True)), ['boceto.gif', 'plano.pdf'])
-        self.assertEqual({f.name: f.is_image for f in artwork.files.all()}, {'boceto.gif': True, 'plano.pdf': False})
+        self.assertEqual(sorted(artwork.files.values_list('name', flat=True)), ['boceto.gif', 'plano.pdf', 'recorrido.MP4'])
+        self.assertEqual(
+            {f.name: (f.is_image, f.is_video) for f in artwork.files.all()},
+            {'boceto.gif': (True, False), 'plano.pdf': (False, False), 'recorrido.MP4': (False, True)},
+        )
+        response = self.client.get(reverse('artwork_edit', args=[artwork.pk]))
+        self.assertContains(response, 'fa-file-video')
 
         response = self.client.post(url, {'files': SimpleUploadedFile('notas.docx', b'x')})
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'no es una imagen ni un PDF')
-        self.assertEqual(artwork.files.count(), 2)
+        self.assertContains(response, 'no es una imagen, un PDF ni un video')
+
+        big_video = SimpleUploadedFile('largo.mov', b'x' * (20 * 1024 * 1024 + 1), content_type='video/quicktime')
+        response = self.client.post(url, {'files': big_video})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'pesa más de 20 MB')
+        self.assertEqual(artwork.files.count(), 3)
 
         artwork_file = artwork.files.get(name='plano.pdf')
         self.client.post(reverse('artwork_file_delete', args=[artwork.pk, artwork_file.pk]))
-        self.assertEqual(artwork.files.count(), 1)
+        self.assertEqual(artwork.files.count(), 2)
 
     def test_grant_page_and_main_form_never_blank_each_other(self):
         artwork = Artwork.objects.create(
