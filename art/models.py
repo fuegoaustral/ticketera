@@ -656,9 +656,10 @@ class ArtworkPhoto(BaseModel):
 
 
 class ArtworkFile(BaseModel):
-    """Archivos de la propuesta: bocetos, planos o renders, en imagen o PDF."""
+    """Archivos de la propuesta: bocetos, planos o renders, en imagen, PDF o video."""
 
     IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif')
+    VIDEO_EXTENSIONS = ('.mp4', '.mov', '.m4v', '.webm')
 
     artwork = models.ForeignKey(Artwork, on_delete=models.CASCADE, related_name='files')
     file = models.FileField(upload_to='art/files', storage=private_art_storage, verbose_name='Archivo')
@@ -676,6 +677,10 @@ class ArtworkFile(BaseModel):
     @property
     def is_image(self):
         return self.file.name.lower().endswith(self.IMAGE_EXTENSIONS)
+
+    @property
+    def is_video(self):
+        return self.file.name.lower().endswith(self.VIDEO_EXTENSIONS)
 
 
 class ArtworkCheckoutPhoto(BaseModel):

@@ -454,27 +454,43 @@ class MultipleFileField(forms.FileField):
 
 
 class ArtworkFileUploadForm(InvalidFieldsMixin, forms.Form):
-    """Archivos de la propuesta: imágenes o PDF."""
+    """Archivos de la propuesta: imágenes, PDF o videos."""
 
-    ALLOWED_EXTENSIONS = (*ArtworkFile.IMAGE_EXTENSIONS, '.pdf')
+    ALLOWED_EXTENSIONS = (*ArtworkFile.IMAGE_EXTENSIONS, *ArtworkFile.VIDEO_EXTENSIONS, '.pdf')
+    MAX_FILE_BYTES = 20 * 1024 * 1024
+    MAX_FILES_PER_UPLOAD = 10
+    MAX_FILES_PER_ARTWORK = 30
 
     files = MultipleFileField(label='Archivos')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['files'].widget.attrs.update({
-            'class': 'form-control', 'accept': 'image/*,application/pdf',
+            'class': 'form-control', 'accept': 'image/*,video/*,application/pdf',
         })
+
+    @classmethod
+    def upload_error(cls, uploads):
+        """Por qué no se pueden subir estos archivos, dados como (nombre, bytes); None si se puede.
+
+        Lo usan el formulario y la subida directa a S3, que sólo conoce nombre y tamaño.
+        """
+        if len(uploads) > cls.MAX_FILES_PER_UPLOAD:
+            return f'Podés subir hasta {cls.MAX_FILES_PER_UPLOAD} archivos por vez.'
+        for name, size in uploads:
+            if not name.lower().endswith(cls.ALLOWED_EXTENSIONS):
+                return f'“{name}” no es una imagen, un PDF ni un video.'
+            if size > cls.MAX_FILE_BYTES:
+                return f'“{name}” pesa más de 20 MB.'
+            if size < 1:
+                return f'“{name}” está vacío.'
+        return None
 
     def clean_files(self):
         files = self.cleaned_data['files']
-        if len(files) > 10:
-            raise forms.ValidationError('Podés subir hasta 10 archivos por vez.')
-        for upload in files:
-            if not upload.name.lower().endswith(self.ALLOWED_EXTENSIONS):
-                raise forms.ValidationError(f'“{upload.name}” no es una imagen ni un PDF.')
-            if upload.size > 20 * 1024 * 1024:
-                raise forms.ValidationError(f'“{upload.name}” pesa más de 20 MB.')
+        error = self.upload_error([(upload.name, upload.size) for upload in files])
+        if error:
+            raise forms.ValidationError(error)
         return files
 
 
