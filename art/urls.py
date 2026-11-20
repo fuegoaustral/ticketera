@@ -2,10 +2,10 @@ from django.urls import path
 from django.views.generic import RedirectView
 
 from .views import (
-    art_admin_dashboard, art_admin_export, art_dashboard,
+    art_admin_dashboard, art_admin_export, art_dashboard, art_grants_dashboard, art_grants_export, art_mad_dashboard, artwork_mad,
     artwork_provider_delete, artwork_provider_edit, artwork_vehicle_delete,
     artwork_vehicle_edit,
-    art_admin_mark_seen, artwork_contact, artwork_message, artwork_risk, artwork_create, artwork_edit, artwork_file_confirm, artwork_file_delete, artwork_file_presign, artwork_file_upload, artwork_grant,
+    art_admin_mark_seen, artwork_contact, artwork_message, artwork_risk, artwork_create, artwork_edit, artwork_file_confirm, artwork_file_delete, artwork_file_presign, artwork_file_upload, artwork_grant, artwork_grant_decision,
     artwork_status, estafa_home, artwork_photo_delete, artwork_photo_upload,
     artwork_checkout_photo_delete, artwork_checkout_photo_upload,
     artwork_review, grant_item_create, grant_item_delete, grant_item_edit, grant_item_review,
@@ -45,12 +45,17 @@ urlpatterns = [
     path("estafa/", estafa_home, name="estafa_home"),
     path("estafa/<slug:event_slug>/", art_admin_dashboard, name="art_admin_dashboard"),
     path("estafa/<slug:event_slug>/exportar/", art_admin_export, name="art_admin_export"),
+    path("estafa/<slug:event_slug>/becas/", art_grants_dashboard, name="art_grants_dashboard"),
+    path("estafa/<slug:event_slug>/mad/", art_mad_dashboard, name="art_mad_dashboard"),
+    path("estafa/<slug:event_slug>/mad/obra/<int:artwork_id>/", artwork_mad, name="artwork_mad"),
+    path("estafa/<slug:event_slug>/becas/exportar/", art_grants_export, name="art_grants_export"),
     path("estafa/<slug:event_slug>/obra/<int:artwork_id>/", artwork_review, name="artwork_review"),
     path("estafa/<slug:event_slug>/obra/<int:artwork_id>/estado/", artwork_status, name="artwork_status"),
     path("estafa/<slug:event_slug>/obra/<int:artwork_id>/contacto/", artwork_contact, name="artwork_contact"),
     path("estafa/<slug:event_slug>/novedades/leidas/", art_admin_mark_seen, name="art_admin_mark_seen"),
     path("estafa/<slug:event_slug>/obra/<int:artwork_id>/riesgo/", artwork_risk, name="artwork_risk"),
     path("estafa/<slug:event_slug>/obra/<int:artwork_id>/mensaje/", artwork_message, name="artwork_message"),
+    path("estafa/<slug:event_slug>/obra/<int:artwork_id>/beca/decision/", artwork_grant_decision, name="artwork_grant_decision"),
     path("estafa/<slug:event_slug>/obra/<int:artwork_id>/beca/item/<int:item_id>/revisar/", grant_item_review, name="grant_item_review"),
     # Direcciones anteriores de la coordinación de Arte.
     path("mis-eventos/<slug:event_slug>/arte/", RedirectView.as_view(pattern_name="art_admin_dashboard", permanent=True, query_string=True)),

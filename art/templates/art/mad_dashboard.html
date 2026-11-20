@@ -1,0 +1,45 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% load art_format %}
+{% block page_title %}MAD · {{ art_team_name|default:'ESTAFA' }}{% endblock %}
+{% block submenu %}{% include 'art/_estafa_menu.html' %}{% endblock %}
+{% block truecontent %}
+<div class="container-fluid art-mad-dashboard">
+    <div class="mb-4"><p class="text-uppercase text-muted small fw-semibold mb-1">{{ event.name }}</p><h2 class="h3 mb-1">MAD</h2><p class="text-muted mb-0">Las propuestas que piden MAD, y qué piden.</p></div>
+
+    <form method="get" class="art-filters mb-3" id="art-filters" aria-label="Filtros de MAD">
+        {% include 'art/_filter_search.html' %}
+        <div class="dropdown">
+            <button class="filter-chip{% if selected_asks %} is-active{% endif %}" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">Pide{% if ask_summary %}<span class="filter-chip-value">{{ ask_summary }}</span>{% endif %}<i class="fas fa-chevron-down" aria-hidden="true"></i></button>
+            <div class="dropdown-menu filter-menu" role="group" aria-label="Qué pide a MAD">
+                {% for value, label, total in ask_choices %}<label class="filter-option"><input class="form-check-input" type="checkbox" name="ask" value="{{ value }}"{% if value in selected_asks %} checked{% endif %}><span>{{ label }}</span><span class="filter-count">{{ total }}</span></label>{% endfor %}
+                <p class="filter-hint">Sin elegir ninguno se ven todas las que piden MAD.</p>
+            </div>
+        </div>
+        {% if filters_active %}<a class="filter-clear" href="{% url 'art_mad_dashboard' event.slug %}"><i class="fas fa-times" aria-hidden="true"></i> Limpiar</a>{% endif %}
+        <button class="visually-hidden" type="submit" tabindex="-1">Filtrar</button>
+    </form>
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+        <p class="small text-muted mb-0" aria-live="polite">{{ artworks|length }} propuesta{{ artworks|length|pluralize }}</p>
+        {% include 'art/_view_switch.html' with main_label='MAD' %}
+    </div>
+    <div class="table-responsive art-table-wrap" id="art-table-wrap">
+        <table class="table table-sm align-middle art-table">
+            <thead><tr><th>Propuesta de Arte</th><th class="art-contact-col">Responsable</th><th class="art-contact-col">Email</th><th class="art-contact-col">WhatsApp</th><th class="art-proposal-col">Asistencia</th><th class="art-proposal-col">Art car</th><th><span class="visually-hidden">Abrir</span></th></tr></thead>
+            <tbody>
+            {% for artwork in artworks %}
+                <tr>
+                    <td><a class="art-row-link stretched-link" href="{% url 'artwork_mad' event.slug artwork.pk %}">{{ artwork.title|default:'Propuesta de Arte sin título' }}</a><span class="art-owner-line"><br><small class="text-muted">{% if artwork.owner %}{{ artwork.owner|person_name }}{% else %}Cuenta archivada{% endif %}</small></span>{% if artwork.proposal %}<span class="art-desc">{{ artwork.proposal|truncatechars:160 }}</span>{% endif %}</td>
+                    {% include 'art/_owner_contact_cells.html' %}
+                    <td class="art-proposal-col" data-label="Asistencia">{% if artwork.needs_mad_assistance %}Sí{% else %}{% include 'art/_dash.html' with label='No pide asistencia' %}{% endif %}</td>
+                    <td class="art-proposal-col" data-label="Art car">{% if artwork.has_own_mobility %}Sí{% else %}{% include 'art/_dash.html' with label='No es un art car' %}{% endif %}</td>
+                    <td class="art-row-chevron text-end text-muted"><i class="fas fa-chevron-right" aria-hidden="true"></i></td>
+                </tr>
+            {% empty %}<tr><td colspan="7" class="text-center text-muted py-5">{% if has_artworks %}No hay propuestas que coincidan con estos filtros.{% else %}Todavía ninguna propuesta pide MAD.{% endif %}</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% include 'art/_dashboard_assets.html' %}
+{% include 'art/_messages.html' %}
+{% endblock %}

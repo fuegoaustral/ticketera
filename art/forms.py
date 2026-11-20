@@ -5,8 +5,9 @@ from django import forms
 from django.contrib.auth.models import User
 from django.db.models import Q
 from django.utils import timezone
+from django.utils.html import format_html
 
-from .estafa import estafa_members
+from .estafa import ART_TEAMS, BECAS_SLUG, ESTAFA_SLUG, MAD_SLUG, art_team_names, estafa_members
 from .models import (
     Artwork, ArtworkFile, ArtworkGrantItem,
     ArtworkPhoto, ArtworkProvider, ArtworkProviderVehicle, EstafaNotificationPreference,
@@ -41,10 +42,36 @@ ARTWORK_BLOCK_FIELDS = {
 }
 
 # La beca se pide en su propia pantalla, con su propio formulario.
+GRANT_PAYEE_FIELDS = ('grant_payee_name', 'grant_payee_tax_id', 'grant_payee_account')
 GRANT_BLOCK_FIELDS = {
-    'grant': ('grant_requested', 'grant_justification'),
+    'grant': (
+        'grant_requested', 'grant_justification', 'grant_currency', 'grant_requested_amount',
+        *GRANT_PAYEE_FIELDS, 'grant_terms_accepted',
+    ),
     'grant_report': ('grant_report',),
 }
+# A partir de qué monto se pide una confirmación extra, en cada moneda.
+LARGE_AMOUNT = {Artwork.GrantCurrency.ARS: Decimal('1000000'), Artwork.GrantCurrency.USD: Decimal('1000')}
+LARGE_AMOUNT_LABEL = 'Confirmo que el monto es correcto'
+LARGE_AMOUNT_HELP = 'En montos grandes pedimos una confirmación extra, para evitar errores de ceros o separadores.'
+
+
+def _money_widget(currency=None):
+    attrs = {'inputmode': 'decimal', 'autocomplete': 'off', 'data-money-input': 'true'}
+    if currency:
+        attrs['data-confirm-from'] = str(LARGE_AMOUNT[currency])
+    return forms.TextInput(attrs=attrs)
+
+
+def valid_tax_id(digits):
+    """CUIT o CUIL: 11 dígitos, el último es el verificador."""
+    if len(digits) != 11 or not digits.isdigit():
+        return False
+    check = 11 - sum(int(digit) * weight for digit, weight in zip(digits, (5, 4, 3, 2, 7, 6, 5, 4, 3, 2))) % 11
+    return {11: 0}.get(check, check) == int(digits[10])
+
+
+PAYEE_ALIAS = re.compile(r'[A-Za-z0-9.-]{6,20}')
 
 
 def _block_locked(program, block, is_manager):
@@ -250,24 +277,59 @@ class ArtworkGrantForm(InvalidFieldsMixin, forms.ModelForm):
     BLOCK_FIELDS = GRANT_BLOCK_FIELDS
 
     expected_version = forms.IntegerField(widget=forms.HiddenInput, required=False)
+    grant_requested_amount = LocalizedDecimalField(
+        required=False, max_digits=14, decimal_places=2, min_value=Decimal('0.01'), label='Monto que pedís',
+        help_text='En la moneda de la beca. No puede superar el total del presupuesto.',
+        widget=_money_widget(),
+    )
+    grant_terms_accepted = forms.BooleanField(required=False)
 
     class Meta:
         model = Artwork
-        fields = [field for fields in GRANT_BLOCK_FIELDS.values() for field in fields]
+        fields = (
+            'grant_requested', 'grant_justification', 'grant_currency', 'grant_requested_amount',
+            *GRANT_PAYEE_FIELDS, 'grant_report',
+        )
         widgets = {
             'grant_justification': forms.Textarea(attrs={'rows': 6}),
             'grant_report': forms.Textarea(attrs={'rows': 8}),
+            'grant_payee_tax_id': forms.TextInput(attrs={'inputmode': 'numeric', 'maxlength': 13}),
+        }
+        help_texts = {
+            'grant_currency': 'Todo va en esta moneda: el presupuesto, el monto que pedís y la rendición.',
+            'grant_payee_account': 'El CBU o CVU tiene 22 dígitos.',
         }
 
     def __init__(self, *args, program, actor, **kwargs):
         super().__init__(*args, **kwargs)
         self.program = program
         self.actor = actor
-        self.is_manager = self.instance.can_manage(actor)
+        # La beca la gestionan Becas y ESTAFA.
+        self.is_manager = self.instance.can_manage_grant(actor)
+        # Los datos de cobro los ven el equipo de la propuesta y quienes gestionan becas.
+        self.show_payee = self.is_manager or self.instance.can_edit(actor)
+        if not self.show_payee:
+            for name in GRANT_PAYEE_FIELDS:
+                del self.fields[name]
+        # CharField con max_length recorta antes de normalizar: el CUIT llega con guiones.
+        if self.show_payee:
+            self.fields['grant_payee_tax_id'].max_length = None
+            self.fields['grant_payee_tax_id'].validators = []
+            self.fields['grant_payee_account'].max_length = None
+            self.fields['grant_payee_account'].validators = []
+            self.fields['grant_payee_tax_id'].widget.attrs['maxlength'] = 13
+            self.fields['grant_payee_account'].widget.attrs['maxlength'] = 30
+        terms = self.fields['grant_terms_accepted']
+        terms.label = format_html(
+            'Acepto las condiciones de la beca descriptas en el <a href="{}" target="_blank" rel="noopener">reglamento</a>',
+            program.grant_rules_url,
+        ) if program.grant_rules_url else 'Acepto las condiciones de la beca descriptas en el reglamento'
+        terms.initial = bool(self.instance.grant_terms_accepted_at)
         for field in self.fields.values():
             if isinstance(field.widget, forms.CheckboxInput):
                 field.widget.attrs.setdefault('role', 'switch')
-            field.widget.attrs.setdefault('class', 'form-check-input' if isinstance(field.widget, forms.CheckboxInput) else 'form-control')
+                field.widget.attrs.setdefault('class', 'form-check-input')
+            field.widget.attrs.setdefault('class', 'form-select' if isinstance(field.widget, forms.Select) else 'form-control')
             field.widget.attrs['form'] = 'grant-form'
         self.fields['expected_version'].initial = self.instance.version
 
@@ -295,6 +357,24 @@ class ArtworkGrantForm(InvalidFieldsMixin, forms.ModelForm):
     def is_read_only(self):
         return all(field.disabled for name, field in self.fields.items() if name != 'expected_version')
 
+    def clean_grant_payee_tax_id(self):
+        value = self.cleaned_data.get('grant_payee_tax_id') or ''
+        digits = re.sub(r'[\s.-]', '', value)
+        if digits and not valid_tax_id(digits):
+            raise forms.ValidationError('Revisá el CUIT o CUIL: son 11 números, con o sin guiones.')
+        return digits
+
+    def clean_grant_payee_account(self):
+        value = re.sub(r'\s', '', self.cleaned_data.get('grant_payee_account') or '')
+        if not value:
+            return ''
+        if value.isdigit():
+            if len(value) != 22:
+                raise forms.ValidationError('El CBU o CVU tiene 22 dígitos.')
+        elif not PAYEE_ALIAS.fullmatch(value):
+            raise forms.ValidationError('Ingresá un CBU o CVU de 22 dígitos, o un alias de 6 a 20 letras, números, puntos o guiones.')
+        return value
+
     def clean(self):
         cleaned = super().clean()
         if self.is_bound:
@@ -310,6 +390,12 @@ class ArtworkGrantForm(InvalidFieldsMixin, forms.ModelForm):
 
     def save(self, commit=True):
         artwork = super().save(commit=False)
+        if not self.fields['grant_terms_accepted'].disabled:
+            accepted = self.cleaned_data.get('grant_terms_accepted')
+            if accepted and not artwork.grant_terms_accepted_at:
+                artwork.grant_terms_accepted_at, artwork.grant_terms_accepted_by = timezone.now(), self.actor
+            elif not accepted:
+                artwork.grant_terms_accepted_at = artwork.grant_terms_accepted_by = None
         artwork.version += 1
         if commit:
             artwork.save()
@@ -317,50 +403,29 @@ class ArtworkGrantForm(InvalidFieldsMixin, forms.ModelForm):
 
 
 class ArtworkGrantItemForm(InvalidFieldsMixin, forms.ModelForm):
+    """Un ítem del presupuesto o de la rendición. El monto va en la moneda de la beca."""
     expected_updated_at = forms.CharField(widget=forms.HiddenInput, required=False)
-    amount = LocalizedDecimalField(
-        max_digits=14, decimal_places=2, min_value=Decimal('0.01'),
-        widget=forms.TextInput(attrs={
-            'inputmode': 'decimal', 'autocomplete': 'off', 'data-money-input': 'true',
-            'placeholder': '150.000,00',
-        }),
-    )
-    exchange_rate = LocalizedDecimalField(
-        max_digits=14, decimal_places=4, min_value=Decimal('0.0001'),
-        widget=forms.TextInput(attrs={
-            'inputmode': 'decimal', 'autocomplete': 'off', 'data-money-input': 'true',
-            'placeholder': '1.234,56', 'data-exchange-rate': 'true',
-        }),
-    )
-    confirm_large_amount = forms.BooleanField(
-        required=False,
-        label='Confirmo el monto si supera ARS 1.000.000',
-        help_text='Se pide una confirmación extra para evitar errores de ceros o separadores.',
-    )
+    amount = LocalizedDecimalField(max_digits=14, decimal_places=2, min_value=Decimal('0.01'))
+    confirm_large_amount = forms.BooleanField(required=False, label=LARGE_AMOUNT_LABEL, help_text=LARGE_AMOUNT_HELP)
 
     class Meta:
         model = ArtworkGrantItem
-        fields = ('item_type', 'concept', 'details', 'amount', 'currency', 'exchange_rate', 'rate_date', 'rate_source')
-        widgets = {
-            'details': forms.Textarea(attrs={'rows': 5}),
-            'rate_date': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
-        }
+        fields = ('item_type', 'concept', 'details', 'amount')
+        widgets = {'details': forms.Textarea(attrs={'rows': 5})}
 
     def __init__(self, *args, phase, **kwargs):
         super().__init__(*args, **kwargs)
         self.phase = phase
+        self.currency = self.instance.artwork.grant_currency
+        self.fields['amount'].label = f'Monto en {self.currency}'
+        self.fields['amount'].widget = _money_widget(self.currency)
         self.fields['images'] = MultipleImageField(required=False, label='Imágenes o comprobantes')
         self.fields['images'].help_text = 'Podés seleccionar varias imágenes. Máximo 10 MB por archivo.'
         self.fields['images'].widget.attrs.update({'accept': 'image/*', 'data-image-preview': 'true'})
-        self.fields['rate_date'].label = 'Fecha de entrega del presupuesto' if phase == ArtworkGrantItem.Phase.BUDGET else 'Fecha real de pago'
-        self.fields['rate_date'].initial = self.instance.rate_date if self.instance.pk else timezone.localdate()
-        self.fields['exchange_rate'].label = 'Cotización'
-        self.fields['exchange_rate'].help_text = 'Pesos por cada USD. Para ARS se guarda 1 automáticamente.'
-        self.fields['rate_source'].help_text = 'Para USD: por ejemplo “BNA vendedor” o “MEP”, con referencia verificable.'
         self.fields['expected_updated_at'].initial = self.instance.updated_at.isoformat() if self.instance.pk else ''
+        self.order_fields(['item_type', 'concept', 'details', 'amount', 'images', 'confirm_large_amount'])
         for field in self.fields.values():
             field.widget.attrs.setdefault('class', 'form-select' if isinstance(field.widget, forms.Select) else 'form-control')
-        self.fields['currency'].widget.attrs['data-currency-select'] = 'true'
 
     def clean_images(self):
         images = self.cleaned_data['images']
@@ -378,31 +443,146 @@ class ArtworkGrantItemForm(InvalidFieldsMixin, forms.ModelForm):
             expected = cleaned.get('expected_updated_at')
             if not expected or expected != self.instance.updated_at.isoformat():
                 self.add_error(None, 'Otra persona modificó este ítem. Recargá la página antes de volver a guardar.')
-        currency = cleaned.get('currency')
-        if currency == ArtworkGrantItem.Currency.ARS:
-            cleaned['exchange_rate'] = 1
-            cleaned['rate_source'] = ''
-        elif currency == ArtworkGrantItem.Currency.USD:
-            if not cleaned.get('exchange_rate') or cleaned['exchange_rate'] <= 0:
-                self.add_error('exchange_rate', 'Ingresá una cotización mayor a cero.')
-            if not cleaned.get('rate_source'):
-                self.add_error('rate_source', 'Indicá la fuente y el tipo de dólar utilizado.')
-        amount_ars = cleaned.get('amount')
-        if currency == ArtworkGrantItem.Currency.USD and amount_ars and cleaned.get('exchange_rate'):
-            amount_ars *= cleaned['exchange_rate']
-        if amount_ars and amount_ars >= Decimal('1000000') and not cleaned.get('confirm_large_amount'):
-            self.add_error('confirm_large_amount', 'Confirmá el monto convertido antes de guardar.')
+        amount = cleaned.get('amount')
+        if amount and amount >= LARGE_AMOUNT[self.currency] and not cleaned.get('confirm_large_amount'):
+            self.add_error('confirm_large_amount', 'Confirmá el monto antes de guardar.')
         return cleaned
 
     def save(self, commit=True):
         item = super().save(commit=False)
         item.phase = self.phase
-        if item.currency == ArtworkGrantItem.Currency.ARS:
-            item.exchange_rate = 1
-            item.rate_source = ''
         if commit:
             item.save()
         return item
+
+
+_GS = Artwork.GrantStatus
+
+# Lo que Becas y ESTAFA pueden hacer con una beca según en qué estado está: el estado es la
+# consecuencia de la acción. `to` en None deja el estado como está o lo resuelve la vista.
+GRANT_ACTIONS = {
+    'approve': {
+        'label': 'Aprobar', 'icon': 'fa-check', 'style': 'primary', 'submit': 'Aprobar la beca',
+        'from': (_GS.PENDING, _GS.INFO_REQUIRED), 'to': _GS.APPROVED,
+        'fields': ('amount', 'notes'), 'required': ('amount',),
+    },
+    'request_info': {
+        'label': 'Pedir información', 'icon': 'fa-circle-question', 'submit': 'Pedir información',
+        'from': (_GS.PENDING, _GS.INFO_REQUIRED), 'to': _GS.INFO_REQUIRED,
+        'fields': ('notes',), 'required': ('notes',),
+    },
+    'reject': {
+        'label': 'No aprobar', 'icon': 'fa-xmark', 'style': 'danger', 'submit': 'No aprobar la beca',
+        'from': (_GS.PENDING, _GS.INFO_REQUIRED), 'to': _GS.REJECTED, 'fields': ('notes',),
+    },
+    'pay': {
+        'label': 'Registrar pago', 'icon': 'fa-money-bill-transfer', 'style': 'primary', 'submit': 'Registrar pago',
+        'from': (_GS.APPROVED,), 'to': _GS.PAID, 'fields': ('paid_at', 'reference'), 'required': ('paid_at',),
+    },
+    'change_amount': {
+        'label': 'Cambiar monto aprobado', 'icon': 'fa-pen', 'submit': 'Guardar monto',
+        'from': (_GS.APPROVED,), 'to': None, 'fields': ('amount', 'notes'), 'required': ('amount',),
+    },
+    'back_to_pending': {
+        'label': 'Volver a pendiente', 'icon': 'fa-rotate-left', 'style': 'discreet',
+        'from': (_GS.APPROVED,), 'to': _GS.PENDING,
+    },
+    'reopen': {
+        'label': 'Reabrir', 'icon': 'fa-rotate-left', 'style': 'discreet',
+        'from': (_GS.REJECTED,), 'to': _GS.PENDING,
+    },
+    'fix_payment': {
+        'label': 'Corregir pago', 'icon': 'fa-pen', 'style': 'discreet', 'submit': 'Guardar pago',
+        'from': (_GS.PAID,), 'to': None, 'fields': ('paid_at', 'reference'), 'required': ('paid_at',),
+    },
+    'approve_report': {
+        'label': 'Aprobar rendición', 'icon': 'fa-check', 'style': 'primary',
+        'from': (_GS.REPORTED,), 'to': _GS.CLOSED,
+    },
+    'request_report_changes': {
+        'label': 'Pedir cambios en la rendición', 'icon': 'fa-circle-question', 'submit': 'Pedir cambios',
+        'from': (_GS.REPORTED,), 'to': None, 'fields': ('notes',), 'required': ('notes',),
+    },
+    'reopen_report': {
+        'label': 'Reabrir rendición', 'icon': 'fa-rotate-left', 'style': 'discreet',
+        'from': (_GS.CLOSED,), 'to': _GS.REPORTED,
+    },
+}
+
+
+def grant_actions_for(artwork):
+    return [key for key, action in GRANT_ACTIONS.items() if artwork.grant_status in action['from']]
+
+
+def _localized_amount(value):
+    """450000.00 → «450.000,00», como lo escribe y lo lee la gente."""
+    return f'{value:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.')
+
+
+class ArtworkGrantActionForm(forms.Form):
+    """Los datos que pide una acción sobre la beca (aprobar, registrar el pago…). La toman Becas y ESTAFA."""
+
+    amount = LocalizedDecimalField(max_digits=14, decimal_places=2, min_value=Decimal('1'))
+    notes = forms.CharField(
+        label='Devolución sobre la beca', widget=forms.Textarea(attrs={'rows': 3}),
+        help_text='La lee el equipo de la propuesta en la pantalla de la beca y le llega por email.',
+    )
+    paid_at = forms.DateField(label='Fecha de pago', widget=forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'))
+    reference = forms.CharField(label='Referencia del pago', max_length=200, help_text='Interna: el equipo no la ve.')
+    confirm_large_amount = forms.BooleanField(required=False, label=LARGE_AMOUNT_LABEL, help_text=LARGE_AMOUNT_HELP)
+    expected_version = forms.IntegerField(widget=forms.HiddenInput, required=False)
+
+    REQUIRED_MESSAGES = {
+        'amount': 'Indicá el monto aprobado.',
+        'notes': 'Contale al equipo qué falta.',
+        'paid_at': 'Indicá la fecha de pago.',
+    }
+
+    def __init__(self, *args, artwork, action, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.artwork, self.action, self.spec = artwork, action, GRANT_ACTIONS[action]
+        self.currency = artwork.grant_currency
+        wanted, required = self.spec.get('fields', ()), self.spec.get('required', ())
+        for name in ('amount', 'notes', 'paid_at', 'reference', 'confirm_large_amount'):
+            if name not in wanted and not (name == 'confirm_large_amount' and 'amount' in wanted):
+                del self.fields[name]
+        for name in wanted:
+            self.fields[name].required = name in required
+            if name in required:
+                self.fields[name].error_messages['required'] = self.REQUIRED_MESSAGES[name]
+        if 'amount' in self.fields:
+            self.fields['amount'].label = f'Monto aprobado en {self.currency}'
+            self.fields['amount'].widget = _money_widget(self.currency)
+            current = artwork.grant_approved_amount or artwork.grant_requested_amount
+            self.fields['amount'].initial = _localized_amount(current) if current else None
+        if 'notes' in self.fields and action == 'change_amount':
+            self.fields['notes'].initial = artwork.grant_decision_notes
+        if 'paid_at' in self.fields:
+            self.fields['paid_at'].initial = artwork.grant_paid_at or timezone.localdate()
+        if 'reference' in self.fields:
+            self.fields['reference'].initial = artwork.grant_payment_reference
+        self.fields['expected_version'].initial = artwork.version
+        for field in self.fields.values():
+            if isinstance(field.widget, forms.CheckboxInput):
+                field.widget.attrs.setdefault('class', 'form-check-input')
+            field.widget.attrs.setdefault('class', 'form-control')
+
+    @property
+    def needs_input(self):
+        return bool(self.spec.get('fields'))
+
+    def clean(self):
+        cleaned = super().clean()
+        current = Artwork.objects.filter(pk=self.artwork.pk).values_list('version', flat=True).first()
+        if cleaned.get('expected_version') != current:
+            self.add_error(None, 'Otra persona guardó cambios mientras editabas. Recargá la página antes de volver a guardar.')
+        amount = cleaned.get('amount')
+        if (
+            amount and amount >= LARGE_AMOUNT[self.currency] and amount != self.artwork.grant_approved_amount
+            and not cleaned.get('confirm_large_amount')
+        ):
+            self.add_error('confirm_large_amount', 'Confirmá el monto aprobado antes de guardar.')
+        return cleaned
 
 
 class ArtworkGrantItemReviewForm(forms.ModelForm):
@@ -745,8 +925,12 @@ class ArtworkReviewForm(InvalidFieldsMixin, forms.ModelForm):
             'understanding_letter_physical_received_at': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
         }
 
-    def __init__(self, *args, can_manage=True, **kwargs):
+    def __init__(self, *args, can_manage=True, read_only=False, **kwargs):
         super().__init__(*args, **kwargs)
+        if read_only:
+            # Becas y MAD leen lo que registró ESTAFA, sin cambiarlo.
+            for field in self.fields.values():
+                field.disabled = True
         if not can_manage:
             allowed = {
                 'checkin_arrived_at', 'checkin_art_at', 'checkin_placed',
@@ -797,12 +981,42 @@ class ArtworkReviewForm(InvalidFieldsMixin, forms.ModelForm):
 
 
 class EstafaNotificationPreferenceForm(forms.ModelForm):
-    """En el perfil: qué emails de las obras recibe una persona de ESTAFA."""
+    """En el perfil: qué emails de las obras recibe una persona de ESTAFA, Becas o MAD.
+
+    Sólo aparecen las opciones de los equipos de la persona; las demás conservan su valor.
+    """
+
+    TEAM_FIELDS = {
+        ESTAFA_SLUG: ('new_artworks', 'assigned_changes', 'all_changes', 'grant_updates'),
+        BECAS_SLUG: ('becas_new_applications', 'becas_changes'),
+        MAD_SLUG: ('mad_new_artworks', 'mad_changes'),
+    }
 
     class Meta:
         model = EstafaNotificationPreference
-        fields = ('new_artworks', 'assigned_changes', 'all_changes')
-        widgets = {
-            name: forms.CheckboxInput(attrs={'class': 'form-check-input'})
-            for name in ('new_artworks', 'assigned_changes', 'all_changes')
-        }
+        fields = (
+            'new_artworks', 'assigned_changes', 'all_changes', 'grant_updates',
+            'becas_new_applications', 'becas_changes', 'mad_new_artworks', 'mad_changes',
+        )
+
+    def __init__(self, *args, teams=(ESTAFA_SLUG,), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.team_slugs = [slug for slug, _name in ART_TEAMS if slug in teams]
+        allowed = {name for slug in self.team_slugs for name in self.TEAM_FIELDS[slug]}
+        for name in list(self.fields):
+            if name not in allowed:
+                del self.fields[name]
+            else:
+                self.fields[name].widget.attrs['class'] = 'form-check-input'
+
+    @property
+    def title(self):
+        names = art_team_names(self.team_slugs)
+        return names[0] if len(names) == 1 else 'Arte'
+
+    @property
+    def groups(self):
+        """Las opciones agrupadas por equipo, para mostrarlas con su título."""
+        names = dict(ART_TEAMS)
+        return [(names[slug], [self[name] for name in self.TEAM_FIELDS[slug]]) for slug in self.team_slugs]
+

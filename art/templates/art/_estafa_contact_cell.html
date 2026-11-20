@@ -1,0 +1,1 @@
+{% load art_format %}<td class="art-proposal-col art-col-contact">{% with contact=artwork.estafa_contact %}{% if contact %}{{ contact|person_name }}{% with full_name=contact|person_full_name %}{% if full_name %}<br><small class="text-muted">{{ full_name }}</small>{% endif %}{% endwith %}{% else %}<span class="text-muted">Sin contacto</span>{% endif %}{% endwith %}</td>

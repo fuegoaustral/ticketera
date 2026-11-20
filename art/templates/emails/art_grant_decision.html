@@ -1,0 +1,10 @@
+{% extends "emails/base.html" %}
+{% load art_format %}
+{% block subject %}Novedades sobre la beca de {{ artwork.title|default:"tu propuesta de Arte"|safe }}{% endblock %}
+{% block title %}Beca · {{ artwork.get_grant_status_display }}{% endblock %}
+{% block content %}
+<p>La beca de <strong>{{ artwork.title|default:"tu propuesta de Arte" }}</strong> para {{ artwork.event.name }} quedó como <strong>{{ artwork.get_grant_status_display }}</strong>.</p>
+{% if artwork.grant_approved_amount %}<p><strong>Monto aprobado:</strong> {{ artwork.grant_currency }} {{ artwork.grant_approved_amount|art_money }}{% if artwork.grant_paid_at %} · pagado el {{ artwork.grant_paid_at|date:"d/m/Y" }}{% endif %}</p>{% endif %}
+{% if artwork.grant_decision_notes %}<p><strong>Devolución sobre la beca:</strong><br>{{ artwork.grant_decision_notes|linebreaksbr }}</p>{% endif %}
+{% include "emails/partials/btn.html" with href=grant_path label="Ver la beca" %}
+{% endblock %}
