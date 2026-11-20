@@ -5,7 +5,7 @@
 {% block truecontent %}
 <div class="container-fluid art-grants-dashboard">
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
-        <div><p class="text-uppercase text-muted small fw-semibold mb-1">{{ event.name }}</p><h2 class="h3 mb-1">Becas</h2><p class="text-muted mb-0">Las solicitudes presentadas, con su estado y sus montos.</p></div>
+        <div><p class="text-uppercase text-muted small fw-semibold mb-1">{{ event.name }}</p><h2 class="h3 mb-1">Becas</h2><p class="text-muted mb-0">Las solicitudes de beca, presentadas o incompletas, con su estado y sus montos.</p></div>
         {% if can_export %}<a class="btn btn-outline-primary" href="{% url 'art_grants_export' event.slug %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"><i class="fas fa-download me-1" aria-hidden="true"></i> Exportar CSV</a>{% endif %}
     </div>
 
@@ -34,19 +34,20 @@
                 <tr>
                     <td><a class="art-row-link stretched-link" href="{% url 'artwork_grant' artwork.pk %}">{{ artwork.title|default:'Propuesta de Arte sin título' }}</a><span class="art-owner-line"><br><small class="text-muted">{% if artwork.owner %}{{ artwork.owner|person_name }}{% else %}Cuenta archivada{% endif %}</small></span></td>
                     {% include 'art/_owner_contact_cells.html' %}
-                    <td class="art-proposal-col art-col-status"><span class="badge bg-light text-dark border">{{ artwork.get_grant_status_display }}</span></td>
-                    <td class="art-proposal-col art-money text-end" data-label="Presupuesto">{% if artwork.budget_sum %}{{ artwork.grant_currency }} {{ artwork.budget_sum|art_money }}{% else %}{% include 'art/_dash.html' with label='Sin presupuesto' %}{% endif %}</td>
+                    <td class="art-proposal-col art-col-status">{% if artwork.is_grant_incomplete %}<span class="badge grant-incomplete-badge" title="Falta: {{ artwork.grant_missing_short }}">{{ artwork.grant_label }}</span><br><small class="text-muted">Falta: {{ artwork.grant_missing_short }}</small>{% else %}<span class="badge bg-light text-dark border">{{ artwork.grant_label }}</span>{% endif %}</td>
+                    <td class="art-proposal-col art-money text-end" data-label="Presupuesto">{% if artwork.budget_sum %}{{ artwork.grant_currency }} {{ artwork.budget_sum|art_money }}{% if artwork.fundable_sum != artwork.budget_sum %}<br><small class="text-muted text-nowrap">Cubre la beca: {{ artwork.fundable_sum|default:0|art_money }}</small>{% endif %}{% else %}{% include 'art/_dash.html' with label='Sin presupuesto' %}{% endif %}</td>
                     <td class="art-proposal-col art-money text-end" data-label="Pedido">{% if artwork.grant_requested_amount %}{{ artwork.grant_currency }} {{ artwork.grant_requested_amount|art_money }}{% else %}{% include 'art/_dash.html' with label='Sin monto pedido' %}{% endif %}</td>
                     <td class="art-proposal-col art-money text-end" data-label="Aprobado">{% if artwork.grant_approved_amount %}{{ artwork.grant_currency }} {{ artwork.grant_approved_amount|art_money }}{% else %}{% include 'art/_dash.html' with label='Sin monto aprobado' %}{% endif %}</td>
                     <td class="art-proposal-col text-nowrap" data-label="Pago">{% if artwork.grant_paid_at %}{{ artwork.grant_paid_at|date:'d/m/Y' }}{% else %}{% include 'art/_dash.html' with label='Sin pago' %}{% endif %}</td>
                     {% if can_see_payee %}<td class="art-contact-col art-col-payee" data-label="Cobra">{% if artwork.grant_payee_name %}{{ artwork.grant_payee_name }}<br><small class="text-muted">CUIT/CUIL {{ artwork.grant_payee_tax_id }} · {{ artwork.grant_payee_account }}</small>{% else %}{% include 'art/_dash.html' with label='Sin datos de cobro' %}{% endif %}</td>{% endif %}
                     <td class="art-row-chevron text-end text-muted"><i class="fas fa-chevron-right" aria-hidden="true"></i></td>
                 </tr>
-            {% empty %}<tr><td colspan="11" class="text-center text-muted py-5">{% if has_grants %}No hay becas que coincidan con estos filtros.{% else %}Todavía nadie presentó una solicitud de beca.{% endif %}</td></tr>{% endfor %}
+            {% empty %}<tr><td colspan="11" class="text-center text-muted py-5">{% if has_grants %}No hay becas que coincidan con estos filtros.{% else %}Todavía nadie empezó una solicitud de beca.{% endif %}</td></tr>{% endfor %}
             </tbody>
         </table>
     </div>
 </div>
 {% include 'art/_dashboard_assets.html' %}
+<style>.grant-incomplete-badge { color: #7a5200; background: #fff3cd; border: 1px solid #f0d58a; }</style>
 {% include 'art/_messages.html' %}
 {% endblock %}

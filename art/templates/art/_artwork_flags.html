@@ -2,7 +2,7 @@
 <span class="art-flag-list">
 {% if artwork.is_risky %}<span class="art-flag art-flag-risk" title="Riesgosa">{% include 'art/_flag_icon.html' with flag='risk' %}<span class="visually-hidden">Riesgosa</span></span>{% endif %}
 {% if artwork.wants_support_camp %}<span class="art-flag art-flag-camp" title="Con camp soporte">{% include 'art/_flag_icon.html' with flag='camp' %}<span class="visually-hidden">Con camp soporte</span></span>{% endif %}
-{% if artwork.grant_requested or artwork.grant_status != 'none' %}<span class="art-flag art-flag-grant" title="Pidió beca">{% include 'art/_flag_icon.html' with flag='grant' %}<span class="visually-hidden">Pidió beca</span></span>{% endif %}
+{% if artwork.grant_listed %}<span class="art-flag art-flag-grant" title="Pidió beca">{% include 'art/_flag_icon.html' with flag='grant' %}<span class="visually-hidden">Pidió beca</span></span>{% endif %}
 {% if artwork.burns %}<span class="art-flag art-flag-fire" title="Se quema">{% include 'art/_flag_icon.html' with flag='fire' %}<span class="visually-hidden">Se quema</span></span>{% endif %}
 {% if artwork.uses_sound %}<span class="art-flag art-flag-sound" title="Tiene sonido">{% include 'art/_flag_icon.html' with flag='sound' %}<span class="visually-hidden">Tiene sonido</span></span>{% endif %}
 {% if artwork.needs_mad_assistance %}<span class="art-flag art-flag-mad" title="Necesita asistencia de MAD">{% include 'art/_flag_icon.html' with flag='mad' %}<span class="visually-hidden">Necesita asistencia de MAD</span></span>{% endif %}

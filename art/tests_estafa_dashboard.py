@@ -513,7 +513,7 @@ class ArtTeamsTest(TestCase):
                 self.assertContains(response, 'Exportar CSV')
                 content = export.content.decode('utf-8-sig')
                 self.assertIn('Faro', content)
-                self.assertIn('USD,1000.00,800.00', content)
+                self.assertIn('USD,1000.00,1000.00,800.00', content)
                 self.assertIn('Ana Artista,20123456786,ana.artista.mp', content)
                 self.assertNotIn('Madera', content)
                 self.assertNotIn('Sin beca', content)
@@ -521,6 +521,43 @@ class ArtTeamsTest(TestCase):
         # El equipo de la propuesta ve sus propios datos de cobro.
         self.client.force_login(self.owner)
         self.assertContains(self.client.get(self.grant_url), 'ana.artista.mp')
+
+    def test_grants_tab_lists_incomplete_requests(self):
+        # Empezó a cargar la beca sin terminarla: aparece como «Incompleta». Quien nunca la tocó, no.
+        draft = Artwork.objects.create(
+            event=self.event, owner=self.owner, title='Borrador', grant_justification='Para los materiales',
+        )
+        only_items = Artwork.objects.create(event=self.event, owner=self.owner, title='Solo items')
+        ArtworkGrantItem.objects.create(artwork=only_items, phase='budget', item_type='labor', concept='Soldador', amount=10)
+        untouched = Artwork.objects.create(event=self.event, owner=self.owner, title='Sin beca')
+        self.assertTrue(draft.grant_incomplete and only_items.grant_incomplete)
+        self.assertFalse(untouched.grant_started)
+        self.assertEqual(draft.grant_status_label, 'Incompleta')
+        tab_url = reverse('art_grants_dashboard', args=[self.event.slug])
+        self.client.force_login(self.users['becas'])
+        response = self.client.get(tab_url)
+        self.assertEqual([artwork.title for artwork in response.context['artworks']], ['Borrador', 'Faro', 'Solo items'])
+        self.assertContains(response, 'grant-incomplete-badge', count=3)  # dos filas y el estilo
+        self.assertContains(response, 'Falta: presupuesto, monto pedido, datos de cobro, condiciones')
+        self.assertEqual(response.context['status_choices'][0], ('incomplete', 'Incompleta', 2))
+        filtered = self.client.get(tab_url + '?status=incomplete')
+        self.assertEqual([artwork.title for artwork in filtered.context['artworks']], ['Borrador', 'Solo items'])
+        both = self.client.get(tab_url + f'?status=incomplete&status={self.artwork.grant_status}')
+        self.assertEqual(len(both.context['artworks']), 3)
+        content = self.client.get(reverse('art_grants_export', args=[self.event.slug])).content.decode('utf-8-sig')
+        self.assertIn('Borrador', content)
+        self.assertIn('Incompleta', content)
+        self.assertNotIn('Sin beca', content)
+        # Sin decisiones mientras está incompleta; sí el mensaje al equipo.
+        page = self.client.get(reverse('artwork_grant', args=[draft.pk]))
+        self.assertContains(page, 'Beca · Incompleta')
+        self.assertNotContains(page, 'Estado de la beca')
+        self.assertContains(page, 'Mensaje para el equipo')
+        # «Pidió beca» en Propuestas cuenta lo mismo que la pestaña.
+        self.client.force_login(self.users['estafa'])
+        listed = self.client.get(reverse('art_admin_dashboard', args=[self.event.slug]) + '?flag=grant&mine=0')
+        titles = sorted(artwork.title for artwork in listed.context['artworks'])
+        self.assertEqual(titles, ['Borrador', 'Faro', 'Solo items'])
 
     def test_grants_tab_searches_and_filters_like_the_proposals_list(self):
         other_owner = User.objects.create_user('olga', 'olga@example.com', 'x', first_name='Olga', last_name='Molinera')

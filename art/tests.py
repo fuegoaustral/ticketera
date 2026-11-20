@@ -1082,7 +1082,7 @@ class ArtworkFlowTest(TestCase):
         self.assertIn('Otra persona guardó', str(stale.non_field_errors()))
 
     def test_grant_items_and_request_use_the_grant_currency(self):
-        artwork = Artwork.objects.create(event=self.event, owner=self.owner, grant_requested=True, grant_currency='USD')
+        artwork = Artwork.objects.create(event=self.event, owner=self.owner, grant_currency='USD')
 
         def item_form(data, instance=None):
             return ArtworkGrantItemForm(
@@ -1094,8 +1094,19 @@ class ArtworkFlowTest(TestCase):
         self.assertTrue(blank.fields['images'].widget.allow_multiple_selected)
         self.assertTrue(ArtworkPhotoUploadForm().fields['images'].widget.allow_multiple_selected)
         # El ítem sólo lleva un monto, en la moneda de la beca.
-        self.assertEqual(blank.fields['amount'].label, 'Monto en USD')
+        self.assertEqual(blank.fields['amount'].label, 'Monto')
         self.assertFalse({'currency', 'exchange_rate', 'rate_date', 'rate_source'} & set(blank.fields))
+        # El presupuesto admite mano de obra y proveedores; la rendición, sólo lo que cubre la beca.
+        self.assertEqual(
+            [value for value, _ in blank.fields['item_type'].choices], ['materials', 'equipment', 'labor', 'service'],
+        )
+        self.assertTrue(item_form({'item_type': 'labor', 'concept': 'Soldador', 'amount': '10'}).is_valid())
+        expense = ArtworkGrantItemForm(
+            {'item_type': 'labor', 'concept': 'Soldador', 'amount': '10'},
+            instance=ArtworkGrantItem(artwork=artwork, phase='expense'), phase='expense',
+        )
+        self.assertEqual([value for value, _ in expense.fields['item_type'].choices], ['materials', 'equipment'])
+        self.assertFalse(expense.is_valid())
 
         localized = item_form({'item_type': 'materials', 'concept': 'Placa', 'amount': '150,50'})
         self.assertTrue(localized.is_valid(), localized.errors)
@@ -1103,10 +1114,10 @@ class ArtworkFlowTest(TestCase):
         self.assertEqual(placa.amount, Decimal('150.50'))
 
         # La confirmación extra depende de la moneda: USD 1.000 o ARS 1.000.000.
-        large = item_form({'item_type': 'other', 'concept': 'Equipo', 'amount': '1.000,00'})
+        large = item_form({'item_type': 'equipment', 'concept': 'Equipo', 'amount': '1.000,00'})
         self.assertFalse(large.is_valid())
         self.assertIn('confirm_large_amount', large.errors)
-        confirmed = item_form({'item_type': 'other', 'concept': 'Equipo', 'amount': '1.000,00', 'confirm_large_amount': 'on'})
+        confirmed = item_form({'item_type': 'equipment', 'concept': 'Equipo', 'amount': '1.000,00', 'confirm_large_amount': 'on'})
         self.assertTrue(confirmed.is_valid(), confirmed.errors)
         confirmed.save()
         self.assertEqual(artwork.budget_total, Decimal('1150.50'))
@@ -1119,54 +1130,105 @@ class ArtworkFlowTest(TestCase):
         }, instance=placa)
         self.assertFalse(stale.is_valid())
 
+        # Mano de obra entra al presupuesto, pero la beca no la cubre ni cuenta para lo que se puede pedir.
+        ArtworkGrantItem.objects.create(
+            artwork=artwork, phase='budget', item_type='labor', concept='Soldador', amount=500, created_by=self.owner,
+        )
+        self.assertEqual((artwork.budget_total, artwork.fundable_budget_total), (Decimal('1520.00'), Decimal('1020.00')))
+
         self.client.force_login(self.owner)
         grant_url = reverse('artwork_grant', args=[artwork.pk])
         page = self.client.get(grant_url)
+        self.assertContains(page, 'USD 1.520,00')
+        self.assertContains(page, 'Cubre la beca')
         self.assertContains(page, 'USD 1.020,00')
-        self.assertContains(page, 'Antes de presentar')
+        self.assertContains(page, 'No lo cubre la beca', count=1)
+        self.assertContains(page, 'Beca · Incompleta')
+        self.assertContains(page, 'todavía no está presentada')
         self.assertNotContains(page, 'Presentar solicitud de beca')
 
         def save(**data):
             return self.client.post(grant_url, {
-                'grant_requested': 'on', 'grant_justification': 'Necesitamos apoyo para producir la obra.',
+                'grant_justification': 'Necesitamos apoyo para producir la obra.',
                 'grant_currency': 'USD', 'grant_requested_amount': '800', 'grant_payee_name': 'Ana Artista',
                 'grant_payee_tax_id': '20-12345678-6', 'grant_payee_account': 'ana.artista.mp',
                 'grant_terms_accepted': 'on', 'expected_version': Artwork.objects.get(pk=artwork.pk).version, **data,
             })
 
         # CUIT con verificador incorrecto, CBU corto y alias con caracteres de más.
-        self.assertContains(save(grant_payee_tax_id='20-12345678-9'), 'Revisá el CUIT o CUIL')
+        self.assertContains(save(grant_payee_tax_id='20-12345678-9'), 'Ese CUIT o CUIL no es válido')
+        self.assertContains(save(grant_payee_tax_id='20-1234567'), 'El CUIT o CUIL tiene 11 números')
         self.assertContains(save(grant_payee_account='12345'), 'El CBU o CVU tiene 22 dígitos.')
         self.assertContains(save(grant_payee_account='alias con espacios y ñ'), 'Ingresá un CBU o CVU')
         artwork.refresh_from_db()
         self.assertEqual(artwork.grant_payee_tax_id, '')
 
-        # Sin aceptar las condiciones, o pidiendo más que el presupuesto, no se presenta.
-        self.assertRedirects(save(grant_terms_accepted='', grant_requested_amount='2.000,00'), grant_url, fetch_redirect_response=False)
-        response = self.client.post(reverse('grant_submit', args=[artwork.pk]), follow=True)
-        self.assertContains(response, 'El monto que pedís no puede superar el total del presupuesto.')
-        self.assertContains(response, 'Aceptá las condiciones de la beca.')
+        # Sin aceptar las condiciones, o pidiendo más que el presupuesto, guarda pero no queda presentada.
+        response = save(grant_terms_accepted='', grant_requested_amount='2.000,00')
+        self.assertRedirects(response, grant_url, fetch_redirect_response=False)
+        page = self.client.get(grant_url)
+        self.assertContains(page, 'alert alert-warning grant-pending', count=2)
+        self.assertContains(page, 'El monto que pedís no puede superar el presupuesto de materiales y equipamiento (USD 1.020,00).')
+        self.assertContains(page, 'Aceptá las condiciones de la beca.')
         artwork.refresh_from_db()
-        self.assertEqual(artwork.grant_status, Artwork.GrantStatus.NOT_REQUESTED)
+        self.assertEqual((artwork.grant_status, artwork.grant_requested), (Artwork.GrantStatus.NOT_REQUESTED, False))
         self.assertIsNone(artwork.grant_terms_accepted_at)
 
-        self.assertRedirects(save(grant_payee_account='0000003100012345678901'), grant_url, fetch_redirect_response=False)
+        # Con el tope del programa, el pedido no puede pasar ese porcentaje del presupuesto.
+        ArtProgram.objects.filter(pk=self.program.pk).update(grant_max_percent=70)
+        save()
+        page = self.client.get(grant_url)
+        self.assertContains(page, 'El monto que pedís no puede superar el 70 % del presupuesto de materiales y equipamiento (USD 714,00).')
+        self.assertContains(page, 'No puede superar el 70 % del presupuesto de materiales y equipamiento.')
+        ArtProgram.objects.filter(pk=self.program.pk).update(grant_max_percent=None)
+
+        # Guardar con todo completo es presentar: no hay un paso aparte.
+        with patch('art.views.send_grant_application_email') as notify, self.captureOnCommitCallbacks(execute=True):
+            response = save(grant_payee_account='0000003100012345678901')
+            self.assertRedirects(response, grant_url, fetch_redirect_response=False)
+        notify.assert_called_once()
         artwork.refresh_from_db()
         self.assertEqual(
             (artwork.grant_payee_tax_id, artwork.grant_payee_account, artwork.grant_requested_amount, artwork.grant_terms_accepted_by),
             ('20123456786', '0000003100012345678901', Decimal('800'), self.owner),
         )
         self.assertIsNotNone(artwork.grant_terms_accepted_at)
-        self.assertContains(self.client.get(grant_url), 'Presentar solicitud de beca')
-        response = self.client.post(reverse('grant_submit', args=[artwork.pk]))
-        self.assertEqual(response.url, f"{grant_url}#solicitud")
+        self.assertEqual((artwork.grant_status, artwork.grant_requested), (Artwork.GrantStatus.PENDING, True))
+        self.assertIsNotNone(artwork.grant_submitted_at)
+        page = self.client.get(grant_url)
+        self.assertContains(page, 'alert alert-success grant-presented', count=2)
+        self.assertNotContains(page, 'todavía no está presentada')
+        self.assertNotContains(page, 'Presentar solicitud de beca')
+
+        # Presentada, se sigue editando hasta que se apruebe, sin volver a avisarle a Becas.
+        with patch('art.views.send_grant_application_email') as notify, self.captureOnCommitCallbacks(execute=True):
+            save(grant_payee_name='Otra persona', grant_payee_account='0000003100012345678901')
+        notify.assert_not_called()
+        artwork.refresh_from_db()
+        self.assertEqual((artwork.grant_payee_name, artwork.grant_status), ('Otra persona', Artwork.GrantStatus.PENDING))
+
+        # Si queda incompleta, deja de estar presentada; al completarla vuelve, sin otro aviso.
+        response = self.client.post(reverse('grant_item_delete', args=[artwork.pk, placa.pk]), follow=True)
+        self.assertEqual(Artwork.objects.get(pk=artwork.pk).grant_status, Artwork.GrantStatus.PENDING)
+        response = save(grant_terms_accepted='', grant_payee_account='0000003100012345678901')
+        artwork.refresh_from_db()
+        self.assertEqual((artwork.grant_status, artwork.grant_requested), (Artwork.GrantStatus.NOT_REQUESTED, False))
+        self.assertContains(self.client.get(grant_url), 'dejó de estar presentada')
+        with patch('art.views.send_grant_application_email') as notify, self.captureOnCommitCallbacks(execute=True):
+            save(grant_payee_account='0000003100012345678901')
+        notify.assert_not_called()
         artwork.refresh_from_db()
         self.assertEqual(artwork.grant_status, Artwork.GrantStatus.PENDING)
-        self.assertIsNotNone(artwork.grant_submitted_at)
-        # Presentada, la moneda y los datos de cobro ya no se editan.
-        save(grant_currency='ARS', grant_payee_name='Otra persona')
+
+        # Aprobada, el equipo ya no la modifica.
+        Artwork.objects.filter(pk=artwork.pk).update(grant_status=Artwork.GrantStatus.APPROVED)
+        save(grant_currency='ARS', grant_payee_name='Tercera persona', grant_payee_account='0000003100012345678901')
         artwork.refresh_from_db()
         self.assertEqual((artwork.grant_currency, artwork.grant_payee_name), ('USD', 'Ana Artista'))
+        response = self.client.post(reverse('grant_item_create', args=[artwork.pk, 'budget']), {
+            'item_type': 'materials', 'concept': 'Tornillos', 'amount': '5',
+        })
+        self.assertEqual(response.status_code, 403)
 
     def test_grant_page_intro_links_the_rules_and_shows_the_deadline(self):
         artwork = Artwork.objects.create(event=self.event, owner=self.owner, title='Faro')
@@ -1616,7 +1678,9 @@ class ArtworkFlowTest(TestCase):
         artwork.checkout_completed = True
         artwork.checkout_verified_at = timezone.now()
         artwork.save()
-        self.assertEqual(self.client.post(reverse('grant_submit', args=[artwork.pk])).status_code, 403)
+        self.client.post(reverse('artwork_grant', args=[artwork.pk]), {
+            'grant_justification': 'Otra cosa', 'grant_currency': 'ARS', 'expected_version': artwork.version,
+        })
         artwork.refresh_from_db()
         self.assertEqual(artwork.grant_status, Artwork.GrantStatus.APPROVED)
 
