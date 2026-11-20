@@ -9,7 +9,7 @@ from .views import (
     artwork_status, estafa_home, artwork_photo_delete, artwork_photo_upload,
     artwork_checkout_photo_delete, artwork_checkout_photo_upload,
     artwork_review, grant_item_create, grant_item_delete, grant_item_edit, grant_item_review,
-    grant_item_photo_delete, grant_report_submit, grant_submit,
+    grant_item_photo_delete, grant_report_submit,
     artwork_team_access, artwork_team_add, artwork_team_benefits, artwork_team_remove,
 )
 
@@ -27,7 +27,6 @@ urlpatterns = [
     path("arte/obra/<int:artwork_id>/beca/item/<int:item_id>/", grant_item_edit, name="grant_item_edit"),
     path("arte/obra/<int:artwork_id>/beca/item/<int:item_id>/eliminar/", grant_item_delete, name="grant_item_delete"),
     path("arte/obra/<int:artwork_id>/beca/item/<int:item_id>/imagen/<int:photo_id>/eliminar/", grant_item_photo_delete, name="grant_item_photo_delete"),
-    path("arte/obra/<int:artwork_id>/beca/enviar/", grant_submit, name="grant_submit"),
     path("arte/obra/<int:artwork_id>/rendicion/enviar/", grant_report_submit, name="grant_report_submit"),
     path("arte/obra/<int:artwork_id>/fotos/subir/", artwork_photo_upload, name="artwork_photo_upload"),
     path("arte/obra/<int:artwork_id>/fotos/<int:photo_id>/eliminar/", artwork_photo_delete, name="artwork_photo_delete"),

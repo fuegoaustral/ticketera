@@ -2,11 +2,11 @@
 {% if items %}
 <div class="table-responsive">
     <table class="table table-sm align-middle grant-items-table mb-0">
-        <thead><tr><th>Ítem</th><th class="text-end text-nowrap">Monto en {{ artwork.grant_currency }}</th>{% if can_edit %}<th><span class="visually-hidden">Acciones</span></th>{% endif %}</tr></thead>
+        <thead><tr><th>Ítem</th><th class="text-end text-nowrap">Monto</th>{% if can_edit %}<th><span class="visually-hidden">Acciones</span></th>{% endif %}</tr></thead>
         <tbody>
         {% for item in items %}
             <tr class="grant-item-main">
-                <td><span class="badge bg-light text-dark border me-1">{{ item.get_item_type_display }}</span><strong>{{ item.concept }}</strong></td>
+                <td><span class="badge bg-light text-dark border me-1">{{ item.get_item_type_display }}</span><strong>{{ item.concept }}</strong>{% if item.phase == 'budget' and not item.is_fundable %} <small class="text-muted text-nowrap">· No lo cubre la beca</small>{% endif %}</td>
                 <td class="text-end text-nowrap">{{ item.amount|art_money }}</td>
                 {% if can_edit %}<td class="text-end text-nowrap"><form class="d-inline" method="post" action="{% url 'grant_item_delete' artwork.pk item.pk %}">{% csrf_token %}{% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}">{% endif %}<button class="btn btn-sm btn-link text-danger px-1" type="submit" title="Eliminar ítem" aria-label="Eliminar {{ item.concept }}" onclick="return confirm('¿Eliminar este ítem?')"><i class="fas fa-trash" aria-hidden="true"></i></button></form></td>{% endif %}
             </tr>
@@ -50,7 +50,7 @@
             {% endif %}
         {% endfor %}
         </tbody>
-        <tfoot><tr><th>Total</th><th class="text-end text-nowrap">{{ artwork.grant_currency }} {{ total|art_money }}</th>{% if can_edit %}<th></th>{% endif %}</tr></tfoot>
+        <tfoot><tr><th>Total</th><th class="text-end text-nowrap">{{ artwork.grant_currency }} {{ total|art_money }}</th>{% if can_edit %}<th></th>{% endif %}</tr>{% if show_fundable %}<tr><th>Cubre la beca</th><th class="text-end text-nowrap">{{ artwork.grant_currency }} {{ fundable_total|art_money }}</th>{% if can_edit %}<th></th>{% endif %}</tr>{% endif %}</tfoot>
     </table>
 </div>
 <style>

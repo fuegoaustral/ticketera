@@ -5,13 +5,20 @@ from .tests_mad import MadMobilityTest
 
 FLAGS = {
     'wants_support_camp': 'Con camp soporte',
-    'grant_requested': 'Pidió beca',
+    'grant_status': 'Pidió beca',
     'burns': 'Se quema',
     'uses_sound': 'Tiene sonido',
     'needs_mad_assistance': 'Necesita asistencia de MAD',
     'is_movable': 'Se mueve de lugar (sin motor)',
     'has_own_mobility': 'Movilidad propia (art car)',
 }
+
+
+def flag_values(on):
+    """Los valores que prenden sólo las marcas de `on`. La beca se marca al presentar la solicitud."""
+    values = {name: name in on for name in FLAGS}
+    values['grant_status'] = Artwork.GrantStatus.PENDING if 'grant_status' in on else Artwork.GrantStatus.NOT_REQUESTED
+    return values
 
 
 class DashboardFlagIconsTest(MadMobilityTest):
@@ -28,7 +35,7 @@ class DashboardFlagIconsTest(MadMobilityTest):
     def test_each_icon_shows_only_when_its_flag_is_on(self):
         for field, tooltip in FLAGS.items():
             with self.subTest(field=field):
-                Artwork.objects.filter(pk=self.artwork.pk).update(**{name: name == field for name in FLAGS})
+                Artwork.objects.filter(pk=self.artwork.pk).update(**flag_values({field}))
                 response = self.dashboard()
                 self.assertContains(response, f'title="{tooltip}"', count=1)
                 self.assertContains(response, f'<span class="visually-hidden">{tooltip}</span>', count=1, html=False)
@@ -40,7 +47,7 @@ class DashboardFlagIconsTest(MadMobilityTest):
         self.assertContains(self.dashboard(), 'title="Pidió beca"', count=1)
 
     def test_icons_follow_the_agreed_order(self):
-        Artwork.objects.filter(pk=self.artwork.pk).update(**{name: True for name in FLAGS})
+        Artwork.objects.filter(pk=self.artwork.pk).update(**flag_values(set(FLAGS)))
         content = self.dashboard().content.decode()
         positions = [content.index(f'title="{tooltip}"') for tooltip in FLAGS.values()]
         self.assertEqual(positions, sorted(positions))

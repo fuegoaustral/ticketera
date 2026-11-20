@@ -15,10 +15,9 @@ from .models import ArtProgram, ArtworkGrantItem, ArtworkPhoto
 
 BLOCKS = {
     'proposal': ('Propuesta', lambda artwork: not artwork.submitted_at),
-    'grant': ('Beca', lambda artwork: artwork.grant_requested and (
-        not artwork.grant_justification
-        or not artwork.grant_items.filter(phase=ArtworkGrantItem.Phase.BUDGET).exists()
-        or artwork.grant_status in (artwork.GrantStatus.NOT_REQUESTED, artwork.GrantStatus.INFO_REQUIRED)
+    # Le falta la beca a quien la empezó a cargar sin llegar a presentarla, o a quien le pidieron más información.
+    'grant': ('Beca', lambda artwork: (
+        artwork.grant_status == artwork.GrantStatus.INFO_REQUIRED or artwork.grant_incomplete
     )),
     'guide': ('Folleto', lambda artwork: not artwork.public_title or not artwork.public_description),
     'checkout': ('Checkout', lambda artwork: artwork.status == artwork.Status.ACTIVE),

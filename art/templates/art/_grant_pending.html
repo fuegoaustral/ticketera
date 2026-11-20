@@ -1,0 +1,16 @@
+{# Cómo está la solicitud de beca para su equipo. Va arriba de todo y antes de guardar: guardar con todo completo es presentar. #}
+{% if artwork.grant_status == 'none' %}
+<div class="alert alert-warning grant-pending" role="status">
+    <strong><i class="fas fa-exclamation-triangle me-1" aria-hidden="true"></i> Tu solicitud de beca todavía no está presentada.</strong>
+    {% if grant_missing %}
+    <p class="mb-1 mt-2">Te falta completar:</p>
+    <ul class="mb-2 ps-3">{% for item in grant_missing %}<li>{{ item }}</li>{% endfor %}</ul>
+    {% endif %}
+    <p class="mb-0">Cuando esté todo completo y guardes, queda presentada.</p>
+</div>
+{% else %}
+<div class="alert alert-success grant-presented" role="status">
+    <strong><i class="fas fa-check-circle me-1" aria-hidden="true"></i> Solicitud presentada{% if artwork.grant_submitted_at %} el {{ artwork.grant_submitted_at|date:'d/m/Y' }}{% endif %}.</strong>
+    Podés seguir editándola hasta que se apruebe.
+</div>
+{% endif %}
