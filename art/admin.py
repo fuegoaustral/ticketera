@@ -45,7 +45,7 @@ ART_PROGRAM_FIELDSETS = (
     ('Galería y checkout', {'fields': ('gallery_opens', 'gallery_deadline', 'checkout_opens', 'checkout_deadline')}),
     ('Becas', {
         'description': 'Las gestiona el equipo de becas.',
-        'fields': ('grants_enabled', 'grant_opens', 'grant_deadline', 'grant_report_deadline', 'grant_rules_url', 'grant_max_percent'),
+        'fields': ('grants_enabled', 'grant_opens', 'grant_deadline', 'grant_report_deadline', 'grant_program_url', 'grant_rules_url', 'grant_max_percent'),
     }),
     ('Recordatorios', {'fields': ('reminder_days', 'reminder_email_enabled', 'reminder_whatsapp_enabled')}),
 )

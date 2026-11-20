@@ -13,7 +13,7 @@
         <h2 class="h3 mb-2">Beca</h2>
         {% if not acting_as_estafa %}
         <div class="grant-intro text-muted">
-            <p>El Programa de Becas {{ program.event.name }} ofrece apoyo económico para la compra de materiales y equipamiento destinados a la realización de obras artísticas.</p>
+            <p>El {% if program.grant_program_url %}<a href="{{ program.grant_program_url }}" target="_blank" rel="noopener">Programa de Becas {{ program.event.name }}</a>{% else %}Programa de Becas {{ program.event.name }}{% endif %} ofrece apoyo económico para la compra de materiales y equipamiento destinados a la realización de obras artísticas.</p>
             <p>Antes de completar la solicitud, les pedimos leer el {% if program.grant_rules_url %}<a href="{{ program.grant_rules_url }}" target="_blank" rel="noopener">Reglamento de Becas</a>{% else %}Reglamento de Becas{% endif %}, donde encontrarán los requisitos y condiciones del programa.</p>
             {% if program.grant_deadline %}<p class="mb-0">La fecha límite para enviar la solicitud es el {{ program.grant_deadline|date:"j \d\e F \d\e Y" }}.</p>{% endif %}
         </div>

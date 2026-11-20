@@ -85,6 +85,10 @@ class ArtProgram(BaseModel):
         verbose_name='Porcentaje máximo del presupuesto que se puede pedir',
         help_text='Vacío: se puede pedir hasta el total del presupuesto.',
     )
+    grant_program_url = models.URLField(
+        max_length=500, blank=True, verbose_name='Link al Programa de Becas',
+        help_text='Se enlaza en la presentación de la beca.',
+    )
     grant_rules_url = models.URLField(
         max_length=500, blank=True, verbose_name='Link al reglamento de becas',
         help_text='Se muestra en la pantalla de la beca y en la aceptación de condiciones.',
