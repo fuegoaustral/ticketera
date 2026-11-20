@@ -1,0 +1,10 @@
+        <div class="dropdown">
+            <button class="filter-chip{% if contact_summary %} is-active{% endif %}" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">Contacto{% if contact_summary %}<span class="filter-chip-value">{{ contact_summary }}</span>{% endif %}<i class="fas fa-chevron-down" aria-hidden="true"></i></button>
+            <div class="dropdown-menu filter-menu" role="group" aria-label="Contacto de ESTAFA">
+                <label class="filter-option"><input class="form-check-input" type="radio" name="contact" value="all"{% if not selected_contact %} checked{% endif %}><span>Todos</span></label>
+                <label class="filter-option"><input class="form-check-input" type="radio" name="contact" value="me"{% if selected_contact == 'me' %} checked{% endif %}><span>Asignadas a vos</span><span class="filter-count">{{ mine_count }}</span></label>
+                <label class="filter-option"><input class="form-check-input" type="radio" name="contact" value="none"{% if selected_contact == 'none' %} checked{% endif %}><span>Sin contacto</span><span class="filter-count">{{ no_contact_count }}</span></label>
+                <hr class="dropdown-divider">
+                {% for value, label, total in contact_choices %}<label class="filter-option"><input class="form-check-input" type="radio" name="contact" value="{{ value }}"{% if selected_contact == value %} checked{% endif %}><span>{{ label }}</span><span class="filter-count" title="Propuestas asignadas, sin contar rechazadas">{{ total }}</span></label>{% endfor %}
+            </div>
+        </div>

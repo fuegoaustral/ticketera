@@ -1,0 +1,12 @@
+{% extends "emails/base.html" %}
+{% block subject %}[MAD] «{{ artwork.title|default:"sin título"|safe }}» pide MAD{% endblock %}
+{% block title %}Una obra pide MAD{% endblock %}
+{% block content %}
+<p>{% if is_new %}{{ owner_name }} inscribió <strong>{{ artwork.title|default:"una Propuesta de Arte sin título" }}</strong> para {{ artwork.event.name }}, y pide MAD.{% else %}<strong>{{ artwork.title|default:"Una Propuesta de Arte sin título" }}</strong>, de {{ owner_name }}, ahora pide MAD para {{ artwork.event.name }}.{% endif %}</p>
+<ul style="padding-left:20px;margin:0 0 16px">
+{% if artwork.needs_mad_assistance %}<li>Necesita asistencia de MAD para mover materiales durante el evento.</li>{% endif %}
+{% if artwork.has_own_mobility %}<li>Tiene movilidad propia (art car).</li>{% endif %}
+</ul>
+{% include "emails/partials/btn.html" with href=review_path label="Ver la obra" %}
+<p style="font-size:13px;color:#777">Te llega porque sos parte de {{ team_label|default:"ESTAFA" }}. Podés elegir qué emails recibir en <a href="{{ base_url }}{{ prefs_path }}">tus preferencias de email</a>.</p>
+{% endblock %}

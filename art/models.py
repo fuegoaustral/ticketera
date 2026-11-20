@@ -1,4 +1,4 @@
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -14,7 +14,7 @@ from auditlog.registry import auditlog
 from events.models import Event
 from utils.models import BaseModel
 
-from .estafa import can_coordinate
+from .estafa import can_coordinate, can_manage_grants, can_message_teams, can_view_art
 
 
 def default_art_reminder_days():
@@ -79,6 +79,10 @@ class ArtProgram(BaseModel):
     grant_deadline = models.DateTimeField(
         null=True, blank=True, verbose_name='Cierre de becas',
         help_text='Último momento para pedir beca y cargar el presupuesto. Vacía: no cierra.',
+    )
+    grant_rules_url = models.URLField(
+        max_length=500, blank=True, verbose_name='Link al reglamento de becas',
+        help_text='Se muestra en la pantalla de la beca y en la aceptación de condiciones.',
     )
     guide_deadline = models.DateTimeField(
         null=True, blank=True, verbose_name='Cierre de folleto y placement',
@@ -217,6 +221,10 @@ class Artwork(BaseModel):
         REPORTED = 'reported', 'Rendición enviada'
         CLOSED = 'closed', 'Rendición aprobada'
 
+    class GrantCurrency(models.TextChoices):
+        ARS = 'ARS', 'Pesos argentinos (ARS)'
+        USD = 'USD', 'Dólares estadounidenses (USD)'
+
     class Status(models.TextChoices):
         PENDING = 'pending', 'Inscripción pendiente'
         ACTIVE = 'active', 'Inscripción aprobada'
@@ -311,7 +319,20 @@ class Artwork(BaseModel):
     grant_justification = models.TextField(blank=True, verbose_name='Por qué la beca hace posible la instalación')
     grant_status = models.CharField(max_length=10, choices=GrantStatus.choices, default=GrantStatus.NOT_REQUESTED, verbose_name='Estado de la beca')
     grant_report = models.TextField(blank=True, verbose_name='Rendición y resultado de la instalación')
-    grant_approved_amount_ars = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(1)], verbose_name='Monto aprobado en ARS')
+    # Toda la beca va en una sola moneda: presupuesto, monto pedido, monto aprobado y rendición.
+    grant_currency = models.CharField(max_length=3, choices=GrantCurrency.choices, default=GrantCurrency.ARS, verbose_name='Moneda de la beca')
+    grant_requested_amount = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(Decimal('0.01'))], verbose_name='Monto que pedís')
+    grant_payee_name = models.CharField(max_length=200, blank=True, verbose_name='¿Qué nombre o razón social recibiría la beca?')
+    grant_payee_tax_id = models.CharField(max_length=11, blank=True, verbose_name='¿Qué CUIT/CUIL recibiría la beca?')
+    grant_payee_account = models.CharField(max_length=22, blank=True, verbose_name='¿A qué CBU, CVU o alias se transferiría la beca?')
+    grant_terms_accepted_at = models.DateTimeField(null=True, blank=True, verbose_name='Aceptación de las condiciones de la beca')
+    grant_terms_accepted_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+        verbose_name='Quién aceptó las condiciones de la beca',
+    )
+    grant_submitted_at = models.DateTimeField(null=True, blank=True, verbose_name='Presentación de la solicitud de beca')
+    grant_decided_at = models.DateTimeField(null=True, blank=True, verbose_name='Última decisión sobre la beca')
+    grant_approved_amount = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(1)], verbose_name='Monto aprobado')
     grant_decision_notes = models.TextField(blank=True, verbose_name='Devolución sobre la beca')
     grant_paid_at = models.DateField(null=True, blank=True, verbose_name='Fecha de pago de la beca')
     grant_payment_reference = models.CharField(max_length=200, blank=True, verbose_name='Referencia del pago')
@@ -426,6 +447,23 @@ class Artwork(BaseModel):
     def can_manage(self, user):
         return can_coordinate(user, self.event)
 
+    def can_manage_grant(self, user):
+        """Gestionar la beca: Becas y ESTAFA."""
+        return can_manage_grants(user, self.event)
+
+    def can_message(self, user):
+        """Escribirle al equipo de la propuesta: ESTAFA, Becas y MAD."""
+        return can_message_teams(user, self.event)
+
+    @property
+    def asks_mad(self):
+        """Pide asistencia de MAD o es un art car. Moverse sin motor no es un pedido a MAD."""
+        return self.needs_mad_assistance or self.has_own_mobility
+
+    def can_view_all(self, user):
+        """Leer la propuesta completa sin ser del equipo: ESTAFA, Becas y MAD."""
+        return can_view_art(user, self.event)
+
     @property
     def stage(self):
         if self.status == self.Status.ACTIVE:
@@ -480,26 +518,23 @@ class Artwork(BaseModel):
         if errors:
             raise ValidationError(errors)
 
-    def grant_total_ars(self, phase):
-        return sum((item.amount_ars for item in self.grant_items.filter(phase=phase)), Decimal('0.00'))
+    def grant_total(self, phase):
+        """La suma de los ítems, en la moneda de la beca."""
+        return sum((item.amount for item in self.grant_items.filter(phase=phase)), Decimal('0.00'))
 
     @property
-    def budget_total_ars(self):
-        return self.grant_total_ars(ArtworkGrantItem.Phase.BUDGET)
+    def budget_total(self):
+        return self.grant_total(ArtworkGrantItem.Phase.BUDGET)
 
     @property
-    def expense_total_ars(self):
-        return self.grant_total_ars(ArtworkGrantItem.Phase.EXPENSE)
+    def expense_total(self):
+        return self.grant_total(ArtworkGrantItem.Phase.EXPENSE)
 
 
 class ArtworkGrantItem(BaseModel):
     class Phase(models.TextChoices):
         BUDGET = 'budget', 'Presupuesto'
         EXPENSE = 'expense', 'Rendición'
-
-    class Currency(models.TextChoices):
-        ARS = 'ARS', 'Pesos argentinos (ARS)'
-        USD = 'USD', 'Dólares estadounidenses (USD)'
 
     class ItemType(models.TextChoices):
         MATERIALS = 'materials', 'Materiales'
@@ -517,11 +552,7 @@ class ArtworkGrantItem(BaseModel):
     item_type = models.CharField(max_length=10, choices=ItemType.choices, default=ItemType.OTHER, verbose_name='Tipo')
     concept = models.CharField(max_length=200, verbose_name='Concepto')
     details = models.TextField(blank=True, verbose_name='Detalle')
-    amount = models.DecimalField(max_digits=14, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))], verbose_name='Monto original')
-    currency = models.CharField(max_length=3, choices=Currency.choices, default=Currency.ARS, verbose_name='Moneda')
-    exchange_rate = models.DecimalField(max_digits=14, decimal_places=4, default=1, validators=[MinValueValidator(Decimal('0.0001'))], verbose_name='Cotización ARS por USD')
-    rate_date = models.DateField(verbose_name='Fecha de cotización o pago')
-    rate_source = models.CharField(max_length=200, blank=True, verbose_name='Fuente y tipo de cambio')
+    amount = models.DecimalField(max_digits=14, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))], verbose_name='Monto')
     review_status = models.CharField(
         max_length=10, choices=ReviewStatus.choices, default=ReviewStatus.PENDING,
         verbose_name='Revisión del ítem',
@@ -535,22 +566,8 @@ class ArtworkGrantItem(BaseModel):
         verbose_name_plural = 'Ítems de beca'
         constraints = [
             models.CheckConstraint(check=Q(phase__in=('budget', 'expense')), name='art_grant_item_valid_phase'),
-            models.CheckConstraint(check=Q(currency__in=('ARS', 'USD')), name='art_grant_item_valid_currency'),
             models.CheckConstraint(check=Q(amount__gt=0), name='art_grant_item_positive_amount'),
-            models.CheckConstraint(check=Q(exchange_rate__gt=0), name='art_grant_item_positive_rate'),
-            models.CheckConstraint(check=Q(currency='USD') | Q(exchange_rate=1), name='art_grant_item_ars_rate_one'),
         ]
-
-    def clean(self):
-        if self.currency == self.Currency.ARS:
-            self.exchange_rate = Decimal('1')
-            self.rate_source = ''
-        elif not self.rate_source:
-            raise ValidationError({'rate_source': 'Indicá la fuente y el tipo de dólar utilizado.'})
-
-    @property
-    def amount_ars(self):
-        return (self.amount * self.exchange_rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
     def __str__(self):
         return f'{self.get_phase_display()} · {self.concept}'
@@ -709,20 +726,35 @@ auditlog.register(ArtworkFile)
 auditlog.register(ArtworkCheckoutPhoto)
 
 
+# Lo mismo que Artwork.asks_mad, para filtrar en la base.
+ASKS_MAD = Q(needs_mad_assistance=True) | Q(has_own_mobility=True)
+
+
 class EstafaNotificationPreference(BaseModel):
-    """Qué emails de las obras recibe una persona de ESTAFA. Sin fila, valen los valores por defecto."""
+    """Qué emails de las obras recibe cada persona de ESTAFA, Becas y MAD. Sin fila, valen los valores por defecto.
+
+    Cada equipo tiene sus opciones; a quien está en más de uno le valen todas las de sus equipos.
+    """
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='estafa_notification_preference')
+    # ESTAFA
     new_artworks = models.BooleanField(default=True, verbose_name='Obras nuevas')
     assigned_changes = models.BooleanField(default=True, verbose_name='Cambios de las obras asignadas a mí')
     all_changes = models.BooleanField(default=False, verbose_name='Cambios de todas las obras')
+    grant_updates = models.BooleanField(default=True, verbose_name='Incluir las novedades de becas')
+    # Becas
+    becas_new_applications = models.BooleanField(default=True, verbose_name='Solicitudes de beca nuevas')
+    becas_changes = models.BooleanField(default=True, verbose_name='Cambios en las becas')
+    # MAD
+    mad_new_artworks = models.BooleanField(default=True, verbose_name='Obras que piden MAD')
+    mad_changes = models.BooleanField(default=False, verbose_name='Cambios de las obras que piden MAD')
 
     class Meta:
-        verbose_name = 'Preferencia de emails de ESTAFA'
-        verbose_name_plural = 'Preferencias de emails de ESTAFA'
+        verbose_name = 'Preferencia de emails de Arte'
+        verbose_name_plural = 'Preferencias de emails de Arte'
 
     def __str__(self):
-        return f'Emails de ESTAFA · {self.user}'
+        return f'Emails de Arte · {self.user}'
 
     @classmethod
     def for_user(cls, user):

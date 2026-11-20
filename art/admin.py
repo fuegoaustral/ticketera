@@ -45,7 +45,7 @@ ART_PROGRAM_FIELDSETS = (
     ('Galería y checkout', {'fields': ('gallery_opens', 'gallery_deadline', 'checkout_opens', 'checkout_deadline')}),
     ('Becas', {
         'description': 'Las gestiona el equipo de becas.',
-        'fields': ('grants_enabled', 'grant_opens', 'grant_deadline', 'grant_report_deadline'),
+        'fields': ('grants_enabled', 'grant_opens', 'grant_deadline', 'grant_report_deadline', 'grant_rules_url'),
     }),
     ('Recordatorios', {'fields': ('reminder_days', 'reminder_email_enabled', 'reminder_whatsapp_enabled')}),
 )
@@ -92,26 +92,17 @@ class ArtworkGrantItemAdminForm(ModelForm):
         max_digits=14, decimal_places=2, min_value=Decimal('0.01'),
         widget=forms.TextInput(attrs={'inputmode': 'decimal', 'placeholder': '150.000,00'}),
     )
-    exchange_rate = LocalizedDecimalField(
-        max_digits=14, decimal_places=4, min_value=Decimal('0.0001'),
-        widget=forms.TextInput(attrs={'inputmode': 'decimal', 'placeholder': '1.234,56'}),
-    )
-    confirm_large_amount = forms.BooleanField(
-        required=False,
-        label='Confirmo el monto si supera ARS 1.000.000',
-    )
+    confirm_large_amount = forms.BooleanField(required=False, label='Confirmo el monto si supera 1.000.000')
 
     class Meta:
         model = ArtworkGrantItem
-        fields = ('item_type', 'concept', 'details', 'amount', 'currency', 'exchange_rate', 'rate_date', 'rate_source', 'review_status', 'review_notes')
+        fields = ('item_type', 'concept', 'details', 'amount', 'review_status', 'review_notes')
 
     def clean(self):
         cleaned = super().clean()
         amount = cleaned.get('amount')
-        if cleaned.get('currency') == ArtworkGrantItem.Currency.USD:
-            amount = amount * (cleaned.get('exchange_rate') or Decimal('0')) if amount else None
         if amount and amount >= Decimal('1000000') and not cleaned.get('confirm_large_amount'):
-            self.add_error('confirm_large_amount', 'Confirmá el monto convertido antes de guardar.')
+            self.add_error('confirm_large_amount', 'Confirmá el monto antes de guardar.')
         return cleaned
 
 
@@ -122,7 +113,7 @@ class ArtworkGrantItemInline(admin.StackedInline):
     phase = None
     fieldsets = (
         ('Concepto', {'fields': (('item_type', 'concept'), 'details')}),
-        ('Importe', {'fields': (('amount', 'currency', 'exchange_rate'), ('rate_date', 'rate_source'))}),
+        ('Importe', {'fields': ('amount',), 'description': 'En la moneda de la beca.'}),
         ('Revisión', {'fields': ('review_status', 'review_notes', 'confirm_large_amount')}),
     )
 
@@ -198,14 +189,14 @@ class ArtworkProviderInline(admin.TabularInline):
 
 
 class ArtworkAdminForm(ModelForm):
-    grant_approved_amount_ars = LocalizedDecimalField(
+    grant_approved_amount = LocalizedDecimalField(
         required=False, max_digits=14, decimal_places=2, min_value=Decimal('0.01'),
         label='Monto de beca aprobado',
         widget=forms.TextInput(attrs={'inputmode': 'decimal', 'placeholder': '450.000,00'}),
     )
     confirm_large_grant_amount = forms.BooleanField(
         required=False,
-        label='Confirmo el monto aprobado si supera ARS 1.000.000',
+        label='Confirmo el monto aprobado si supera 1.000.000',
     )
 
     class Meta:
@@ -214,7 +205,7 @@ class ArtworkAdminForm(ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        amount = cleaned.get('grant_approved_amount_ars')
+        amount = cleaned.get('grant_approved_amount')
         if amount and amount >= Decimal('1000000') and not cleaned.get('confirm_large_grant_amount'):
             self.add_error('confirm_large_grant_amount', 'Confirmá el monto aprobado antes de guardar.')
         return cleaned
@@ -227,12 +218,12 @@ class ArtworkAdmin(admin.ModelAdmin):
     list_filter = ('event', 'kind', 'status', 'grant_status', 'checkout_completed', 'understanding_letter_physical_received', 'submitted_at')
     search_fields = ('title', 'owner__email', 'public_description')
     autocomplete_fields = ('owner', 'collaborators', 'operations_group', 'checkout_team_responsible', 'checkin_art_by', 'estafa_contact', 'checkout_verified_by', 'safety_responsible')
-    readonly_fields = ('submitted_at', 'status_changed_at', 'status_changed_by', 'checkin_art_by', 'checkout_requested_at', 'checkout_verified_by', 'created_at', 'updated_at', 'version')
+    readonly_fields = ('submitted_at', 'status_changed_at', 'status_changed_by', 'checkin_art_by', 'checkout_requested_at', 'checkout_verified_by', 'created_at', 'updated_at', 'version', 'grant_terms_accepted_at', 'grant_terms_accepted_by', 'grant_submitted_at', 'grant_decided_at')
     fieldsets = (
         ('Propuesta de Arte', {'fields': ('event', 'owner', 'collaborators', 'operations_group', 'kind', 'title')}),
         ('Check-in de instalación', {'fields': ('checkin_arrived_at', 'checkin_art_at', 'checkin_art_by', 'checkin_placed', 'checkin_placement_changed', 'checkin_placement_change_notes', 'understanding_letter', 'third_party_liability_accepted', 'understanding_letter_physical_received', 'understanding_letter_physical_custodian', 'understanding_letter_physical_notes', 'understanding_letter_physical_waiver', 'understanding_letter_physical_waiver_reason')}),
         ('Propuesta y seguridad', {'fields': ('proposal', 'dimensions', 'materials', 'technical_needs', 'transport_plan', 'uses_sound', 'safety_plan', 'uses_fire', 'fire_details', 'extinguishing_plan', 'sound_power', 'safety_contact', 'safety_responsible', 'burns', 'burn_preferred_time', 'burn_company', 'wants_support_camp', 'needs_mad_assistance', 'is_movable', 'has_own_mobility', 'files_url')}),
-        ('Beca', {'fields': ('grant_requested', 'grant_justification', 'grant_status', 'grant_approved_amount_ars', 'confirm_large_grant_amount', 'grant_decision_notes', 'grant_paid_at', 'grant_payment_reference', 'grant_report')}),
+        ('Beca', {'fields': ('grant_requested', 'grant_justification', 'grant_currency', 'grant_requested_amount', 'grant_payee_name', 'grant_payee_tax_id', 'grant_payee_account', 'grant_terms_accepted_at', 'grant_terms_accepted_by', 'grant_submitted_at', 'grant_status', 'grant_approved_amount', 'confirm_large_grant_amount', 'grant_decision_notes', 'grant_decided_at', 'grant_paid_at', 'grant_payment_reference', 'grant_report')}),
         ('Folleto y placement', {'fields': ('public_title', 'public_description', 'preferred_location', 'assigned_location', 'placement_notes')}),
         ('Logística', {'fields': ('arrival_date', 'departure_date', 'crew', 'providers')}),
         ('Checkout, paso 1, equipo de la propuesta', {'fields': ('checkout_completed', 'checkout_team_responsible', 'checkout_notes', 'checkout_requested_at')}),

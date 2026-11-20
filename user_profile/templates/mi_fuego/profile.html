@@ -655,26 +655,29 @@
             </div>
 
                     {% if estafa_emails_form %}
-                    <!-- Emails de ESTAFA -->
+                    <!-- Emails de ESTAFA, Becas y MAD -->
                     <div class="card profile-section" id="emails-estafa">
                         <div class="card-header">
                             <h5>
                                 <i class="fas fa-envelope me-2"></i>
-                                ESTAFA
+                                Emails de {{ estafa_emails_form.title }}
                             </h5>
                         </div>
                         <div class="card-body">
                             <form method="post" action="{% url 'profile' %}">
                                 {% csrf_token %}
-                                <fieldset>
-                                    <legend class="form-label fs-6 fw-semibold mb-3">¿Qué emails querés recibir de las obras?</legend>
-                                    {% for field in estafa_emails_form %}
+                                <p class="form-label fs-6 fw-semibold mb-3">¿Qué emails querés recibir de las obras?</p>
+                                {% for team_name, fields in estafa_emails_form.groups %}
+                                <fieldset class="mb-3">
+                                    {% if estafa_emails_form.groups|length > 1 %}<legend class="form-label small text-muted text-uppercase mb-2">{{ team_name }}</legend>{% endif %}
+                                    {% for field in fields %}
                                         <div class="form-check mb-2">
                                             {{ field }}
                                             <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
                                         </div>
                                     {% endfor %}
                                 </fieldset>
+                                {% endfor %}
                                 <div class="d-flex justify-content-end mt-3">
                                     <button type="submit" name="update_estafa_emails" class="btn btn-primary">
                                         <i class="fas fa-save me-2"></i>Guardar preferencias

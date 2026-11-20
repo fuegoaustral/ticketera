@@ -1,0 +1,9 @@
+        <div class="art-view-switch d-flex align-items-center gap-2" role="group" aria-labelledby="art-view-label">
+            <span class="small text-muted fw-semibold" id="art-view-label">Ver:</span>
+            <div class="btn-group btn-group-sm">
+                <input type="radio" class="btn-check" name="art-view" id="art-view-proposal" value="proposal" autocomplete="off" aria-controls="art-table-wrap" checked>
+                <label class="btn btn-outline-primary" for="art-view-proposal">{{ main_label|default:'Propuesta' }}</label>
+                <input type="radio" class="btn-check" name="art-view" id="art-view-contact" value="contact" autocomplete="off" aria-controls="art-table-wrap">
+                <label class="btn btn-outline-primary" for="art-view-contact">Contacto</label>
+            </div>
+        </div>

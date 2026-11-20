@@ -1,6 +1,7 @@
 import csv
 import logging
 import uuid
+from decimal import Decimal
 from email.utils import formataddr
 
 from django.contrib import messages
@@ -9,12 +10,13 @@ from django.contrib.auth.models import User
 from django.core import signing
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, transaction
-from django.db.models import Count, F, Q
+from django.db.models import Count, F, Q, Sum
 from django.db.models.functions import Lower
 from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import strip_tags
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
@@ -25,15 +27,22 @@ from user_profile.phone import whatsapp_number
 from utils.email import send_mail
 
 from . import direct_uploads, history
-from .digest import record_change, send_new_artwork_email
-from .estafa import can_access_estafa, can_coordinate, estafa_events, estafa_members, is_estafa_member
+from .digest import (
+    GRANT_REPORT_SECTION, GRANT_REQUEST_SECTION, record_change, send_grant_application_email,
+    send_mad_request_email, send_new_artwork_email,
+)
+from .estafa import (
+    BECAS_SLUG, MAD_SLUG, art_team_name, art_teams, can_access_estafa, can_coordinate, can_manage_grants, can_view_art,
+    estafa_events, estafa_members, is_estafa_member,
+)
 from .forms import (
     GALLERY_STAGES, ArtworkForm, ArtworkGrantForm, ArtworkGrantItemForm, ArtworkTeamAddForm,
     ArtworkCheckoutPhotoUploadForm, ArtworkFileUploadForm, ArtworkPhotoUploadForm, ArtworkProviderForm, ArtworkTeamBenefitsForm,
-    ArtworkProviderVehicleForm, ArtworkContactForm, ArtworkGrantItemReviewForm, ArtworkReviewForm,
+    ArtworkProviderVehicleForm, ArtworkContactForm, ArtworkGrantActionForm, ArtworkGrantItemReviewForm, ArtworkReviewForm,
+    GRANT_ACTIONS, _localized_amount, grant_actions_for,
 )
 from .models import (
-    ArtProgram, Artwork, ArtworkFile, ArtworkGrantItem, ArtworkGrantItemPhoto,
+    ASKS_MAD, ArtProgram, Artwork, ArtworkFile, ArtworkGrantItem, ArtworkGrantItemPhoto,
     ArtworkPhoto, ArtworkCheckoutPhoto, ArtworkProvider,
     ArtworkProviderVehicle,
 )
@@ -73,14 +82,16 @@ def _steps_context(artwork, program, user, form=None, editable=None):
     }
 
 
-def _accessible_artworks(user):
+def _accessible_artworks(user, grant=False):
+    """Las propuestas que la persona abre como equipo. Con grant=True, las de la pantalla de la beca:
+    ahí también entran Becas y MAD."""
     if user.is_superuser:
         return Artwork.objects.all()
     team_ids = Artwork.objects.filter(
         Q(collaborators=user) | Q(operations_group__miembros__user=user),
     ).values('pk')
     access = Q(owner=user) | Q(pk__in=team_ids)
-    if is_estafa_member(user):
+    if is_estafa_member(user) or (grant and art_teams(user)):
         access |= Q(event__has_volunteers=True)
     return Artwork.objects.filter(access)
 
@@ -127,6 +138,20 @@ def _send_status_email(artwork):
         logging.exception('No se pudo avisar el cambio de estado de la instalación %s', artwork.pk)
 
 
+def _send_grant_decision_email(artwork):
+    recipients = _team_emails(artwork)
+    if not recipients:
+        return
+    try:
+        send_mail(
+            template_name='art_grant_decision',
+            recipient_list=recipients,
+            context={'artwork': artwork, 'grant_path': reverse('artwork_grant', args=[artwork.pk])},
+        )
+    except Exception:
+        logging.exception('No se pudo avisar la decisión de la beca de la instalación %s', artwork.pk)
+
+
 def _send_team_message_email(artwork, sender, message):
     recipients = _team_emails(artwork)
     if not recipients:
@@ -138,6 +163,7 @@ def _send_team_message_email(artwork, sender, message):
             context={
                 'artwork': artwork,
                 'sender_name': person_name(sender),
+                'sender_team': art_team_name(sender) or 'ESTAFA',
                 'message': message,
                 'artwork_path': reverse('artwork_edit', args=[artwork.pk]),
             },
@@ -324,11 +350,11 @@ def _grant_context(artwork, inline_forms=None):
     return {
         'budget_items': budget,
         'expense_items': expenses,
-        'budget_total_ars': artwork.grant_total_ars(ArtworkGrantItem.Phase.BUDGET),
-        'expense_total_ars': artwork.grant_total_ars(ArtworkGrantItem.Phase.EXPENSE),
+        'budget_total': sum((item.amount for item in budget), Decimal('0.00')),
+        'expense_total': sum((item.amount for item in expenses), Decimal('0.00')),
         'grant_over_budget': bool(
-            artwork.grant_approved_amount_ars
-            and artwork.grant_total_ars(ArtworkGrantItem.Phase.EXPENSE) > artwork.grant_approved_amount_ars
+            artwork.grant_approved_amount
+            and sum((item.amount for item in expenses), Decimal('0.00')) > artwork.grant_approved_amount
         ),
         'budget_create_form': inline_forms.get(('grant-new', ArtworkGrantItem.Phase.BUDGET)) or ArtworkGrantItemForm(
             instance=ArtworkGrantItem(artwork=artwork, phase=ArtworkGrantItem.Phase.BUDGET),
@@ -426,10 +452,26 @@ def _artwork_context(artwork, program, form, inline_forms=None):
     return context
 
 
-def _estafa_context(user, event):
+def _mad_only(user):
+    """Es de MAD y de ningún otro equipo de Arte: ve la parte de MAD, los mensajes y la propuesta."""
+    return not user.is_superuser and art_teams(user) == {MAD_SLUG}
+
+
+def _estafa_landing(user):
+    """La pestaña con la que cada quien entra: Becas, a las becas; MAD, a MAD; el resto, a las propuestas."""
+    teams = art_teams(user)
+    if user.is_superuser or is_estafa_member(user):
+        return 'art_admin_dashboard'
+    if BECAS_SLUG in teams:
+        return 'art_grants_dashboard'
+    return 'art_mad_dashboard' if MAD_SLUG in teams else 'art_admin_dashboard'
+
+
+def _estafa_context(user, event, tab='artworks'):
     return {
-        **_base_context(event), 'nav_primary': 'estafa',
+        **_base_context(event), 'nav_primary': 'estafa', 'art_team_name': art_team_name(user),
         'estafa_events': estafa_events(user), 'current_estafa_event': event,
+        'estafa_landing': _estafa_landing(user), 'estafa_tab': tab,
     }
 
 
@@ -453,7 +495,8 @@ def _review_context(artwork, form, user, inline_forms=None):
         'history': history.timeline(artwork, artwork.event.art_program),
         'news_count': 0,
         'contact_form': ArtworkContactForm(instance=artwork, auto_id='contact_%s'),
-        'can_manage': artwork.can_manage(user),
+        'can_manage': artwork.can_manage(user), 'can_message': artwork.can_message(user),
+        'show_grant': artwork.event.art_program.grants_enabled or artwork.grant_status != Artwork.GrantStatus.NOT_REQUESTED,
         'checkout_photo_upload_form': inline_forms.get(('checkout-photo-new', None)) or ArtworkCheckoutPhotoUploadForm(
             auto_id='checkout-photo-new_%s',
         ),
@@ -461,7 +504,7 @@ def _review_context(artwork, form, user, inline_forms=None):
 
 
 # Los formularios en línea que viven en la pantalla de la beca.
-GRANT_INLINE_KEYS = ('grant', 'grant-new', 'report-photo-new')
+GRANT_INLINE_KEYS = ('grant', 'grant-new', 'report-photo-new', 'grant-decision')
 
 
 def _inline_error_response(request, artwork, key, inline_form):
@@ -635,6 +678,7 @@ def _handle_artwork_edit(request, artwork):
         raise Http404('El programa de Arte ya no está disponible.') from exc
 
     action = request.POST.get('action', 'save')
+    asked_mad = artwork.asks_mad
     form = ArtworkForm(
         request.POST or None, request.FILES or None,
         instance=artwork, program=program, owner=artwork.owner, actor=request.user,
@@ -644,6 +688,8 @@ def _handle_artwork_edit(request, artwork):
             form.instance.submitted_at = timezone.now()
         changed_sections = _changed_sections(form)
         artwork = form.save()
+        if artwork.asks_mad and not asked_mad:
+            transaction.on_commit(lambda: send_mad_request_email(artwork, request.user))
         for section, fields in changed_sections:
             record_change(artwork, section, request.user, fields=fields)
         _ensure_operations_group(artwork, program)
@@ -682,11 +728,11 @@ def _changed_sections(form):
 
 
 def _field_labels(form, names):
-    return [str(form.fields[name].label or name) for name in names if name in form.fields]
+    return [strip_tags(str(form.fields[name].label or name)) for name in names if name in form.fields]
 
 
 def _grant_section(phase):
-    return 'Beca' if phase == ArtworkGrantItem.Phase.BUDGET else 'Rendición de beca'
+    return GRANT_REQUEST_SECTION if phase == ArtworkGrantItem.Phase.BUDGET else GRANT_REPORT_SECTION
 
 
 def _can_submit_checkout(artwork, program, user):
@@ -721,7 +767,7 @@ def _grant_item_editable(artwork, phase, user):
     block = 'grant' if phase == ArtworkGrantItem.Phase.BUDGET else 'grant_report'
     if artwork.event.art_program.checkpoint_state(block) == 'upcoming':
         return False
-    if artwork.can_manage(user):
+    if artwork.can_manage_grant(user):
         return True
     if not artwork.can_edit(user):
         return False
@@ -799,7 +845,7 @@ def _grant_page_context(artwork, program, form, user, inline_forms=None):
         'form': form,
         'program': program,
         'artwork': artwork,
-        'can_manage': artwork.can_manage(user),
+        'can_manage': artwork.can_manage_grant(user),
         'can_edit_budget': _grant_item_editable(artwork, ArtworkGrantItem.Phase.BUDGET, user),
         'can_edit_expenses': _grant_item_editable(artwork, ArtworkGrantItem.Phase.EXPENSE, user),
         'can_submit_grant': artwork.can_edit(user) and program.is_current and program.checkpoint_state('grant') == 'open' and artwork.grant_status in (Artwork.GrantStatus.NOT_REQUESTED, Artwork.GrantStatus.INFO_REQUIRED),
@@ -807,13 +853,25 @@ def _grant_page_context(artwork, program, form, user, inline_forms=None):
         'report_opened': artwork.grant_status in (
             Artwork.GrantStatus.APPROVED, Artwork.GrantStatus.PAID, Artwork.GrantStatus.REPORTED, Artwork.GrantStatus.CLOSED,
         ),
+        'grant_missing': _grant_missing(artwork),
         'report_photos': artwork.photos.filter(stage=ArtworkPhoto.Stage.GRANT_REPORT),
         'report_photo_upload_form': inline_forms.get(('report-photo-new', None)) or ArtworkPhotoUploadForm(
             stages=(ArtworkPhoto.Stage.GRANT_REPORT,), auto_id='report-photo-new_%s',
         ),
     })
-    if context['can_manage'] and not artwork.can_edit(user):
-        context.update(_estafa_context(user, artwork.event), acting_as_estafa=True)
+    if artwork.can_view_all(user) and not artwork.can_edit(user):
+        context.update(_estafa_context(user, artwork.event, tab='grants'), acting_as_estafa=True)
+    if context['can_manage'] and artwork.grant_status != Artwork.GrantStatus.NOT_REQUESTED:
+        context['grant_actions'] = [
+            {
+                'key': key, **GRANT_ACTIONS[key], 'open': ('grant-decision', key) in inline_forms,
+                'form': inline_forms.get(('grant-decision', key)) or ArtworkGrantActionForm(
+                    artwork=artwork, action=key, auto_id=f'grant-{key}_%s',
+                ),
+            }
+            for key in grant_actions_for(artwork)
+        ]
+    context['can_message'] = context.get('acting_as_estafa', False) and artwork.can_message(user)
     context.update(_grant_context(artwork, inline_forms))
     return context
 
@@ -823,11 +881,11 @@ def artwork_grant(request, artwork_id):
     """La beca, fuera de la inscripción: solicitud con presupuesto y, si se aprueba, la rendición."""
     if request.method == 'POST':
         with transaction.atomic():
-            artwork = get_object_or_404(_accessible_artworks(request.user).select_for_update(), pk=artwork_id)
-            if not artwork.can_edit(request.user) and not artwork.can_manage(request.user):
+            artwork = get_object_or_404(_accessible_artworks(request.user, grant=True).select_for_update(), pk=artwork_id)
+            if not artwork.can_edit(request.user) and not artwork.can_manage_grant(request.user):
                 raise Http404
             return _handle_artwork_grant(request, artwork)
-    artwork = get_object_or_404(_accessible_artworks(request.user), pk=artwork_id)
+    artwork = get_object_or_404(_accessible_artworks(request.user, grant=True), pk=artwork_id)
     return _handle_artwork_grant(request, artwork)
 
 
@@ -836,7 +894,7 @@ def _handle_artwork_grant(request, artwork):
         program = artwork.event.art_program
     except ArtProgram.DoesNotExist as exc:
         raise Http404('El programa de Arte ya no está disponible.') from exc
-    if not program.grants_enabled and not artwork.can_manage(request.user):
+    if not program.grants_enabled and not artwork.can_manage_grant(request.user):
         raise Http404('Esta convocatoria no tiene becas.')
     form = ArtworkGrantForm(request.POST or None, instance=artwork, program=program, actor=request.user)
     if request.method == 'POST' and form.is_valid():
@@ -851,7 +909,7 @@ def _handle_artwork_grant(request, artwork):
 
 @login_required
 def grant_item_create(request, artwork_id, phase):
-    access = _accessible_artworks(request.user)
+    access = _accessible_artworks(request.user, grant=True)
     artwork = get_object_or_404(access, pk=artwork_id)
     if phase not in ArtworkGrantItem.Phase.values or not _grant_item_editable(artwork, phase, request.user):
         return HttpResponseForbidden('Este bloque ya no se puede editar.')
@@ -877,7 +935,7 @@ def grant_item_create(request, artwork_id, phase):
 
 @login_required
 def grant_item_edit(request, artwork_id, item_id):
-    access = _accessible_artworks(request.user)
+    access = _accessible_artworks(request.user, grant=True)
     artwork = get_object_or_404(access, pk=artwork_id)
     item = get_object_or_404(ArtworkGrantItem, pk=item_id, artwork=artwork)
     if not _grant_item_editable(artwork, item.phase, request.user):
@@ -912,7 +970,7 @@ def grant_item_review(request, event_slug, artwork_id, item_id):
         artwork = get_object_or_404(
             Artwork.objects.select_for_update(), pk=artwork_id, event__slug=event_slug,
         )
-        if not artwork.can_manage(request.user):
+        if not artwork.can_manage_grant(request.user):
             return HttpResponseForbidden('No tenés permisos para revisar becas en este evento.')
         item = get_object_or_404(ArtworkGrantItem.objects.select_for_update(), pk=item_id, artwork=artwork)
         form = ArtworkGrantItemReviewForm(request.POST, instance=item)
@@ -928,11 +986,79 @@ def grant_item_review(request, event_slug, artwork_id, item_id):
 
 
 @login_required
+@require_POST
+def artwork_grant_decision(request, event_slug, artwork_id):
+    """Una acción de Becas o ESTAFA sobre la beca (aprobar, pedir información, registrar el pago…)."""
+    action = request.POST.get('action', '')
+    with transaction.atomic():
+        artwork = get_object_or_404(Artwork.objects.select_for_update(), pk=artwork_id, event__slug=event_slug)
+        if not artwork.can_manage_grant(request.user):
+            return HttpResponseForbidden('No tenés permisos para gestionar becas en este evento.')
+        if action not in grant_actions_for(artwork):
+            messages.error(request, 'La beca cambió de estado mientras la revisabas. Revisá su estado actual.')
+            return _grant_page_redirect(artwork, 'decision')
+        form = ArtworkGrantActionForm(request.POST, artwork=artwork, action=action, auto_id=f'grant-{action}_%s')
+        if not form.is_valid():
+            return _inline_error_response(request, artwork, ('grant-decision', action), form)
+        summary, notify = _apply_grant_action(artwork, action, form.cleaned_data)
+        history.log(artwork, history.ESTAFA, request.user, summary, detail=form.cleaned_data.get('notes', ''))
+        if notify:
+            transaction.on_commit(lambda: _send_grant_decision_email(artwork))
+        messages.success(request, f'La beca quedó como «{artwork.get_grant_status_display()}».' + (
+            ' Le avisamos al equipo por email.' if notify else ''
+        ))
+    return _grant_page_redirect(artwork, 'decision')
+
+
+def _apply_grant_action(artwork, action, data):
+    """Aplica la acción y devuelve la línea del historial y si hay que avisarle al equipo."""
+    status = Artwork.GrantStatus
+    previous = (artwork.grant_status, artwork.grant_approved_amount, artwork.grant_decision_notes, artwork.grant_paid_at)
+    target = GRANT_ACTIONS[action]['to']
+    if 'amount' in data:
+        artwork.grant_approved_amount = data['amount']
+    if 'notes' in data:
+        artwork.grant_decision_notes = data['notes']
+    if 'paid_at' in data:
+        artwork.grant_paid_at = data['paid_at']
+        artwork.grant_payment_reference = data.get('reference', '')
+    if action == 'back_to_pending':
+        artwork.grant_approved_amount = None
+    if action == 'request_report_changes':
+        # El equipo vuelve a editar la rendición en el estado en que la envió.
+        target = status.PAID if artwork.grant_paid_at else status.APPROVED
+    if target:
+        artwork.grant_status = target
+    if artwork.grant_status != previous[0]:
+        artwork.grant_decided_at = timezone.now()
+    artwork.version += 1
+    artwork.save()
+    money = f'{artwork.grant_currency} {_localized_amount(artwork.grant_approved_amount)}' if artwork.grant_approved_amount else ''
+    paid = artwork.grant_paid_at.strftime('%d/%m/%Y') if artwork.grant_paid_at else ''
+    summary = {
+        'approve': f'Aprobó la beca por {money}',
+        'request_info': 'Pidió más información sobre la beca',
+        'reject': 'No aprobó la beca',
+        'pay': f'Registró el pago de la beca del {paid}',
+        'change_amount': f'Cambió el monto aprobado de la beca a {money}',
+        'back_to_pending': 'Volvió la beca a pendiente',
+        'reopen': 'Reabrió la solicitud de beca',
+        'fix_payment': f'Corrigió el pago de la beca: {paid}',
+        'approve_report': 'Aprobó la rendición de la beca',
+        'request_report_changes': 'Pidió cambios en la rendición de la beca',
+        'reopen_report': 'Reabrió la rendición de la beca',
+    }[action]
+    # Al equipo le avisamos cuando cambia algo de lo que ve: no por la referencia interna del pago.
+    notify = previous != (artwork.grant_status, artwork.grant_approved_amount, artwork.grant_decision_notes, artwork.grant_paid_at)
+    return summary, notify
+
+
+@login_required
 def grant_item_delete(request, artwork_id, item_id):
     if request.method != 'POST':
         return HttpResponseForbidden('Este ítem no se puede eliminar.')
     with transaction.atomic():
-        artwork = get_object_or_404(_accessible_artworks(request.user).select_for_update(), pk=artwork_id)
+        artwork = get_object_or_404(_accessible_artworks(request.user, grant=True).select_for_update(), pk=artwork_id)
         item = get_object_or_404(ArtworkGrantItem.objects.select_for_update(), pk=item_id, artwork=artwork)
         if not _grant_item_editable(artwork, item.phase, request.user):
             return HttpResponseForbidden('Este ítem no se puede eliminar.')
@@ -947,7 +1073,7 @@ def grant_item_photo_delete(request, artwork_id, item_id, photo_id):
     if request.method != 'POST':
         return HttpResponseForbidden('Esta imagen no se puede eliminar.')
     with transaction.atomic():
-        artwork = get_object_or_404(_accessible_artworks(request.user).select_for_update(), pk=artwork_id)
+        artwork = get_object_or_404(_accessible_artworks(request.user, grant=True).select_for_update(), pk=artwork_id)
         item = get_object_or_404(ArtworkGrantItem.objects.select_for_update(), pk=item_id, artwork=artwork)
         photo = get_object_or_404(ArtworkGrantItemPhoto.objects.select_for_update(), pk=photo_id, item=item)
         if not _grant_item_editable(artwork, item.phase, request.user):
@@ -958,6 +1084,27 @@ def grant_item_photo_delete(request, artwork_id, item_id, photo_id):
         record_change(artwork, _grant_section(item.phase), request.user)
     messages.success(request, 'Imagen eliminada del ítem.')
     return _grant_redirect(request, artwork, item.phase)
+
+
+def _grant_missing(artwork):
+    """Lo que le falta a la solicitud de beca para presentarse, ya guardado."""
+    missing = []
+    if not artwork.grant_requested:
+        missing.append('Marcá «Quiero solicitar una beca».')
+    if not artwork.grant_justification:
+        missing.append('Contá por qué la beca hace posible la instalación.')
+    budget = artwork.budget_total
+    if not budget:
+        missing.append('Agregá al menos un ítem al presupuesto.')
+    if not artwork.grant_requested_amount:
+        missing.append('Indicá el monto que pedís.')
+    elif budget and artwork.grant_requested_amount > budget:
+        missing.append('El monto que pedís no puede superar el total del presupuesto.')
+    if not (artwork.grant_payee_name and artwork.grant_payee_tax_id and artwork.grant_payee_account):
+        missing.append('Completá quién recibiría la beca: nombre o razón social, CUIT/CUIL y CBU, CVU o alias.')
+    if not artwork.grant_terms_accepted_at:
+        missing.append('Aceptá las condiciones de la beca.')
+    return missing
 
 
 @login_required
@@ -976,20 +1123,16 @@ def grant_submit(request, artwork_id):
             return HttpResponseForbidden('La convocatoria de becas no está abierta.')
         if artwork.grant_status not in (Artwork.GrantStatus.NOT_REQUESTED, Artwork.GrantStatus.INFO_REQUIRED):
             return HttpResponseForbidden('La solicitud de beca ya fue presentada.')
-        errors = []
-        if not artwork.grant_requested:
-            errors.append('Marcá que querés solicitar una beca y guardá los cambios.')
-        if not artwork.grant_justification:
-            errors.append('Completá la justificación de la beca.')
-        if not artwork.grant_items.filter(phase=ArtworkGrantItem.Phase.BUDGET).exists():
-            errors.append('Agregá al menos un ítem al presupuesto.')
+        errors = _grant_missing(artwork)
         if errors:
             for error in errors:
                 messages.error(request, error)
         else:
             artwork.grant_status = Artwork.GrantStatus.PENDING
-            artwork.save(update_fields=['grant_status', 'updated_at'])
-            record_change(artwork, 'Beca', request.user)
+            artwork.grant_submitted_at = timezone.now()
+            artwork.save(update_fields=['grant_status', 'grant_submitted_at', 'updated_at'])
+            record_change(artwork, GRANT_REQUEST_SECTION, request.user)
+            transaction.on_commit(lambda: send_grant_application_email(artwork, request.user))
             messages.success(request, 'La solicitud de beca fue presentada para revisión.')
     return _grant_page_redirect(artwork, 'solicitud')
 
@@ -1016,7 +1159,7 @@ def grant_report_submit(request, artwork_id):
             messages.error(request, 'Agregá al menos un gasto a la rendición.')
         elif not artwork.photos.filter(stage__in=(ArtworkPhoto.Stage.FINAL, ArtworkPhoto.Stage.GRANT_REPORT)).exists():
             messages.error(request, 'Subí al menos una foto final o de rendición.')
-        elif artwork.grant_approved_amount_ars and artwork.expense_total_ars > artwork.grant_approved_amount_ars:
+        elif artwork.grant_approved_amount and artwork.expense_total > artwork.grant_approved_amount:
             messages.error(request, 'La rendición supera el monto aprobado. Revisá los montos antes de enviarla.')
         else:
             artwork.grant_status = Artwork.GrantStatus.REPORTED
@@ -1035,12 +1178,12 @@ def _photo_redirect(artwork, stage):
 @login_required
 def artwork_photo_upload(request, artwork_id):
     """Fotos de la galería o, desde la pantalla de la beca, de la rendición."""
-    access = _accessible_artworks(request.user)
-    artwork = get_object_or_404(access, pk=artwork_id)
     stage = request.POST.get('stage')
+    for_report = stage == ArtworkPhoto.Stage.GRANT_REPORT
+    access = _accessible_artworks(request.user, grant=for_report)
+    artwork = get_object_or_404(access, pk=artwork_id)
     if request.method != 'POST':
         return _photo_redirect(artwork, stage)
-    for_report = stage == ArtworkPhoto.Stage.GRANT_REPORT
     with transaction.atomic():
         artwork = get_object_or_404(access.select_for_update(), pk=artwork_id)
         if for_report:
@@ -1078,15 +1221,19 @@ def artwork_photo_delete(request, artwork_id, photo_id):
     if request.method != 'POST':
         return HttpResponseForbidden('Método no permitido.')
     with transaction.atomic():
-        artwork = get_object_or_404(_accessible_artworks(request.user).select_for_update(), pk=artwork_id)
-        if not artwork.can_edit(request.user) and not artwork.can_manage(request.user):
-            return HttpResponseForbidden('La galería de esta propuesta no se puede editar.')
+        artwork = get_object_or_404(_accessible_artworks(request.user, grant=True).select_for_update(), pk=artwork_id)
         photo = get_object_or_404(ArtworkPhoto.objects.select_for_update(), pk=photo_id, artwork=artwork)
+        # Las fotos de la rendición también las gestiona Becas.
+        manager = artwork.can_manage(request.user) or (
+            photo.stage == ArtworkPhoto.Stage.GRANT_REPORT and artwork.can_manage_grant(request.user)
+        )
+        if not artwork.can_edit(request.user) and not manager:
+            return HttpResponseForbidden('La galería de esta propuesta no se puede editar.')
         protected_evidence = (
             artwork.grant_status in (Artwork.GrantStatus.REPORTED, Artwork.GrantStatus.CLOSED)
             and photo.stage in (ArtworkPhoto.Stage.FINAL, ArtworkPhoto.Stage.GRANT_REPORT)
         )
-        if protected_evidence and not artwork.can_manage(request.user):
+        if protected_evidence and not manager:
             return HttpResponseForbidden('La evidencia de una rendición presentada no se puede eliminar.')
         storage = photo.image.storage
         image_name = photo.image.name
@@ -1437,7 +1584,7 @@ def artwork_vehicle_delete(request, artwork_id, provider_id, vehicle_id):
 
 def _managed_event(request, event_slug):
     event = get_object_or_404(Event, slug=event_slug, art_program__isnull=False)
-    if not can_coordinate(request.user, event):
+    if not can_view_art(request.user, event):
         return None
     return event
 
@@ -1510,23 +1657,39 @@ def _filter_summary(params, contact_choices, counts, user):
     }
 
 
+def _search_artworks(artworks, params):
+    """El buscador de los listados de ESTAFA y de Becas: propuesta, persona o email."""
+    query = params.get('q', '').strip()
+    if not query:
+        return artworks
+    return artworks.filter(
+        Q(title__icontains=query)
+        | Q(owner__email__icontains=query)
+        | Q(owner__first_name__icontains=query)
+        | Q(owner__last_name__icontains=query)
+        | Q(owner__profile__nickname__icontains=query)
+        | Q(public_title__icontains=query)
+        | Q(assigned_location__icontains=query)
+    )
+
+
+def _filter_by_contact(artworks, contact, user):
+    if contact == 'me':
+        return artworks.filter(estafa_contact=user)
+    if contact == 'none':
+        return artworks.filter(estafa_contact__isnull=True)
+    if contact.isdigit():
+        return artworks.filter(estafa_contact_id=contact)
+    return artworks
+
+
 def _filtered_artworks(event, params, user):
     artworks = event.artworks.select_related(
         'event__art_program', 'owner__profile', 'safety_responsible', 'estafa_contact__profile',
     ).prefetch_related(
         'checkout_photos', 'operations_group__miembros', 'artwork_providers__vehicles',
     )
-    query = params.get('q', '').strip()
-    if query:
-        artworks = artworks.filter(
-            Q(title__icontains=query)
-            | Q(owner__email__icontains=query)
-            | Q(owner__first_name__icontains=query)
-            | Q(owner__last_name__icontains=query)
-            | Q(owner__profile__nickname__icontains=query)
-            | Q(public_title__icontains=query)
-            | Q(assigned_location__icontains=query)
-        )
+    artworks = _search_artworks(artworks, params)
     stages = _selected_stages(params)
     if stages:
         try:
@@ -1550,13 +1713,7 @@ def _filtered_artworks(event, params, user):
         artworks = artworks.filter(condition)
     if params.get('grant') in Artwork.GrantStatus.values:
         artworks = artworks.filter(grant_status=params['grant'])
-    contact = _contact_filter(params, user, _contact_counts(event))
-    if contact == 'me':
-        artworks = artworks.filter(estafa_contact=user)
-    elif contact == 'none':
-        artworks = artworks.filter(estafa_contact__isnull=True)
-    elif contact.isdigit():
-        artworks = artworks.filter(estafa_contact_id=contact)
+    artworks = _filter_by_contact(artworks, _contact_filter(params, user, _contact_counts(event)), user)
     artworks = history.with_news(artworks, user)
     if params.get('news'):
         artworks = artworks.filter(news_count__gt=0)
@@ -1566,11 +1723,11 @@ def _filtered_artworks(event, params, user):
 @login_required
 def estafa_home(request):
     if not can_access_estafa(request.user):
-        return HttpResponseForbidden('Esta sección es sólo para ESTAFA.')
+        return HttpResponseForbidden('Esta sección es sólo para ESTAFA, Becas y MAD.')
     events = estafa_events(request.user)
     event = events.filter(art_program__is_current=True).first() or events.first()
     if event:
-        return redirect('art_admin_dashboard', event_slug=event.slug)
+        return redirect(_estafa_landing(request.user), event_slug=event.slug)
     return render(request, 'art/admin_dashboard.html', _estafa_context(request.user, None))
 
 
@@ -1578,7 +1735,7 @@ def estafa_home(request):
 def art_admin_dashboard(request, event_slug):
     event = _managed_event(request, event_slug)
     if not event:
-        return HttpResponseForbidden('No tenés permisos para coordinar Arte en este evento.')
+        return HttpResponseForbidden('No tenés permisos para ver las propuestas de Arte de este evento.')
     artworks = _filtered_artworks(event, request.GET, request.user)
     counts = _contact_counts(event)
     contact_choices = _estafa_contact_choices(event, counts)
@@ -1598,7 +1755,7 @@ def art_admin_mark_seen(request, event_slug):
     """Marca como leídas las novedades de todas las propuestas del evento, para quien lo pide."""
     event = _managed_event(request, event_slug)
     if not event:
-        return HttpResponseForbidden('No tenés permisos para coordinar Arte en este evento.')
+        return HttpResponseForbidden('No tenés permisos para ver las propuestas de Arte de este evento.')
     history.mark_all_seen(event.artworks.all(), request.user)
     messages.success(request, 'Marcaste todas las novedades como leídas.')
     next_url = request.POST.get('next', '')
@@ -1611,8 +1768,12 @@ def art_admin_mark_seen(request, event_slug):
 def artwork_review(request, event_slug, artwork_id):
     event = get_object_or_404(Event, slug=event_slug)
     artwork = get_object_or_404(Artwork, pk=artwork_id, event=event)
-    if not artwork.can_manage(request.user):
-        return HttpResponseForbidden('No tenés permisos para coordinar Arte en este evento.')
+    if not artwork.can_view_all(request.user):
+        return HttpResponseForbidden('No tenés permisos para ver las propuestas de Arte de este evento.')
+    if request.method == 'GET' and _mad_only(request.user):
+        # MAD lee la propuesta en su propia vista, sin la coordinación de ESTAFA.
+        return redirect('artwork_mad', event_slug=event.slug, artwork_id=artwork.pk)
+    # Becas lee la revisión completa; sólo ESTAFA la completa.
     can_manage = artwork.can_manage(request.user)
     if request.method == 'POST':
         with transaction.atomic():
@@ -1652,7 +1813,7 @@ def artwork_review(request, event_slug, artwork_id):
                 messages.success(request, 'La revisión quedó guardada.')
                 return redirect('artwork_review', event_slug=event.slug, artwork_id=artwork.pk)
     else:
-        form = ArtworkReviewForm(instance=artwork, can_manage=can_manage)
+        form = ArtworkReviewForm(instance=artwork, read_only=not can_manage)
     context = _review_context(artwork, form, request.user)
     if request.method == 'GET':
         # Abrir la revisión es ponerse al día: lo que pasó desde la visita anterior se marca como nuevo.
@@ -1704,11 +1865,11 @@ def artwork_risk(request, event_slug, artwork_id):
 @login_required
 @require_POST
 def artwork_message(request, event_slug, artwork_id):
-    """Un mensaje de ESTAFA al equipo, en cualquier momento y sin cambiar el estado."""
+    """Un mensaje de ESTAFA, Becas o MAD al equipo, en cualquier momento y sin cambiar el estado."""
     event = get_object_or_404(Event, slug=event_slug)
     artwork = get_object_or_404(Artwork, pk=artwork_id, event=event)
-    if not artwork.can_manage(request.user):
-        return HttpResponseForbidden('No tenés permisos para coordinar Arte en este evento.')
+    if not artwork.can_message(request.user):
+        return HttpResponseForbidden('No tenés permisos para escribirle al equipo de esta propuesta.')
     message = request.POST.get('message', '').strip()
     if not message:
         messages.error(request, 'Escribí el mensaje para el equipo.')
@@ -1718,6 +1879,12 @@ def artwork_message(request, event_slug, artwork_id):
         history.log(artwork, history.MESSAGE, request.user, 'Le escribió al equipo', detail=message)
         _send_team_message_email(artwork, request.user, message)
         messages.success(request, 'Le enviamos tu mensaje al equipo por email.')
+    if request.POST.get('return_to') == 'grant':
+        return _grant_page_redirect(artwork, 'mensaje')
+    if request.POST.get('return_to') == 'mad':
+        return redirect(reverse('artwork_mad', args=[event.slug, artwork.pk]) + '#mensajes')
+    if _mad_only(request.user):
+        return redirect('artwork_mad', event_slug=event.slug, artwork_id=artwork.pk)
     return redirect('artwork_review', event_slug=event.slug, artwork_id=artwork.pk)
 
 
@@ -1810,6 +1977,169 @@ def art_admin_export(request, event_slug):
             artwork.checkout_photos.count(),
             'Verificado' if artwork.checkout_verified_at else ('Solicitado' if artwork.checkout_completed else 'Pendiente'),
             artwork.updated_at.isoformat(),
+        ]])
+    return response
+
+
+GRANT_STATUS_FILTERS = [
+    (value, label) for value, label in Artwork.GrantStatus.choices if value != Artwork.GrantStatus.NOT_REQUESTED
+]
+
+
+def _submitted_grants(event):
+    return event.artworks.exclude(grant_status=Artwork.GrantStatus.NOT_REQUESTED)
+
+
+def _grant_statuses(params):
+    chosen = params.getlist('status') if hasattr(params, 'getlist') else []
+    return [value for value, _label in GRANT_STATUS_FILTERS if value in chosen]
+
+
+def _grant_artworks(event, params, user):
+    """Las propuestas que presentaron su solicitud de beca, con el total de su presupuesto.
+
+    Mismo buscador que el listado de propuestas; el estado es el de la beca.
+    """
+    artworks = _search_artworks(_submitted_grants(event).select_related('owner__profile', 'estafa_contact__profile'), params)
+    statuses = _grant_statuses(params)
+    if statuses:
+        artworks = artworks.filter(grant_status__in=statuses)
+    return artworks.annotate(
+        budget_sum=Sum('grant_items__amount', filter=Q(grant_items__phase=ArtworkGrantItem.Phase.BUDGET)),
+    ).order_by(Lower('title'), 'pk')
+
+
+@login_required
+def art_grants_dashboard(request, event_slug):
+    """La pestaña de Becas: cada solicitud con su estado y sus montos. La leen ESTAFA, Becas y MAD."""
+    event = _managed_event(request, event_slug)
+    if not event:
+        return HttpResponseForbidden('No tenés permisos para ver las becas de este evento.')
+    params = request.GET
+    status_counts = dict(_submitted_grants(event).values_list('grant_status').annotate(total=Count('pk')).order_by())
+    statuses = _grant_statuses(params)
+    labels = dict(GRANT_STATUS_FILTERS)
+    return render(request, 'art/grants_dashboard.html', {
+        **_estafa_context(request.user, event, tab='grants'),
+        'artworks': _grant_artworks(event, params, request.user),
+        'status_choices': [(value, label, status_counts.get(value, 0)) for value, label in GRANT_STATUS_FILTERS],
+        'selected_statuses': statuses,
+        'status_summary': labels[statuses[0]] if len(statuses) == 1 else (f'{len(statuses)} estados' if statuses else ''),
+        'filters_active': bool(statuses or params.get('q', '').strip()),
+        'has_grants': bool(status_counts),
+        'can_see_payee': can_manage_grants(request.user, event),
+        'can_export': can_manage_grants(request.user, event),
+    })
+
+
+# Lo que una propuesta le pide a MAD: (clave, etiqueta, etiqueta corta, condición).
+MAD_ASKS = (
+    ('assist', 'Asistencia para mover materiales', 'Asistencia', Q(needs_mad_assistance=True)),
+    ('car', 'Movilidad propia (art car)', 'Art car', Q(has_own_mobility=True)),
+)
+
+
+def _mad_base(event):
+    """Las propuestas que piden MAD, sin las rechazadas."""
+    return event.artworks.filter(ASKS_MAD).exclude(status=Artwork.Status.REJECTED)
+
+
+@login_required
+def art_mad_dashboard(request, event_slug):
+    """La pestaña de MAD: las propuestas que piden MAD y qué piden. La leen ESTAFA, Becas y MAD."""
+    event = _managed_event(request, event_slug)
+    if not event:
+        return HttpResponseForbidden('No tenés permisos para ver las propuestas de Arte de este evento.')
+    params = request.GET
+    chosen = [ask for ask in MAD_ASKS if ask[0] in params.getlist('ask')]
+    artworks = _search_artworks(
+        _mad_base(event).select_related('event__art_program', 'owner__profile', 'estafa_contact__profile'), params,
+    )
+    if chosen:
+        condition = Q()
+        for _key, _label, _short, ask_condition in chosen:
+            condition |= ask_condition
+        artworks = artworks.filter(condition)
+    artworks = artworks.order_by(Lower('title'), 'pk')
+    return render(request, 'art/mad_dashboard.html', {
+        **_estafa_context(request.user, event, tab='mad'),
+        'artworks': artworks,
+        'ask_choices': [
+            (key, label, _mad_base(event).filter(condition).count()) for key, label, _short, condition in MAD_ASKS
+        ],
+        'selected_asks': [ask[0] for ask in chosen],
+        'ask_summary': chosen[0][2] if len(chosen) == 1 else (f'{len(chosen)} pedidos' if chosen else ''),
+        'filters_active': bool(chosen or params.get('q', '').strip()),
+        'has_artworks': _mad_base(event).exists(),
+    })
+
+
+@login_required
+def artwork_mad(request, event_slug, artwork_id):
+    """Una propuesta vista desde MAD: lo que pide a MAD, los mensajes al equipo y la propuesta creativa.
+
+    La plantilla nombra uno por uno los campos que muestra: nada de la coordinación de ESTAFA
+    (declaración, checkout, proveedores, equipo, seguridad, beca, historial) llega a esta vista.
+    """
+    event = get_object_or_404(Event, slug=event_slug)
+    artwork = get_object_or_404(
+        Artwork.objects.select_related('event__art_program', 'owner__profile'), pk=artwork_id, event=event,
+    )
+    if not artwork.can_view_all(request.user):
+        return HttpResponseForbidden('No tenés permisos para ver las propuestas de Arte de este evento.')
+    return render(request, 'art/mad_artwork.html', {
+        **_estafa_context(request.user, event, tab='mad'),
+        'artwork': artwork, 'artwork_files': artwork.files.all(),
+        'team_messages': artwork.history.filter(kind=history.MESSAGE).select_related('actor').order_by('-created_at'),
+        'can_message': artwork.can_message(request.user),
+        'show_full_link': not _mad_only(request.user),
+    })
+
+
+@login_required
+def art_grants_export(request, event_slug):
+    """El listado de becas con los datos de cobro: sólo para quienes gestionan becas."""
+    event = get_object_or_404(Event, slug=event_slug, art_program__isnull=False)
+    if not can_manage_grants(request.user, event):
+        return HttpResponseForbidden('No tenés permisos para exportar las becas de este evento.')
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="becas_{event.slug}.csv"'
+    response.write('\ufeff')
+    writer = csv.writer(response)
+    writer.writerow([
+        'Propuesta de Arte', 'Estado de la propuesta', 'Responsable', 'Email del responsable', 'WhatsApp del responsable',
+        'Estado de la beca', 'Moneda', 'Total del presupuesto', 'Monto pedido', 'Monto aprobado',
+        'Nombre o razón social', 'CUIT/CUIL', 'CBU, CVU o alias',
+        'Por qué la beca hace posible la instalación', 'Condiciones aceptadas', 'Solicitud presentada',
+        'Última decisión', 'Devolución sobre la beca', 'Fecha de pago', 'Referencia del pago',
+    ])
+
+    def moment(value):
+        return timezone.localtime(value).strftime('%d/%m/%Y %H:%M') if value else ''
+
+    for artwork in _grant_artworks(event, request.GET, request.user):
+        owner = artwork.owner
+        writer.writerow([_csv_cell(value) for value in [
+            artwork.title,
+            artwork.stage_label,
+            (owner.get_full_name() or owner.email) if owner else '',
+            owner.email if owner else '',
+            whatsapp_number(_owner_phone(artwork)),
+            artwork.get_grant_status_display(),
+            artwork.grant_currency,
+            artwork.budget_sum or 0,
+            artwork.grant_requested_amount,
+            artwork.grant_approved_amount,
+            artwork.grant_payee_name,
+            artwork.grant_payee_tax_id,
+            artwork.grant_payee_account,
+            artwork.grant_justification,
+            moment(artwork.grant_terms_accepted_at),
+            moment(artwork.grant_submitted_at),
+            moment(artwork.grant_decided_at),
+            artwork.grant_decision_notes,
+            artwork.grant_paid_at.strftime('%d/%m/%Y') if artwork.grant_paid_at else '',
+            artwork.grant_payment_reference,
         ]])
     return response
 
