@@ -7,11 +7,12 @@ from email.utils import formataddr
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.core import signing
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, transaction
 from django.db.models import Count, F, Q, Sum
 from django.db.models.functions import Lower
-from django.http import Http404, HttpResponse, HttpResponseForbidden
+from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -25,14 +26,14 @@ from tickets.models import NewTicket, TicketType
 from user_profile.phone import whatsapp_number
 from utils.email import send_mail
 
-from . import history
+from . import direct_uploads, history
 from .digest import (
     GRANT_REPORT_SECTION, GRANT_REQUEST_SECTION, record_change, send_grant_application_email,
     send_mad_request_email, send_new_artwork_email,
 )
 from .estafa import (
-    BECAS_SLUG, MAD_SLUG, art_team_name, art_teams, can_access_estafa, can_manage_grants, can_view_art, estafa_events,
-    estafa_members, is_estafa_member,
+    BECAS_SLUG, MAD_SLUG, art_team_name, art_teams, can_access_estafa, can_coordinate, can_manage_grants, can_view_art,
+    estafa_events, estafa_members, is_estafa_member,
 )
 from .forms import (
     GALLERY_STAGES, ArtworkForm, ArtworkGrantForm, ArtworkGrantItemForm, ArtworkTeamAddForm,
@@ -429,6 +430,7 @@ def _artwork_context(artwork, program, form, inline_forms=None):
         'artwork': artwork,
         **_steps_context(artwork, program, form.actor, form, _editable_steps(form, permissions)),
         'file_upload_form': inline_forms.get(('file-new', None)) or ArtworkFileUploadForm(auto_id='file-new_%s'),
+        'direct_file_uploads': direct_uploads.s3_storage() is not None,
         'photo_upload_form': inline_forms.get(('photo-new', None)) or ArtworkPhotoUploadForm(auto_id='photo-new_%s'),
         'checkout_photo_upload_form': inline_forms.get(('checkout-photo-new', None)) or ArtworkCheckoutPhotoUploadForm(
             auto_id='checkout-photo-new_%s',
@@ -1271,12 +1273,12 @@ def artwork_file_upload(request, artwork_id):
     with transaction.atomic():
         artwork = get_object_or_404(access.select_for_update(), pk=artwork_id)
         if not _files_editable(artwork, request.user):
-            return HttpResponseForbidden('Los archivos de esta propuesta ya no se pueden editar.')
+            return HttpResponseForbidden(FILES_LOCKED_ERROR)
         form = ArtworkFileUploadForm(request.POST, request.FILES, auto_id='file-new_%s')
         if form.is_valid():
             uploads = form.cleaned_data['files']
-            if artwork.files.count() + len(uploads) > 30:
-                form.add_error('files', 'Cada propuesta admite hasta 30 archivos.')
+            if artwork.files.count() + len(uploads) > ArtworkFileUploadForm.MAX_FILES_PER_ARTWORK:
+                form.add_error('files', FILES_PER_ARTWORK_ERROR)
             else:
                 for upload in uploads:
                     ArtworkFile.objects.create(
@@ -1288,13 +1290,81 @@ def artwork_file_upload(request, artwork_id):
     return _inline_error_response(request, artwork, ('file-new', None), form)
 
 
+FILES_PER_ARTWORK_ERROR = f'Cada propuesta admite hasta {ArtworkFileUploadForm.MAX_FILES_PER_ARTWORK} archivos.'
+FILES_LOCKED_ERROR = 'Los archivos de esta propuesta ya no se pueden editar.'
+
+
+@login_required
+@require_POST
+def artwork_file_presign(request, artwork_id):
+    """Primer paso de la subida directa a S3: valida los archivos y da un permiso de subida por cada uno."""
+    storage = direct_uploads.s3_storage()
+    if storage is None:
+        raise Http404
+    artwork = get_object_or_404(_accessible_artworks(request.user), pk=artwork_id)
+    if not _files_editable(artwork, request.user):
+        return JsonResponse({'error': FILES_LOCKED_ERROR}, status=403)
+    names, sizes = request.POST.getlist('name'), request.POST.getlist('size')
+    try:
+        uploads = list(zip(names, (int(size) for size in sizes), strict=True))
+    except ValueError:
+        return JsonResponse({'error': 'No se pudo leer qué archivos elegiste. Probá de nuevo.'}, status=400)
+    if not uploads:
+        return JsonResponse({'error': 'Seleccioná al menos un archivo.'}, status=400)
+    error = ArtworkFileUploadForm.upload_error(uploads)
+    if not error and artwork.files.count() + len(uploads) > ArtworkFileUploadForm.MAX_FILES_PER_ARTWORK:
+        error = FILES_PER_ARTWORK_ERROR
+    if error:
+        return JsonResponse({'error': error}, status=400)
+    return JsonResponse({'uploads': [direct_uploads.presign(storage, artwork, name, size) for name, size in uploads]})
+
+
+@login_required
+@require_POST
+def artwork_file_confirm(request, artwork_id):
+    """Segundo paso: los archivos ya están en S3 y se suman a la propuesta."""
+    storage = direct_uploads.s3_storage()
+    if storage is None:
+        raise Http404
+    tokens = request.POST.getlist('token')
+    if len(tokens) > ArtworkFileUploadForm.MAX_FILES_PER_UPLOAD:
+        return JsonResponse({'error': f'Podés subir hasta {ArtworkFileUploadForm.MAX_FILES_PER_UPLOAD} archivos por vez.'}, status=400)
+    with transaction.atomic():
+        artwork = get_object_or_404(_accessible_artworks(request.user).select_for_update(), pk=artwork_id)
+        if not _files_editable(artwork, request.user):
+            return JsonResponse({'error': FILES_LOCKED_ERROR}, status=403)
+        try:
+            uploads = [direct_uploads.read_token(artwork, token) for token in tokens]
+        except signing.BadSignature:
+            return JsonResponse({'error': 'La subida venció. Volvé a elegir los archivos.'}, status=400)
+        # Un reintento no duplica lo que ya se confirmó.
+        confirmed = set(artwork.files.filter(file__in=[name for name, _ in uploads]).values_list('file', flat=True))
+        uploads = [(name, filename) for name, filename in uploads if name not in confirmed]
+        if not uploads and not confirmed:
+            return JsonResponse({'error': 'Seleccioná al menos un archivo.'}, status=400)
+        if artwork.files.count() + len(uploads) > ArtworkFileUploadForm.MAX_FILES_PER_ARTWORK:
+            return JsonResponse({'error': FILES_PER_ARTWORK_ERROR}, status=400)
+        for name, filename in uploads:
+            try:
+                direct_uploads.ensure_uploaded(storage, name)
+            except direct_uploads.UploadNotFound:
+                return JsonResponse({'error': f'“{filename}” no terminó de subirse. Probá de nuevo.'}, status=400)
+        for name, filename in uploads:
+            ArtworkFile.objects.create(artwork=artwork, file=name, name=filename, uploaded_by=request.user)
+        if uploads:
+            record_change(artwork, 'Archivos', request.user)
+    count = len(uploads) + len(confirmed)
+    messages.success(request, f"Se subieron {count} archivo(s).")
+    return JsonResponse({'redirect': f"{reverse('artwork_edit', args=[artwork.pk])}#detalles"})
+
+
 @login_required
 @require_POST
 def artwork_file_delete(request, artwork_id, file_id):
     with transaction.atomic():
         artwork = get_object_or_404(_accessible_artworks(request.user).select_for_update(), pk=artwork_id)
         if not _files_editable(artwork, request.user):
-            return HttpResponseForbidden('Los archivos de esta propuesta ya no se pueden editar.')
+            return HttpResponseForbidden(FILES_LOCKED_ERROR)
         artwork_file = get_object_or_404(ArtworkFile.objects.select_for_update(), pk=file_id, artwork=artwork)
         storage, name = artwork_file.file.storage, artwork_file.file.name
         artwork_file.delete()
