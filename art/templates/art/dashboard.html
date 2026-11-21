@@ -43,6 +43,7 @@
                         <div class="artwork-row-title d-flex align-items-center gap-2 flex-wrap">
                             <h4 class="h5 mb-0">{{ artwork.title|default:'Propuesta de Arte sin título' }}</h4>
                             {% include 'art/_status_badge.html' %}
+                            {% include 'art/_grant_badge.html' %}
                             {% if artwork.kind == 'popup' %}<span class="badge bg-light text-dark border">Espontánea</span>{% endif %}
                         </div>
                         <p class="artwork-row-meta small text-muted mb-0"><span>{{ artwork.event.name }}</span> <span>Actualizada el {{ artwork.updated_at|date:'d/m/Y' }}</span></p>
