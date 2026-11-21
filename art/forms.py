@@ -7,6 +7,9 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.html import format_html
 
+from html import escape
+
+from . import richtext
 from .estafa import ART_TEAMS, BECAS_SLUG, ESTAFA_SLUG, MAD_SLUG, art_team_names, estafa_members
 from .models import (
     Artwork, ArtworkFile, ArtworkGrantItem,
@@ -1051,3 +1054,40 @@ class EstafaNotificationPreferenceForm(forms.ModelForm):
         names = dict(ART_TEAMS)
         return [(names[slug], [self[name] for name in self.TEAM_FIELDS[slug]]) for slug in self.team_slugs]
 
+
+
+class BulkTeamMessageForm(forms.Form):
+    """Un mismo mensaje para el equipo de cada propuesta filtrada."""
+
+    subject = forms.CharField(
+        label='Asunto', max_length=150,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
+    )
+    message = forms.CharField(
+        label='Mensaje', max_length=20000,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 10, 'data-rich-editor': 'true'}),
+        help_text='Podés usar negrita, cursiva, listas, links y botones.',
+    )
+    confirm = forms.BooleanField(
+        required=True, widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        error_messages={'required': 'Confirmá el envío.'},
+    )
+    count = forms.IntegerField(widget=forms.HiddenInput)
+    batch = forms.UUIDField(widget=forms.HiddenInput)
+
+    def clean_subject(self):
+        return ' '.join(self.cleaned_data['subject'].split())
+
+    def clean_message(self):
+        # El HTML del editor no se usa tal cual: queda sólo el formato permitido.
+        raw = self.cleaned_data['message']
+        if '<' not in raw:
+            # Sin el editor llega texto simple: cada línea en blanco separa un párrafo.
+            raw = ''.join(
+                '<p>{}</p>'.format('<br>'.join(escape(line) for line in block.splitlines()))
+                for block in re.split(r'\n\s*\n', raw.replace('\r\n', '\n').strip()) if block.strip()
+            )
+        message = richtext.sanitize(raw)
+        if not richtext.to_text(message):
+            raise forms.ValidationError('Escribí el mensaje.')
+        return message

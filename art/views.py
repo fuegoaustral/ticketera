@@ -1,13 +1,16 @@
 import csv
+import hashlib
 import logging
 import uuid
 from decimal import Decimal
-from email.utils import formataddr
+from email.utils import formataddr, parseaddr
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.conf import settings
 from django.core import signing
+from django.core.mail import get_connection
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, transaction
 from django.db.models import BooleanField, Count, ExpressionWrapper, F, Q, Sum
@@ -16,33 +19,35 @@ from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonRespon
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.safestring import mark_safe
 from django.utils.html import strip_tags
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from events.models import Event, Grupo, GrupoMiembro, GrupoTipo
 from caja.stock import ticket_types_with_stock_queryset
-from tickets.models import NewTicket, TicketType
+from templated_email import get_templated_mail
+from tickets.models import MessageIdempotency, NewTicket, TicketType
 from user_profile.phone import whatsapp_number
 from utils.email import send_mail
 
-from . import direct_uploads, history
+from . import direct_uploads, history, richtext
 from .digest import (
     GRANT_REPORT_SECTION, GRANT_REQUEST_SECTION, record_change, send_grant_application_email,
     send_mad_request_email, send_new_artwork_email,
 )
 from .estafa import (
-    BECAS_SLUG, MAD_SLUG, art_team_name, art_teams, can_access_estafa, can_coordinate, can_manage_grants, can_view_art,
+    BECAS_SLUG, MAD_SLUG, art_team_name, art_teams, can_access_estafa, can_coordinate, can_manage_grants, can_message_teams, can_view_art,
     estafa_events, estafa_members, is_estafa_member,
 )
 from .forms import (
     GALLERY_STAGES, ArtworkForm, ArtworkGrantForm, ArtworkGrantItemForm, ArtworkTeamAddForm,
     ArtworkCheckoutPhotoUploadForm, ArtworkFileUploadForm, ArtworkPhotoUploadForm, ArtworkProviderForm, ArtworkTeamBenefitsForm,
-    ArtworkProviderVehicleForm, ArtworkContactForm, ArtworkGrantActionForm, ArtworkGrantItemReviewForm, ArtworkReviewForm,
+    ArtworkProviderVehicleForm, ArtworkContactForm, BulkTeamMessageForm, ArtworkGrantActionForm, ArtworkGrantItemReviewForm, ArtworkReviewForm,
     GRANT_ACTIONS, GRANT_REQUEST_EDITABLE, _localized_amount, grant_actions_for,
 )
 from .models import (
-    ASKS_MAD, GRANT_INCOMPLETE_LABEL, ArtProgram, Artwork, ArtworkFile, ArtworkGrantItem, ArtworkGrantItemPhoto,
+    ASKS_MAD, GRANT_INCOMPLETE_LABEL, ArtProgram, Artwork, ArtworkEvent, ArtworkFile, ArtworkGrantItem, ArtworkGrantItemPhoto,
     ArtworkPhoto, ArtworkCheckoutPhoto, ArtworkProvider,
     ArtworkProviderVehicle,
 )
@@ -153,6 +158,20 @@ def _send_grant_decision_email(artwork):
         logging.exception('No se pudo avisar la decisión de la beca de la instalación %s', artwork.pk)
 
 
+def _team_message_context(artwork, sender, message):
+    return {
+        'artwork': artwork,
+        'sender_name': person_name(sender),
+        'sender_team': art_team_name(sender) or 'ESTAFA',
+        'message': message,
+        'artwork_path': reverse('artwork_edit', args=[artwork.pk]),
+    }
+
+
+def _team_message_headers(sender):
+    return {'Reply-To': formataddr((person_greeting(sender), sender.email))} if sender.email else None
+
+
 def _send_team_message_email(artwork, sender, message):
     recipients = _team_emails(artwork)
     if not recipients:
@@ -161,14 +180,8 @@ def _send_team_message_email(artwork, sender, message):
         send_mail(
             template_name='art_team_message',
             recipient_list=recipients,
-            context={
-                'artwork': artwork,
-                'sender_name': person_name(sender),
-                'sender_team': art_team_name(sender) or 'ESTAFA',
-                'message': message,
-                'artwork_path': reverse('artwork_edit', args=[artwork.pk]),
-            },
-            headers={'Reply-To': formataddr((person_greeting(sender), sender.email))} if sender.email else None,
+            context=_team_message_context(artwork, sender, message),
+            headers=_team_message_headers(sender),
         )
     except Exception:
         logging.exception('No se pudo enviar el mensaje de ESTAFA de la instalación %s', artwork.pk)
@@ -476,6 +489,7 @@ def _estafa_context(user, event, tab='artworks'):
         **_base_context(event), 'nav_primary': 'estafa', 'art_team_name': art_team_name(user),
         'estafa_events': estafa_events(user), 'current_estafa_event': event,
         'estafa_landing': _estafa_landing(user), 'estafa_tab': tab,
+        'can_message_teams': bool(event and can_message_teams(user, event)),
     }
 
 
@@ -2105,13 +2119,8 @@ def _mad_base(event):
     return event.artworks.filter(ASKS_MAD).exclude(status=Artwork.Status.REJECTED)
 
 
-@login_required
-def art_mad_dashboard(request, event_slug):
-    """La pestaña de MAD: las propuestas que piden MAD y qué piden. La leen ESTAFA, Becas y MAD."""
-    event = _managed_event(request, event_slug)
-    if not event:
-        return HttpResponseForbidden('No tenés permisos para ver las propuestas de Arte de este evento.')
-    params = request.GET
+def _mad_artworks(event, params):
+    """Las propuestas que piden MAD, con el buscador y el filtro de qué piden: (pedidos elegidos, propuestas)."""
     chosen = [ask for ask in MAD_ASKS if ask[0] in params.getlist('ask')]
     artworks = _search_artworks(
         _mad_base(event).select_related('event__art_program', 'owner__profile', 'estafa_contact__profile'), params,
@@ -2121,7 +2130,205 @@ def art_mad_dashboard(request, event_slug):
         for _key, _label, _short, ask_condition in chosen:
             condition |= ask_condition
         artworks = artworks.filter(condition)
-    artworks = artworks.order_by(Lower('title'), 'pk')
+    return chosen, artworks.order_by(Lower('title'), 'pk')
+
+
+# Los listados desde los que se le escribe a las propuestas filtradas: (vista del listado, cómo se llama).
+BULK_MESSAGE_LISTS = {
+    'artworks': ('art_admin_dashboard', 'Propuestas'),
+    'grants': ('art_grants_dashboard', 'Becas'),
+    'mad': ('art_mad_dashboard', 'MAD'),
+}
+
+
+def _bulk_message_targets(event, source, params, user):
+    """Las propuestas que se ven en el listado con esos filtros, en el mismo orden."""
+    if source == 'grants':
+        artworks = _grant_artworks(event, params, user)
+    elif source == 'mad':
+        artworks = _mad_artworks(event, params)[1]
+    else:
+        artworks = _filtered_artworks(event, params, user)
+    targets = []
+    for artwork in artworks:
+        artwork.team_emails = _team_emails(artwork)
+        targets.append(artwork)
+    return targets
+
+
+@login_required
+def art_bulk_message(request, event_slug):
+    """Un mismo mensaje al equipo de cada propuesta filtrada en un listado; queda como mensaje en cada una."""
+    event = _managed_event(request, event_slug)
+    if not event or not can_message_teams(request.user, event):
+        return HttpResponseForbidden('No tenés permisos para escribirle a los equipos de este evento.')
+    source = request.GET.get('lista', 'artworks')
+    if source not in BULK_MESSAGE_LISTS or (_mad_only(request.user) and source != 'mad'):
+        return HttpResponseForbidden('No tenés permisos para escribirle a los equipos de este listado.')
+    params = request.GET.copy()
+    params.pop('lista', None)
+    list_view, list_label = BULK_MESSAGE_LISTS[source]
+    list_url = reverse(list_view, args=[event.slug]) + (f'?{params.urlencode()}' if params else '')
+
+    targets = _bulk_message_targets(event, source, params, request.user)
+    reachable = [artwork for artwork in targets if artwork.team_emails]
+    recipients = _bulk_recipients(reachable)
+
+    form = BulkTeamMessageForm(request.POST or None, initial={'count': len(reachable), 'batch': uuid.uuid4()})
+    if request.method == 'POST' and request.POST.get('action') == 'test':
+        # Una prueba a quien escribe, tal como le llega a cada persona: no queda registrada ni gasta el envío.
+        form.is_valid()
+        form.errors.pop('confirm', None)
+        if not reachable:
+            messages.error(request, 'No hay propuestas con un email al que escribirle con esos filtros.')
+        elif not request.user.email:
+            messages.error(request, 'Tu cuenta no tiene un email al que mandarte la prueba.')
+        elif not form.errors:
+            try:
+                with get_connection() as connection:
+                    connection.send_messages([_bulk_message_email(
+                        request.user, form.cleaned_data['subject'], form.cleaned_data['message'],
+                        to=[request.user.email],
+                    )])
+            except Exception:
+                logging.exception('No se pudo enviar la prueba del mensaje a las filtradas a %s', request.user.pk)
+                messages.error(request, 'No pudimos mandarte la prueba. Volvé a intentar.')
+            else:
+                messages.success(request, f'Te mandamos una prueba a {request.user.email}.')
+    elif request.method == 'POST' and form.is_valid():
+        if not reachable:
+            messages.error(request, 'No hay propuestas con un email al que escribirle con esos filtros.')
+        elif form.cleaned_data['count'] != len(reachable):
+            # El listado cambió desde que se abrió la pantalla: se vuelve a mostrar con la cantidad nueva.
+            messages.warning(
+                request,
+                f'El listado cambió: ahora son {len(reachable)} propuestas. Revisalas y volvé a confirmar el envío.',
+            )
+            data = request.POST.copy()
+            data['count'] = len(reachable)
+            data.pop('confirm', None)
+            form = BulkTeamMessageForm(data)
+            form.is_valid()
+            form.errors.pop('confirm', None)
+        else:
+            sent, skipped, failed = _send_bulk_team_message(
+                reachable, recipients, request.user, form.cleaned_data['subject'], form.cleaned_data['message'],
+                form.cleaned_data['batch'],
+            )
+            if sent:
+                messages.success(
+                    request,
+                    f'Enviado a {sent} persona{"" if sent == 1 else "s"} de {len(reachable)} '
+                    f'propuesta{"" if len(reachable) == 1 else "s"}.',
+                )
+            if skipped and not sent and not failed:
+                messages.info(request, 'Ese mensaje ya se había enviado.')
+            if failed:
+                messages.error(
+                    request,
+                    f'No se pudo enviar a {failed} persona{"" if failed == 1 else "s"}. '
+                    'Volvé atrás en el navegador y enviá de nuevo: sólo sale a quienes faltan.',
+                )
+            return redirect(list_url)
+
+    return render(request, 'art/bulk_message.html', {
+        **_estafa_context(request.user, event, tab=source),
+        'form': form, 'targets': reachable, 'unreachable': [artwork for artwork in targets if not artwork.team_emails],
+        'people_count': len(recipients), 'list_url': list_url, 'list_label': list_label,
+        'filters_active': bool(params),
+    })
+
+
+# SES acepta hasta 50 destinatarios por mensaje: cada tanda lleva al remitente en «Para» y al resto en copia oculta.
+BULK_BCC_CHUNK = 45
+
+
+def _bulk_recipients(artworks):
+    """Cada persona una sola vez aunque esté en varias propuestas, en orden estable."""
+    emails = {}
+    for artwork in artworks:
+        for email in artwork.team_emails:
+            emails.setdefault(email.lower(), email)
+    return [emails[key] for key in sorted(emails)]
+
+
+def _no_reply_address():
+    """La casilla que no recibe respuestas, en el mismo dominio desde el que salen los emails."""
+    domain = parseaddr(settings.DEFAULT_FROM_EMAIL)[1].rpartition('@')[2]
+    return getattr(settings, 'NO_REPLY_EMAIL', '') or (f'no-reply@{domain}' if domain else '')
+
+
+def _bulk_message_email(sender, subject, message, to, bcc=None):
+    """El mismo email para todas las personas: no nombra a ninguna propuesta ni recibe respuestas."""
+    no_reply = _no_reply_address()
+    return get_templated_mail(
+        template_name='art_bulk_message',
+        context={
+            'subject': subject,
+            'message_html': mark_safe(richtext.to_email_html(message)),
+            'sender_name': person_name(sender),
+            'sender_team': art_team_name(sender) or 'ESTAFA',
+            'art_path': reverse('art_dashboard'),
+            'base_url': settings.APP_URL,
+        },
+        from_email=settings.DEFAULT_FROM_EMAIL, to=to, bcc=bcc,
+        headers={'Reply-To': no_reply} if no_reply else None,
+    )
+
+
+def _send_bulk_team_message(artworks, recipients, sender, subject, message, batch):
+    """Una tanda de copia oculta cada 45 personas por una sola conexión SMTP; queda como mensaje en cada propuesta.
+
+    Cada tanda y el registro en el historial se reservan: un doble envío no repite, y un reintento
+    sólo manda las tandas que fallaron. Devuelve personas (enviadas, ya enviadas antes, fallidas).
+    """
+    def reserve(key, email):
+        return MessageIdempotency.objects.get_or_create(
+            hash=hashlib.sha256(key.encode()).hexdigest(),
+            defaults={'email': email, 'payload': {'key': key, 'subject': subject}},
+        )
+
+    sent = skipped = failed = 0
+    own_address = parseaddr(settings.DEFAULT_FROM_EMAIL)[1]
+    chunks = [recipients[start:start + BULK_BCC_CHUNK] for start in range(0, len(recipients), BULK_BCC_CHUNK)]
+    with get_connection() as connection:
+        for index, chunk in enumerate(chunks):
+            digest = hashlib.sha256(','.join(email.lower() for email in chunk).encode()).hexdigest()
+            reservation, created = reserve(f'art-bulk-message:{batch}:chunk:{digest}', chunk[0])
+            if not created:
+                skipped += len(chunk)
+                continue
+            try:
+                connection.send_messages([_bulk_message_email(sender, subject, message, to=[own_address], bcc=chunk)])
+            except Exception:
+                reservation.delete()
+                failed += len(chunk)
+                logging.exception(
+                    'No se pudo enviar la tanda %s de %s (%s personas) del mensaje a las filtradas',
+                    index + 1, len(chunks), len(chunk),
+                )
+                continue
+            sent += len(chunk)
+    if sent or skipped:
+        _, created = reserve(f'art-bulk-message:{batch}:history', own_address)
+        if created:
+            detail = f'{subject}\n\n{richtext.to_text(message)}'
+            actor = sender if sender.is_authenticated else None
+            ArtworkEvent.objects.bulk_create([
+                ArtworkEvent(artwork=artwork, kind=history.MESSAGE, actor=actor, summary='Le escribió al equipo', detail=detail)
+                for artwork in artworks
+            ])
+    return sent, skipped, failed
+
+
+@login_required
+def art_mad_dashboard(request, event_slug):
+    """La pestaña de MAD: las propuestas que piden MAD y qué piden. La leen ESTAFA, Becas y MAD."""
+    event = _managed_event(request, event_slug)
+    if not event:
+        return HttpResponseForbidden('No tenés permisos para ver las propuestas de Arte de este evento.')
+    params = request.GET
+    chosen, artworks = _mad_artworks(event, params)
     return render(request, 'art/mad_dashboard.html', {
         **_estafa_context(request.user, event, tab='mad'),
         'artworks': artworks,

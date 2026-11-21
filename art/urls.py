@@ -2,7 +2,7 @@ from django.urls import path
 from django.views.generic import RedirectView
 
 from .views import (
-    art_admin_dashboard, art_admin_export, art_dashboard, art_grants_dashboard, art_grants_export, art_mad_dashboard, artwork_mad,
+    art_admin_dashboard, art_admin_export, art_bulk_message, art_dashboard, art_grants_dashboard, art_grants_export, art_mad_dashboard, artwork_mad,
     artwork_provider_delete, artwork_provider_edit, artwork_vehicle_delete,
     artwork_vehicle_edit,
     art_admin_mark_seen, artwork_contact, artwork_message, artwork_risk, artwork_create, artwork_edit, artwork_file_confirm, artwork_file_delete, artwork_file_presign, artwork_file_upload, artwork_grant, artwork_grant_decision,
@@ -44,6 +44,7 @@ urlpatterns = [
     path("estafa/", estafa_home, name="estafa_home"),
     path("estafa/<slug:event_slug>/", art_admin_dashboard, name="art_admin_dashboard"),
     path("estafa/<slug:event_slug>/exportar/", art_admin_export, name="art_admin_export"),
+    path("estafa/<slug:event_slug>/mensaje/", art_bulk_message, name="art_bulk_message"),
     path("estafa/<slug:event_slug>/becas/", art_grants_dashboard, name="art_grants_dashboard"),
     path("estafa/<slug:event_slug>/mad/", art_mad_dashboard, name="art_mad_dashboard"),
     path("estafa/<slug:event_slug>/mad/obra/<int:artwork_id>/", artwork_mad, name="artwork_mad"),

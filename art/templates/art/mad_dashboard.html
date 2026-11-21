@@ -4,7 +4,10 @@
 {% block submenu %}{% include 'art/_estafa_menu.html' %}{% endblock %}
 {% block truecontent %}
 <div class="container-fluid art-mad-dashboard">
-    <div class="mb-4"><p class="text-uppercase text-muted small fw-semibold mb-1">{{ event.name }}</p><h2 class="h3 mb-1">MAD</h2><p class="text-muted mb-0">Las propuestas que piden MAD, y qué piden.</p></div>
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
+        <div><p class="text-uppercase text-muted small fw-semibold mb-1">{{ event.name }}</p><h2 class="h3 mb-1">MAD</h2><p class="text-muted mb-0">Las propuestas que piden MAD, y qué piden.</p></div>
+        <div class="d-flex flex-wrap gap-2">{% if can_message_teams %}<a class="btn btn-outline-primary" href="{% url 'art_bulk_message' event.slug %}?lista=mad{% if request.GET %}&amp;{{ request.GET.urlencode }}{% endif %}"><i class="far fa-envelope me-1" aria-hidden="true"></i> Escribir a las filtradas</a>{% endif %}</div>
+    </div>
 
     <form method="get" class="art-filters mb-3" id="art-filters" aria-label="Filtros de MAD">
         {% include 'art/_filter_search.html' %}
