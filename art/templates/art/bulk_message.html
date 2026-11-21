@@ -1,0 +1,182 @@
+{% extends 'mi_fuego/my_tickets/index.html' %}
+{% load art_format %}
+{% block page_title %}Escribir a las filtradas · {{ art_team_name|default:'ESTAFA' }}{% endblock %}
+{% block submenu %}{% include 'art/_estafa_menu.html' %}{% endblock %}
+{% block truecontent %}
+<div class="container-fluid art-form-page art-bulk-message">
+    <a class="small text-decoration-none" href="{{ list_url }}"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i> Volver a {{ list_label }}{% if filters_active %} y cambiar los filtros{% endif %}</a>
+    <header class="mt-3 mb-4">
+        <p class="text-uppercase text-muted small fw-semibold mb-2">{{ event.name }} · {{ list_label }}</p>
+        <h2 class="h3 mb-2">Escribir a las filtradas</h2>
+        <p class="text-muted mb-0">Un mismo email para todas las personas de las propuestas que estás viendo en el listado. Cada persona lo recibe una sola vez, y queda como mensaje en cada propuesta.</p>
+    </header>
+
+    {% if not targets %}
+    <div class="alert alert-warning mb-0">No hay propuestas con un email al que escribirle con esos filtros. <a href="{{ list_url }}">Volver al listado</a>.</div>
+    {% else %}
+    <section class="bulk-box mb-4" aria-labelledby="bulk-targets-title">
+        <p class="mb-2" id="bulk-targets-title"><strong>Se lo vas a enviar a {{ targets|length }} propuesta{{ targets|length|pluralize }}</strong> ({{ people_count }} persona{{ people_count|pluralize }}){% if filters_active %}: las que quedaron filtradas en {{ list_label }}{% else %}: todas las de {{ list_label }}, sin filtros{% endif %}.</p>
+        <details{% if targets|length <= 8 %} open{% endif %}>
+            <summary class="small">Ver las {{ targets|length }} propuesta{{ targets|length|pluralize }}</summary>
+            <ul class="bulk-targets list-unstyled small mb-0 mt-2">
+                {% for artwork in targets %}<li><strong>{{ artwork.title|default:'Propuesta de Arte sin título' }}</strong> <span class="text-muted">· {% if artwork.owner %}{{ artwork.owner.get_full_name|default:artwork.owner.email }}{% else %}Sin responsable{% endif %}{% if artwork.team_emails|length > 1 %} y {{ artwork.team_emails|length|add:"-1" }} más del equipo{% endif %}</span></li>{% endfor %}
+            </ul>
+        </details>
+        {% if unreachable %}<p class="small text-muted mb-0 mt-2">No le llega a {{ unreachable|length }} propuesta{{ unreachable|length|pluralize }} sin email de contacto: {% for artwork in unreachable %}{{ artwork.title|default:'sin título' }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
+    </section>
+
+    <form method="post" novalidate>{% csrf_token %}
+        {{ form.count }}{{ form.batch }}
+        {% include 'art/_field.html' with field=form.subject %}
+        <div class="mb-3 rich-editor-field">
+            <label class="form-label" id="rich-editor-label" for="{{ form.message.id_for_label }}">{{ form.message.label }} <span aria-hidden="true">*</span></label>
+            <div class="rich-editor" data-rich-editor-root hidden>
+                <div class="rich-toolbar" role="toolbar" aria-label="Formato del mensaje">
+                    <button type="button" class="btn btn-sm btn-light" data-rich-command="bold" title="Negrita" aria-label="Negrita"><i class="fas fa-bold" aria-hidden="true"></i></button>
+                    <button type="button" class="btn btn-sm btn-light" data-rich-command="italic" title="Cursiva" aria-label="Cursiva"><i class="fas fa-italic" aria-hidden="true"></i></button>
+                    <button type="button" class="btn btn-sm btn-light" data-rich-command="insertUnorderedList" title="Lista" aria-label="Lista"><i class="fas fa-list-ul" aria-hidden="true"></i></button>
+                    <button type="button" class="btn btn-sm btn-light" data-rich-link="link" title="Link"><i class="fas fa-link me-1" aria-hidden="true"></i>Link</button>
+                    <button type="button" class="btn btn-sm btn-light" data-rich-link="button" title="Botón"><i class="far fa-square me-1" aria-hidden="true"></i>Botón</button>
+                    <button type="button" class="btn btn-sm btn-light" data-rich-command="unlink" title="Quitar link o botón" aria-label="Quitar link o botón"><i class="fas fa-unlink" aria-hidden="true"></i></button>
+                </div>
+                <div class="rich-link-form" data-rich-link-form hidden>
+                    <input class="form-control form-control-sm" type="text" data-rich-link-text placeholder="Texto" aria-label="Texto del link">
+                    <input class="form-control form-control-sm" type="url" data-rich-link-url placeholder="https://…" aria-label="Dirección del link">
+                    <button type="button" class="btn btn-sm btn-primary" data-rich-link-apply>Agregar</button>
+                    <button type="button" class="btn btn-sm btn-link" data-rich-link-cancel>Cancelar</button>
+                </div>
+                <div class="rich-content form-control" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="rich-editor-label" data-rich-content></div>
+            </div>
+            {{ form.message }}
+            {% for error in form.message.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+            <div class="form-text">{{ form.message.help_text }} Para un link o un botón, seleccioná el texto (o dejá el cursor donde va) y tocá «Link» o «Botón».</div>
+        </div>
+        <p class="form-text">La prueba te llega solo a vos, igual que le va a llegar a cada persona, y no queda registrada. El email va firmado con tu nombre y tu equipo, y no recibe respuestas: las consultas van por el grupo de WhatsApp o al contacto de ESTAFA.</p>
+        <div class="form-check mb-3">
+            {{ form.confirm }}
+            <label class="form-check-label" for="{{ form.confirm.id_for_label }}">Confirmo el envío a {{ targets|length }} propuesta{{ targets|length|pluralize }}</label>
+            {% for error in form.confirm.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+        </div>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <button class="btn btn-primary" type="submit"><i class="far fa-paper-plane me-1" aria-hidden="true"></i> Enviar a {{ targets|length }} propuesta{{ targets|length|pluralize }}</button>
+            <button class="btn btn-outline-primary" type="submit" name="action" value="test"><i class="far fa-envelope me-1" aria-hidden="true"></i> Enviarme una prueba</button>
+            <a class="btn btn-link" href="{{ list_url }}">Cancelar</a>
+        </div>
+    </form>
+    {% endif %}
+</div>
+<style>
+    .art-bulk-message .bulk-box { padding: 1rem; border: 1px solid #d8e6df; border-radius: .55rem; background: #fafcfb; }
+    .art-bulk-message .bulk-targets { max-height: 16rem; overflow: auto; }
+    .art-bulk-message .bulk-targets li { padding: .2rem 0; }
+    .rich-editor { border: 1px solid #ced4da; border-radius: .5rem; overflow: hidden; background: #fff; }
+    .rich-toolbar { display: flex; flex-wrap: wrap; gap: .25rem; padding: .4rem; border-bottom: 1px solid #e3e7ea; background: #f6f8f7; }
+    .rich-toolbar .btn { min-width: 2.25rem; min-height: 2.25rem; }
+    .rich-link-form { display: flex; flex-wrap: wrap; gap: .4rem; padding: .5rem; border-bottom: 1px solid #e3e7ea; background: #fafcfb; }
+    .rich-link-form[hidden] { display: none; }
+    .rich-link-form input { flex: 1 1 12rem; }
+    .rich-content { min-height: 14rem; border: 0; border-radius: 0; overflow-wrap: anywhere; }
+    .rich-content:focus { outline: 2px solid #86b7fe; outline-offset: -2px; box-shadow: none; }
+    .rich-content p { margin-bottom: .6rem; }
+    .rich-content a.msg-btn { display: inline-block; padding: .45rem 1rem; border-radius: .4rem; background: #198754; color: #fff; font-weight: 600; text-decoration: none; }
+</style>
+{% include 'art/_form_styles.html' %}
+{% include 'art/_messages.html' %}
+{% include 'art/_submit_guard.html' %}
+<script>
+// Editor mínimo: negrita, cursiva, lista, link y botón. El servidor vuelve a limpiar el HTML antes de usarlo.
+(function () {
+    var source = document.querySelector('textarea[data-rich-editor]');
+    var root = document.querySelector('[data-rich-editor-root]');
+    if (!source || !root) return;
+    var content = root.querySelector('[data-rich-content]');
+    var linkForm = root.querySelector('[data-rich-link-form]');
+    var textInput = root.querySelector('[data-rich-link-text]');
+    var urlInput = root.querySelector('[data-rich-link-url]');
+    var saved = null, linkKind = 'link';
+
+    // Lo que ya había (texto simple o HTML saneado que devolvió el servidor) entra al editor.
+    var initial = source.value;
+    if (initial && !/<(p|br|ul|ol|a|strong|em)\b/i.test(initial)) {
+        initial = initial.split(/\n{2,}/).map(function (block) {
+            var p = document.createElement('p');
+            p.textContent = block;
+            return p.outerHTML.replace(/\n/g, '<br>');
+        }).join('');
+    }
+    var parsed = new DOMParser().parseFromString(initial || '', 'text/html');
+    parsed.querySelectorAll('script,style,iframe,object,embed').forEach(function (node) { node.remove(); });
+    parsed.querySelectorAll('*').forEach(function (node) {
+        Array.prototype.slice.call(node.attributes).forEach(function (attr) {
+            var keep = node.tagName === 'A' && (attr.name === 'class' || (attr.name === 'href' && /^(https?:|mailto:)/i.test(attr.value)));
+            if (!keep) node.removeAttribute(attr.name);
+        });
+    });
+    content.innerHTML = parsed.body.innerHTML;
+    source.hidden = true;
+    root.hidden = false;
+    try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch (error) {}
+
+    function sync() { source.value = content.innerHTML; }
+    function saveSelection() {
+        var selection = window.getSelection();
+        saved = selection.rangeCount && content.contains(selection.anchorNode) ? selection.getRangeAt(0).cloneRange() : null;
+    }
+    function restoreSelection() {
+        content.focus();
+        var selection = window.getSelection();
+        if (saved) { selection.removeAllRanges(); selection.addRange(saved); }
+        else { selection.selectAllChildren(content); selection.collapseToEnd(); }
+    }
+    content.addEventListener('input', sync);
+    content.addEventListener('blur', sync);
+    content.addEventListener('paste', function (event) {
+        // Se pega como texto: el formato se pone con la barra.
+        event.preventDefault();
+        var text = (event.clipboardData || window.clipboardData).getData('text/plain');
+        document.execCommand('insertText', false, text);
+    });
+    root.querySelectorAll('[data-rich-command]').forEach(function (button) {
+        button.addEventListener('mousedown', function (event) { event.preventDefault(); });
+        button.addEventListener('click', function () {
+            content.focus();
+            document.execCommand(button.dataset.richCommand, false, null);
+            sync();
+        });
+    });
+    root.querySelectorAll('[data-rich-link]').forEach(function (button) {
+        button.addEventListener('mousedown', function (event) { event.preventDefault(); });
+        button.addEventListener('click', function () {
+            saveSelection();
+            linkKind = button.dataset.richLink;
+            textInput.value = saved ? saved.toString() : '';
+            urlInput.value = '';
+            root.querySelector('[data-rich-link-apply]').textContent = linkKind === 'button' ? 'Agregar botón' : 'Agregar link';
+            linkForm.hidden = false;
+            (textInput.value ? urlInput : textInput).focus();
+        });
+    });
+    function closeLinkForm() { linkForm.hidden = true; }
+    root.querySelector('[data-rich-link-cancel]').addEventListener('click', function () { closeLinkForm(); restoreSelection(); });
+    function applyLink() {
+        var url = urlInput.value.trim();
+        if (url && !/^(https?:\/\/|mailto:)/i.test(url)) url = 'https://' + url;
+        if (!url) { urlInput.focus(); return; }
+        var anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.textContent = textInput.value.trim() || url;
+        if (linkKind === 'button') anchor.className = 'msg-btn';
+        restoreSelection();
+        document.execCommand('insertHTML', false, anchor.outerHTML + (linkKind === 'button' ? '&nbsp;' : ''));
+        closeLinkForm();
+        sync();
+    }
+    root.querySelector('[data-rich-link-apply]').addEventListener('click', applyLink);
+    linkForm.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') { event.preventDefault(); applyLink(); }
+        if (event.key === 'Escape') { closeLinkForm(); restoreSelection(); }
+    });
+    source.form.addEventListener('submit', sync);
+})();
+</script>
+{% endblock %}

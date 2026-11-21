@@ -2,6 +2,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
+from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -599,3 +600,194 @@ class ArtTeamsTest(TestCase):
         self.assertEqual(self.client.post(self.decision_url, self.decision()).status_code, 403)
         self.assertEqual(self.client.get(reverse('art_grants_dashboard', args=[self.event.slug])).status_code, 403)
         self.assertEqual(self.client.get(reverse('art_grants_export', args=[self.event.slug])).status_code, 403)
+
+
+class BulkTeamMessageTest(TestCase):
+    """Un mismo mensaje al equipo de cada propuesta filtrada en un listado."""
+
+    def setUp(self):
+        now = timezone.now()
+        Event.objects.filter(is_main=True).update(is_main=False)
+        self.event = Event.objects.create(
+            name='FA Mensajes', slug='fa-mensajes', active=True, is_main=True,
+            start=now + timedelta(days=20), end=now + timedelta(days=24),
+            transfers_enabled_until=now + timedelta(days=10), header_image='events/heros/no-image.jpg',
+            title='FA', description='Evento', has_volunteers=True,
+        )
+        ArtProgram.objects.create(
+            event=self.event, is_current=True,
+            registration_opens=now - timedelta(days=30), registration_closes=now + timedelta(days=1),
+        )
+        self.users = {}
+        for slug in ('estafa', 'mad', 'becas'):
+            user = User.objects.create_user(username=f'bulk-{slug}', email=f'bulk-{slug}@example.com')
+            TeamMembership.objects.create(
+                team=Team.objects.get(slug=slug), user=user, started_on=now.date() - timedelta(days=30),
+            )
+            self.users[slug] = user
+        self.outsider = User.objects.create_user(username='bulk-otra', email='bulk-otra@example.com')
+        self.owners = [
+            User.objects.create_user(username=f'bulk-owner{index}', email=f'owner{index}@example.com')
+            for index in range(3)
+        ]
+        people = (self.outsider, *self.users.values(), *self.owners)
+        for index, user in enumerate(people, start=1):
+            user.profile.document_number = f'3000000{index}'
+            user.profile.phone = f'+54911000002{index:02d}'
+            user.profile.profile_completion = Profile.COMPLETE
+            user.profile.save()
+        self.faro = Artwork.objects.create(event=self.event, owner=self.owners[0], title='Faro', needs_mad_assistance=True)
+        self.faro.collaborators.add(self.owners[2])
+        self.nube = Artwork.objects.create(event=self.event, owner=self.owners[1], title='Nube')
+        self.url = reverse('art_bulk_message', args=[self.event.slug])
+
+    def _post(self, query, **data):
+        page = self.client.get(self.url + query)
+        payload = {
+            'subject': 'Abrieron las becas', 'message': 'Hola.\nYa pueden pedirla.', 'confirm': 'on',
+            'count': page.context['form'].initial['count'], 'batch': str(page.context['form'].initial['batch']),
+        }
+        payload.update(data)
+        return self.client.post(self.url + query, payload)
+
+    def test_outsiders_and_wrong_lists_are_refused(self):
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(self.url).status_code, 403)
+        self.client.force_login(self.users['mad'])
+        self.assertEqual(self.client.get(self.url).status_code, 403)
+        self.assertEqual(self.client.get(self.url + '?lista=mad').status_code, 200)
+
+    def test_lists_show_the_button_and_the_screen_counts_the_filtered(self):
+        self.client.force_login(self.users['estafa'])
+        dashboard = self.client.get(reverse('art_admin_dashboard', args=[self.event.slug]) + '?q=Faro')
+        self.assertContains(dashboard, 'Escribir a las filtradas')
+        self.assertContains(dashboard, 'mensaje/?lista=artworks&amp;q=Faro')
+        page = self.client.get(self.url + '?lista=artworks&q=Faro')
+        self.assertContains(page, 'Se lo vas a enviar a 1 propuesta')
+        self.assertContains(page, '(2 personas)')
+        self.assertContains(page, 'Enviar a 1 propuesta')
+        self.assertNotContains(page, 'Nube')
+        everything = self.client.get(self.url + '?lista=artworks')
+        self.assertContains(everything, 'Se lo vas a enviar a 2 propuestas')
+
+    def test_sends_one_email_per_person_in_bcc_and_records_the_message_on_every_artwork(self):
+        # Una misma persona en dos propuestas lo recibe una sola vez.
+        self.nube.collaborators.add(self.owners[0])
+        self.client.force_login(self.users['becas'])
+        mail.outbox.clear()
+        response = self._post('?lista=artworks')
+        self.assertRedirects(response, reverse('art_admin_dashboard', args=[self.event.slug]))
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.subject, 'Abrieron las becas')
+        self.assertEqual(sorted(message.bcc), ['owner0@example.com', 'owner1@example.com', 'owner2@example.com'])
+        self.assertEqual(len(message.to), 1)
+        self.assertNotIn('owner', message.to[0])
+        # No recibe respuestas ni muestra a quién más le llegó.
+        self.assertTrue(message.extra_headers['Reply-To'].startswith('no-reply@'))
+        self.assertNotIn('bulk-becas@example.com', str(message.extra_headers))
+        self.assertNotIn('owner1@example.com', message.body)
+        self.assertNotIn('Para contestarle', message.body)
+        self.assertIn('Este email no recibe respuestas', message.body)
+        self.assertIn('Mensaje de Becas', message.body)
+        self.assertIn('Ir a mis propuestas de Arte', message.body)
+        self.assertNotIn('Faro', message.body)
+        for artwork in (self.faro, self.nube):
+            entry = artwork.history.get(kind='message')
+            self.assertEqual(entry.actor, self.users['becas'])
+            self.assertEqual(entry.detail, 'Abrieron las becas\n\nHola.\nYa pueden pedirla.')
+
+    def test_message_html_is_sanitised_and_buttons_become_email_buttons(self):
+        self.client.force_login(self.users['estafa'])
+        mail.outbox.clear()
+        dirty = (
+            '<div onclick="steal()">Hola <b>equipo</b><script>alert(1)</script></div>'
+            '<p><a href="javascript:alert(1)">trampa</a> <a href="https://becas.example.com/reglas" style="x">Reglamento</a></p>'
+            '<p><a class="msg-btn" href="https://becas.example.com/pedir" onclick="x()">Pedir beca</a></p>'
+            '<ul><li>uno</li><li><i>dos</i></li></ul><img src="x" onerror="alert(2)">'
+        )
+        self._post('?lista=artworks', message=dirty)
+        body = mail.outbox[0].body
+        for forbidden in ('<script', 'alert(1)', 'onclick', 'javascript:', 'onerror', 'src="x"', 'steal()', 'style="x"'):
+            self.assertNotIn(forbidden, body)
+        self.assertIn('<strong>equipo</strong>', body)
+        self.assertIn('<em>dos</em>', body)
+        self.assertIn('href="https://becas.example.com/reglas"', body)
+        # El botón sale con el mismo armado que los botones de los emails del sitio.
+        self.assertRegex(body, r'(?s)<table[^>]*btn[^>]*>.*href="https://becas.example.com/pedir".*Pedir beca')
+        entry = self.faro.history.get(kind='message')
+        self.assertEqual(
+            entry.detail,
+            'Abrieron las becas\n\nHola equipo\n\ntrampa Reglamento (https://becas.example.com/reglas)\n\n'
+            'Pedir beca (https://becas.example.com/pedir)\n\n• uno\n• dos',
+        )
+        self.assertNotIn('<', entry.detail)
+        # Un mensaje que queda vacío al limpiarlo no se manda.
+        mail.outbox.clear()
+        response = self._post('?lista=artworks', message='<script>alert(1)</script><p> </p>')
+        self.assertContains(response, 'Escribí el mensaje.')
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_many_people_go_in_bcc_chunks(self):
+        from art import views
+        self.client.force_login(self.users['estafa'])
+        for index in range(100):
+            self.nube.collaborators.add(User.objects.create_user(username=f'bulk-extra{index}', email=f'extra{index:03d}@example.com'))
+        mail.outbox.clear()
+        self._post('?lista=artworks')
+        self.assertEqual([len(message.bcc) for message in mail.outbox], [45, 45, 13])
+        self.assertTrue(all(len(message.bcc) <= views.BULK_BCC_CHUNK for message in mail.outbox))
+        everyone = [email for message in mail.outbox for email in message.bcc]
+        self.assertEqual(len(everyone), len(set(everyone)))
+        self.assertEqual(self.nube.history.filter(kind='message').count(), 1)
+
+    def test_needs_confirmation_and_a_matching_count(self):
+        self.client.force_login(self.users['estafa'])
+        mail.outbox.clear()
+        response = self._post('?lista=artworks', confirm='')
+        self.assertContains(response, 'Confirmá el envío.')
+        response = self._post('?lista=artworks', count=5)
+        self.assertContains(response, 'El listado cambió: ahora son 2 propuestas')
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertFalse(self.faro.history.filter(kind='message').exists())
+
+    def test_double_submit_does_not_resend(self):
+        self.client.force_login(self.users['estafa'])
+        mail.outbox.clear()
+        page = self.client.get(self.url + '?lista=mad')
+        payload = {
+            'subject': 'MAD', 'message': 'Coordinamos.', 'confirm': 'on',
+            'count': page.context['form'].initial['count'], 'batch': str(page.context['form'].initial['batch']),
+        }
+        self.client.post(self.url + '?lista=mad', payload)
+        self.client.post(self.url + '?lista=mad', payload)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(sorted(mail.outbox[0].bcc), ['owner0@example.com', 'owner2@example.com'])
+        self.assertEqual(self.faro.history.filter(kind='message').count(), 1)
+        self.assertFalse(self.nube.history.filter(kind='message').exists())
+
+    def test_sends_a_test_only_to_the_sender(self):
+        self.client.force_login(self.users['estafa'])
+        mail.outbox.clear()
+        page = self.client.get(self.url + '?lista=artworks')
+        payload = {
+            'subject': 'Abrieron las becas', 'message': 'Hola a todos.', 'action': 'test',
+            'count': page.context['form'].initial['count'], 'batch': str(page.context['form'].initial['batch']),
+        }
+        response = self.client.post(self.url + '?lista=artworks', payload)
+        self.assertContains(response, 'Te mandamos una prueba a bulk-estafa@example.com.')
+        self.assertContains(response, 'value="Abrieron las becas"')
+        self.assertContains(response, 'Hola a todos.')
+        self.assertNotContains(response, 'Confirmá el envío.')
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['bulk-estafa@example.com'])
+        self.assertEqual(mail.outbox[0].subject, 'Abrieron las becas')
+        self.assertEqual(mail.outbox[0].bcc, [])
+        self.assertIn('Hola a todos.', mail.outbox[0].body)
+        self.assertIn('Este email no recibe respuestas', mail.outbox[0].body)
+        self.assertFalse(self.faro.history.filter(kind='message').exists())
+        # La prueba no gasta el envío: el mismo lote se manda después a todas las personas.
+        self.client.post(self.url + '?lista=artworks', {**payload, 'action': '', 'confirm': 'on'})
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertEqual(len(mail.outbox[1].bcc), 3)
+        self.assertEqual(self.faro.history.filter(kind='message').count(), 1)
