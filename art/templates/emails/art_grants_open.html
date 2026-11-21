@@ -1,0 +1,19 @@
+{% extends "emails/base.html" %}
+{% block subject %}Ya podés pedir tu Beca de Arte · {{ event.name|safe }}{% endblock %}
+{% block title %}Abrió la solicitud de Becas de Arte{% endblock %}
+{% block content %}
+<p>¡Hola! 🔥</p>
+<p>Les contamos que ya está habilitada la solicitud de <strong>Becas de Arte</strong> de {{ event.name }}.</p>
+<p>Quienes quieran pedir una beca encuentran el botón de solicitud dentro de la inscripción de su obra.</p>
+{% if program.grant_deadline %}<p>📅 <strong>Fecha límite para presentar solicitudes: {{ program.grant_deadline|date:"j \d\e F \d\e Y" }}.</strong></p>{% endif %}
+{% include "emails/partials/btn.html" with href=art_path label="Ir a mis propuestas de Arte" %}
+{% if program.grant_program_url or program.grant_rules_url %}
+<p>Acá está toda la información sobre requisitos, condiciones y proceso de asignación:</p>
+<ul>
+{% if program.grant_program_url %}<li><a href="{{ program.grant_program_url }}">Programa de Becas</a></li>{% endif %}
+{% if program.grant_rules_url %}<li><a href="{{ program.grant_rules_url }}">Reglamento de Becas</a></li>{% endif %}
+</ul>
+{% endif %}
+<p>Cualquier consulta, pregunten por el grupo de WhatsApp a {{ contacts_sentence }}.</p>
+<p>¡Saludos!</p>
+{% endblock %}
