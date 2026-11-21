@@ -9,7 +9,7 @@
     {% else %}
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
         <div><p class="text-uppercase text-muted small fw-semibold mb-1">{{ event.name }}</p><h2 class="h3 mb-1">Propuestas de Arte</h2><p class="text-muted mb-0">Inscripción, seguimiento y checkout de cada propuesta.</p></div>
-        <a class="btn btn-outline-primary" href="{% url 'art_admin_export' event.slug %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"><i class="fas fa-download me-1" aria-hidden="true"></i> Exportar CSV</a>
+        <div class="d-flex flex-wrap gap-2">{% if can_message_teams %}<a class="btn btn-outline-primary" href="{% url 'art_bulk_message' event.slug %}?lista=artworks{% if request.GET %}&amp;{{ request.GET.urlencode }}{% endif %}"><i class="far fa-envelope me-1" aria-hidden="true"></i> Escribir a las filtradas</a>{% endif %}<a class="btn btn-outline-primary" href="{% url 'art_admin_export' event.slug %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"><i class="fas fa-download me-1" aria-hidden="true"></i> Exportar CSV</a></div>
     </div>
 
     <form method="get" class="art-filters mb-3" id="art-filters" aria-label="Filtros de propuestas">
